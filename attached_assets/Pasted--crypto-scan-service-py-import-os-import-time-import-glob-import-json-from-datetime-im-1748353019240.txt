@@ -1,0 +1,58 @@
+# === crypto_scan_service.py ===
+import os
+import time
+import glob
+import json
+from datetime import datetime, timedelta
+from dotenv import load_dotenv
+
+# === Load ENV ===
+load_dotenv()
+from utils.telegram_bot import send_alert
+from utils.data_fetchers import get_symbols_cached, get_market_data
+from utils.stage_detectors import (
+    detect_stage_minus2,
+    detect_stage_minus2_2,
+    detect_stage_minus1,
+    detect_stage_1g,
+)
+from utils.scoring import compute_ppwcs, should_alert, log_ppwcs_score
+from utils.gpt_feedback.py import send_report_to_chatgpt
+from utils.reports import save_stage_signal, save_conditional_reports, compress_reports_to_zip
+
+# === Wait for next 15m candle ===
+def wait_for_next_candle():
+    now = datetime.utcnow()
+    next_quarter = (now.minute // 15 + 1) * 15 % 60
+    next_time = now.replace(minute=next_quarter, second=5, microsecond=0)
+    if next_quarter == 0:
+        next_time += timedelta(hours=1)
+    time.sleep((next_time - now).total_seconds())
+
+# === Main scan cycle ===
+def scan_cycle():
+    print(f\"\\n🔁 Start scan: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC\")
+    symbols = get_symbols_cached()
+    for symbol in symbols:
+        try:
+            data = get_market_data(symbol)
+            stage2_pass, signals, inflow = detect_stage_minus2(symbol, data)
+            event_tags = detect_stage_minus2_2(symbol)
+            compressed = detect_stage_minus1(signals)
+            stage1g_active = detect_stage_1g(symbol, data, event_tags)
+            score = compute_ppwcs(symbol, signals, compressed, stage1g_active, event_tags)
+            log_ppwcs_score(symbol, score)
+            save_stage_signal(symbol, score, stage2_pass, compressed, stage1g_active)
+            if should_alert(symbol, score):
+                send_alert(f\"🚀 *{symbol}* – PPWCS: {score}\\n#PrePump Detected\")
+                if score >= 80:
+                    send_report_to_chatgpt(symbol, signals, score)
+        except Exception as e:
+            print(f\"❌ Error in {symbol}: {e}\")
+    save_conditional_reports()
+    compress_reports_to_zip()
+
+# === Loop forever ===
+while True:
+    scan_cycle()
+    wait_for_next_candle()
