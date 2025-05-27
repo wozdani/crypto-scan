@@ -1,3 +1,10 @@
+Plik: utils/token_map_builder.py
+Zamienia symbol → chain + address przy użyciu CoinGecko:
+
+✅ Kod token_map_builder.py (CoinGecko Edition):
+python
+Kopiuj
+Edytuj
 import requests
 import json
 
@@ -52,7 +59,7 @@ def save_token_map_to_json(symbols: list[str], filename="token_contract_map.json
         json.dump(token_map, f, indent=2)
     print(f"✅ Zapisano mapę tokenów do {filename}")
 
-# Przykład użycia:
+# Przykład użycia
 if __name__ == "__main__":
     from utils.data_fetchers import get_symbols_cached
     symbols = get_symbols_cached()
