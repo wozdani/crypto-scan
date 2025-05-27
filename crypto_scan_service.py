@@ -63,16 +63,20 @@ def scan_cycle():
             })
             
             if should_alert(symbol, score):
-                alert_message = format_alert(symbol, score, event_tags, compressed, stage1g_active)
-                send_alert(alert_message)
-                print(f"📢 Alert sent for {symbol} with score {score}")
+                gpt_analysis = None
                 
+                # Get GPT analysis for high scores first
                 if score >= 80:
                     try:
-                        send_report_to_chatgpt(symbol, signals, score)
-                        print(f"🤖 ChatGPT analysis sent for {symbol}")
+                        gpt_analysis = send_report_to_chatgpt(symbol, signals, score)
+                        print(f"🤖 ChatGPT analysis completed for {symbol}")
                     except Exception as gpt_error:
                         print(f"⚠️ ChatGPT analysis failed for {symbol}: {gpt_error}")
+                
+                # Send alert with GPT analysis if available
+                alert_message = format_alert(symbol, score, event_tags, compressed, stage1g_active, gpt_analysis)
+                send_alert(alert_message)
+                print(f"📢 Alert sent for {symbol} with score {score}")
                         
         except Exception as e:
             print(f"❌ Error scanning {symbol}: {e}")

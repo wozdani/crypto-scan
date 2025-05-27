@@ -85,8 +85,8 @@ def send_error_alert(error_message, context=""):
         formatted_message += f"\n\n*Context:* {context}"
     return send_alert(formatted_message)
 
-def format_alert(symbol, score, tags, compressed, stage1g_active):
-    """Format alert message with detailed information"""
+def format_alert(symbol, score, tags, compressed, stage1g_active, gpt_analysis=None):
+    """Format alert message with detailed information and optional GPT analysis"""
     tag_line = ", ".join(tags) if tags else "Brak"
     compression_status = "✅" if compressed.get('momentum', False) and compressed.get('technical_alignment', False) else "❌"
     stage1g_status = "✅" if stage1g_active else "❌"
@@ -94,9 +94,23 @@ def format_alert(symbol, score, tags, compressed, stage1g_active):
     message = f"""🚨 *{symbol}* – *PPWCS: {score}*
 *Tags:* `{tag_line}`
 *Compressed:* {compression_status}
-*Stage 1g:* {stage1g_status}
+*Stage 1g:* {stage1g_status}"""
 
-#PrePumpAlert"""
+    # Add GPT analysis if available
+    if gpt_analysis and score >= 80:
+        risk = gpt_analysis.get('risk_assessment', 'Unknown')
+        confidence = gpt_analysis.get('confidence_level', 0)
+        prediction = gpt_analysis.get('price_prediction', 'Unknown')
+        entry = gpt_analysis.get('entry_recommendation', 'Unknown')
+        
+        message += f"""
+
+🤖 *AI Analysis:*
+*Risk:* {risk} | *Confidence:* {confidence}%
+*Prediction:* {prediction}
+*Entry:* {entry}"""
+
+    message += "\n\n#PrePumpAlert"
     
     return message.strip()
 
