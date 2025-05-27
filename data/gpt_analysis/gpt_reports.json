@@ -57,5 +57,34 @@
       "summary": "BTC shows strong pre-pump indicators with a high PPWCS score and supportive technical signals. The immediate entry is recommended due to the low-risk assessment and bullish short-term outlook. Monitor for any sudden market news that could alter the trajectory."
     },
     "timestamp": "2025-05-27T14:40:20.996277"
+  },
+  {
+    "symbol": "ETH",
+    "score": 92.0,
+    "analysis": {
+      "symbol": "ETH",
+      "risk_assessment": "low",
+      "confidence_level": 90,
+      "key_indicators": [
+        "volume_spike",
+        "price_stability",
+        "accumulation_pattern",
+        "market_cap_growth"
+      ],
+      "price_prediction": "bullish",
+      "time_horizon": "short_term",
+      "entry_recommendation": "immediate",
+      "risk_factors": [
+        "market_volatility",
+        "regulatory_changes"
+      ],
+      "supporting_evidence": [
+        "High PPWCS Score",
+        "Strong accumulation pattern",
+        "Consistent market cap growth"
+      ],
+      "summary": "Today is 2025-05-27. ETH exhibits strong pre-pump signals with a high PPWCS score and multiple supportive technical indicators, suggesting a bullish short-term outlook. Immediate entry is recommended, but monitor for market volatility and regulatory changes."
+    },
+    "timestamp": "2025-05-27T14:41:31.990521"
   }
 ]

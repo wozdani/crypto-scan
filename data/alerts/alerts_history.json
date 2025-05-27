@@ -10,5 +10,11 @@
     "message": "\ud83d\udea8 *BTC* \u2013 *PPWCS: 88.5*\n*Tags:* `volume_breakout, ascending_triangle, whale_accumulation`\n*Compressed:* \u2705\n*Stage 1g:* \u2705\n\n\ud83e\udd16 *AI Analysis:*\n*Risk:* low | *Confidence:* 95%\n*Prediction:* bullish\n*Entry:* immediate\n\n#PrePumpAlert",
     "status": "success",
     "error": null
+  },
+  {
+    "timestamp": "2025-05-27T14:41:32.373223",
+    "message": "\ud83d\udea8 *ETH* \u2013 *PPWCS: 92.0*\n*Tags:* `whale_accumulation, volume_spike, breakout_pattern`\n*Compressed:* \u2705\n*Stage 1g:* \u2705\n\n\ud83e\udd16 *AI Analysis:*\n*Risk:* low | *Confidence:* 90%\n*Prediction:* bullish\n*Entry:* immediate\n\n#PrePumpAlert",
+    "status": "success",
+    "error": null
   }
 ]
