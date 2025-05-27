@@ -11,46 +11,49 @@ load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
-def send_report_to_chatgpt(symbol, signals, score):
-    """
-    Send detailed analysis report to ChatGPT for high-score symbols (≥80)
-    """
+PROMPT_TEMPLATE = """
+Oceń jakość sygnału pre-pump dla tokena {symbol}. Dane wejściowe:
+- PPWCS: {score}
+- Tags: {tags}
+- Compressed: {compressed}
+- Stage 1g: {stage1g}
+
+Oceń strukturę: czy wygląda na dojrzałą do wybicia? Czy jest ryzyko false breakout? Czy zalecasz wejście, obserwację czy wstrzymanie się?
+
+Zwróć 2–4 zdania w języku polskim, ton ekspercki, zwięzły, ale stanowczy.
+"""
+
+def send_report_to_chatgpt(symbol: str, tags: list, score: float, compressed: bool, stage1g: bool) -> str:
     if not openai_client:
         print("⚠️ OpenAI API key not configured")
-        return None
+        return "⚠️ Brak konfiguracji OpenAI API."
         
     try:
-        # Prepare analysis prompt
-        prompt = create_analysis_prompt(symbol, signals, score)
-        
-        # Send to ChatGPT
+        prompt = PROMPT_TEMPLATE.format(
+            symbol=symbol,
+            score=score,
+            tags=", ".join(tags),
+            compressed="tak" if compressed else "nie",
+            stage1g="tak" if stage1g else "nie"
+        )
+
         response = openai_client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {
-                    "role": "system", 
-                    "content": "You are an expert cryptocurrency analyst specializing in pre-pump detection. Provide concise, actionable analysis based on the technical data provided. Respond in JSON format."
-                },
-                {
-                    "role": "user", 
-                    "content": prompt
-                }
+                {"role": "system", "content": "Jesteś ekspertem rynku kryptowalut specjalizującym się w analizie sygnałów pre-pump."},
+                {"role": "user", "content": prompt}
             ],
-            response_format={"type": "json_object"},
-            max_tokens=1000,
+            max_tokens=300,
             temperature=0.3
         )
-        
-        # Parse and save response
-        analysis = json.loads(response.choices[0].message.content)
-        save_gpt_analysis(symbol, analysis, score)
-        
+
+        gpt_reply = response.choices[0].message.content.strip()
         print(f"🤖 ChatGPT analysis completed for {symbol}")
-        return analysis
-        
+        return gpt_reply
+
     except Exception as e:
-        print(f"❌ Error sending report to ChatGPT for {symbol}: {e}")
-        return None
+        print(f"GPT error: {e}")
+        return "⚠️ Błąd podczas generowania analizy GPT."
 
 def create_analysis_prompt(symbol, signals, score):
     """

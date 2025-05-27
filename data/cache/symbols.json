@@ -1,4 +1,35 @@
 {
-  "timestamp": "2024-01-01T00:00:00",
-  "symbols": []
+  "timestamp": "2025-05-27T14:49:40.265453",
+  "symbols": [
+    "BTC",
+    "ETH",
+    "BNB",
+    "XRP",
+    "ADA",
+    "DOGE",
+    "SOL",
+    "TRX",
+    "DOT",
+    "MATIC",
+    "LTC",
+    "SHIB",
+    "AVAX",
+    "UNI",
+    "LINK",
+    "XLM",
+    "BCH",
+    "ATOM",
+    "VET",
+    "FIL",
+    "ETC",
+    "XMR",
+    "ALGO",
+    "MANA",
+    "SAND",
+    "CRO",
+    "FTM",
+    "NEAR",
+    "GRT",
+    "LRC"
+  ]
 }
