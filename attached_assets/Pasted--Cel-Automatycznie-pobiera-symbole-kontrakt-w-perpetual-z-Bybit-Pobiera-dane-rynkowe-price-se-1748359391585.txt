@@ -1,3 +1,24 @@
+🎯 Cel:
+
+Automatycznie pobiera symbole kontraktów perpetual z Bybit
+
+Pobiera dane rynkowe: price, sentiment, mempool, whale activity, orderbook
+
+📦 WYMAGANE ZMIENNE .env:
+ini
+Kopiuj
+Edytuj
+CRYPTOCOMPARE_API_KEY=...
+ETHERSCAN_API_KEY=...
+BSCSCAN_API_KEY=...
+POLYGONSCAN_API_KEY=...
+ARBISCAN_API_KEY=...
+OPTIMISMSCAN_API_KEY=...
+TRONGRID_API_KEY=...
+✅ Kod utils/data_fetchers.py:
+python
+Kopiuj
+Edytuj
 import requests
 import time
 import random
@@ -67,52 +88,9 @@ def get_orderbook_data(symbol: str) -> dict:
         "bid_ask_ratio": round(random.uniform(0.8, 1.2), 2),
         "spoofing": random.choice([True, False])
     }
+📌 UWAGI:
+Funkcja get_symbols_cached() pobiera realne dane z Bybit
 
-# === COMPATIBILITY FUNCTIONS FOR EXISTING CODE ===
+get_market_data() zawiera strukturę docelową
 
-def fetch_top_symbols():
-    """Fetch top cryptocurrency symbols from Bybit"""
-    return get_symbols_cached()
-
-def get_fallback_symbols():
-    """Return fallback symbol list"""
-    return ["DOGEUSDT", "FLOKIUSDT", "PEPEUSDT", "SHIBUSDT", "BTCUSDT", "ETHUSDT"]
-
-def get_historical_data(symbol, days=30):
-    """Get historical price data"""
-    try:
-        # Placeholder for historical data
-        return {
-            "prices": [random.uniform(0.00001, 0.2) for _ in range(days)],
-            "volumes": [random.uniform(1000, 100000) for _ in range(days)],
-            "timestamps": list(range(days))
-        }
-    except Exception as e:
-        print(f"❌ Error getting historical data for {symbol}: {e}")
-        return {"prices": [], "volumes": [], "timestamps": []}
-
-def get_blockchain_data(symbol):
-    """Get blockchain-specific data for supported networks"""
-    try:
-        # Placeholder for blockchain data
-        return {
-            "network": "ethereum",
-            "contract_address": "0x" + "0" * 40,
-            "holders": random.randint(1000, 50000),
-            "transactions_24h": random.randint(100, 5000)
-        }
-    except Exception as e:
-        print(f"❌ Error getting blockchain data for {symbol}: {e}")
-        return {}
-
-def get_ethereum_data(symbol):
-    """Get Ethereum blockchain data"""
-    return get_blockchain_data(symbol)
-
-def get_bsc_data(symbol):
-    """Get Binance Smart Chain data"""
-    return get_blockchain_data(symbol)
-
-def get_polygon_data(symbol):
-    """Get Polygon network data"""
-    return get_blockchain_data(symbol)
+Funkcje get_price_data, get_sentiment, itd. mają placeholdery – podmienimy na prawdziwe źródła później (Dexscreener, CryptoCompare itd.)
