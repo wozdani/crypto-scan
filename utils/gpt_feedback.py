@@ -1,16 +1,14 @@
 import os
 import json
-from datetime import datetime
-from openai import OpenAI
+from datetime import datetime, timedelta
+import openai
 from dotenv import load_dotenv
 
+# Załaduj API Key z .env
 load_dotenv()
+client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
-# do not change this unless explicitly requested by the user
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
-
+# Szablon promptu
 PROMPT_TEMPLATE = """
 Oceń jakość sygnału pre-pump dla tokena {symbol}. Dane wejściowe:
 - PPWCS: {score}
@@ -23,11 +21,7 @@ Oceń strukturę: czy wygląda na dojrzałą do wybicia? Czy jest ryzyko false b
 Zwróć 2–4 zdania w języku polskim, ton ekspercki, zwięzły, ale stanowczy.
 """
 
-def send_report_to_chatgpt(symbol: str, tags: list, score: float, compressed: bool, stage1g: bool) -> str:
-    if not openai_client:
-        print("⚠️ OpenAI API key not configured")
-        return "⚠️ Brak konfiguracji OpenAI API."
-        
+def send_report_to_chatgpt(symbol: str, tags: list[str], score: float, compressed: bool, stage1g: bool) -> str:
     try:
         prompt = PROMPT_TEMPLATE.format(
             symbol=symbol,
@@ -37,101 +31,20 @@ def send_report_to_chatgpt(symbol: str, tags: list, score: float, compressed: bo
             stage1g="tak" if stage1g else "nie"
         )
 
-        response = openai_client.chat.completions.create(
-            model="gpt-4o",
+        response = client.chat.completions.create(
+            model="gpt-4",
             messages=[
                 {"role": "system", "content": "Jesteś ekspertem rynku kryptowalut specjalizującym się w analizie sygnałów pre-pump."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=300,
-            temperature=0.3
+            timeout=15
         )
 
-        gpt_reply = response.choices[0].message.content.strip()
-        print(f"🤖 ChatGPT analysis completed for {symbol}")
-        return gpt_reply
+        return response.choices[0].message.content.strip()
 
     except Exception as e:
         print(f"GPT error: {e}")
         return "⚠️ Błąd podczas generowania analizy GPT."
-
-def create_analysis_prompt(symbol, signals, score):
-    """
-    Create detailed analysis prompt for ChatGPT
-    """
-    prompt = f"""
-    Analyze the following cryptocurrency pre-pump detection data for {symbol}:
-
-    PPWCS Score: {score}/100
-
-    Technical Signals:
-    {json.dumps(signals, indent=2)}
-
-    Current timestamp: {datetime.utcnow().isoformat()}
-
-    Please provide analysis in the following JSON format:
-    {{
-        "symbol": "{symbol}",
-        "risk_assessment": "low|medium|high",
-        "confidence_level": 0-100,
-        "key_indicators": ["list", "of", "important", "signals"],
-        "price_prediction": "bullish|bearish|neutral",
-        "time_horizon": "short_term|medium_term|long_term",
-        "entry_recommendation": "immediate|wait|avoid",
-        "risk_factors": ["potential", "risks"],
-        "supporting_evidence": ["evidence", "points"],
-        "summary": "Brief 2-3 sentence summary"
-    }}
-
-    Focus on:
-    1. Technical signal strength and reliability
-    2. Market timing considerations
-    3. Risk/reward assessment
-    4. Entry and exit strategies
-    5. Potential false positive indicators
-    """
-    
-    return prompt
-
-def save_gpt_analysis(symbol, analysis, score):
-    """
-    Save ChatGPT analysis to file
-    """
-    try:
-        analysis_entry = {
-            'symbol': symbol,
-            'score': score,
-            'analysis': analysis,
-            'timestamp': datetime.utcnow().isoformat()
-        }
-        
-        # Ensure directory exists
-        os.makedirs("data/gpt_analysis", exist_ok=True)
-        
-        # Load existing analyses or create new list
-        analysis_file = "data/gpt_analysis/gpt_reports.json"
-        if os.path.exists(analysis_file):
-            with open(analysis_file, 'r') as f:
-                analyses = json.load(f)
-        else:
-            analyses = []
-            
-        analyses.append(analysis_entry)
-        
-        # Keep only last 500 analyses
-        if len(analyses) > 500:
-            analyses = analyses[-500:]
-            
-        with open(analysis_file, 'w') as f:
-            json.dump(analyses, f, indent=2)
-            
-        # Also save individual report file
-        report_filename = f"data/gpt_analysis/{symbol}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
-        with open(report_filename, 'w') as f:
-            json.dump(analysis_entry, f, indent=2)
-            
-    except Exception as e:
-        print(f"❌ Error saving GPT analysis for {symbol}: {e}")
 
 def get_recent_gpt_analyses(hours=24, limit=10):
     """
@@ -145,7 +58,6 @@ def get_recent_gpt_analyses(hours=24, limit=10):
         with open(analysis_file, 'r') as f:
             analyses = json.load(f)
             
-        from datetime import timedelta
         cutoff_time = datetime.utcnow() - timedelta(hours=hours)
         
         recent_analyses = []
@@ -157,7 +69,6 @@ def get_recent_gpt_analyses(hours=24, limit=10):
             except:
                 continue
                 
-        # Sort by timestamp (newest first) and limit results
         recent_analyses.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
         return recent_analyses[:limit]
         
@@ -165,83 +76,13 @@ def get_recent_gpt_analyses(hours=24, limit=10):
         print(f"❌ Error getting recent GPT analyses: {e}")
         return []
 
-def analyze_market_sentiment(symbol_list):
-    """
-    Analyze overall market sentiment for multiple symbols
-    """
-    if not openai_client:
-        print("⚠️ OpenAI API key not configured")
-        return None
-        
-    try:
-        prompt = f"""
-        Analyze the current cryptocurrency market sentiment for these symbols: {', '.join(symbol_list[:20])}
-        
-        Consider:
-        1. Overall market trends
-        2. Sector performance
-        3. Risk factors
-        4. Opportunities
-        
-        Provide analysis in JSON format:
-        {{
-            "overall_sentiment": "bullish|bearish|neutral",
-            "market_phase": "accumulation|distribution|trending|consolidation",
-            "risk_level": "low|medium|high",
-            "top_opportunities": ["symbol1", "symbol2"],
-            "symbols_to_avoid": ["symbol1", "symbol2"],
-            "key_factors": ["factor1", "factor2"],
-            "summary": "Brief market overview"
-        }}
-        """
-        
-        response = openai_client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a professional cryptocurrency market analyst. Provide objective market analysis based on current trends."
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            response_format={"type": "json_object"},
-            max_tokens=800,
-            temperature=0.4
-        )
-        
-        market_analysis = json.loads(response.choices[0].message.content)
-        
-        # Save market sentiment analysis
-        sentiment_entry = {
-            'analysis': market_analysis,
-            'symbols_analyzed': symbol_list[:20],
-            'timestamp': datetime.utcnow().isoformat()
-        }
-        
-        os.makedirs("data/market_sentiment", exist_ok=True)
-        sentiment_file = f"data/market_sentiment/sentiment_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
-        with open(sentiment_file, 'w') as f:
-            json.dump(sentiment_entry, f, indent=2)
-            
-        return market_analysis
-        
-    except Exception as e:
-        print(f"❌ Error analyzing market sentiment: {e}")
-        return None
-
 def test_openai_connection():
     """
     Test OpenAI API connection
     """
-    if not openai_client:
-        return False, "API key not configured"
-        
     try:
-        response = openai_client.chat.completions.create(
-            model="gpt-4o",
+        response = client.chat.completions.create(
+            model="gpt-4",
             messages=[{"role": "user", "content": "Hello, respond with 'Connection successful'"}],
             max_tokens=50
         )
@@ -253,3 +94,4 @@ def test_openai_connection():
             
     except Exception as e:
         return False, str(e)
+
