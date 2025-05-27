@@ -85,6 +85,21 @@ def send_error_alert(error_message, context=""):
         formatted_message += f"\n\n*Context:* {context}"
     return send_alert(formatted_message)
 
+def format_alert(symbol, score, tags, compressed, stage1g_active):
+    """Format alert message with detailed information"""
+    tag_line = ", ".join(tags) if tags else "Brak"
+    compression_status = "✅" if compressed.get('momentum', False) and compressed.get('technical_alignment', False) else "❌"
+    stage1g_status = "✅" if stage1g_active else "❌"
+
+    message = f"""🚨 *{symbol}* – *PPWCS: {score}*
+*Tags:* `{tag_line}`
+*Compressed:* {compression_status}
+*Stage 1g:* {stage1g_status}
+
+#PrePumpAlert"""
+    
+    return message.strip()
+
 def test_telegram_connection():
     """Test Telegram bot connection"""
     if not TELEGRAM_BOT_TOKEN:

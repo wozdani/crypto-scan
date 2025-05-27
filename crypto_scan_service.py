@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 # === Load ENV ===
 load_dotenv()
-from utils.telegram_bot import send_alert
+from utils.telegram_bot import send_alert, format_alert
 from utils.data_fetchers import get_symbols_cached, get_market_data
 from utils.stage_detectors import (
     detect_stage_minus2,
@@ -63,7 +63,7 @@ def scan_cycle():
             })
             
             if should_alert(symbol, score):
-                alert_message = f"🚀 *{symbol}* – PPWCS: {score}\n#PrePump Detected"
+                alert_message = format_alert(symbol, score, event_tags, compressed, stage1g_active)
                 send_alert(alert_message)
                 print(f"📢 Alert sent for {symbol} with score {score}")
                 
