@@ -178,6 +178,8 @@ def detect_stage_minus2_1(symbol):
         "event_tag": None,
         "event_score": 0,
         "event_risk": False,
+        "stage1g_active": False,
+        "stage1g_trigger_type": None,
     }
 
     # Social spike detection
@@ -212,7 +214,9 @@ def detect_stage_minus2_1(symbol):
         inflow = 0.0
 
     # Stage 1G detection with news tag integration
-    stage1g_active = detect_stage_1g(symbol, data, signals["event_tag"])
+    stage1g_active, trigger_type = detect_stage_1g(symbol, data, signals["event_tag"])
+    signals["stage1g_active"] = stage1g_active
+    signals["stage1g_trigger_type"] = trigger_type
     
     # Finalna decyzja: aktywowany jeśli co najmniej 1 aktywny sygnał boolean
     boolean_signals = [
