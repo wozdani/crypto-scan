@@ -15,6 +15,7 @@ def get_token_price_usd(symbol):
 
         url = f"https://api.coingecko.com/api/v3/simple/price?ids={token_id}&vs_currencies=usd"
         res = requests.get(url, timeout=10)
+        res.raise_for_status()
         data = res.json()
         return data[token_id]["usd"]
     except Exception as e:
