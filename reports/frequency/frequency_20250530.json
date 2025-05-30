@@ -1,7 +1,7 @@
 {
   "report_type": "alert_frequency",
   "period": "7_days",
-  "generated_at": "2025-05-30T16:30:05.326404",
+  "generated_at": "2025-05-30T16:40:22.949619",
   "total_alerts": 8,
   "unique_symbols": 3,
   "symbol_frequencies": [
