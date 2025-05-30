@@ -15,6 +15,10 @@ author = "agent"
 task = "workflow.run"
 args = "Crypto Scanner"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Crypto Scanner Service"
+
 [[workflows.workflow]]
 name = "Crypto Scanner"
 author = "agent"
@@ -23,6 +27,14 @@ author = "agent"
 task = "shell.exec"
 args = "uv run python app.py"
 waitForPort = 5000
+
+[[workflows.workflow]]
+name = "Crypto Scanner Service"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python crypto_scan_service.py"
 
 [deployment]
 run = ["sh", "-c", "uv run python app.py"]
