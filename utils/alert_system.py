@@ -1,9 +1,14 @@
 import os
 import json
 import requests
+import time
 from datetime import datetime, timedelta
 from utils.take_profit_engine import forecast_take_profit_levels, calculate_risk_reward_ratio
 from utils.alert_utils import get_alert_level, get_alert_level_text, should_send_telegram_alert, should_request_gpt_analysis
+
+# Global tracking for trailing scores and alert timing
+trailing_scores = {}  # symbol → poprzedni PPWCS score
+last_alert_time = {}  # symbol → timestamp ostatniego alertu
 
 COOLDOWN_FILE = os.path.join("data", "cooldown_tracker.json")
 COOLDOWN_MINUTES = 60
@@ -107,24 +112,43 @@ Position Size: {risk_reward['recommended_position_size']}
     return alert_text.strip()
 
 def send_telegram_alert(token, ppwcs_score, stage_signals, tp_forecast, stage1g_trigger_type=None):
-    """Enhanced Telegram alert with Polish formatting"""
+    """Enhanced Telegram alert with Polish formatting and trailing score logic"""
+    global trailing_scores, last_alert_time
+    
     try:
         alert_level = get_alert_level(ppwcs_score)
+        now = time.time()
+        
+        # Check 60-minute cooldown
+        if token in last_alert_time and now - last_alert_time[token] < 3600:
+            print(f"⏱️ {token} jest na cooldownie, pomijam alert.")
+            return False
+        
+        # Trailing score logic - require meaningful increase for non-strong alerts
+        previous_score = trailing_scores.get(token, 0)
+        score_increase = ppwcs_score - previous_score
+        trailing_scores[token] = ppwcs_score
         
         if not should_send_telegram_alert(alert_level):
             return False  # Score too low for alerts
-
-        if check_cooldown(token):
-            print(f"⏱️ {token} jest na cooldownie, pomijam alert.")
+            
+        # For non-strong alerts, require at least 5-point increase
+        if alert_level != "strong" and score_increase < 5:
+            print(f"📊 {token}: Score increase {score_increase} too small for {alert_level} alert")
             return False
+
+        last_alert_time[token] = now
 
         alert_level_text = get_alert_level_text(alert_level)
         active_signals = [k for k, v in stage_signals.items() if v and isinstance(v, bool)]
         signals_text = ', '.join(active_signals) if active_signals else "None"
 
+        # Enhanced message format with score tracking
+        score_change_text = f" (+{score_increase})" if score_increase > 0 else ""
+        
         text = f"""{alert_level_text}
 📈 Token: *{token}*
-🧠 Score: *{ppwcs_score} / 100*
+🧠 Score: *{ppwcs_score}{score_change_text} / 100*
 
 🎯 TP Forecast:
 • TP1: +{tp_forecast['TP1']}%
