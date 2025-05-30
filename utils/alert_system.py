@@ -189,7 +189,8 @@ def process_alert(token, ppwcs_score, signals, gpt_analysis=None):
         success = send_telegram_alert(token, ppwcs_score, signals, tp_forecast, stage1g_trigger_type)
         
         # Add GPT analysis as follow-up message for strong alerts
-        if success and ppwcs_score >= 80 and gpt_analysis:
+        alert_level = get_alert_level(ppwcs_score)
+        if success and should_request_gpt_analysis(alert_level) and gpt_analysis:
             try:
                 bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
                 chat_id = os.getenv('TELEGRAM_CHAT_ID')
@@ -206,7 +207,6 @@ def process_alert(token, ppwcs_score, signals, gpt_analysis=None):
                 pass  # GPT follow-up is optional
         
         if success:
-            alert_level, _ = determine_alert_level(ppwcs_score)
             print(f"📢 {alert_level.upper()} sent for {token} (Score: {ppwcs_score})")
             return True
         else:

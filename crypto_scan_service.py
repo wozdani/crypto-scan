@@ -64,11 +64,16 @@ def scan_cycle():
             })
             
             # Process alerts using the comprehensive alert system
+            from utils.alert_utils import get_alert_level, should_request_gpt_analysis
+            
             gpt_analysis = None
-            if score >= 80:
+            alert_level = get_alert_level(score)
+            
+            if should_request_gpt_analysis(alert_level):
                 try:
                     # Get GPT analysis for strong alerts only
-                    event_tags = [signals.get('event_tag')] if signals.get('event_tag') else []
+                    event_tag = signals.get('event_tag')
+                    event_tags: list[str] = [str(event_tag)] if event_tag else []
                     gpt_analysis = send_report_to_chatgpt(symbol, event_tags, score, bool(compressed), stage1g_active)
                 except Exception as gpt_error:
                     print(f"⚠️ GPT analysis failed for {symbol}: {gpt_error}")
