@@ -4,6 +4,7 @@ from utils.whale_detector import detect_whale_transfers
 from utils.token_map_loader import load_token_map
 from utils.orderbook_anomaly import detect_orderbook_anomaly
 from utils.social_detector import detect_social_spike
+from stages.stage_minus2_2 import detect_stage_minus2_2
 import numpy as np
 import json
 import os
@@ -169,6 +170,9 @@ def detect_stage_minus2_1(symbol):
         "orderbook_anomaly": False,
         "volume_spike": False,
         "dex_inflow": False,
+        "event_tag": None,
+        "event_score": 0,
+        "event_risk": False,
     }
 
     # Social spike detection
@@ -189,6 +193,12 @@ def detect_stage_minus2_1(symbol):
     # Orderbook anomaly detection
     signals["orderbook_anomaly"] = detect_orderbook_anomaly(symbol)
 
+    # Stage -2.2: Event tag detection
+    tag, tag_score, risk_flag = detect_stage_minus2_2(symbol)
+    signals["event_tag"] = tag
+    signals["event_score"] = tag_score
+    signals["event_risk"] = risk_flag
+
     # DEX inflow detection
     inflow = get_dex_inflow(symbol)
     if inflow > 0.3:  # ⬅️ próg 0.3 ETH / BNB / etc.
@@ -196,7 +206,14 @@ def detect_stage_minus2_1(symbol):
     else:
         inflow = 0.0
 
-    # Finalna decyzja: aktywowany jeśli co najmniej 1 aktywny sygnał
-    stage2_pass = any(signals.values())
+    # Finalna decyzja: aktywowany jeśli co najmniej 1 aktywny sygnał boolean
+    boolean_signals = [
+        signals["social_spike"],
+        signals["whale_activity"], 
+        signals["orderbook_anomaly"],
+        signals["volume_spike"],
+        signals["dex_inflow"]
+    ]
+    stage2_pass = any(boolean_signals) or signals["event_tag"] is not None
 
     return stage2_pass, signals, inflow
