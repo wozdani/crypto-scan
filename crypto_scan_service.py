@@ -10,13 +10,9 @@ from dotenv import load_dotenv
 load_dotenv()
 from utils.telegram_bot import send_alert, format_alert
 from utils.data_fetchers import get_symbols_cached, get_market_data
-from utils.stage_detectors import (
-    detect_stage_minus2,
-    detect_stage_minus2_2,
-    detect_stage_minus1,
-    detect_stage_1g,
-)
-from utils.scoring import compute_ppwcs, should_alert, log_ppwcs_score
+from stages.stage_minus2_1 import detect_stage_minus2_1
+from utils.stage_detectors import detect_stage_minus1
+from utils.scoring import compute_ppwcs, should_alert, log_ppwcs_score, get_previous_score, save_score
 from utils.gpt_feedback import send_report_to_chatgpt
 from utils.reports import save_stage_signal, save_conditional_reports, compress_reports_to_zip
 
@@ -51,6 +47,9 @@ def scan_cycle():
             previous_score = get_previous_score(symbol)
             score = compute_ppwcs(signals, previous_score)
             
+            # Save current score for future trailing logic
+            save_score(symbol, score)
+            
             log_ppwcs_score(symbol, score)
             save_stage_signal(symbol, score, stage2_pass, compressed, stage1g_active)
             
@@ -64,10 +63,13 @@ def scan_cycle():
             })
             
             if should_alert(symbol, score):
+                # Extract event tags from signals for compatibility
+                event_tags = [signals.get('event_tag')] if signals.get('event_tag') else []
+                
                 # Get GPT analysis for high scores first
                 if score >= 80:
                     try:
-                        gpt_msg = send_report_to_chatgpt(symbol, event_tags, score, compressed.get('momentum', False), stage1g_active)
+                        gpt_msg = send_report_to_chatgpt(symbol, event_tags, score, compressed if isinstance(compressed, dict) else False, stage1g_active)
                         full_msg = format_alert(symbol, score, event_tags, compressed, stage1g_active)
                         full_msg += f"\n\n🤖 *GPT Analysis*:\n{gpt_msg}"
                         send_alert(full_msg)

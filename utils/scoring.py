@@ -91,6 +91,44 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> int:
         print(f"❌ Error computing PPWCS: {e}")
         return 0
 
+def get_previous_score(symbol):
+    """
+    Get the previous PPWCS score for trailing logic
+    """
+    try:
+        # Try to get from recent scores file
+        scores_file = os.path.join("data", "ppwcs_scores.json")
+        if os.path.exists(scores_file):
+            with open(scores_file, "r") as f:
+                scores = json.load(f)
+                return scores.get(symbol, 0)
+        return 0
+    except Exception as e:
+        return 0
+
+def save_score(symbol, score):
+    """
+    Save current PPWCS score for future trailing logic
+    """
+    try:
+        scores_file = os.path.join("data", "ppwcs_scores.json")
+        scores = {}
+        
+        if os.path.exists(scores_file):
+            with open(scores_file, "r") as f:
+                scores = json.load(f)
+        
+        scores[symbol] = score
+        
+        # Ensure data directory exists
+        os.makedirs(os.path.dirname(scores_file), exist_ok=True)
+        
+        with open(scores_file, "w") as f:
+            json.dump(scores, f, indent=2)
+            
+    except Exception as e:
+        print(f"Error saving score for {symbol}: {e}")
+
 def should_alert(symbol, score):
     """
     Determine if an alert should be sent based on score and recent alert history
