@@ -14,6 +14,7 @@ from stages.stage_minus2_1 import detect_stage_minus2_1
 from utils.stage_detectors import detect_stage_minus1
 from utils.scoring import compute_ppwcs, should_alert, log_ppwcs_score, get_previous_score, save_score
 from utils.gpt_feedback import send_report_to_chatgpt
+from utils.alert_system import process_alert
 from utils.reports import save_stage_signal, save_conditional_reports, compress_reports_to_zip
 
 # === Wait for next 15m candle ===
@@ -62,29 +63,18 @@ def scan_cycle():
                 'stage1g_active': stage1g_active
             })
             
-            if should_alert(symbol, score):
-                # Extract event tags from signals for compatibility
-                event_tags = [signals.get('event_tag')] if signals.get('event_tag') else []
-                
-                # Get GPT analysis for high scores first
-                if score >= 80:
-                    try:
-                        gpt_msg = send_report_to_chatgpt(symbol, event_tags, score, compressed if isinstance(compressed, dict) else False, stage1g_active)
-                        full_msg = format_alert(symbol, score, event_tags, compressed, stage1g_active)
-                        full_msg += f"\n\n🤖 *GPT Analysis*:\n{gpt_msg}"
-                        send_alert(full_msg)
-                        print(f"📢 Alert sent for {symbol} with score {score} + GPT analysis")
-                    except Exception as gpt_error:
-                        print(f"⚠️ ChatGPT analysis failed for {symbol}: {gpt_error}")
-                        # Send normal alert without GPT
-                        alert_message = format_alert(symbol, score, event_tags, compressed, stage1g_active)
-                        send_alert(alert_message)
-                        print(f"📢 Alert sent for {symbol} with score {score} (no GPT)")
-                else:
-                    # Send normal alert for scores < 80
-                    alert_message = format_alert(symbol, score, event_tags, compressed, stage1g_active)
-                    send_alert(alert_message)
-                    print(f"📢 Alert sent for {symbol} with score {score}")
+            # Process alerts using the comprehensive alert system
+            gpt_analysis = None
+            if score >= 80:
+                try:
+                    # Get GPT analysis for strong alerts only
+                    event_tags = [signals.get('event_tag')] if signals.get('event_tag') else []
+                    gpt_analysis = send_report_to_chatgpt(symbol, event_tags, score, bool(compressed), stage1g_active)
+                except Exception as gpt_error:
+                    print(f"⚠️ GPT analysis failed for {symbol}: {gpt_error}")
+            
+            # Process alert with the new system
+            process_alert(symbol, score, signals, gpt_analysis)
                         
         except Exception as e:
             print(f"❌ Error scanning {symbol}: {e}")
