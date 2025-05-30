@@ -5,6 +5,7 @@ from utils.token_map_loader import load_token_map
 from utils.orderbook_anomaly import detect_orderbook_anomaly
 from utils.social_detector import detect_social_spike
 from stages.stage_minus2_2 import detect_stage_minus2_2
+from stages.stage_1g import detect_stage_1g
 import numpy as np
 import json
 import os
@@ -163,7 +164,11 @@ def detect_stage_minus2_1(symbol):
         - stage2_pass (czy przechodzi dalej)
         - signals (słownik aktywnych mikroanomalii)
         - dex_inflow_volume (float)
+        - stage1g_active (czy Stage 1G jest aktywny)
     """
+    # Get market data for analysis
+    data = get_all_data(symbol)
+    
     signals = {
         "social_spike": False,
         "whale_activity": False,
@@ -206,6 +211,9 @@ def detect_stage_minus2_1(symbol):
     else:
         inflow = 0.0
 
+    # Stage 1G detection with news tag integration
+    stage1g_active = detect_stage_1g(symbol, data, signals["event_tag"])
+    
     # Finalna decyzja: aktywowany jeśli co najmniej 1 aktywny sygnał boolean
     boolean_signals = [
         signals["social_spike"],
@@ -216,4 +224,4 @@ def detect_stage_minus2_1(symbol):
     ]
     stage2_pass = any(boolean_signals) or signals["event_tag"] is not None
 
-    return stage2_pass, signals, inflow
+    return stage2_pass, signals, inflow, stage1g_active
