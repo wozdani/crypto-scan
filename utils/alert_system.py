@@ -3,6 +3,7 @@ import json
 import requests
 from datetime import datetime, timedelta
 from utils.take_profit_engine import forecast_take_profit_levels, calculate_risk_reward_ratio
+from utils.alert_utils import get_alert_level, get_alert_level_text, should_send_telegram_alert, should_request_gpt_analysis
 
 COOLDOWN_FILE = os.path.join("data", "cooldown_tracker.json")
 COOLDOWN_MINUTES = 60
@@ -105,29 +106,61 @@ Position Size: {risk_reward['recommended_position_size']}
     
     return alert_text.strip()
 
-def send_telegram_alert(message):
-    """Send alert to Telegram"""
+def send_telegram_alert(token, ppwcs_score, stage_signals, tp_forecast, stage1g_trigger_type=None):
+    """Enhanced Telegram alert with Polish formatting"""
     try:
+        alert_level = get_alert_level(ppwcs_score)
+        
+        if not should_send_telegram_alert(alert_level):
+            return False  # Score too low for alerts
+
+        if check_cooldown(token):
+            print(f"⏱️ {token} jest na cooldownie, pomijam alert.")
+            return False
+
+        alert_level_text = get_alert_level_text(alert_level)
+        active_signals = [k for k, v in stage_signals.items() if v and isinstance(v, bool)]
+        signals_text = ', '.join(active_signals) if active_signals else "None"
+
+        text = f"""{alert_level_text}
+📈 Token: *{token}*
+🧠 Score: *{ppwcs_score} / 100*
+
+🎯 TP Forecast:
+• TP1: +{tp_forecast['TP1']}%
+• TP2: +{tp_forecast['TP2']}%
+• TP3: +{tp_forecast['TP3']}%
+• Trailing TP: +{tp_forecast['TrailingTP']}%
+
+🔬 Signals: {signals_text}
+{"🧩 Trigger: " + stage1g_trigger_type if stage1g_trigger_type else ""}
+
+🕒 UTC: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}
+"""
+
         bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
         chat_id = os.getenv('TELEGRAM_CHAT_ID')
         
         if not bot_token or not chat_id:
             print("❌ Telegram credentials not configured")
             return False
-            
-        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+
         payload = {
             "chat_id": chat_id,
-            "text": message,
+            "text": text,
             "parse_mode": "Markdown"
         }
-        
+
+        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
         response = requests.post(url, data=payload, timeout=10)
         response.raise_for_status()
+        
+        print(f"✅ Alert wysłany dla {token}")
+        update_cooldown(token)
         return True
         
     except Exception as e:
-        print(f"❌ Error sending Telegram alert: {e}")
+        print(f"❌ Błąd wysyłania alertu Telegram: {e}")
         return False
 
 def process_alert(token, ppwcs_score, signals, gpt_analysis=None):
@@ -149,18 +182,30 @@ def process_alert(token, ppwcs_score, signals, gpt_analysis=None):
         tp_forecast = forecast_take_profit_levels(signals)
         risk_reward = calculate_risk_reward_ratio(signals, tp_forecast)
         
-        # Format alert message
-        alert_message = format_alert_message(token, ppwcs_score, signals, tp_forecast, risk_reward)
+        # Get Stage 1G trigger type for alert
+        stage1g_trigger_type = signals.get('stage1g_trigger_type') if signals.get('stage1g_active') else None
         
-        # Add GPT analysis for strong alerts
-        if ppwcs_score >= 80 and gpt_analysis:
-            alert_message += f"\n\n🤖 **GPT Analysis:**\n{gpt_analysis}"
+        # Send enhanced Telegram alert
+        success = send_telegram_alert(token, ppwcs_score, signals, tp_forecast, stage1g_trigger_type)
         
-        # Send alert
-        success = send_telegram_alert(alert_message)
+        # Add GPT analysis as follow-up message for strong alerts
+        if success and ppwcs_score >= 80 and gpt_analysis:
+            try:
+                bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
+                chat_id = os.getenv('TELEGRAM_CHAT_ID')
+                
+                if bot_token and chat_id:
+                    gpt_payload = {
+                        "chat_id": chat_id,
+                        "text": f"🤖 **Analiza GPT dla {token}:**\n{gpt_analysis}",
+                        "parse_mode": "Markdown"
+                    }
+                    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+                    requests.post(url, data=gpt_payload, timeout=10)
+            except Exception:
+                pass  # GPT follow-up is optional
         
         if success:
-            update_cooldown(token)
             alert_level, _ = determine_alert_level(ppwcs_score)
             print(f"📢 {alert_level.upper()} sent for {token} (Score: {ppwcs_score})")
             return True

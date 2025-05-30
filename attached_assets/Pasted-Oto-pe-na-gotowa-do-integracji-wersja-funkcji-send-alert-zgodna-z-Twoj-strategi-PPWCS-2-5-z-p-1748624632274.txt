@@ -1,0 +1,100 @@
+Oto pełna, gotowa do integracji wersja funkcji send_alert(), zgodna z Twoją strategią PPWCS 2.5, z pełną obsługą cooldownu, poziomów alertów, TP forecast i triggerów strukturalnych.
+
+✅ send_alert() z cooldownem i pełnym formatem alertu
+python
+Kopiuj
+Edytuj
+import os
+import requests
+import json
+from datetime import datetime, timedelta
+
+COOLDOWN_FILE = "alert_cooldown.json"
+
+def load_cooldowns():
+    if os.path.exists(COOLDOWN_FILE):
+        with open(COOLDOWN_FILE, 'r') as f:
+            return json.load(f)
+    return {}
+
+def save_cooldowns(cooldowns):
+    with open(COOLDOWN_FILE, 'w') as f:
+        json.dump(cooldowns, f, indent=2)
+
+def is_on_cooldown(token):
+    cooldowns = load_cooldowns()
+    now = datetime.utcnow()
+    if token in cooldowns:
+        last_alert_time = datetime.fromisoformat(cooldowns[token])
+        if now - last_alert_time < timedelta(minutes=60):
+            return True
+    return False
+
+def update_cooldown(token):
+    cooldowns = load_cooldowns()
+    cooldowns[token] = datetime.utcnow().isoformat()
+    save_cooldowns(cooldowns)
+
+def send_alert(token, ppwcs_score, stage_signals, tp_forecast, stage1g_trigger_type=None):
+    if ppwcs_score < 70:
+        return  # Za niski score, brak alertu
+
+    if is_on_cooldown(token):
+        print(f"⏱️ {token} jest na cooldownie, pomijam alert.")
+        return
+
+    alert_level = "🚨 *STRONG ALERT*" if ppwcs_score >= 80 else "⚠️ *PRE-PUMP ACTIVE*"
+    active_signals = [k for k, v in stage_signals.items() if v]
+    signals_text = ', '.join(active_signals) if active_signals else "None"
+
+    text = f"""{alert_level}
+📈 Token: *{token}*
+🧠 Score: *{ppwcs_score} / 100*
+
+🎯 TP Forecast:
+• TP1: +{tp_forecast['TP1']}%
+• TP2: +{tp_forecast['TP2']}%
+• TP3: +{tp_forecast['TP3']}%
+• Trailing TP: +{tp_forecast['TrailingTP']}%
+
+🔬 Signals: {signals_text}
+{"🧩 Trigger: " + stage1g_trigger_type if stage1g_trigger_type else ""}
+
+🕒 UTC: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}
+"""
+
+    payload = {
+        "chat_id": os.getenv("TELEGRAM_CHAT_ID"),
+        "text": text,
+        "parse_mode": "Markdown"
+    }
+
+    try:
+        r = requests.post(f"https://api.telegram.org/bot{os.getenv('TELEGRAM_BOT_TOKEN')}/sendMessage", data=payload)
+        r.raise_for_status()
+        print(f"✅ Alert wysłany dla {token}")
+        update_cooldown(token)
+    except Exception as e:
+        print(f"❌ Błąd wysyłania alertu Telegram: {e}")
+🗂️ Plik alert_cooldown.json
+Plik ten będzie automatycznie tworzony i aktualizowany, np.:
+
+json
+Kopiuj
+Edytuj
+{
+  "PEPEUSDT": "2025-05-30T16:00:00",
+  "FLOKIUSDT": "2025-05-30T15:35:00"
+}
+🔁 Przykład wywołania z głównej pętli
+python
+Kopiuj
+Edytuj
+if ppwcs_score >= 70:
+    send_alert(
+        token=symbol,
+        ppwcs_score=ppwcs_score,
+        stage_signals=all_stage_signals,  # dict z aktywnymi sygnałami
+        tp_forecast=tp_forecast_dict,     # dict z TP1/2/3/TrailingTP
+        stage1g_trigger_type=stage1g_trigger_type  # np. "tag_boost"
+    )
