@@ -1,4 +1,5 @@
 from utils.data_fetchers import get_all_data
+from utils.token_price import get_token_price_usd
 import numpy as np
 import json
 import os
@@ -90,6 +91,65 @@ def get_dex_inflow(symbol):
         print(f"❌ Błąd inflow {symbol}: {e}")
         return 0.0
 
+def detect_whale_tx(symbol):
+    try:
+        with open("token_contract_map.json", "r") as f:
+            token_map = json.load(f)
+
+        token_info = token_map.get(symbol)
+        if not token_info:
+            print(f"⚠️ Brak kontraktu dla {symbol}")
+            return False
+
+        address = token_info["address"]
+        chain = token_info["chain"].lower()
+
+        # Dobór API key
+        if chain == "ethereum":
+            base_url = "https://api.etherscan.io/api"
+            api_key = os.getenv("ETHERSCAN_API_KEY")
+        elif chain == "bsc":
+            base_url = "https://api.bscscan.com/api"
+            api_key = os.getenv("BSCSCAN_API_KEY")
+        elif chain == "arbitrum":
+            base_url = "https://api.arbiscan.io/api"
+            api_key = os.getenv("ARBISCAN_API_KEY")
+        else:
+            print(f"⚠️ Chain {chain} nieobsługiwany")
+            return False
+
+        params = {
+            "module": "account",
+            "action": "txlist",
+            "address": address,
+            "startblock": 0,
+            "endblock": 99999999,
+            "sort": "desc",
+            "apikey": api_key,
+        }
+
+        response = requests.get(base_url, params=params, timeout=10)
+        data = response.json()
+
+        if data["status"] != "1":
+            return False
+
+        price_usd = get_token_price_usd(symbol)
+        if price_usd is None:
+            return False
+
+        for tx in data["result"][:10]:
+            if tx["to"].lower() == address.lower():
+                token_amount = int(tx["value"]) / (10 ** 18)
+                usd_value = token_amount * price_usd
+                if usd_value > 50000:
+                    return True
+
+        return False
+    except Exception as e:
+        print(f"❌ Błąd whale TX {symbol}: {e}")
+        return False
+
 
 def detect_stage_minus2_1(symbol):
     """
@@ -111,6 +171,10 @@ def detect_stage_minus2_1(symbol):
     volume_spike_detected, volume = detect_volume_spike(symbol)
     if volume_spike_detected:
         signals["volume_spike"] = True
+
+    # Whale transaction detection
+    if detect_whale_tx(symbol):
+        signals["whale_tx"] = True
 
     # DEX inflow detection
     inflow = get_dex_inflow(symbol)
