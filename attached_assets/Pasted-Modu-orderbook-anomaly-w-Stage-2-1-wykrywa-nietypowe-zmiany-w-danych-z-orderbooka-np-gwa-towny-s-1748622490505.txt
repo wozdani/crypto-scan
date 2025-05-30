@@ -1,0 +1,86 @@
+Moduł orderbook anomaly w Stage –2.1 wykrywa nietypowe zmiany w danych z orderbooka (np. gwałtowny spadek podaży lub wzrost popytu) — co może sygnalizować przygotowania do ruchu.
+
+🧠 Założenia:
+Porównujemy aktualny orderbook z wcześniejszym snapshotem (np. 1 świeczka wstecz).
+
+Szukamy anomalii typu:
+
+Skok po stronie bid (popyt): wzrost zleceń kupna w top 3 poziomach.
+
+Zniknięcie po stronie ask (podaż): zredukowana presja sprzedaży.
+
+Wersja uproszczona działa tylko na top 3 poziomach.
+
+✅ Dane wejściowe z Bybit API:
+Użyjemy endpointu:
+
+bash
+Kopiuj
+Edytuj
+https://api.bybit.com/v2/public/orderBook/L2?symbol=WIFUSDT
+Zwraca dane:
+
+json
+Kopiuj
+Edytuj
+[
+  {"price": "0.012", "size": "150000", "side": "Buy"},
+  {"price": "0.0121", "size": "120000", "side": "Sell"},
+  ...
+]
+🔧 Funkcja detect_orderbook_anomaly(symbol: str) -> bool
+python
+Kopiuj
+Edytuj
+import requests
+import time
+
+ORDERBOOK_DEPTH = 3
+BID_MULTIPLIER = 2.0      # jeśli suma bidów wzrosła 2x
+ASK_DROP_THRESHOLD = 0.5  # jeśli suma asków spadła o 50%
+
+_orderbook_cache = {}
+
+def fetch_orderbook_snapshot(symbol):
+    try:
+        url = f"https://api.bybit.com/v2/public/orderBook/L2?symbol={symbol}"
+        response = requests.get(url, timeout=10)
+        data = response.json()["result"]
+
+        bids = [float(entry["size"]) for entry in data if entry["side"] == "Buy"][:ORDERBOOK_DEPTH]
+        asks = [float(entry["size"]) for entry in data if entry["side"] == "Sell"][:ORDERBOOK_DEPTH]
+        return sum(bids), sum(asks)
+    except Exception as e:
+        print(f"❌ Błąd pobierania orderbook dla {symbol}: {e}")
+        return None, None
+
+def detect_orderbook_anomaly(symbol):
+    current_bid_sum, current_ask_sum = fetch_orderbook_snapshot(symbol)
+    if current_bid_sum is None:
+        return False
+
+    prev = _orderbook_cache.get(symbol)
+    _orderbook_cache[symbol] = (current_bid_sum, current_ask_sum)
+
+    if prev is None:
+        return False  # brak danych do porównania
+
+    prev_bid_sum, prev_ask_sum = prev
+
+    bid_ratio = current_bid_sum / prev_bid_sum if prev_bid_sum else 1
+    ask_ratio = current_ask_sum / prev_ask_sum if prev_ask_sum else 1
+
+    if bid_ratio >= BID_MULTIPLIER or ask_ratio <= ASK_DROP_THRESHOLD:
+        print(f"📊 Anomalia orderbook dla {symbol} (bid×{bid_ratio:.2f}, ask×{ask_ratio:.2f})")
+        return True
+
+    return False
+📦 W detect_stage_minus2_1():
+Dodaj:
+
+python
+Kopiuj
+Edytuj
+from utils.orderbook_anomaly import detect_orderbook_anomaly
+
+signals["orderbook_anomaly"] = detect_orderbook_anomaly(symbol)

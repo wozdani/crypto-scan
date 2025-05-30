@@ -2,6 +2,7 @@ from utils.data_fetchers import get_all_data
 from utils.token_price import get_token_price_usd
 from utils.whale_detector import detect_whale_transfers
 from utils.token_map_loader import load_token_map
+from utils.orderbook_anomaly import detect_orderbook_anomaly
 import numpy as np
 import json
 import os
@@ -164,7 +165,7 @@ def detect_stage_minus2_1(symbol):
     signals = {
         "social_spike": False,  # TODO
         "whale_activity": False,
-        "orderbook_anomaly": False,  # TODO
+        "orderbook_anomaly": False,
         "volume_spike": False,
         "dex_inflow": False,
     }
@@ -180,6 +181,9 @@ def detect_stage_minus2_1(symbol):
     signals["whale_activity"] = whale_detected
     if whale_detected:
         print(f"✅ Stage –2.1: Whale TX dla {symbol} = ${whale_usd:.2f}")
+
+    # Orderbook anomaly detection
+    signals["orderbook_anomaly"] = detect_orderbook_anomaly(symbol)
 
     # DEX inflow detection
     inflow = get_dex_inflow(symbol)
