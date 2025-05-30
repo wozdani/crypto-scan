@@ -1,4 +1,5 @@
 import requests
+import os
 
 def get_token_price_usd(symbol):
     try:
@@ -13,8 +14,15 @@ def get_token_price_usd(symbol):
             print(f"⚠️ Brak CoinGecko ID dla {symbol}")
             return None
 
-        url = f"https://api.coingecko.com/api/v3/simple/price?ids={token_id}&vs_currencies=usd"
-        res = requests.get(url, timeout=10)
+        api_key = os.getenv("COINGECKO_API_KEY")
+        
+        if api_key:
+            # Try with API key in URL parameter
+            url = f"https://api.coingecko.com/api/v3/simple/price?ids={token_id}&vs_currencies=usd&x_cg_demo_api_key={api_key}"
+            res = requests.get(url, timeout=10)
+        else:
+            url = f"https://api.coingecko.com/api/v3/simple/price?ids={token_id}&vs_currencies=usd"
+            res = requests.get(url, timeout=10)
         res.raise_for_status()
         data = res.json()
         return data[token_id]["usd"]
