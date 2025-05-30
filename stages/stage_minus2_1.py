@@ -3,6 +3,7 @@ from utils.token_price import get_token_price_usd
 from utils.whale_detector import detect_whale_transfers
 from utils.token_map_loader import load_token_map
 from utils.orderbook_anomaly import detect_orderbook_anomaly
+from utils.social_detector import detect_social_spike
 import numpy as np
 import json
 import os
@@ -163,12 +164,15 @@ def detect_stage_minus2_1(symbol):
         - dex_inflow_volume (float)
     """
     signals = {
-        "social_spike": False,  # TODO
+        "social_spike": False,
         "whale_activity": False,
         "orderbook_anomaly": False,
         "volume_spike": False,
         "dex_inflow": False,
     }
+
+    # Social spike detection
+    signals["social_spike"] = detect_social_spike(symbol)
 
     # Realna logika volume spike
     volume_spike_detected, volume = detect_volume_spike(symbol)
