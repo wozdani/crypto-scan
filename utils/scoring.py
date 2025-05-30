@@ -2,73 +2,93 @@ import json
 import os
 from datetime import datetime, timedelta
 
-def compute_ppwcs(symbol, signals, compressed, stage1g_active, event_tags):
+def compute_ppwcs(signals: dict, previous_score: int = 0) -> int:
     """
-    Compute Pre-Pump Warning Composite Score (PPWCS)
-    Range: 0-100 points
+    PPWCS 2.5: Pre-Pump Weighted Composite Score (0-100 points)
+    Enhanced multi-stage analysis with context awareness
     """
     try:
         score = 0
-        
-        # Stage -2 signals contribution (30 points max)
-        if signals:
-            signal_weight = {
-                'volume_spike': 10,
-                'price_stability': 5,
-                'accumulation_pattern': 10,
-                'market_cap_growth': 5
-            }
-            
-            for signal, active in signals.items():
-                if active and signal in signal_weight:
-                    score += signal_weight[signal]
-        
-        # Stage -1 compressed signals contribution (25 points max)
-        if compressed:
-            # Strength component (0-10 points)
-            strength = compressed.get('strength', 0)
-            score += min(strength / 10, 10)
-            
-            # Confidence component (0-10 points)
-            confidence = compressed.get('confidence', 0)
-            score += min(confidence / 10, 10)
-            
-            # Binary signals (5 points total)
-            if compressed.get('momentum', False):
-                score += 2
-            if compressed.get('volume_confirmed', False):
-                score += 2
-            if compressed.get('technical_alignment', False):
-                score += 1
-        
-        # Stage 1G contribution (20 points max)
-        if stage1g_active:
-            score += 20
-        
-        # Event tags contribution (25 points max)
-        if event_tags:
-            tag_weights = {
-                'ascending_triangle': 8,
-                'volume_breakout': 10,
-                'support_bounce': 5,
-                'whale_accumulation': 12,
-                'social_buzz_increase': 3
-            }
-            
-            for tag in event_tags:
-                if tag in tag_weights:
-                    score += tag_weights[tag]
-        
-        # Cap score at 100
-        score = min(score, 100)
-        
-        # Apply time-based decay for recent alerts
-        score = apply_alert_decay(symbol, score)
-        
-        return round(score, 1)
+
+        # --- STAGE -2.1: Micro-anomaly Detection ---
+        if signals.get("whale_activity"):
+            score += 15
+        if signals.get("dex_inflow"):
+            score += 15
+        if signals.get("volume_spike"):
+            score += 10
+        if signals.get("orderbook_anomaly"):
+            score += 10
+        if signals.get("social_spike"):
+            score += 5
+
+        # --- Pure Accumulation Bonus ---
+        # Whale + DEX inflow without social noise
+        if (signals.get("whale_activity") and 
+            signals.get("dex_inflow") and 
+            not signals.get("social_spike")):
+            score += 5
+
+        # --- STAGE -2.2: News/Tag Analysis ---
+        tag = signals.get("event_tag")
+        boost_tags = {
+            "listing": 10, 
+            "partnership": 10, 
+            "cex_listed": 7, 
+            "presale": 7, 
+            "airdrop": 3
+        }
+        risk_tags = {
+            "exploit": -15, 
+            "rug": -100, 
+            "delisting": -100, 
+            "unlock": -10, 
+            "drama": -10
+        }
+
+        if tag:
+            tag_lower = tag.lower()
+            if tag_lower in boost_tags:
+                score += boost_tags[tag_lower]
+            elif tag_lower in risk_tags:
+                score += risk_tags[tag_lower]
+
+        if signals.get("event_risk"):
+            score -= 15
+
+        # --- STAGE -1: Compression ---
+        if signals.get("compressed"):
+            score += 15
+
+        # --- STAGE 1G: Breakout Detection ---
+        if signals.get("stage1g_active"):
+            trigger_type = signals.get("stage1g_trigger_type")
+            if trigger_type == "classic":
+                score += 10
+            elif trigger_type == "tag_boost":
+                score += 7
+
+        # --- Context/Timing Analysis ---
+        current_hour = datetime.utcnow().hour
+        # Market hours boost (6-18 UTC typically better for crypto)
+        if 6 <= current_hour <= 18:
+            score += 3
+
+        # Optional: Heatmap exhaustion detection
+        if signals.get("heatmap_exhaustion"):
+            score += 3
+
+        # --- Scaling to 0-100 range ---
+        score = max(0, min(score, 100))
+
+        # --- Trailing Logic: Only accept significant improvements ---
+        if previous_score and score < previous_score + 5:
+            return previous_score
+
+        return score
         
     except Exception as e:
-        print(f"❌ Error computing PPWCS for {symbol}: {e}")
+        print(f"❌ Error computing PPWCS: {e}")
         return 0
 
 def should_alert(symbol, score):

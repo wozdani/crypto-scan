@@ -44,11 +44,12 @@ def scan_cycle():
             if not data:
                 continue
                 
-            stage2_pass, signals, inflow = detect_stage_minus2(symbol, data)
-            event_tags = detect_stage_minus2_2(symbol)
-            compressed = detect_stage_minus1(signals)
-            stage1g_active = detect_stage_1g(symbol, data, event_tags)
-            score = compute_ppwcs(symbol, signals, compressed, stage1g_active, event_tags)
+            stage2_pass, signals, inflow, stage1g_active = detect_stage_minus2_1(symbol)
+            compressed = detect_stage_minus1(signals) if signals else False
+            
+            # Get previous score for trailing logic
+            previous_score = get_previous_score(symbol)
+            score = compute_ppwcs(signals, previous_score)
             
             log_ppwcs_score(symbol, score)
             save_stage_signal(symbol, score, stage2_pass, compressed, stage1g_active)
