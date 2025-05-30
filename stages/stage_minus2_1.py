@@ -163,10 +163,10 @@ def detect_stage_minus2_1(symbol):
     """
     signals = {
         "social_spike": False,  # TODO
-        "whale_tx": False,  # TODO
+        "whale_activity": False,
         "orderbook_anomaly": False,  # TODO
         "volume_spike": False,
-        "dex_inflow": False,  # TODO
+        "dex_inflow": False,
     }
 
     # Realna logika volume spike
@@ -176,9 +176,10 @@ def detect_stage_minus2_1(symbol):
 
     # Whale transaction detection
     token_map = load_token_map()
-    whale_detected, whale_amount = detect_whale_transfers(symbol, token_map)
+    whale_detected, whale_usd = detect_whale_transfers(symbol, token_map)
+    signals["whale_activity"] = whale_detected
     if whale_detected:
-        signals["whale_tx"] = True
+        print(f"✅ Stage –2.1: Whale TX dla {symbol} = ${whale_usd:.2f}")
 
     # DEX inflow detection
     inflow = get_dex_inflow(symbol)
