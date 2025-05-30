@@ -1,5 +1,7 @@
 from utils.data_fetchers import get_all_data
 from utils.token_price import get_token_price_usd
+from utils.whale_detector import detect_whale_transfers
+from utils.token_map_loader import load_token_map
 import numpy as np
 import json
 import os
@@ -173,7 +175,9 @@ def detect_stage_minus2_1(symbol):
         signals["volume_spike"] = True
 
     # Whale transaction detection
-    if detect_whale_tx(symbol):
+    token_map = load_token_map()
+    whale_detected, whale_amount = detect_whale_transfers(symbol, token_map)
+    if whale_detected:
         signals["whale_tx"] = True
 
     # DEX inflow detection
