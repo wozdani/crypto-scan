@@ -18,26 +18,51 @@ from utils.gpt_feedback import send_report_to_chatgpt
 from utils.alert_system import process_alert
 from utils.reports import save_stage_signal, save_conditional_reports, compress_reports_to_zip
 
-def send_report_to_gpt(symbol, data, tp_forecast):
+def send_report_to_gpt(symbol, data, tp_forecast, alert_level):
     """Send comprehensive signal report to GPT for analysis"""
     openai.api_key = os.getenv("OPENAI_API_KEY")
 
+    ppwcs = data.get("ppwcs_score", 0)
+    whale = data.get("whale_activity", False)
+    inflow = data.get("dex_inflow", 0)
+    compressed = data.get("compressed", False)
+    stage1g = data.get("stage1g_active", False)
+    pure_acc = data.get("pure_accumulation", False)
+    social_spike = data.get("social_spike", False)
+    heatmap_exhaustion = data.get("heatmap_exhaustion", False)
+    sector_cluster = data.get("sector_clustered", False)
+
+    timestamp = datetime.utcnow().strftime("%H:%M UTC")
+
     prompt = f"""You are an expert crypto analyst. Evaluate the following pre-pump signal:
-    
+
 Token: ${symbol.upper()}
-PPWCS: {data.get("ppwcs_score", 0)}
-Stage -2.1: Whale: {data.get("whale_activity", False)}, Inflow: {data.get("dex_inflow", 0)}
-Stage -1: Compressed: {data.get("compressed", False)}
-Stage 1g: Active: {data.get("stage1g_active", False)}
-Pure Accumulation: {data.get("pure_accumulation", False)}
+PPWCS: {ppwcs}
+Alert Level: {alert_level}
+Detected at: {timestamp}
+
+Stage –2.1:
+• Whale Activity: {whale}
+• DEX Inflow (USD): {inflow}
+• Social Spike Detected: {social_spike}
+• Sector Time Clustering Active: {sector_cluster}
+
+Stage –1:
+• Compressed Structure: {compressed}
+
+Stage 1g:
+• Active: {stage1g}
+• Pure Accumulation (No Social): {pure_acc}
+
+Heatmap Exhaustion: {heatmap_exhaustion}
 
 TP Forecast:
-TP1: +{tp_forecast['TP1']}%
-TP2: +{tp_forecast['TP2']}%
-TP3: +{tp_forecast['TP3']}%
-Trailing: {tp_forecast['TrailingTP']}%
+• TP1: +{tp_forecast['TP1']}%
+• TP2: +{tp_forecast['TP2']}%
+• TP3: +{tp_forecast['TP3']}%
+• Trailing: {tp_forecast['TrailingTP']}%
 
-Please give your feedback on this signal. Is it strong? What are potential risks? Reply in 3 short sentences in Polish."""
+Evaluate the quality and strength of this signal. Provide a confident but concise assessment in **3 short sentences**, including **any risk factors** and **probability of continuation** in Polish."""
 
     try:
         response = openai.chat.completions.create(
@@ -112,7 +137,9 @@ def scan_cycle():
             gpt_feedback = None
             if score >= 80:
                 try:
-                    gpt_feedback = send_report_to_gpt(symbol, signals, tp_forecast)
+                    # Pass alert level to GPT function
+                    alert_level_text = get_alert_level(score)
+                    gpt_feedback = send_report_to_gpt(symbol, signals, tp_forecast, alert_level_text)
                     print(f"[GPT FEEDBACK] {symbol}: {gpt_feedback}")
                     
                     # Create feedback directory and save report
@@ -121,6 +148,7 @@ def scan_cycle():
                     with open(feedback_file, "w", encoding="utf-8") as f:
                         f.write(f"Token: {symbol}\n")
                         f.write(f"PPWCS: {score}\n")
+                        f.write(f"Alert Level: {alert_level_text}\n")
                         f.write(f"Timestamp: {datetime.utcnow().isoformat()}\n")
                         f.write(f"Signals: {signals}\n")
                         f.write(f"TP Forecast: {tp_forecast}\n")
