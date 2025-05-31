@@ -5,6 +5,7 @@ from utils.token_map_loader import load_token_map
 from utils.orderbook_anomaly import detect_orderbook_anomaly
 from utils.social_detector import detect_social_spike
 from utils.heatmap_exhaustion import detect_heatmap_exhaustion, analyze_orderbook_exhaustion
+from utils.orderbook_spoofing import detect_orderbook_spoofing, analyze_orderbook_walls
 from stages.stage_minus2_2 import detect_stage_minus2_2
 from stages.stage_1g import detect_stage_1g
 import numpy as np
@@ -177,6 +178,7 @@ def detect_stage_minus2_1(symbol):
         "volume_spike": False,
         "dex_inflow": False,
         "heatmap_exhaustion": False,
+        "spoofing_suspected": False,
         "event_tag": None,
         "event_score": 0,
         "event_risk": False,
@@ -208,6 +210,18 @@ def detect_stage_minus2_1(symbol):
     })
     if signals["heatmap_exhaustion"]:
         print(f"✅ Stage –2.1: Heatmap exhaustion dla {symbol}")
+
+    # Orderbook spoofing detection
+    wall_data = analyze_orderbook_walls(symbol)
+    signals["spoofing_suspected"] = detect_orderbook_spoofing({
+        "ask_wall_appeared": wall_data.get("ask_wall_appeared", False),
+        "ask_wall_disappeared": wall_data.get("ask_wall_disappeared", False),
+        "ask_wall_lifetime_sec": wall_data.get("ask_wall_lifetime_sec", 0),
+        "whale_activity": signals["whale_activity"],
+        "volume_spike": signals["volume_spike"]
+    })
+    if signals["spoofing_suspected"]:
+        print(f"✅ Stage –2.1: Orderbook spoofing dla {symbol}")
 
     # Orderbook anomaly detection
     signals["orderbook_anomaly"] = detect_orderbook_anomaly(symbol)

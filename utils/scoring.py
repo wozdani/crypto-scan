@@ -23,6 +23,8 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> int:
             score += 5
         if signals.get("heatmap_exhaustion"):
             score += 5
+        if signals.get("spoofing_suspected"):
+            score += 3
 
         # --- Pure Accumulation Bonus ---
         # Whale + DEX inflow without social noise
