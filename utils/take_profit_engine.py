@@ -1,81 +1,87 @@
 def forecast_take_profit_levels(signals: dict) -> dict:
     """
-    Estimates TP1 / TP2 / TP3 and trailing TP levels (%) based on signal quality.
-    Dynamic calculation considering multiple market factors.
+    Enhanced TP forecasting with RSI adjustments, whale activity, and smart trailing logic.
+    Returns TP levels based on PPWCS, RSI, inflow, whale activity and market structure.
     """
     try:
-        # Base TP levels (%)
-        base_tp1, base_tp2, base_tp3 = 6, 15, 30
-        
-        # Extract signal data
+        # Extract enhanced signal data
         ppwcs = signals.get("ppwcs_score", 0)
-        rsi = signals.get("rsi", 50)
-        delta_flow = signals.get("delta_flow_strength", 0)
-        heatmap_score = signals.get("bookmap_heatmap_score", 0)
-        orderbook_imbalance = signals.get("orderbook_imbalance", 0)
-        breakout_type = signals.get("type_of_breakout", "unknown")
-        time_tag = signals.get("time_tag", "other")
+        rsi = signals.get("rsi", 50) 
+        whale_activity = signals.get("whale_activity", False)
+        dex_inflow = signals.get("dex_inflow", 0)
+        compressed = signals.get("compressed", False)
+        stage1g_active = signals.get("stage1g_active", False)
+        pure_accumulation = signals.get("pure_accumulation", False)
         
-        # Start with base multiplier
-        multiplier = 1.0
+        # Base TP levels (as decimals for calculation)
+        tp1 = 0.06  # 6%
+        tp2 = 0.14  # 14%
+        tp3 = 0.27  # 27%
+        trailing_tp = "adaptive"
         
-        # --- PPWCS Score Impact ---
+        # Strong signal boost - exceptional conditions
+        if ppwcs >= 85 and compressed and stage1g_active:
+            tp1 += 0.02  # +2%
+            tp2 += 0.04  # +4%
+            tp3 += 0.08  # +8%
+            trailing_tp = "aggressive trail"
+        
+        # RSI momentum exhaustion adjustment
+        if rsi > 70:
+            tp3 -= 0.04  # Reduce TP3 when momentum exhausted
+            trailing_tp = "early lock"
+        
+        # Whale activity + high inflow boost
+        if whale_activity and dex_inflow > 100000:
+            tp3 += 0.05  # +5% for whale confirmation
+            trailing_tp = "trail after TP2"
+        
+        # Pure accumulation bonus
+        if pure_accumulation:
+            tp1 += 0.01  # +1%
+            tp2 += 0.02  # +2%
+        
+        # PPWCS score scaling
         if ppwcs > 85:
-            multiplier += 0.4  # Exceptional signal quality
+            multiplier = 1.4  # Exceptional signal
         elif ppwcs > 75:
-            multiplier += 0.2  # High signal quality
+            multiplier = 1.2  # High signal quality
         elif ppwcs < 60:
-            multiplier -= 0.2  # Lower confidence
+            multiplier = 0.8  # Lower confidence
+        else:
+            multiplier = 1.0
         
-        # --- RSI Momentum Impact ---
-        if rsi > 68:
-            multiplier += 0.15  # Strong momentum
-        elif rsi < 50:
-            multiplier -= 0.1   # Weak momentum
+        # Apply multiplier to final TP levels
+        tp1 *= multiplier
+        tp2 *= multiplier  
+        tp3 *= multiplier
         
-        # --- Flow and Market Depth Impact ---
-        if delta_flow > 1.5:
-            multiplier += 0.1   # Strong buying pressure
-        if heatmap_score > 1.2:
-            multiplier += 0.1   # Good absorption/lack of supply
-        if orderbook_imbalance > 1.5:
-            multiplier += 0.1   # Strong bid/ask imbalance
-        
-        # --- Breakout Type Impact ---
-        if breakout_type == "squeeze_breakout":
-            multiplier += 0.1   # Compression breakouts tend to be stronger
-        elif breakout_type == "reject_impulse":
-            multiplier -= 0.05  # Rejection patterns may have less follow-through
-        
-        # --- Timing Impact ---
-        if time_tag in ["before_15", "after_15"]:
-            multiplier += 0.05  # Better timing windows
-        
-        # --- Calculate TP levels ---
-        tp1 = round(base_tp1 * multiplier, 1)
-        tp2 = round(base_tp2 * multiplier, 1)
-        tp3 = round(base_tp3 * multiplier, 1)
-        
-        # Trailing TP: Activated after TP2, set at 66% of TP2 level
-        trailing_tp = round(tp2 * 0.66, 1)
+        # Convert to percentages and round
+        final_tp1 = round(tp1 * 100, 1)
+        final_tp2 = round(tp2 * 100, 1) 
+        final_tp3 = round(tp3 * 100, 1)
         
         # Ensure minimum levels (safety bounds)
-        tp1 = max(tp1, 3.0)
-        tp2 = max(tp2, 8.0)
-        tp3 = max(tp3, 15.0)
-        trailing_tp = max(trailing_tp, 5.0)
+        final_tp1 = max(final_tp1, 4.0)
+        final_tp2 = max(final_tp2, 10.0)
+        final_tp3 = max(final_tp3, 20.0)
         
         # Ensure maximum levels (realistic bounds)
-        tp1 = min(tp1, 15.0)
-        tp2 = min(tp2, 40.0)
-        tp3 = min(tp3, 80.0)
-        trailing_tp = min(trailing_tp, 30.0)
+        final_tp1 = min(final_tp1, 12.0)
+        final_tp2 = min(final_tp2, 25.0)
+        final_tp3 = min(final_tp3, 45.0)
+        
+        # Calculate trailing TP as percentage value
+        if isinstance(trailing_tp, str):
+            trailing_tp_value = round(final_tp2 * 0.66, 1)  # 66% of TP2
+        else:
+            trailing_tp_value = trailing_tp
         
         return {
-            "TP1": tp1,
-            "TP2": tp2,
-            "TP3": tp3,
-            "TrailingTP": trailing_tp,
+            "TP1": final_tp1,
+            "TP2": final_tp2,
+            "TP3": final_tp3,
+            "TrailingTP": trailing_tp_value,
             "multiplier": round(multiplier, 2),
             "confidence": get_forecast_confidence(ppwcs, multiplier)
         }
