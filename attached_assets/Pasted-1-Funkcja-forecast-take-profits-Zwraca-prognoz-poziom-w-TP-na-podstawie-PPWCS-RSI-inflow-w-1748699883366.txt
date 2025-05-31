@@ -1,0 +1,78 @@
+1. Funkcja forecast_take_profits()
+🔧 Zwraca prognozę poziomów TP na podstawie PPWCS, RSI, inflow, whale activity i struktury.
+
+Wklej do głównego pliku lub np. forecast.py:
+
+python
+Kopiuj
+Edytuj
+def forecast_take_profits(symbol, data):
+    ppwcs = data.get("ppwcs_score", 0)
+    rsi = data.get("rsi", 50)
+    whale = data.get("whale_activity", False)
+    inflow = data.get("dex_inflow_usd", 0)
+    compressed = data.get("compressed", False)
+    stage1g = data.get("stage1g_active", False)
+    pure_acc = data.get("pure_accumulation", False)
+
+    # Bazowe poziomy TP
+    tp1 = 0.06
+    tp2 = 0.14
+    tp3 = 0.27
+    trailing_tp = "adaptive"
+
+    # Wzmocnienie TP jeśli sygnał bardzo silny
+    if ppwcs >= 85 and compressed and stage1g:
+        tp1 += 0.02
+        tp2 += 0.04
+        tp3 += 0.08
+        trailing_tp = "aggressive trail"
+
+    # Korekta TP3 przy wysokim RSI (wyczerpane momentum)
+    if rsi > 70:
+        tp3 -= 0.04
+        trailing_tp = "early lock"
+
+    # Boost za whales + inflow
+    if whale and inflow > 100_000:
+        tp3 += 0.05
+        trailing_tp = "trail after TP2"
+
+    # Boost za cichą akumulację
+    if pure_acc:
+        tp1 += 0.01
+        tp2 += 0.02
+
+    return {
+        "TP1": round(tp1, 2),
+        "TP2": round(tp2, 2),
+        "TP3": round(tp3, 2),
+        "trailing_tp": trailing_tp
+    }
+✅ 2. Miejsce wywołania w scan_cycle()
+🔧 Po obliczeniu PPWCS i przed send_alert() dodaj wywołanie forecastu:
+
+python
+Kopiuj
+Edytuj
+tp_forecast = forecast_take_profits(symbol, data)
+send_alert(symbol, ppwcs_score, alert_level, tp_forecast=tp_forecast)
+✅ 3. Modyfikacja send_alert()
+🔧 Dodaj obsługę TP w treści wiadomości Telegram:
+
+python
+Kopiuj
+Edytuj
+def send_alert(symbol, ppwcs_score, alert_level, tp_forecast=None):
+    message = f"🚨 {alert_level} Alert: ${symbol.upper()}\n\n"
+    message += f"PPWCS: {ppwcs_score}\n"
+
+    if tp_forecast:
+        message += "\n📊 Take Profit Forecast:\n"
+        message += f"• TP1: +{int(tp_forecast['TP1'] * 100)}%\n"
+        message += f"• TP2: +{int(tp_forecast['TP2'] * 100)}%\n"
+        message += f"• TP3: +{int(tp_forecast['TP3'] * 100)}%\n"
+        message += f"• Trailing TP: {tp_forecast['trailing_tp']}\n"
+
+    message += f"\n⏱ Detected at: {datetime.utcnow().strftime('%H:%M UTC')}"
+    send_telegram_message(message)
