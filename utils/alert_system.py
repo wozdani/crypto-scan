@@ -111,8 +111,8 @@ Position Size: {risk_reward['recommended_position_size']}
     
     return alert_text.strip()
 
-def send_telegram_alert(token, ppwcs_score, stage_signals, tp_forecast, stage1g_trigger_type=None):
-    """Enhanced Telegram alert with Polish formatting and trailing score logic"""
+def send_telegram_alert(token, ppwcs_score, stage_signals, tp_forecast, stage1g_trigger_type=None, gpt_feedback=None):
+    """Enhanced Telegram alert with Polish formatting, trailing score logic, and GPT feedback"""
     global trailing_scores, last_alert_time
     
     try:
@@ -157,10 +157,13 @@ def send_telegram_alert(token, ppwcs_score, stage_signals, tp_forecast, stage1g_
 • Trailing TP: +{tp_forecast['TrailingTP']}%
 
 🔬 Signals: {signals_text}
-{"🧩 Trigger: " + stage1g_trigger_type if stage1g_trigger_type else ""}
+{"🧩 Trigger: " + stage1g_trigger_type if stage1g_trigger_type else ""}"""
 
-🕒 UTC: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}
-"""
+        # Add GPT feedback for strong alerts (PPWCS >= 80)
+        if gpt_feedback and ppwcs_score >= 80:
+            text += f"\n\n🤖 GPT Feedback:\n{gpt_feedback}"
+
+        text += f"\n\n🕒 UTC: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}"
 
         bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
         chat_id = os.getenv('TELEGRAM_CHAT_ID')
@@ -209,28 +212,11 @@ def process_alert(token, ppwcs_score, signals, gpt_analysis=None):
         # Get Stage 1G trigger type for alert
         stage1g_trigger_type = signals.get('stage1g_trigger_type') if signals.get('stage1g_active') else None
         
-        # Send enhanced Telegram alert
-        success = send_telegram_alert(token, ppwcs_score, signals, tp_forecast, stage1g_trigger_type)
-        
-        # Add GPT analysis as follow-up message for strong alerts
-        alert_level = get_alert_level(ppwcs_score)
-        if success and should_request_gpt_analysis(alert_level) and gpt_analysis:
-            try:
-                bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
-                chat_id = os.getenv('TELEGRAM_CHAT_ID')
-                
-                if bot_token and chat_id:
-                    gpt_payload = {
-                        "chat_id": chat_id,
-                        "text": f"🤖 **Analiza GPT dla {token}:**\n{gpt_analysis}",
-                        "parse_mode": "Markdown"
-                    }
-                    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-                    requests.post(url, data=gpt_payload, timeout=10)
-            except Exception:
-                pass  # GPT follow-up is optional
+        # Send enhanced Telegram alert with GPT feedback included for PPWCS >= 80
+        success = send_telegram_alert(token, ppwcs_score, signals, tp_forecast, stage1g_trigger_type, gpt_analysis)
         
         if success:
+            alert_level = get_alert_level(ppwcs_score)
             print(f"📢 {alert_level.upper()} sent for {token} (Score: {ppwcs_score})")
             return True
         else:

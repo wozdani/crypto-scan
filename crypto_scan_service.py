@@ -108,12 +108,8 @@ def scan_cycle():
             from utils.take_profit_engine import forecast_take_profit_levels
             tp_forecast = forecast_take_profit_levels(signals)
             
-            # Send alert if conditions are met
-            if score >= 60:  # Minimum threshold for any action
-                from utils.alert_system import process_alert
-                process_alert(symbol, score, signals, gpt_analysis)
-            
             # Enhanced GPT feedback for strong signals (PPWCS >= 80)
+            gpt_feedback = None
             if score >= 80:
                 try:
                     gpt_feedback = send_report_to_gpt(symbol, signals, tp_forecast)
@@ -132,6 +128,11 @@ def scan_cycle():
                         
                 except Exception as gpt_error:
                     print(f"⚠️ GPT feedback failed for {symbol}: {gpt_error}")
+            
+            # Send alert with GPT feedback (if available) for all qualifying signals
+            if score >= 60:  # Minimum threshold for any action
+                from utils.alert_system import process_alert
+                process_alert(symbol, score, signals, gpt_feedback)
                         
         except Exception as e:
             print(f"❌ Error scanning {symbol}: {e}")
