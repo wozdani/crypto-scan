@@ -14,7 +14,7 @@ from utils.data_fetchers import get_symbols_cached, get_market_data
 from stages.stage_minus2_1 import detect_stage_minus2_1
 from utils.stage_detectors import detect_stage_minus1
 from utils.scoring import compute_ppwcs, should_alert, log_ppwcs_score, get_previous_score, save_score
-from utils.gpt_feedback import send_report_to_chatgpt
+from utils.gpt_feedback import send_report_to_chatgpt, score_gpt_feedback, categorize_feedback_score
 from utils.alert_system import process_alert
 from utils.reports import save_stage_signal, save_conditional_reports, compress_reports_to_zip
 
@@ -142,12 +142,23 @@ def scan_cycle():
             
             # Enhanced GPT feedback for strong signals (PPWCS >= 80)
             gpt_feedback = None
+            feedback_score = None
             if score >= 80:
                 try:
                     # Pass alert level to GPT function
                     alert_level_text = get_alert_level(score)
                     gpt_feedback = send_report_to_gpt(symbol, signals, tp_forecast, alert_level_text)
+                    
+                    # Auto-score the GPT feedback
+                    feedback_score = score_gpt_feedback(gpt_feedback)
+                    category, description, emoji = categorize_feedback_score(feedback_score)
+                    
                     print(f"[GPT FEEDBACK] {symbol}: {gpt_feedback}")
+                    print(f"[FEEDBACK SCORE] {symbol}: {feedback_score}/100 ({category}) {emoji}")
+                    
+                    # Add feedback score to signals data
+                    signals["feedback_score"] = feedback_score
+                    signals["feedback_category"] = category
                     
                     # Create feedback directory and save report
                     os.makedirs("data/feedback", exist_ok=True)
@@ -159,6 +170,8 @@ def scan_cycle():
                         f.write(f"Timestamp: {datetime.utcnow().isoformat()}\n")
                         f.write(f"Signals: {signals}\n")
                         f.write(f"TP Forecast: {tp_forecast}\n")
+                        f.write(f"Feedback Score: {feedback_score}/100\n")
+                        f.write(f"Feedback Category: {category} ({description})\n")
                         f.write(f"GPT Feedback:\n{gpt_feedback}\n")
                         
                 except Exception as gpt_error:

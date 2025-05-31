@@ -46,6 +46,160 @@ def send_report_to_chatgpt(symbol: str, tags: list[str], score: float, compresse
         print(f"GPT error: {e}")
         return "⚠️ Błąd podczas generowania analizy GPT."
 
+def score_gpt_feedback(gpt_text):
+    """
+    GPT Feedback Auto-Scorer - automatycznie ocenia jakość alertu
+    na podstawie odpowiedzi GPT i zwraca feedback_score (0-100)
+    
+    Args:
+        gpt_text: tekst odpowiedzi z GPT
+    
+    Returns:
+        int: score od 0 do 100
+    """
+    if not gpt_text or len(gpt_text.strip()) < 10:
+        return 50  # Neutral score dla pustych odpowiedzi
+    
+    text = gpt_text.lower()
+    
+    # Podstawowy score na podstawie siły sygnału
+    base_score = 60  # Neutralny punkt startowy
+    
+    # Silne sygnały (polskie i angielskie frazy)
+    strong_signals = [
+        "silny sygnał", "mocny sygnał", "bardzo obiecujący", "doskonały",
+        "strong signal", "very likely", "excellent", "robust", "solid"
+    ]
+    
+    # Umiarkowane sygnały
+    moderate_signals = [
+        "umiarkowany", "dobry", "przyzwoity", "solidny",
+        "moderate", "good", "decent", "reasonable"
+    ]
+    
+    # Słabe sygnały
+    weak_signals = [
+        "słaby", "ryzykowny", "niepewny", "wątpliwy",
+        "weak", "risky", "uncertain", "doubtful"
+    ]
+    
+    # Ustal podstawowy score
+    if any(phrase in text for phrase in strong_signals):
+        base_score = 85
+    elif any(phrase in text for phrase in moderate_signals):
+        base_score = 70
+    elif any(phrase in text for phrase in weak_signals):
+        base_score = 50
+    
+    # Bonusy za pozytywne wskaźniki
+    positive_indicators = [
+        "niskie ryzyko", "solidna struktura", "dobra konfirmacja", "stabilny wzrost",
+        "low risk", "solid structure", "good confirmation", "stable growth"
+    ]
+    if any(phrase in text for phrase in positive_indicators):
+        base_score += 10
+    
+    # Wysokie prawdopodobieństwo kontynuacji
+    continuation_indicators = [
+        "wysokie prawdopodobieństwo", "duża szansa", "kontynuacja prawdopodobna",
+        "high probability", "likely to continue", "strong momentum"
+    ]
+    if any(phrase in text for phrase in continuation_indicators):
+        base_score += 8
+    
+    # Pozytywne wskaźniki techniczne
+    technical_positive = [
+        "przełamanie oporu", "wzrost wolumenu", "akumulacja", "wybicie",
+        "breakout", "volume increase", "accumulation", "bullish pattern"
+    ]
+    if any(phrase in text for phrase in technical_positive):
+        base_score += 5
+    
+    # Kary za negatywne wskaźniki
+    negative_indicators = [
+        "fakeout", "brak konfirmacji", "wysokie ryzyko", "możliwy spadek",
+        "lack of confirmation", "high risk", "potential decline", "false signal"
+    ]
+    if any(phrase in text for phrase in negative_indicators):
+        base_score -= 15
+    
+    # Kary za pump and dump ryzyko
+    pnd_indicators = [
+        "pump and dump", "sztuczny wzrost", "manipulacja", "social hype",
+        "artificial pump", "manipulation", "unsustainable"
+    ]
+    if any(phrase in text for phrase in pnd_indicators):
+        base_score -= 10
+    
+    # Kary za niepewność
+    uncertainty_indicators = [
+        "niepewność", "trudne do przewidzenia", "mieszane sygnały",
+        "uncertainty", "hard to predict", "mixed signals", "unclear"
+    ]
+    if any(phrase in text for phrase in uncertainty_indicators):
+        base_score -= 8
+    
+    # Bonus za szczegółową analizę (długość tekstu)
+    if len(gpt_text) > 200:
+        base_score += 3
+    
+    # Clamp do zakresu 0-100
+    return max(0, min(100, base_score))
+
+def categorize_feedback_score(score):
+    """
+    Kategoryzuje feedback score na poziomy jakości
+    
+    Args:
+        score: numeryczny score 0-100
+    
+    Returns:
+        tuple: (kategoria, opis, emoji)
+    """
+    if score >= 85:
+        return ("ULTRA_CLEAN", "Ultra clean signal, high continuation probability", "🔵")
+    elif score >= 70:
+        return ("STRONG", "Strong signal with good potential", "🟢")
+    elif score >= 55:
+        return ("MODERATE", "Moderate signal with some risk", "🟡")
+    elif score >= 40:
+        return ("WEAK", "Weak signal, higher risk", "🟠")
+    else:
+        return ("POOR", "Poor signal, possible fakeout", "🔴")
+
+def get_feedback_statistics(feedback_scores):
+    """
+    Oblicza statystyki dla listy feedback scores
+    
+    Args:
+        feedback_scores: lista numerycznych scores
+    
+    Returns:
+        dict: statystyki feedback scores
+    """
+    if not feedback_scores:
+        return {
+            "avg_score": 0,
+            "max_score": 0,
+            "min_score": 0,
+            "ultra_clean_count": 0,
+            "strong_count": 0,
+            "total_count": 0
+        }
+    
+    avg_score = sum(feedback_scores) / len(feedback_scores)
+    ultra_clean_count = sum(1 for score in feedback_scores if score >= 85)
+    strong_count = sum(1 for score in feedback_scores if score >= 70)
+    
+    return {
+        "avg_score": round(avg_score, 1),
+        "max_score": max(feedback_scores),
+        "min_score": min(feedback_scores),
+        "ultra_clean_count": ultra_clean_count,
+        "strong_count": strong_count,
+        "total_count": len(feedback_scores)
+    }
+
 def send_report_to_gpt(symbol: str, data: dict, tp_forecast: dict, alert_level: str = "strong") -> str:
     """Enhanced GPT feedback for high-confidence signals (PPWCS >= 80)"""
     try:
