@@ -27,6 +27,8 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> int:
             score += 3
         if signals.get("vwap_pinned"):
             score += 4
+        if signals.get("volume_slope_up"):
+            score += 4
 
         # --- Pure Accumulation Bonus ---
         # Whale + DEX inflow without social noise

@@ -84,6 +84,8 @@ def format_alert_message(token, ppwcs_score, signals, tp_forecast, risk_reward):
         active_signals.append('Supply Exhaustion')
     if signals.get('vwap_pinned'):
         active_signals.append('VWAP Pinning')
+    if signals.get('volume_slope_up'):
+        active_signals.append('Volume Cluster Slope')
     if signals.get('social_spike'):
         active_signals.append('Social Spike')
     if signals.get('stage1g_active'):

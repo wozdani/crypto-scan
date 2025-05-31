@@ -7,6 +7,7 @@ from utils.social_detector import detect_social_spike
 from utils.heatmap_exhaustion import detect_heatmap_exhaustion, analyze_orderbook_exhaustion
 from utils.orderbook_spoofing import detect_orderbook_spoofing, analyze_orderbook_walls
 from utils.vwap_pinning import detect_vwap_pinning, analyze_vwap_control, get_recent_market_data
+from utils.volume_cluster_slope import detect_volume_cluster_slope, get_recent_candle_data, analyze_volume_price_dynamics
 from stages.stage_minus2_2 import detect_stage_minus2_2
 from stages.stage_1g import detect_stage_1g
 import numpy as np
@@ -181,6 +182,7 @@ def detect_stage_minus2_1(symbol):
         "heatmap_exhaustion": False,
         "spoofing_suspected": False,
         "vwap_pinned": False,
+        "volume_slope_up": False,
         "event_tag": None,
         "event_score": 0,
         "event_risk": False,
@@ -230,6 +232,12 @@ def detect_stage_minus2_1(symbol):
     signals["vwap_pinned"] = detect_vwap_pinning(vwap_market_data)
     if signals["vwap_pinned"]:
         print(f"✅ Stage –2.1: VWAP pinning dla {symbol}")
+
+    # Volume cluster slope detection
+    candle_data = get_recent_candle_data(symbol)
+    signals["volume_slope_up"] = detect_volume_cluster_slope(candle_data)
+    if signals["volume_slope_up"]:
+        print(f"✅ Stage –2.1: Volume cluster slope dla {symbol}")
 
     # Orderbook anomaly detection
     signals["orderbook_anomaly"] = detect_orderbook_anomaly(symbol)
