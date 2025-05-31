@@ -4,6 +4,7 @@ from utils.whale_detector import detect_whale_transfers
 from utils.token_map_loader import load_token_map
 from utils.orderbook_anomaly import detect_orderbook_anomaly
 from utils.social_detector import detect_social_spike
+from utils.heatmap_exhaustion import detect_heatmap_exhaustion, analyze_orderbook_exhaustion
 from stages.stage_minus2_2 import detect_stage_minus2_2
 from stages.stage_1g import detect_stage_1g
 import numpy as np
@@ -175,6 +176,7 @@ def detect_stage_minus2_1(symbol):
         "orderbook_anomaly": False,
         "volume_spike": False,
         "dex_inflow": False,
+        "heatmap_exhaustion": False,
         "event_tag": None,
         "event_score": 0,
         "event_risk": False,
@@ -197,6 +199,16 @@ def detect_stage_minus2_1(symbol):
     if whale_detected:
         print(f"✅ Stage –2.1: Whale TX dla {symbol} = ${whale_usd:.2f}")
 
+    # Heatmap exhaustion detection
+    exhaustion_data = analyze_orderbook_exhaustion(symbol)
+    signals["heatmap_exhaustion"] = detect_heatmap_exhaustion({
+        "ask_wall_disappeared": exhaustion_data.get("ask_wall_disappeared", False),
+        "volume_spike": signals["volume_spike"],
+        "whale_activity": signals["whale_activity"]
+    })
+    if signals["heatmap_exhaustion"]:
+        print(f"✅ Stage –2.1: Heatmap exhaustion dla {symbol}")
+
     # Orderbook anomaly detection
     signals["orderbook_anomaly"] = detect_orderbook_anomaly(symbol)
 
@@ -212,6 +224,8 @@ def detect_stage_minus2_1(symbol):
         signals["dex_inflow"] = True
     else:
         inflow = 0.0
+
+
 
     # Stage 1G detection with news tag integration
     stage1g_active, trigger_type = detect_stage_1g(symbol, data, signals["event_tag"])

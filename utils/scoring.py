@@ -21,6 +21,8 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> int:
             score += 10
         if signals.get("social_spike"):
             score += 5
+        if signals.get("heatmap_exhaustion"):
+            score += 5
 
         # --- Pure Accumulation Bonus ---
         # Whale + DEX inflow without social noise
