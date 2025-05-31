@@ -23,6 +23,15 @@ def load_cooldown_tracker():
     except Exception:
         return {}
 
+def get_feedback_icon(score):
+    """Get quality icon based on feedback score"""
+    if score >= 85:
+        return "🔥"  # High confidence
+    elif score >= 70:
+        return "⚠️"  # Decent with some risk
+    else:
+        return "💤"  # Weak or risky
+
 def save_cooldown_tracker(tracker):
     """Save cooldown tracker to file"""
     try:
@@ -119,7 +128,7 @@ Position Size: {risk_reward['recommended_position_size']}
     
     return alert_text.strip()
 
-def send_telegram_alert(token, ppwcs_score, stage_signals, tp_forecast, stage1g_trigger_type=None, gpt_feedback=None):
+def send_telegram_alert(token, ppwcs_score, stage_signals, tp_forecast, stage1g_trigger_type=None, gpt_feedback=None, feedback_score=None):
     """Enhanced Telegram alert with Polish formatting, trailing score logic, and GPT feedback"""
     global trailing_scores, last_alert_time
     
@@ -169,7 +178,8 @@ def send_telegram_alert(token, ppwcs_score, stage_signals, tp_forecast, stage1g_
 
         # Add GPT feedback for strong alerts (PPWCS >= 80)
         if gpt_feedback and ppwcs_score >= 80:
-            text += f"\n\n🤖 GPT Feedback:\n{gpt_feedback}"
+            icon = get_feedback_icon(feedback_score or 0)
+            text += f"\n\n🤖 GPT Feedback {icon}:\n{gpt_feedback}"
 
         text += f"\n\n🕒 UTC: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}"
 
@@ -221,7 +231,8 @@ def process_alert(token, ppwcs_score, signals, gpt_analysis=None):
         stage1g_trigger_type = signals.get('stage1g_trigger_type') if signals.get('stage1g_active') else None
         
         # Send enhanced Telegram alert with GPT feedback included for PPWCS >= 80
-        success = send_telegram_alert(token, ppwcs_score, signals, tp_forecast, stage1g_trigger_type, gpt_analysis)
+        feedback_score = signals.get('feedback_score')
+        success = send_telegram_alert(token, ppwcs_score, signals, tp_forecast, stage1g_trigger_type, gpt_analysis, feedback_score)
         
         if success:
             alert_level = get_alert_level(ppwcs_score)
