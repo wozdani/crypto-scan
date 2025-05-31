@@ -46,25 +46,57 @@ def send_report_to_chatgpt(symbol: str, tags: list[str], score: float, compresse
         print(f"GPT error: {e}")
         return "⚠️ Błąd podczas generowania analizy GPT."
 
-def send_report_to_gpt(symbol: str, data: dict, tp_forecast: dict) -> str:
+def send_report_to_gpt(symbol: str, data: dict, tp_forecast: dict, alert_level: str = "strong") -> str:
     """Enhanced GPT feedback for high-confidence signals (PPWCS >= 80)"""
     try:
+        ppwcs = data.get("ppwcs_score", 0)
+        whale = data.get("whale_activity", False)
+        inflow = data.get("dex_inflow_usd", 0)
+        compressed = data.get("compressed", False)
+        stage1g = data.get("stage1g_active", False)
+        pure_acc = data.get("pure_accumulation", False)
+        social_spike = data.get("social_spike", False)
+        heatmap_exhaustion = data.get("heatmap_exhaustion", False)
+        sector_cluster = data.get("sector_clustered", False)
+        spoofing = data.get("spoofing_suspected", False)
+        vwap_pinned = data.get("vwap_pinned", False)
+        vol_slope = data.get("volume_slope_up", False)
+
+        timestamp = datetime.utcnow().strftime("%H:%M UTC")
+
         prompt = f"""You are an expert crypto analyst. Evaluate the following pre-pump signal:
 
-Token: {symbol.upper()}
-PPWCS: {data.get("ppwcs_score", 0)}
-Stage -2.1: Whale: {data.get("whale_activity", False)}, Inflow: ${data.get("dex_inflow", 0):,}
-Stage -1: Compressed: {data.get("compressed", False)}
-Stage 1g: Active: {data.get("stage1g_active", False)}
-Pure Accumulation: {data.get("pure_accumulation", False)}
+Token: ${symbol.upper()}
+PPWCS: {ppwcs}
+Alert Level: {alert_level}
+Detected at: {timestamp}
+
+Stage –2.1:
+• Whale Activity: {whale}
+• DEX Inflow (USD): {inflow}
+• Social Spike Detected: {social_spike}
+• Sector Time Clustering Active: {sector_cluster}
+
+Stage –1:
+• Compressed Structure: {compressed}
+
+Stage 1g:
+• Active: {stage1g}
+• Pure Accumulation (No Social): {pure_acc}
+
+Structural Detectors:
+• Heatmap Exhaustion: {heatmap_exhaustion}
+• Spoofing Suspected: {spoofing}
+• VWAP Pinned: {vwap_pinned}
+• Volume Slope Up: {vol_slope}
 
 TP Forecast:
-TP1: +{tp_forecast['TP1']}%
-TP2: +{tp_forecast['TP2']}%
-TP3: +{tp_forecast['TP3']}%
-Trailing: {tp_forecast['TrailingTP']}%
+• TP1: +{int(tp_forecast['TP1'] * 100)}%
+• TP2: +{int(tp_forecast['TP2'] * 100)}%
+• TP3: +{int(tp_forecast['TP3'] * 100)}%
+• Trailing: {tp_forecast['trailing_tp']}
 
-Please give your feedback on this signal. Is it strong? What are potential risks? Reply in 3 short sentences in Polish."""
+Evaluate the quality and strength of this signal. Provide a confident but concise assessment in 3 short sentences, including any risk factors and probability of continuation. Reply in Polish."""
 
         response = client.chat.completions.create(
             model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user

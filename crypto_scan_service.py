@@ -31,6 +31,9 @@ def send_report_to_gpt(symbol, data, tp_forecast, alert_level):
     social_spike = data.get("social_spike", False)
     heatmap_exhaustion = data.get("heatmap_exhaustion", False)
     sector_cluster = data.get("sector_clustered", False)
+    spoofing = data.get("spoofing_suspected", False)
+    vwap_pinned = data.get("vwap_pinned", False)
+    vol_slope = data.get("volume_slope_up", False)
 
     timestamp = datetime.utcnow().strftime("%H:%M UTC")
 
@@ -54,7 +57,11 @@ Stage 1g:
 • Active: {stage1g}
 • Pure Accumulation (No Social): {pure_acc}
 
-Heatmap Exhaustion: {heatmap_exhaustion}
+Structural Detectors:
+• Heatmap Exhaustion: {heatmap_exhaustion}
+• Spoofing Suspected: {spoofing}
+• VWAP Pinned: {vwap_pinned}
+• Volume Slope Up: {vol_slope}
 
 TP Forecast:
 • TP1: +{tp_forecast['TP1']}%
