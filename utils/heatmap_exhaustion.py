@@ -64,6 +64,8 @@ def get_exhaustion_score(exhaustion_data):
         score += 3
     elif bid_ask_ratio > 1.2:
         score += 2
+    elif bid_ask_ratio > 1.0:  # Minimal bid advantage
+        score += 1
         
     large_asks_removed = exhaustion_data.get("large_asks_removed", 0)
     if large_asks_removed > 3:
