@@ -32,7 +32,7 @@ def send_report_to_chatgpt(symbol: str, tags: list[str], score: float, compresse
         )
 
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
             messages=[
                 {"role": "system", "content": "Jesteś ekspertem rynku kryptowalut specjalizującym się w analizie sygnałów pre-pump."},
                 {"role": "user", "content": prompt}
@@ -40,11 +40,46 @@ def send_report_to_chatgpt(symbol: str, tags: list[str], score: float, compresse
             timeout=15
         )
 
-        return response.choices[0].message.content.strip()
+        return response.choices[0].message.content.strip() if response.choices[0].message.content else "No response"
 
     except Exception as e:
         print(f"GPT error: {e}")
         return "⚠️ Błąd podczas generowania analizy GPT."
+
+def send_report_to_gpt(symbol: str, data: dict, tp_forecast: dict) -> str:
+    """Enhanced GPT feedback for high-confidence signals (PPWCS >= 80)"""
+    try:
+        prompt = f"""You are an expert crypto analyst. Evaluate the following pre-pump signal:
+
+Token: {symbol.upper()}
+PPWCS: {data.get("ppwcs_score", 0)}
+Stage -2.1: Whale: {data.get("whale_activity", False)}, Inflow: ${data.get("dex_inflow", 0):,}
+Stage -1: Compressed: {data.get("compressed", False)}
+Stage 1g: Active: {data.get("stage1g_active", False)}
+Pure Accumulation: {data.get("pure_accumulation", False)}
+
+TP Forecast:
+TP1: +{tp_forecast['TP1']}%
+TP2: +{tp_forecast['TP2']}%
+TP3: +{tp_forecast['TP3']}%
+Trailing: {tp_forecast['TrailingTP']}%
+
+Please give your feedback on this signal. Is it strong? What are potential risks? Reply in 3 short sentences in Polish."""
+
+        response = client.chat.completions.create(
+            model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+            messages=[
+                {"role": "system", "content": "You are a crypto signal quality evaluator. Respond in Polish."},
+                {"role": "user", "content": prompt}
+            ],
+            timeout=15
+        )
+
+        return response.choices[0].message.content.strip() if response.choices[0].message.content else "No response"
+
+    except Exception as e:
+        print(f"❌ GPT feedback error: {e}")
+        return f"[GPT ERROR] {str(e)}"
 
 def get_recent_gpt_analyses(hours=24, limit=10):
     """

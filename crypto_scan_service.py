@@ -71,10 +71,24 @@ def scan_cycle():
             
             if should_request_gpt_analysis(alert_level):
                 try:
-                    # Get GPT analysis for strong alerts only
-                    event_tag = signals.get('event_tag')
-                    event_tags: list[str] = [str(event_tag)] if event_tag else []
-                    gpt_analysis = send_report_to_chatgpt(symbol, event_tags, score, bool(compressed), stage1g_active)
+                    # Enhanced GPT analysis for strong alerts (PPWCS >= 80)
+                    from utils.gpt_feedback import send_report_to_gpt
+                    from utils.take_profit_engine import forecast_take_profit_levels
+                    
+                    tp_forecast = forecast_take_profit_levels(signals)
+                    gpt_analysis = send_report_to_gpt(symbol, signals, tp_forecast)
+                    
+                    # Log GPT feedback to file
+                    from datetime import datetime
+                    feedback_file = f"data/feedback/{symbol}_{datetime.utcnow().strftime('%Y%m%d_%H%M')}.txt"
+                    with open(feedback_file, "w", encoding="utf-8") as f:
+                        f.write(f"Token: {symbol}\n")
+                        f.write(f"PPWCS: {score}\n")
+                        f.write(f"Timestamp: {datetime.utcnow().isoformat()}\n")
+                        f.write(f"GPT Feedback:\n{gpt_analysis}\n")
+                    
+                    print(f"[GPT FEEDBACK] {symbol}: {gpt_analysis}")
+                    
                 except Exception as gpt_error:
                     print(f"⚠️ GPT analysis failed for {symbol}: {gpt_error}")
             

@@ -1,0 +1,80 @@
+robimy teraz feedback GPT tylko dla alertów z PPWCS > 80.
+
+✅ Cel:
+Jeśli ppwcs_score >= 80 → wysyłamy raport do GPT.
+
+GPT analizuje sygnał (token, struktura, inflow, whales, TP, itp.).
+
+GPT zwraca ocenę jakości sygnału i dodatkowy komentarz.
+
+To trafia:
+
+do logu feedbacku
+
+opcjonalnie do alertu Telegram
+
+✅ Krok 1: Funkcja send_report_to_gpt()
+🔧 Wklej do pliku, np. gpt_feedback.py:
+
+python
+Kopiuj
+Edytuj
+import openai
+import os
+
+def send_report_to_gpt(symbol, data, tp_forecast):
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+
+    prompt = f"""You are an expert crypto analyst. Evaluate the following pre-pump signal:
+    
+Token: ${symbol.upper()}
+PPWCS: {data.get("ppwcs_score", 0)}
+Stage –2.1: Whale: {data.get("whale_activity", False)}, Inflow: {data.get("dex_inflow_usd", 0)}
+Stage –1: Compressed: {data.get("compressed", False)}
+Stage 1g: Active: {data.get("stage1g_active", False)}
+Pure Accumulation: {data.get("pure_accumulation", False)}
+
+TP Forecast:
+TP1: +{int(tp_forecast['TP1']*100)}%
+TP2: +{int(tp_forecast['TP2']*100)}%
+TP3: +{int(tp_forecast['TP3']*100)}%
+Trailing: {tp_forecast['trailing_tp']}
+
+Please give your feedback on this signal. Is it strong? What are potential risks? Reply in 3 short sentences."""
+
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a crypto signal quality evaluator."},
+                {"role": "user", "content": prompt}
+            ],
+            timeout=15
+        )
+        return response['choices'][0]['message']['content'].strip()
+    except Exception as e:
+        return f"[GPT ERROR] {str(e)}"
+✅ Krok 2: Wywołanie w scan_cycle()
+🔧 Po wysłaniu alertu i jeśli ppwcs_score >= 80:
+
+python
+Kopiuj
+Edytuj
+if ppwcs_score >= 80:
+    gpt_feedback = send_report_to_gpt(symbol, data, tp_forecast)
+    print(f"[GPT FEEDBACK] {symbol}: {gpt_feedback}")
+Możesz też zapisać do pliku:
+
+python
+Kopiuj
+Edytuj
+with open(f"feedback/{symbol}_{datetime.utcnow().strftime('%Y%m%d_%H%M')}.txt", "w") as f:
+    f.write(gpt_feedback)
+✅ Krok 3 (opcjonalny): Dodanie do alertu Telegram
+Jeśli chcesz mieć komentarz GPT w alertach:
+
+python
+Kopiuj
+Edytuj
+if gpt_feedback:
+    message += f"\n🧠 GPT Feedback:\n{gpt_feedback}"
