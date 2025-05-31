@@ -3,6 +3,7 @@ import os
 import time
 import glob
 import json
+import openai
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
@@ -16,6 +17,40 @@ from utils.scoring import compute_ppwcs, should_alert, log_ppwcs_score, get_prev
 from utils.gpt_feedback import send_report_to_chatgpt
 from utils.alert_system import process_alert
 from utils.reports import save_stage_signal, save_conditional_reports, compress_reports_to_zip
+
+def send_report_to_gpt(symbol, data, tp_forecast):
+    """Send comprehensive signal report to GPT for analysis"""
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+
+    prompt = f"""You are an expert crypto analyst. Evaluate the following pre-pump signal:
+    
+Token: ${symbol.upper()}
+PPWCS: {data.get("ppwcs_score", 0)}
+Stage -2.1: Whale: {data.get("whale_activity", False)}, Inflow: {data.get("dex_inflow", 0)}
+Stage -1: Compressed: {data.get("compressed", False)}
+Stage 1g: Active: {data.get("stage1g_active", False)}
+Pure Accumulation: {data.get("pure_accumulation", False)}
+
+TP Forecast:
+TP1: +{tp_forecast['TP1']}%
+TP2: +{tp_forecast['TP2']}%
+TP3: +{tp_forecast['TP3']}%
+Trailing: {tp_forecast['TrailingTP']}%
+
+Please give your feedback on this signal. Is it strong? What are potential risks? Reply in 3 short sentences in Polish."""
+
+    try:
+        response = openai.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a crypto signal quality evaluator. Respond in Polish."},
+                {"role": "user", "content": prompt}
+            ],
+            timeout=15
+        )
+        return response.choices[0].message.content.strip() if response.choices[0].message.content else "No response"
+    except Exception as e:
+        return f"[GPT ERROR] {str(e)}"
 
 # === Wait for next 15m candle ===
 def wait_for_next_candle():
@@ -69,31 +104,34 @@ def scan_cycle():
             gpt_analysis = None
             alert_level = get_alert_level(score)
             
-            if should_request_gpt_analysis(alert_level):
+            # Generate TP forecast for all qualifying signals
+            from utils.take_profit_engine import forecast_take_profit_levels
+            tp_forecast = forecast_take_profit_levels(signals)
+            
+            # Send alert if conditions are met
+            if score >= 60:  # Minimum threshold for any action
+                from utils.alert_system import process_alert
+                process_alert(symbol, score, signals, gpt_analysis)
+            
+            # Enhanced GPT feedback for strong signals (PPWCS >= 80)
+            if score >= 80:
                 try:
-                    # Enhanced GPT analysis for strong alerts (PPWCS >= 80)
-                    from utils.gpt_feedback import send_report_to_gpt
-                    from utils.take_profit_engine import forecast_take_profit_levels
+                    gpt_feedback = send_report_to_gpt(symbol, signals, tp_forecast)
+                    print(f"[GPT FEEDBACK] {symbol}: {gpt_feedback}")
                     
-                    tp_forecast = forecast_take_profit_levels(signals)
-                    gpt_analysis = send_report_to_gpt(symbol, signals, tp_forecast)
-                    
-                    # Log GPT feedback to file
-                    from datetime import datetime
+                    # Create feedback directory and save report
+                    os.makedirs("data/feedback", exist_ok=True)
                     feedback_file = f"data/feedback/{symbol}_{datetime.utcnow().strftime('%Y%m%d_%H%M')}.txt"
                     with open(feedback_file, "w", encoding="utf-8") as f:
                         f.write(f"Token: {symbol}\n")
                         f.write(f"PPWCS: {score}\n")
                         f.write(f"Timestamp: {datetime.utcnow().isoformat()}\n")
-                        f.write(f"GPT Feedback:\n{gpt_analysis}\n")
-                    
-                    print(f"[GPT FEEDBACK] {symbol}: {gpt_analysis}")
-                    
+                        f.write(f"Signals: {signals}\n")
+                        f.write(f"TP Forecast: {tp_forecast}\n")
+                        f.write(f"GPT Feedback:\n{gpt_feedback}\n")
+                        
                 except Exception as gpt_error:
-                    print(f"⚠️ GPT analysis failed for {symbol}: {gpt_error}")
-            
-            # Process alert with the new system
-            process_alert(symbol, score, signals, gpt_analysis)
+                    print(f"⚠️ GPT feedback failed for {symbol}: {gpt_error}")
                         
         except Exception as e:
             print(f"❌ Error scanning {symbol}: {e}")
