@@ -6,6 +6,7 @@ from utils.orderbook_anomaly import detect_orderbook_anomaly
 from utils.social_detector import detect_social_spike
 from utils.heatmap_exhaustion import detect_heatmap_exhaustion, analyze_orderbook_exhaustion
 from utils.orderbook_spoofing import detect_orderbook_spoofing, analyze_orderbook_walls
+from utils.vwap_pinning import detect_vwap_pinning, analyze_vwap_control, get_recent_market_data
 from stages.stage_minus2_2 import detect_stage_minus2_2
 from stages.stage_1g import detect_stage_1g
 import numpy as np
@@ -179,6 +180,7 @@ def detect_stage_minus2_1(symbol):
         "dex_inflow": False,
         "heatmap_exhaustion": False,
         "spoofing_suspected": False,
+        "vwap_pinned": False,
         "event_tag": None,
         "event_score": 0,
         "event_risk": False,
@@ -222,6 +224,12 @@ def detect_stage_minus2_1(symbol):
     })
     if signals["spoofing_suspected"]:
         print(f"✅ Stage –2.1: Orderbook spoofing dla {symbol}")
+
+    # VWAP pinning detection
+    vwap_market_data = get_recent_market_data(symbol)
+    signals["vwap_pinned"] = detect_vwap_pinning(vwap_market_data)
+    if signals["vwap_pinned"]:
+        print(f"✅ Stage –2.1: VWAP pinning dla {symbol}")
 
     # Orderbook anomaly detection
     signals["orderbook_anomaly"] = detect_orderbook_anomaly(symbol)

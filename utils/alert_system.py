@@ -82,6 +82,8 @@ def format_alert_message(token, ppwcs_score, signals, tp_forecast, risk_reward):
         active_signals.append('Orderbook Spoofing')
     if signals.get('heatmap_exhaustion'):
         active_signals.append('Supply Exhaustion')
+    if signals.get('vwap_pinned'):
+        active_signals.append('VWAP Pinning')
     if signals.get('social_spike'):
         active_signals.append('Social Spike')
     if signals.get('stage1g_active'):
