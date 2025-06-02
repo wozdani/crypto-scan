@@ -1,5 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 
 db = SQLAlchemy()
@@ -16,7 +16,7 @@ class Alert(db.Model):
     stage1g_active = db.Column(db.Boolean, default=False)
     alert_message = db.Column(db.Text)
     telegram_sent = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     
     # Relationships
     gpt_analyses = db.relationship('GPTAnalysis', backref='alert', lazy=True)
@@ -46,7 +46,7 @@ class GPTAnalysis(db.Model):
     confidence_level = db.Column(db.Integer)  # 0-100
     price_prediction = db.Column(db.String(20))  # bullish, bearish, neutral
     entry_recommendation = db.Column(db.String(20))  # immediate, wait, avoid
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     
     def to_dict(self):
         return {
@@ -70,8 +70,8 @@ class Symbol(db.Model):
     avg_ppwcs_score = db.Column(db.Float, default=0.0)
     last_alert_at = db.Column(db.DateTime)
     success_rate = db.Column(db.Float, default=0.0)  # % of successful predictions
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     def to_dict(self):
         return {
@@ -96,7 +96,7 @@ class ScanSession(db.Model):
     scan_duration = db.Column(db.Float)  # seconds
     status = db.Column(db.String(20), default='running')  # running, completed, failed
     error_message = db.Column(db.Text)
-    started_at = db.Column(db.DateTime, default=datetime.utcnow)
+    started_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     completed_at = db.Column(db.DateTime)
     
     def to_dict(self):
