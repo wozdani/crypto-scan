@@ -90,3 +90,11 @@ coverage.xml
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+# Crypto Scan - kontrakty, raporty i logi
+token_contract_map.json
+missing_contracts_log.txt
+out.log
+*.json
+*.zip
+scan_output/

@@ -1,0 +1,11 @@
+# Ustawienie końców linii (CRLF vs LF)
+* text=auto
+
+# Traktuj pliki Python jako tekstowe
+*.py text eol=lf
+
+# Ignoruj pliki binarne
+*.zip binary
+*.db binary
+*.png binary
+*.jpg binary
