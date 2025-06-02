@@ -44,7 +44,7 @@ def log_alert(message, status, error=None):
     """Log alert attempts to file"""
     try:
         log_entry = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "message": message,
             "status": status,
             "error": error

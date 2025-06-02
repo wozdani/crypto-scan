@@ -70,7 +70,7 @@ def get_recent_alerts_api():
         with open(alerts_file, 'r') as f:
             all_alerts = json.load(f)
             
-        cutoff_time = datetime.utcnow() - timedelta(hours=hours)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
         
         recent_alerts = []
         for alert in all_alerts:
@@ -110,7 +110,7 @@ def get_symbol_info(symbol):
             with open(scores_file, 'r') as f:
                 all_scores = json.load(f)
                 
-            cutoff_time = datetime.utcnow() - timedelta(days=7)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(days=7)
             
             for score in all_scores:
                 try:
@@ -183,7 +183,7 @@ def get_market_overview():
             with open(alerts_file, 'r') as f:
                 alerts = json.load(f)
                 
-            cutoff_time = datetime.utcnow() - timedelta(hours=24)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=24)
             
             for alert in alerts:
                 try:
@@ -202,7 +202,7 @@ def get_market_overview():
             with open(scores_file, 'r') as f:
                 scores = json.load(f)
                 
-            cutoff_time = datetime.utcnow() - timedelta(hours=24)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=24)
             recent_scores = []
             
             for score in scores:
@@ -225,7 +225,7 @@ def get_market_overview():
                 'avg_score_24h': round(avg_score_24h, 1),
                 'high_score_count_24h': high_score_count,
                 'top_performers': top_performers,
-                'last_updated': datetime.utcnow().isoformat()
+                'last_updated': datetime.now(timezone.utc).isoformat()
             }
         })
         

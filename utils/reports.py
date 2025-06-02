@@ -1,7 +1,7 @@
 import os
 import json
 import zipfile
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 def save_stage_signal(symbol, score, stage2_pass, compressed, stage1g_active):
     """
@@ -10,7 +10,7 @@ def save_stage_signal(symbol, score, stage2_pass, compressed, stage1g_active):
     try:
         signal_data = {
             'symbol': symbol,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'ppwcs_score': score,
             'stage_minus2': stage2_pass,
             'stage_minus1': compressed,
@@ -21,7 +21,7 @@ def save_stage_signal(symbol, score, stage2_pass, compressed, stage1g_active):
         os.makedirs("reports/signals", exist_ok=True)
         
         # Save to daily file
-        date_str = datetime.utcnow().strftime('%Y%m%d')
+        date_str = datetime.now(timezone.utc).strftime('%Y%m%d')
         signals_file = f"reports/signals/signals_{date_str}.json"
         
         # Load existing signals or create new list
@@ -72,7 +72,7 @@ def generate_high_score_report():
             
         report = {
             'report_type': 'high_score_symbols',
-            'generated_at': datetime.utcnow().isoformat(),
+            'generated_at': datetime.now(timezone.utc).isoformat(),
             'criteria': 'Top 20 symbols by PPWCS score in last 24 hours',
             'symbols': top_performers,
             'summary': {
@@ -85,7 +85,7 @@ def generate_high_score_report():
         
         # Save report
         os.makedirs("reports/high_scores", exist_ok=True)
-        date_str = datetime.utcnow().strftime('%Y%m%d_%H%M')
+        date_str = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')
         report_file = f"reports/high_scores/high_scores_{date_str}.json"
         
         with open(report_file, 'w') as f:
@@ -100,7 +100,7 @@ def generate_daily_summary():
     """
     try:
         # Get today's data
-        today = datetime.utcnow().date()
+        today = datetime.now(timezone.utc).date()
         
         # Load today's signals
         signals_file = f"reports/signals/signals_{today.strftime('%Y%m%d')}.json"
@@ -134,7 +134,7 @@ def generate_daily_summary():
         summary = {
             'report_type': 'daily_summary',
             'date': today.isoformat(),
-            'generated_at': datetime.utcnow().isoformat(),
+            'generated_at': datetime.now(timezone.utc).isoformat(),
             'statistics': {
                 'total_scans': len(signals),
                 'total_alerts': len(alerts),
@@ -169,7 +169,7 @@ def generate_alert_frequency_report():
         from utils.scoring import get_recent_alerts
         
         # Get alerts from last 7 days
-        cutoff_time = datetime.utcnow() - timedelta(days=7)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(days=7)
         
         alerts_file = "data/alerts/alerts_history.json"
         if not os.path.exists(alerts_file):
@@ -199,7 +199,7 @@ def generate_alert_frequency_report():
         frequency_report = {
             'report_type': 'alert_frequency',
             'period': '7_days',
-            'generated_at': datetime.utcnow().isoformat(),
+            'generated_at': datetime.now(timezone.utc).isoformat(),
             'total_alerts': len(recent_alerts),
             'unique_symbols': len(symbol_counts),
             'symbol_frequencies': sorted(
@@ -214,7 +214,7 @@ def generate_alert_frequency_report():
         
         # Save report
         os.makedirs("reports/frequency", exist_ok=True)
-        date_str = datetime.utcnow().strftime('%Y%m%d')
+        date_str = datetime.now(timezone.utc).strftime('%Y%m%d')
         frequency_file = f"reports/frequency/frequency_{date_str}.json"
         
         with open(frequency_file, 'w') as f:
@@ -248,7 +248,7 @@ def compress_reports_to_zip():
     """
     try:
         # Compress reports older than 7 days
-        cutoff_date = datetime.utcnow().date() - timedelta(days=7)
+        cutoff_date = datetime.now(timezone.utc).date() - timedelta(days=7)
         
         report_dirs = ['signals', 'daily', 'frequency', 'high_scores']
         
@@ -323,7 +323,7 @@ def cleanup_old_reports(days_to_keep=30):
     Clean up reports older than specified days
     """
     try:
-        cutoff_time = datetime.utcnow() - timedelta(days=days_to_keep)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(days=days_to_keep)
         
         report_paths = [
             "reports/signals",
