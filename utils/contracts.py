@@ -2,6 +2,39 @@ import requests
 import json
 import os
 
+# Cache globalny dla symbol -> coingecko_id
+coingecko_symbol_map = {}
+
+def load_coingecko_symbol_map():
+    """Jednorazowe pobranie pełnej listy tokenów z CoinGecko"""
+    global coingecko_symbol_map
+    
+    if coingecko_symbol_map:
+        return  # Już załadowane
+    
+    try:
+        headers = {}
+        api_key = os.getenv("COINGECKO_API_KEY")
+        if api_key:
+            headers["x-cg-demo-api-key"] = api_key
+            
+        response = requests.get("https://api.coingecko.com/api/v3/coins/list", headers=headers, timeout=15)
+        
+        if response.status_code == 200:
+            data = response.json()
+            # Tworzymy mapę symbol -> id, np. {"PEPE": "pepe", ...}
+            for item in data:
+                symbol = item['symbol'].upper()
+                coingecko_symbol_map[symbol] = item["id"]
+                # Dodaj też wersję z USDT
+                coingecko_symbol_map[f"{symbol}USDT"] = item["id"]
+            
+            print(f"✅ Załadowano {len(data)} tokenów z CoinGecko do cache")
+        else:
+            print(f"❌ Błąd ładowania listy CoinGecko: {response.status_code}")
+    except Exception as e:
+        print(f"❌ Wyjątek podczas ładowania listy CoinGecko: {e}")
+
 def normalize_token_name(symbol):
     """
     Usuwa cyfry z nazwy tokena i sufiks 'USDT', 'PERP'.
@@ -25,44 +58,50 @@ def get_token_contract_from_coingecko(symbol):
         if api_key:
             headers['x-cg-demo-api-key'] = api_key
             
-        url = f"https://api.coingecko.com/api/v3/search?query={symbol}"
+        # Załaduj mapę jeśli nie jest załadowana
+        if not coingecko_symbol_map:
+            load_coingecko_symbol_map()
+
+        # Spróbuj znaleźć token w cache'u
+        normalized_symbol = normalize_token_name(symbol)
+        coingecko_id = coingecko_symbol_map.get(symbol) or coingecko_symbol_map.get(normalized_symbol)
+        
+        if not coingecko_id:
+            print(f"⚠️ Brak CoinGecko ID dla {symbol}")
+            return None
+
+        url = f"https://api.coingecko.com/api/v3/coins/{coingecko_id}"
         response = requests.get(url, headers=headers, timeout=10)
         
-        if response.status_code != 200:
-            print(f"❌ CoinGecko API error {response.status_code} for {symbol}")
-            return None
+        if response.status_code == 200:
+            data = response.json()
+            platforms = data.get("platforms", {})
             
-        data = response.json()
-        coins = data.get("coins", [])
-
-        for coin in coins:
-            if symbol.lower() in coin["symbol"].lower():
-                # Pobierz szczegóły tokena
-                token_id = coin["id"]
-                detail_url = f"https://api.coingecko.com/api/v3/coins/{token_id}"
-                detail_response = requests.get(detail_url, headers=headers, timeout=10)
-                
-                if detail_response.status_code == 200:
-                    detail_data = detail_response.json()
-                    platforms = detail_data.get("platforms", {})
-                    
-                    # Preferuj BSC, potem Ethereum
-                    preferred_chains = ["binance-smart-chain", "ethereum", "polygon-pos"]
-                    
-                    for chain in preferred_chains:
-                        if chain in platforms and platforms[chain]:
-                            return {
-                                "address": platforms[chain], 
-                                "chain": chain.replace("binance-smart-chain", "bsc").replace("polygon-pos", "polygon")
-                            }
-                    
-                    # Jeśli nie ma preferowanych, weź pierwszy dostępny
-                    for chain, address in platforms.items():
-                        if address:
-                            return {
-                                "address": address, 
-                                "chain": chain.replace("binance-smart-chain", "bsc").replace("polygon-pos", "polygon")
-                            }
+            # Preferuj BSC, potem Ethereum, Polygon
+            preferred_chains = ["binance-smart-chain", "ethereum", "polygon-pos", "arbitrum-one", "optimistic-ethereum"]
+            
+            for chain in preferred_chains:
+                if chain in platforms and platforms[chain]:
+                    return {
+                        "address": platforms[chain], 
+                        "chain": chain.replace("binance-smart-chain", "bsc")
+                                    .replace("polygon-pos", "polygon")
+                                    .replace("arbitrum-one", "arbitrum")
+                                    .replace("optimistic-ethereum", "optimism")
+                    }
+            
+            # Jeśli nie ma preferowanych, weź pierwszy dostępny
+            for chain, address in platforms.items():
+                if address:
+                    return {
+                        "address": address,
+                        "chain": chain.replace("binance-smart-chain", "bsc")
+                                    .replace("polygon-pos", "polygon")
+                                    .replace("arbitrum-one", "arbitrum")
+                                    .replace("optimistic-ethereum", "optimism")
+                    }
+        else:
+            print(f"⚠️ CoinGecko API error {response.status_code} for {symbol}")
         
         return None
         

@@ -100,6 +100,11 @@ def wait_for_next_candle():
 # === Main scan cycle ===
 def scan_cycle():
     print(f"\n🔁 Start scan: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC")
+    
+    # Inicjalizuj cache CoinGecko na początku pierwszego skanu
+    from utils.contracts import load_coingecko_symbol_map
+    load_coingecko_symbol_map()
+    
     symbols = get_symbols_cached()
     scan_results = []
     
