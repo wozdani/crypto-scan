@@ -101,35 +101,14 @@ def get_dex_inflow(symbol):
         print(f"âťŚ laÄ…d inflow {symbol}: {e}")
         return 0.0
 
-from utils.contracts import get_token_contract_from_coingecko
-
 def detect_whale_tx(symbol):
-    try:
-        # Wczytaj aktualną mapę kontraktów
-        with open("token_contract_map.json", "r", encoding="utf-8") as f:
-            token_map = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        token_map = {}
-
-    # Normalizuj nazwę tokena
-    clean_symbol = normalize_token_name(symbol)
-    token_info = token_map.get(symbol)
-
-    # Fallback: jeśli brak mapowania – próbuj pobrać z CoinGecko
+    from utils.contracts import get_or_fetch_token_contract
+    
+    # Pobierz kontrakt tokena (z mapy lub CoinGecko)
+    token_info = get_or_fetch_token_contract(symbol)
+    
     if not token_info:
-        print(f"⚠️ Brak mapowania dla {symbol} – próbuję pobrać z CoinGecko jako {clean_symbol}...")
-        token_info = get_token_contract_from_coingecko(clean_symbol)
-
-        if token_info:
-            token_map[symbol] = token_info
-            with open("token_contract_map.json", "w", encoding="utf-8") as f:
-                json.dump(token_map, f, indent=2)
-            print(f"✅ Dodano mapowanie dla {symbol} ({clean_symbol})")
-        else:
-            print(f"❌ Nie znaleziono kontraktu dla {symbol}")
-            with open("missing_contracts_log.txt", "a", encoding="utf-8") as f:
-                f.write(f"{symbol}\n")
-            return False
+        return False
 
     address = token_info["address"]
     chain = token_info["chain"].lower()
