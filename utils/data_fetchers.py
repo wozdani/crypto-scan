@@ -108,7 +108,7 @@ def get_all_data(symbol):
 import requests
 
 def get_symbols_cached():
-    """Pobiera wszystkie symbole kontraktow perpetual z Bybit (linear USDT)"""
+    """Pobiera tylko prawdziwe kontrakty perpetual z Bybit (linear USDT-PERP)"""
     try:
         url = "https://api.bybit.com/v5/market/instruments-info"
         params = {
@@ -117,19 +117,66 @@ def get_symbols_cached():
         response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
         data = response.json()
+        
         if data["retCode"] == 0:
-            symbols = [
-                item["symbol"]
-                for item in data["result"]["list"]
-                if item["status"] == "Trading" and "USDT" in item["symbol"]
-            ]
-            return symbols
+            valid_symbols = []
+            
+            for item in data["result"]["list"]:
+                symbol = item["symbol"]
+                contract_type = item.get("contractType", "")
+                status = item.get("status", "")
+                
+                # Filtruj tylko LinearPerpetual kontrakty w statusie Trading
+                if (status == "Trading" and 
+                    contract_type == "LinearPerpetual" and 
+                    symbol.endswith("USDT")):
+                    
+                    # Filtruj dziwne nazwy tokenów
+                    if not is_valid_perpetual_symbol(symbol):
+                        continue
+                        
+                    valid_symbols.append(symbol)
+            
+            print(f"✅ Pobrano {len(valid_symbols)} prawdziwych kontraktów USDT-PERP")
+            return valid_symbols
         else:
-            print("? Blad pobierania symboli Bybit:", data)
+            print("❌ Błąd pobierania symboli Bybit:", data)
             return []
+            
     except Exception as e:
-        print(f"? Wyjatek przy pobieraniu symboli: {e}")
+        print(f"❌ Wyjątek przy pobieraniu symboli: {e}")
         return []
+
+def is_valid_perpetual_symbol(symbol):
+    """Sprawdza czy symbol to prawdziwy kontrakt perpetual"""
+    if not symbol.endswith("USDT"):
+        return False
+    
+    # Usuń USDT z końca dla analizy
+    base_symbol = symbol[:-4]
+    
+    # Pozwól na niektóre popularne tokeny z cyframi jako wyjątki
+    allowed_with_numbers = ["1INCH", "1000SATS"]
+    if base_symbol in allowed_with_numbers:
+        return True
+    
+    # Odrzuć tokeny z długimi prefixami numerycznymi
+    if base_symbol.startswith(("1000000", "100000", "10000", "1000", "100")):
+        return False
+    
+    # Odrzuć tokeny z dziwnym formatem (za krótkie lub za długie)
+    if len(base_symbol) < 3 or len(base_symbol) > 10:
+        return False
+    
+    # Odrzuć tokeny ze znakami numerycznymi (poza wyjątkami)
+    if any(char.isdigit() for char in base_symbol):
+        return False
+    
+    # Sprawdź czy składa się tylko z liter
+    if not base_symbol.isalpha():
+        return False
+    
+    return True
 
 def fetch_top_symbols():
     return get_symbols_cached()
