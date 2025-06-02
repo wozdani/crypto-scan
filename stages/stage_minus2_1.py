@@ -109,20 +109,18 @@ def get_dex_inflow(symbol):
 
 def is_chain_supported(chain: str) -> bool:
     """Sprawdza czy chain jest obsługiwany (ma dostępny klucz API)"""
-    chain_env_keys = {
-        "ethereum": "ETHERSCAN_API_KEY",
-        "bsc": "BSCSCAN_API_KEY", 
-        "arbitrum": "ARBISCAN_API_KEY",
-        "polygon": "POLYGONSCAN_API_KEY",
-        "optimism": "OPTIMISMSCAN_API_KEY",
-        "tron": "TRONGRID_API_KEY"
-    }
-    
     chain = chain.lower()
-    env_var = chain_env_keys.get(chain)
-    if not env_var:
-        return False
-    return os.getenv(env_var) is not None
+    if chain == "ethereum" and os.getenv("ETHERSCAN_API_KEY"):
+        return True
+    if chain == "bsc" and os.getenv("BSCSCAN_API_KEY"):
+        return True
+    if chain == "arbitrum" and os.getenv("ARBISCAN_API_KEY"):
+        return True
+    if chain == "polygon" and os.getenv("POLYGONSCAN_API_KEY"):
+        return True
+    if chain == "optimism" and os.getenv("OPTIMISMSCAN_API_KEY"):
+        return True
+    return False
 
 def detect_whale_tx(symbol):
     from utils.contracts import get_or_fetch_token_contract
