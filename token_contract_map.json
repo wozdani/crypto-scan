@@ -1,14 +1,6 @@
 {
-  "PEPEUSDT": {
-    "chain": "ETHEREUM",
-    "address": "0x69e15ab0fd240de689d09e4851181a6667968008"
-  },
-  "FLOKIUSDT": {
-    "chain": "ETHEREUM",
-    "address": "0xcf0c122c6b73ff809c693db761e7baebe62b6a2e"
-  },
-  "SHIBUSDT": {
-    "chain": "ETHEREUM",
-    "address": "0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce"
+  "1000000BABYDOGEUSDT": {
+    "address": "0x123...",
+    "chain": "bsc"
   }
 }

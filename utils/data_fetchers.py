@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import requests
 import time
 import os
@@ -40,10 +41,6 @@ def get_bybit_headers(params=None):
         "Content-Type": "application/json"
     }
 
-def get_test_symbols():
-    # Tymczasowa lista tokenów — używana do czasu przenosin do chmury
-    return ["PEPEUSDT", "FLOKIUSDT", "WIFUSDT", "SHIBUSDT", "DOGEUSDT"]
-
 def fetch_klines(symbol, interval="15", limit=2):
     url = f"{BYBIT_BASE_URL}/v5/market/kline"
     params = {
@@ -60,7 +57,7 @@ def fetch_klines(symbol, interval="15", limit=2):
         if data["retCode"] == 0:
             return data["result"]["list"]
         else:
-            print(f"❌ Błąd danych Bybit dla {symbol}: {data}")
+            print(f"❌ Blad danych Bybit dla {symbol}: {data}")
             return None
     except Exception as e:
         print(f"❌ Wyjątek dla {symbol}: {e}")
@@ -70,7 +67,7 @@ def get_last_candles(symbol):
     candles = fetch_klines(symbol, interval="15", limit=2)
     if not candles:
         return None, None
-    return candles[-2], candles[-1]  # poprzednia i obecna świeca
+    return candles[-2], candles[-1]  # poprzednia i obecna swieca
 
 def get_all_data(symbol):
     prev_candle, last_candle = get_last_candles(symbol)
@@ -103,22 +100,42 @@ def get_all_data(symbol):
             "last_candle": last_candle,
         }
     except Exception as e:
-        print(f"❌ Błąd przy parsowaniu świecy {symbol}: {e}")
+        print(f"❌ Blad przy parsowaniu Swiecy {symbol}: {e}")
         return None
 
 # === COMPATIBILITY FUNCTIONS FOR EXISTING CODE ===
 
+import requests
+
 def get_symbols_cached():
-    """Get cryptocurrency symbols with caching"""
-    return get_test_symbols()
+    """Pobiera wszystkie symbole kontraktow perpetual z Bybit (linear USDT)"""
+    try:
+        url = "https://api.bybit.com/v5/market/instruments-info"
+        params = {
+            "category": "linear"
+        }
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        if data["retCode"] == 0:
+            symbols = [
+                item["symbol"]
+                for item in data["result"]["list"]
+                if item["status"] == "Trading" and "USDT" in item["symbol"]
+            ]
+            return symbols
+        else:
+            print("? Blad pobierania symboli Bybit:", data)
+            return []
+    except Exception as e:
+        print(f"? Wyjatek przy pobieraniu symboli: {e}")
+        return []
 
 def fetch_top_symbols():
-    """Fetch top cryptocurrency symbols from Bybit"""
-    return get_test_symbols()
+    return get_symbols_cached()
 
 def get_fallback_symbols():
-    """Return fallback symbol list"""
-    return get_test_symbols()
+    return get_symbols_cached()
 
 def get_market_data(symbol):
     """Get comprehensive market data for a symbol"""

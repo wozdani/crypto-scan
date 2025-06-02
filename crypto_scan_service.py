@@ -1,4 +1,5 @@
-# === crypto_scan_service.py ===
+import sys
+sys.stdout.reconfigure(encoding='utf-8')
 import os
 import time
 import glob
