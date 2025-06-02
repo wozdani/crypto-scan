@@ -51,8 +51,14 @@ def get_dex_inflow(symbol):
         if not token_info:
             return 0.0
 
-        address = token_info["address"]
         chain = token_info["chain"].lower()
+        
+        # Sprawdź czy chain jest obsługiwany
+        if not is_chain_supported(chain):
+            print(f"⚠️ Token {symbol} ({chain}) pominięty w DEX inflow – brak klucza API")
+            return 0.0
+
+        address = token_info["address"]
 
         # Dobor odpowiedniego API i klucza
         if chain == "ethereum":
@@ -101,6 +107,21 @@ def get_dex_inflow(symbol):
         print(f"âťŚ laÄ…d inflow {symbol}: {e}")
         return 0.0
 
+def is_chain_supported(chain: str) -> bool:
+    """Sprawdza czy chain jest obsługiwany (ma dostępny klucz API)"""
+    chain = chain.lower()
+    if chain == "ethereum" and os.getenv("ETHERSCAN_API_KEY"):
+        return True
+    if chain == "bsc" and os.getenv("BSCSCAN_API_KEY"):
+        return True
+    if chain == "arbitrum" and os.getenv("ARBISCAN_API_KEY"):
+        return True
+    if chain == "polygon" and os.getenv("POLYGONSCAN_API_KEY"):
+        return True
+    if chain == "optimism" and os.getenv("OPTIMISMSCAN_API_KEY"):
+        return True
+    return False
+
 def detect_whale_tx(symbol):
     from utils.contracts import get_or_fetch_token_contract
     
@@ -108,6 +129,13 @@ def detect_whale_tx(symbol):
     token_info = get_or_fetch_token_contract(symbol)
     
     if not token_info:
+        return False
+    
+    chain = token_info["chain"].lower()
+    
+    # Sprawdź czy chain jest obsługiwany
+    if not is_chain_supported(chain):
+        print(f"⚠️ Token {symbol} ({chain}) pominięty – brak klucza API")
         return False
 
     address = token_info["address"]
