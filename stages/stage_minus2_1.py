@@ -43,12 +43,12 @@ def detect_volume_spike(symbol):
 
 def get_dex_inflow(symbol):
     try:
-        with open("token_contract_map.json", "r") as f:
-            token_map = json.load(f)
-
-        token_info = token_map.get(symbol)
+        from utils.contracts import get_or_fetch_token_contract
+        
+        # Pobierz kontrakt tokena (z mapy lub CoinGecko)
+        token_info = get_or_fetch_token_contract(symbol)
+        
         if not token_info:
-            print(f"âš ď¸Ź Brak kontraktu dla {symbol}")
             return 0.0
 
         address = token_info["address"]
