@@ -101,11 +101,6 @@ def wait_for_next_candle():
 def scan_cycle():
     print(f"\n🔁 Start scan: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC")
     symbols = get_symbols_cached()
-    
-    # Automatyczne pobieranie brakujących kontraktów z CoinGecko
-    from utils.coingecko_mapper import bulk_update_contracts
-    bulk_update_contracts(symbols)
-    
     scan_results = []
     
     for symbol in symbols:
