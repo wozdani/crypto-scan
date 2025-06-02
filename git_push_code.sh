@@ -3,7 +3,7 @@
 echo "🌀 Przygotowuję kod do pushowania..."
 
 # Dodaj tylko kod, nie dane ani raporty
-git add *.py
+git add .
 git add utils/
 git add stages/
 git add .gitignore
