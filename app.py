@@ -1,7 +1,7 @@
 from flask import Flask, render_template, jsonify
 import os
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from utils.scoring import get_top_performers, get_symbol_stats
 from utils.reports import get_latest_reports
 from utils.gpt_feedback import get_recent_gpt_analyses
@@ -28,7 +28,7 @@ def get_status():
         
         return jsonify({
             'status': 'running',
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'connections': {
                 'telegram': {'status': 'ok' if telegram_ok else 'error', 'message': telegram_msg},
                 'openai': {'status': 'ok' if openai_ok else 'error', 'message': openai_msg}

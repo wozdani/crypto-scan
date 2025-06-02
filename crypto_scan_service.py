@@ -5,7 +5,7 @@ import time
 import glob
 import json
 import openai
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 
 # === Load ENV ===
@@ -36,7 +36,7 @@ def send_report_to_gpt(symbol, data, tp_forecast, alert_level):
     vwap_pinned = data.get("vwap_pinned", False)
     vol_slope = data.get("volume_slope_up", False)
 
-    timestamp = datetime.utcnow().strftime("%H:%M UTC")
+    timestamp = datetime.now(timezone.utc).strftime("%H:%M UTC")
 
     prompt = f"""You are an expert crypto analyst. Evaluate the following pre-pump signal:
 
@@ -87,7 +87,7 @@ Evaluate the quality and strength of this signal. Provide a confident but concis
 
 # === Wait for next 15m candle ===
 def wait_for_next_candle():
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     next_quarter = (now.minute // 15 + 1) * 15 % 60
     next_time = now.replace(minute=next_quarter, second=5, microsecond=0)
     if next_quarter == 0:
@@ -99,7 +99,7 @@ def wait_for_next_candle():
 
 # === Main scan cycle ===
 def scan_cycle():
-    print(f"\n🔁 Start scan: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+    print(f"\n🔁 Start scan: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC")
     symbols = get_symbols_cached()
     scan_results = []
     
@@ -125,7 +125,7 @@ def scan_cycle():
             scan_results.append({
                 'symbol': symbol,
                 'score': score,
-                'timestamp': datetime.utcnow().isoformat(),
+                'timestamp': datetime.now(timezone.utc).isoformat(),
                 'stage2_pass': stage2_pass,
                 'compressed': compressed,
                 'stage1g_active': stage1g_active
@@ -163,12 +163,12 @@ def scan_cycle():
                     
                     # Create feedback directory and save report
                     os.makedirs("data/feedback", exist_ok=True)
-                    feedback_file = f"data/feedback/{symbol}_{datetime.utcnow().strftime('%Y%m%d_%H%M')}.txt"
+                    feedback_file = f"data/feedback/{symbol}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}.txt"
                     with open(feedback_file, "w", encoding="utf-8") as f:
                         f.write(f"Token: {symbol}\n")
                         f.write(f"PPWCS: {score}\n")
                         f.write(f"Alert Level: {alert_level_text}\n")
-                        f.write(f"Timestamp: {datetime.utcnow().isoformat()}\n")
+                        f.write(f"Timestamp: {datetime.now(timezone.utc).isoformat()}\n")
                         f.write(f"Signals: {signals}\n")
                         f.write(f"TP Forecast: {tp_forecast}\n")
                         f.write(f"Feedback Score: {feedback_score}/100\n")
