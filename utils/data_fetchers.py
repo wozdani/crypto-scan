@@ -108,7 +108,23 @@ def get_all_data(symbol):
 import requests
 
 def get_symbols_cached():
-    """Pobiera tylko prawdziwe kontrakty perpetual z Bybit (linear USDT-PERP)"""
+    """Pobiera tylko prawdziwe kontrakty perpetual z Bybit (linear USDT-PERP) z obsługiwanych chainów"""
+    import os
+    from utils.contracts import get_or_fetch_token_contract
+    
+    # Definiuj obsługiwane chainy z kluczami API
+    SUPPORTED_CHAINS = {
+        "ethereum": os.getenv("ETHERSCAN_API_KEY"),
+        "bsc": os.getenv("BSCSCAN_API_KEY"),
+        "arbitrum": os.getenv("ARBISCAN_API_KEY"),
+        "polygon": os.getenv("POLYGONSCAN_API_KEY"),
+        "optimism": os.getenv("OPTIMISMSCAN_API_KEY"),
+        "tron": os.getenv("TRONGRID_API_KEY")
+    }
+    
+    # Tylko chainy z dostępnymi kluczami
+    VALID_CHAINS = {chain for chain, key in SUPPORTED_CHAINS.items() if key}
+    
     try:
         url = "https://api.bybit.com/v5/market/instruments-info"
         params = {
@@ -134,10 +150,21 @@ def get_symbols_cached():
                     # Filtruj dziwne nazwy tokenów
                     if not is_valid_perpetual_symbol(symbol):
                         continue
+                    
+                    # Sprawdź czy token ma obsługiwany chain
+                    token_info = get_or_fetch_token_contract(symbol)
+                    if token_info:
+                        chain = token_info["chain"].lower()
+                        if chain not in VALID_CHAINS:
+                            continue  # Pomiń tokeny z nieobsługiwanych chainów
                         
                     valid_symbols.append(symbol)
             
-            print(f"✅ Pobrano {len(valid_symbols)} prawdziwych kontraktów USDT-PERP")
+            print(f"✅ Pobrano {len(valid_symbols)} kontraktów USDT-PERP z obsługiwanych chainów")
+            if VALID_CHAINS:
+                print(f"📡 Obsługiwane chainy: {', '.join(VALID_CHAINS)}")
+            else:
+                print("⚠️ Brak kluczy API dla chainów - wszystkie tokeny będą pomijane")
             return valid_symbols
         else:
             print("❌ Błąd pobierania symboli Bybit:", data)
