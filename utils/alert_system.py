@@ -95,7 +95,8 @@ def format_alert_message(token, ppwcs_score, signals, tp_forecast, risk_reward):
         active_signals.append('VWAP Pinning')
     if signals.get('volume_slope_up'):
         active_signals.append('Volume Cluster Slope')
-    if signals.get('social_spike'):
+    # Social spike detection removed - handled by Stage -2.2 tags
+    if False:  # Disabled social spike check
         active_signals.append('Social Spike')
     if signals.get('stage1g_active'):
         trigger_type = signals.get('stage1g_trigger_type', 'unknown')

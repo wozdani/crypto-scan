@@ -19,8 +19,7 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> int:
             score += 10
         if signals.get("orderbook_anomaly"):
             score += 10
-        if signals.get("social_spike"):
-            score += 5
+        # Social spike removed - now handled by Stage -2.2 tags
         if signals.get("heatmap_exhaustion"):
             score += 5
         if signals.get("spoofing_suspected"):
@@ -31,10 +30,9 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> int:
             score += 4
 
         # --- Pure Accumulation Bonus ---
-        # Whale + DEX inflow without social noise
+        # Whale + DEX inflow - clean accumulation pattern
         if (signals.get("whale_activity") and 
-            signals.get("dex_inflow") and 
-            not signals.get("social_spike")):
+            signals.get("dex_inflow")):
             score += 5
 
         # --- STAGE -2.2: News/Tag Analysis ---

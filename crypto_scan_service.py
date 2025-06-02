@@ -29,7 +29,7 @@ def send_report_to_gpt(symbol, data, tp_forecast, alert_level):
     compressed = data.get("compressed", False)
     stage1g = data.get("stage1g_active", False)
     pure_acc = data.get("pure_accumulation", False)
-    social_spike = data.get("social_spike", False)
+    # social_spike removed - handled by Stage -2.2 tags
     heatmap_exhaustion = data.get("heatmap_exhaustion", False)
     sector_cluster = data.get("sector_clustered", False)
     spoofing = data.get("spoofing_suspected", False)
@@ -48,7 +48,7 @@ Detected at: {timestamp}
 Stage –2.1:
 • Whale Activity: {whale}
 • DEX Inflow (USD): {inflow}
-• Social Spike Detected: {social_spike}
+• News/Tag Analysis: {data.get("event_tag", "none")}
 • Sector Time Clustering Active: {sector_cluster}
 
 Stage –1:
