@@ -101,11 +101,27 @@ def wait_for_next_candle():
 def scan_cycle():
     print(f"\n🔁 Start scan: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC")
     
-    # Inicjalizuj cache CoinGecko na początku pierwszego skanu
-    from utils.contracts import load_coingecko_symbol_map
-    load_coingecko_symbol_map()
-    
     symbols = get_symbols_cached()
+    
+    # Pobierz kontrakty dla wszystkich symboli naraz (batch processing)
+    from utils.coingecko import get_multiple_token_contracts_from_coingecko
+    from utils.contracts import load_token_map, save_token_map
+    
+    token_map = load_token_map()
+    missing_symbols = [s for s in symbols if s not in token_map]
+    
+    if missing_symbols:
+        print(f"🔍 Pobieranie kontraktów dla {len(missing_symbols)} brakujących tokenów...")
+        coingecko_contracts = get_multiple_token_contracts_from_coingecko(missing_symbols)
+        
+        # Aktualizuj mapę tokenów
+        for symbol, contract_info in coingecko_contracts.items():
+            if contract_info:
+                token_map[symbol] = contract_info
+        
+        save_token_map(token_map)
+        print(f"💾 Zaktualizowano mapę kontraktów")
+    
     scan_results = []
     
     for symbol in symbols:
