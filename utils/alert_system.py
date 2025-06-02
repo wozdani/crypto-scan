@@ -2,7 +2,7 @@ import os
 import json
 import requests
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from utils.take_profit_engine import forecast_take_profit_levels, calculate_risk_reward_ratio
 from utils.alert_utils import get_alert_level, get_alert_level_text, should_send_telegram_alert, should_request_gpt_analysis
 
@@ -50,7 +50,7 @@ def check_cooldown(token):
         
     try:
         last_alert = datetime.fromisoformat(tracker[token])
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         return (now - last_alert).total_seconds() < (COOLDOWN_MINUTES * 60)
     except Exception:
         return False
@@ -58,7 +58,7 @@ def check_cooldown(token):
 def update_cooldown(token):
     """Update cooldown timestamp for token"""
     tracker = load_cooldown_tracker()
-    tracker[token] = datetime.utcnow().isoformat()
+    tracker[token] = datetime.now(timezone.utc).isoformat()
     save_cooldown_tracker(tracker)
 
 def determine_alert_level(ppwcs_score):
@@ -74,7 +74,7 @@ def determine_alert_level(ppwcs_score):
 
 def format_alert_message(token, ppwcs_score, signals, tp_forecast, risk_reward):
     """Format comprehensive alert message with TP levels"""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     alert_level, alert_emoji = determine_alert_level(ppwcs_score)
     
     # Extract active signals
@@ -182,7 +182,7 @@ def send_telegram_alert(token, ppwcs_score, stage_signals, tp_forecast, stage1g_
             icon = get_feedback_icon(feedback_score or 0)
             text += f"\n\n🤖 GPT Feedback {icon}:\n{gpt_feedback}"
 
-        text += f"\n\n🕒 UTC: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}"
+        text += f"\n\n🕒 UTC: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}"
 
         bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
         chat_id = os.getenv('TELEGRAM_CHAT_ID')
@@ -253,7 +253,7 @@ def log_to_watchlist(token, ppwcs_score, signals):
         watchlist_file = os.path.join("data", "watchlist.csv")
         os.makedirs(os.path.dirname(watchlist_file), exist_ok=True)
         
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         active_signals = [k for k, v in signals.items() if v and isinstance(v, bool)]
         
         # Create header if file doesn't exist
@@ -274,7 +274,7 @@ def get_alert_statistics():
     """Get alert statistics for dashboard"""
     try:
         tracker = load_cooldown_tracker()
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         recent_alerts = []
         for token, timestamp_str in tracker.items():

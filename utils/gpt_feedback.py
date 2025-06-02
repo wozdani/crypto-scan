@@ -1,6 +1,6 @@
 import os
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import openai
 from dotenv import load_dotenv
 
@@ -216,7 +216,7 @@ def send_report_to_gpt(symbol: str, data: dict, tp_forecast: dict, alert_level: 
         vwap_pinned = data.get("vwap_pinned", False)
         vol_slope = data.get("volume_slope_up", False)
 
-        timestamp = datetime.utcnow().strftime("%H:%M UTC")
+        timestamp = datetime.now(timezone.utc).strftime("%H:%M UTC")
 
         prompt = f"""You are an expert crypto analyst. Evaluate the following pre-pump signal:
 
@@ -279,7 +279,7 @@ def get_recent_gpt_analyses(hours=24, limit=10):
         with open(analysis_file, 'r') as f:
             analyses = json.load(f)
             
-        cutoff_time = datetime.utcnow() - timedelta(hours=hours)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
         
         recent_analyses = []
         for analysis in analyses:

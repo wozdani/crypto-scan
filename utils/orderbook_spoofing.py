@@ -1,5 +1,5 @@
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 def detect_orderbook_spoofing(data):
     """
@@ -108,6 +108,6 @@ def track_wall_lifecycle(symbol, current_orderbook):
     # W produkcji będzie zapisywać dane do pliku/bazy
     return {
         "wall_tracking_active": True,
-        "last_update": datetime.utcnow().isoformat(),
+        "last_update": datetime.now(timezone.utc).isoformat(),
         "tracked_walls": []
     }

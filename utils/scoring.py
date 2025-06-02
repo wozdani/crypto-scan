@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 def compute_ppwcs(signals: dict, previous_score: int = 0) -> int:
     """
@@ -75,7 +75,7 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> int:
                 score += 7
 
         # --- Context/Timing Analysis ---
-        current_hour = datetime.utcnow().hour
+        current_hour = datetime.now(timezone.utc).hour
         # Market hours boost (6-18 UTC typically better for crypto)
         if 6 <= current_hour <= 18:
             score += 3
@@ -205,7 +205,7 @@ def get_recent_alerts(symbol, hours=4):
         with open(alerts_file, 'r') as f:
             alerts = json.load(f)
             
-        cutoff_time = datetime.utcnow() - timedelta(hours=hours)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
         
         recent_alerts = []
         for alert in alerts:
@@ -238,7 +238,7 @@ def log_ppwcs_score(symbol, score):
         score_entry = {
             'symbol': symbol,
             'score': score,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }
         
         # Ensure scores directory exists
@@ -276,7 +276,7 @@ def get_symbol_stats(symbol, days=7):
         with open(scores_file, 'r') as f:
             scores = json.load(f)
             
-        cutoff_time = datetime.utcnow() - timedelta(days=days)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(days=days)
         
         symbol_scores = []
         for entry in scores:
@@ -315,7 +315,7 @@ def get_top_performers(limit=10, hours=24):
         with open(scores_file, 'r') as f:
             scores = json.load(f)
             
-        cutoff_time = datetime.utcnow() - timedelta(hours=hours)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
         
         # Group by symbol and get max score
         symbol_max_scores = {}
