@@ -98,3 +98,4 @@ out.log
 *.json
 *.zip
 scan_output/
+attached_assets/
