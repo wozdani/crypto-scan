@@ -1,0 +1,75 @@
+import requests
+import json
+
+COINGECKO_LIST_URL = "https://api.coingecko.com/api/v3/coins/list"
+COINGECKO_TOKEN_URL = "https://api.coingecko.com/api/v3/coins/{}"
+
+
+# Można cacheować te dane!
+def fetch_coingecko_token_list() -> list:
+    response = requests.get(COINGECKO_LIST_URL, timeout=15)
+    return response.json()
+
+
+def get_contract_info_by_symbol(symbol: str, token_list: list) -> dict:
+    # Usuwamy "USDT" z symbolu np. PEPEUSDT → PEPE
+    base_symbol = symbol.replace("USDT", "").lower()
+    matches = [
+        token for token in token_list if token["symbol"].lower() == base_symbol
+    ]
+
+    for token in matches:
+        try:
+            token_id = token["id"]
+            url = COINGECKO_TOKEN_URL.format(token_id)
+            details = requests.get(url, timeout=10).json()
+
+            platforms = details.get("platforms", {})
+            if platforms:
+                # Preferuj Ethereum, potem BSC, potem inne
+                for chain in [
+                        "ethereum", "binance-smart-chain", "arbitrum-one",
+                        "polygon-pos", "optimistic-ethereum"
+                ]:
+                    if chain in platforms and platforms[chain]:
+                        return {
+                            "chain": chain.upper(),
+                            "address": platforms[chain]
+                        }
+        except Exception as e:
+            print(f"⚠️ Błąd dla tokenu {symbol}: {e}")
+            continue
+
+    return {}
+
+
+def build_token_contract_map(bybit_symbols: list[str]) -> dict:
+    token_list = fetch_coingecko_token_list()
+    token_map = {}
+
+    for symbol in bybit_symbols:
+        info = get_contract_info_by_symbol(symbol, token_list)
+        if info:
+            token_map[symbol] = info
+
+    return token_map
+
+
+def save_token_map_to_json(symbols: list[str],
+                           filename="token_contract_map.json"):
+    token_map = build_token_contract_map(symbols)
+    with open(filename, "w") as f:
+        json.dump(token_map, f, indent=2)
+    print(f"✅ Zapisano mapę tokenów do {filename}")
+
+
+# Przykład użycia:
+if __name__ == "__main__":
+    import sys
+    import os
+    sys.path.append(
+        os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+    from utils.data_fetchers import get_symbols_cached
+
+    symbols = get_symbols_cached()
+    save_token_map_to_json(symbols)
