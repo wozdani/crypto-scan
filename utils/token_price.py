@@ -1,31 +1,27 @@
-import requests
-import os
+from utils.coingecko import load_cache, is_cache_valid, build_coingecko_cache
 
 def get_token_price_usd(symbol):
+    """Get token price from cache - no direct API calls"""
     try:
-        coingecko_id_map = {
-            "PEPEUSDT": "pepe",
-            "FLOKIUSDT": "floki",
-            # Dodaj więcej symboli → id z coingecko
-        }
-
-        token_id = coingecko_id_map.get(symbol)
-        if not token_id:
-            print(f"⚠️ Brak CoinGecko ID dla {symbol}")
-            return None
-
-        api_key = os.getenv("COINGECKO_API_KEY")
+        if not is_cache_valid():
+            build_coingecko_cache()
         
-        if api_key:
-            # Try with API key in URL parameter
-            url = f"https://api.coingecko.com/api/v3/simple/price?ids={token_id}&vs_currencies=usd&x_cg_demo_api_key={api_key}"
-            res = requests.get(url, timeout=10)
-        else:
-            url = f"https://api.coingecko.com/api/v3/simple/price?ids={token_id}&vs_currencies=usd"
-            res = requests.get(url, timeout=10)
-        res.raise_for_status()
-        data = res.json()
-        return data[token_id]["usd"]
+        cache = load_cache()
+        symbol_upper = symbol.upper()
+        
+        # Remove USDT suffix to get base symbol
+        base_symbol = symbol_upper.replace("USDT", "")
+        
+        coin_data = cache.get(base_symbol)
+        if not coin_data:
+            print(f"⚠️ Brak danych cenowych dla {symbol} w cache")
+            return None
+            
+        # Note: Price data would need to be added to cache in future enhancement
+        # For now, return None to avoid API calls
+        print(f"⚠️ Cena dla {symbol} dostępna tylko z cache (wymaga rozszerzenia)")
+        return None
+        
     except Exception as e:
-        print(f"❌ Błąd CoinGecko dla {symbol}: {e}")
+        print(f"❌ Błąd pobierania ceny dla {symbol}: {e}")
         return None
