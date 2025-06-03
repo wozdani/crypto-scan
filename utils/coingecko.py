@@ -1,145 +1,46 @@
 import requests
-import time
-import os
 import json
+import os
 
-# Global cache for CoinGecko data
-COINGECKO_TOKEN_LIST = []
-CACHE_FILE = "coingecko_cache.json"
-CACHE_DURATION_HOURS = 6
+CACHE_FILE = "token_contract_map.json"
+COINGECKO_URL = "https://api.coingecko.com/api/v3/coins/list?include_platform=true"
 
-def load_cache():
-    """Load cached CoinGecko data if valid"""
-    if not os.path.exists(CACHE_FILE):
-        return None
-    
+def get_perpetual_symbols():
+    """Get Bybit perpetual symbols"""
     try:
-        with open(CACHE_FILE, 'r') as f:
-            cache_data = json.load(f)
-        
-        # Check if cache is still valid (6 hours)
-        cache_time = cache_data.get('timestamp', 0)
-        current_time = time.time()
-        if current_time - cache_time < CACHE_DURATION_HOURS * 3600:
-            return cache_data.get('contracts', {})
+        from utils.data_fetchers import get_symbols_cached
+        return get_symbols_cached()
     except Exception as e:
-        print(f"Error loading cache: {e}")
-    
-    return None
+        print(f"Error getting Bybit symbols: {e}")
+        return []
 
-def save_cache(contracts_data):
-    """Save contracts data to cache with timestamp"""
-    try:
-        cache_data = {
-            'timestamp': time.time(),
-            'contracts': contracts_data
-        }
-        with open(CACHE_FILE, 'w') as f:
-            json.dump(cache_data, f, indent=2)
-    except Exception as e:
-        print(f"Error saving cache: {e}")
-
-def fetch_coingecko_token_list():
-    """Fetch complete token list from CoinGecko - single request at startup"""
-    global COINGECKO_TOKEN_LIST
-    if COINGECKO_TOKEN_LIST:
-        return COINGECKO_TOKEN_LIST
-    
+def build_contract_cache():
+    """Build contract cache from CoinGecko with single API call"""
+    print("📥 Pobieram dane z CoinGecko...")
     try:
         headers = {}
         api_key = os.getenv("COINGECKO_API_KEY")
         if api_key:
             headers["x-cg-demo-api-key"] = api_key
             
-        response = requests.get("https://api.coingecko.com/api/v3/coins/list", headers=headers, timeout=15)
-        response.raise_for_status()
-        COINGECKO_TOKEN_LIST = response.json()
-        print(f"Loaded {len(COINGECKO_TOKEN_LIST)} tokens from CoinGecko")
-        return COINGECKO_TOKEN_LIST
-    except Exception as e:
-        print(f"Error fetching CoinGecko token list: {e}")
-        return []
+        response = requests.get(COINGECKO_URL, headers=headers, timeout=15)
+        if response.status_code == 200:
+            data = response.json()
+            bybit_symbols = set(get_perpetual_symbols())
+            result = {}
 
-def normalize_symbol_for_search(symbol):
-    """Normalize symbol for CoinGecko search"""
-    # Remove USDT, numbers from beginning
-    cleaned = symbol.upper().replace("USDT", "").replace("PERP", "")
-    cleaned = ''.join([c for c in cleaned if not c.isdigit()])
-    return cleaned.strip()
-
-def get_multiple_token_contracts_from_coingecko(symbols):
-    """Fetch contracts for multiple tokens with caching and rate limiting"""
-    # Check cache first
-    cached_contracts = load_cache()
-    if cached_contracts:
-        print("Using cached contract data")
-        return {symbol: cached_contracts.get(symbol) for symbol in symbols}
-    
-    token_list = fetch_coingecko_token_list()
-    if not token_list:
-        return {}
-    
-    result = {}
-    found_tokens = {}
-    
-    # Find tokens in the list
-    for symbol in symbols:
-        normalized = normalize_symbol_for_search(symbol)
-        match = next((t for t in token_list if t["symbol"].upper() == normalized), None)
-        
-        if match:
-            found_tokens[symbol] = match["id"]
-        else:
-            result[symbol] = None
-    
-    print(f"Found {len(found_tokens)}/{len(symbols)} tokens in CoinGecko")
-    
-    # Fetch details with rate limiting and retry logic
-    headers = {}
-    api_key = os.getenv("COINGECKO_API_KEY")
-    if api_key:
-        headers["x-cg-demo-api-key"] = api_key
-    
-    for i, (symbol, token_id) in enumerate(found_tokens.items()):
-        try:
-            # Rate limiting - 1.5s between requests
-            if i > 0:
-                time.sleep(1.5)
-            
-            url = f"https://api.coingecko.com/api/v3/coins/{token_id}"
-            response = requests.get(url, headers=headers, timeout=10)
-            
-            # Handle rate limit with retry
-            if response.status_code == 429:
-                print(f"Rate limit hit - waiting 5 seconds...")
-                time.sleep(5)
-                response = requests.get(url, headers=headers, timeout=10)
-            
-            if response.status_code == 200:
-                data = response.json()
-                platforms = data.get("platforms", {})
-                
-                # Prefer BSC, then Ethereum, then others
-                preferred_chains = ["binance-smart-chain", "ethereum", "polygon-pos", "arbitrum-one", "optimistic-ethereum"]
-                
-                contract_found = False
-                for chain in preferred_chains:
-                    if chain in platforms and platforms[chain]:
-                        result[symbol] = {
-                            "address": platforms[chain],
-                            "chain": chain.replace("binance-smart-chain", "bsc")
-                                        .replace("polygon-pos", "polygon")
-                                        .replace("arbitrum-one", "arbitrum")
-                                        .replace("optimistic-ethereum", "optimism")
-                        }
-                        contract_found = True
-                        break
-                
-                # If no preferred chains, take first available
-                if not contract_found:
-                    for chain, address in platforms.items():
+            for item in data:
+                symbol = item.get("symbol", "").upper()
+                if f"{symbol}USDT" in bybit_symbols:
+                    platforms = item.get("platforms", {})
+                    
+                    # Prefer BSC, then Ethereum, then others
+                    preferred_chains = ["binance-smart-chain", "ethereum", "polygon-pos", "arbitrum-one", "optimistic-ethereum"]
+                    
+                    for chain in preferred_chains:
+                        address = platforms.get(chain)
                         if address:
-                            result[symbol] = {
+                            result[f"{symbol}USDT"] = {
                                 "address": address,
                                 "chain": chain.replace("binance-smart-chain", "bsc")
                                             .replace("polygon-pos", "polygon")
@@ -147,18 +48,54 @@ def get_multiple_token_contracts_from_coingecko(symbols):
                                             .replace("optimistic-ethereum", "optimism")
                             }
                             break
-                
-                if symbol not in result:
-                    result[symbol] = None
                     
-            else:
-                print(f"CoinGecko API error {response.status_code} for {symbol}")
-                result[symbol] = None
-            
-        except Exception as e:
-            print(f"Error fetching data for {symbol}: {e}")
-            result[symbol] = None
+                    # If no preferred chain found, use first available
+                    if f"{symbol}USDT" not in result:
+                        for chain, address in platforms.items():
+                            if address:
+                                result[f"{symbol}USDT"] = {
+                                    "address": address,
+                                    "chain": chain.replace("binance-smart-chain", "bsc")
+                                                .replace("polygon-pos", "polygon")
+                                                .replace("arbitrum-one", "arbitrum")
+                                                .replace("optimistic-ethereum", "optimism")
+                                }
+                                break
+
+            with open(CACHE_FILE, "w") as f:
+                json.dump(result, f, indent=2)
+            print(f"✅ Zapisano {len(result)} kontraktów w cache.")
+        else:
+            print(f"❌ Błąd CoinGecko: {response.status_code}")
+    except Exception as e:
+        print(f"❌ Wyjątek przy pobieraniu: {e}")
+
+def get_contract(symbol):
+    """Get contract for symbol from cache"""
+    if not os.path.exists(CACHE_FILE):
+        build_contract_cache()
+    try:
+        with open(CACHE_FILE, "r") as f:
+            cache = json.load(f)
+        return cache.get(symbol.upper(), None)
+    except Exception as e:
+        print(f"❌ Błąd przy odczycie cache: {e}")
+        return None
+
+def get_multiple_token_contracts_from_coingecko(symbols):
+    """Get contracts for multiple symbols using cache"""
+    if not os.path.exists(CACHE_FILE):
+        build_contract_cache()
     
-    # Save to cache
-    save_cache(result)
-    return result
+    try:
+        with open(CACHE_FILE, "r") as f:
+            cache = json.load(f)
+        
+        result = {}
+        for symbol in symbols:
+            result[symbol] = cache.get(symbol.upper())
+        
+        return result
+    except Exception as e:
+        print(f"❌ Błąd przy odczycie cache: {e}")
+        return {symbol: None for symbol in symbols}

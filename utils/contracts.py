@@ -139,30 +139,7 @@ def log_missing_contract(symbol):
 
 def get_or_fetch_token_contract(symbol):
     """
-    Główna funkcja - pobiera kontrakt z mapy lub z CoinGecko
+    Główna funkcja - pobiera kontrakt z cache CoinGecko
     """
-    # Załaduj mapę tokenów
-    token_map = load_token_map()
-    
-    # Sprawdź czy token już istnieje w mapie
-    if symbol in token_map:
-        return token_map[symbol]
-    
-    # Normalizuj nazwę tokena dla CoinGecko
-    clean_symbol = normalize_token_name(symbol)
-    print(f"🔍 Szukam kontraktu dla {symbol} -> {clean_symbol}")
-    
-    # Pobierz z CoinGecko
-    token_info = get_token_contract_from_coingecko(clean_symbol)
-    
-    if token_info:
-        # Dodaj do mapy i zapisz
-        token_map[symbol] = token_info
-        if save_token_map(token_map):
-            print(f"✅ Dodano kontrakt dla {symbol}: {token_info}")
-        return token_info
-    else:
-        # Loguj brakujący kontrakt
-        log_missing_contract(symbol)
-        print(f"⚠️ Brak kontraktu dla {symbol}")
-        return None
+    from utils.coingecko import get_contract
+    return get_contract(symbol)

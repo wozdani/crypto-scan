@@ -1,6 +1,6 @@
 from utils.data_fetchers import get_all_data
 from utils.token_price import get_token_price_usd
-from utils.contracts import get_token_contract_from_coingecko, normalize_token_name
+from utils.contracts import get_or_fetch_token_contract, normalize_token_name
 from utils.whale_detector import detect_whale_transfers
 from utils.token_map_loader import load_token_map
 from utils.orderbook_anomaly import detect_orderbook_anomaly
