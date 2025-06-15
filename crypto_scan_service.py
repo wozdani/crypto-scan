@@ -7,6 +7,9 @@ import json
 import openai
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
+
+# Load environment variables at the start
+load_dotenv()
 from utils.contracts import get_contract
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from utils.coingecko import build_coingecko_cache

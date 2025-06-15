@@ -46,5 +46,11 @@
     "message": "\ud83d\udea8 TEST GPT ANALYSIS\n    \n\u2753 Pytanie: Kto jest najlepszym pi\u0142karzem?\n\n\ud83e\udd16 Odpowied\u017a GPT:\nTrudno jednoznacznie stwierdzi\u0107, kto jest najlepszym pi\u0142karzem na \u015bwiecie, poniewa\u017c zale\u017cy to od wielu czynnik\u00f3w, takich jak aktualna forma, statystyki i sukcesy dru\u017cynowe. W ostatnich latach cz\u0119sto wymieniani w tym kontek\u015bcie s\u0105 zawodnicy tacy jak Lionel Messi i Cristiano Ronaldo, ale na scenie pojawiaj\u0105 si\u0119 te\u017c nowe talenty, kt\u00f3re zdobywaj\u0105 coraz wi\u0119ksze uznanie.\n\n\u2705 System Crypto Scanner z AI dzia\u0142a!\n\n#TestGPT",
     "status": "success",
     "error": null
+  },
+  {
+    "timestamp": "2025-06-15T17:58:13.271809+00:00",
+    "message": "\ud83e\uddea Test wiadomo\u015bci z Crypto Scanner - system dzia\u0142a poprawnie!",
+    "status": "success",
+    "error": null
   }
 ]

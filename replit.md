@@ -84,12 +84,14 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 15, 2025 - Complete Project Replacement
+### June 15, 2025 - Complete Project Replacement & Bug Fixes
 - **Full project replacement**: Replaced entire codebase with user's latest ZIP archive
-- **Original structure restored**: All original files, cache data, and configurations restored
-- **Dashboard functionality**: Flask web interface running with historical data display
-- **Service continuity**: Crypto Scanner Service running with original implementation
-- **Data preservation**: Historical alerts, reports, and analysis data maintained
+- **Critical bug fixes**: Fixed 'str' object has no attribute 'get' errors in detector functions
+- **Telegram bot restored**: Fixed TELEGRAM_BOT_TOKEN configuration and tested successfully
+- **Missing functions added**: Implemented detect_dex_inflow_anomaly and detect_event_tag functions
+- **Type handling improved**: All detector functions now return proper tuple (bool, float) format
+- **Environment loading**: Added proper .env loading in crypto_scan_service.py
+- **System stability**: All Python errors resolved, service runs without critical exceptions
 
 ### Previous Optimizations Maintained
 - **Cache-only system**: CoinGecko optimization preventing 429 rate limit errors
