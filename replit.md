@@ -91,6 +91,7 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Missing functions added**: Implemented detect_dex_inflow_anomaly and detect_event_tag functions
 - **Type handling improved**: All detector functions now return proper tuple (bool, float) format
 - **Environment loading**: Added proper .env loading in crypto_scan_service.py
+- **NoneType error fixed**: Resolved 'NoneType' object has no attribute 'get' error in get_market_data()
 - **System stability**: All Python errors resolved, service runs without critical exceptions
 
 ### Previous Optimizations Maintained
