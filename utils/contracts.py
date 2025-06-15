@@ -38,11 +38,3 @@ def get_contract(symbol):
 
     print(f"⚠️ Brak kontraktu dla {symbol}")
     return None
-
-def load_token_map():
-    """Legacy function for compatibility"""
-    return load_coingecko_cache()
-
-def get_or_fetch_token_contract(symbol):
-    """Legacy function for compatibility"""
-    return get_contract(symbol)
