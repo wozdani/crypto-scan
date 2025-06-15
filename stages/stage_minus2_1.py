@@ -9,6 +9,7 @@ from utils.volume_cluster_slope import detect_volume_cluster_slope, get_recent_c
 from stages.stage_minus2_2 import detect_stage_minus2_2
 from stages.stage_1g import detect_stage_1g
 from stages.stage_minus1 import detect_stage_minus1_compression
+from utils.custom_detectors import detect_stealth_acc, detect_rsi_flatline, get_rsi_from_data
 import numpy as np
 import json
 import os
@@ -20,8 +21,18 @@ logger = logging.getLogger(__name__)
 
 def detect_volume_spike(symbol, data):
     """
-    Wykrywa nagly skok wolumenu: Z-score > 2.5 lub 3x Średnia z poprzednich 4 świec.
+    Wykrywa nagly skok wolumenu bazując na recent_volumes (improved detection)
     """
+    # Sprawdź recent_volumes z data (preferred method)
+    recent_volumes = data.get("recent_volumes", [])
+    if len(recent_volumes) >= 4:
+        avg = sum(recent_volumes[-4:]) / 4
+        current = recent_volumes[-1]
+        if current > avg * 2.5:
+            return True, current
+        return False, 0.0
+    
+    # Fallback do market_data jeśli brak recent_volumes
     market_data = get_all_data(symbol)
     if not market_data or not isinstance(market_data, dict):
         print(f"❌ [detect_volume_spike] Brak danych lub nieprawidłowy typ dla {symbol}: {type(market_data)}")
@@ -302,6 +313,9 @@ def detect_stage_minus2_1(symbol, price_usd=None):
 
         # Stage -1: Compression Filter (PPWCS 2.6)
         compressed = detect_stage_minus1_compression(symbol, stage_minus2_1_signals)
+
+        # Get RSI value for RSI flatline detection
+        rsi_value = get_rsi_from_data(data)
 
         signals = {
             # Stage -2.1 Core Detectors (PPWCS 2.6)
