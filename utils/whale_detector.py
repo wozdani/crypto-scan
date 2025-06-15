@@ -2,6 +2,7 @@ from utils.contracts import get_contract
 from utils.token_price import get_token_price_usd
 import os
 import requests
+import time
 
 WHALE_MIN_USD = 50000  # Próg detekcji whale
 
@@ -66,31 +67,44 @@ def detect_whale_tx(symbol, price_usd=None):
         "apikey": config["api_key"]
     }
 
-    try:
-        response = requests.get(config["url"], params=params, timeout=10)
-        data = response.json()
+    # Retry logic with timeout handling
+    for attempt in range(2):  # 2 attempts max
+        try:
+            response = requests.get(config["url"], params=params, timeout=20)
+            data = response.json()
 
-        if data.get("status") != "1":
-            return False, 0.0
+            if data.get("status") != "1":
+                return False, 0.0
 
-        txs = data.get("result", [])
-        
-        for tx in txs[:10]:
-            try:
-                raw_value = int(tx["value"])
-                decimals = int(tx["tokenDecimal"])
-                token_amount = raw_value / (10 ** decimals)
-                usd_value = token_amount * price_usd
+            txs = data.get("result", [])
+            
+            for tx in txs[:10]:
+                try:
+                    raw_value = int(tx["value"])
+                    decimals = int(tx["tokenDecimal"])
+                    token_amount = raw_value / (10 ** decimals)
+                    usd_value = token_amount * price_usd
 
-                print(f"🧪 {symbol}: token_amount={token_amount}, price_usd={price_usd}, usd_value={usd_value:.2f}")
+                    print(f"🧪 {symbol}: token_amount={token_amount}, price_usd={price_usd}, usd_value={usd_value:.2f}")
 
-                if usd_value >= WHALE_MIN_USD:
-                    return True, usd_value
-            except:
+                    if usd_value >= WHALE_MIN_USD:
+                        return True, usd_value
+                except:
+                    continue
+            
+            # Success - exit retry loop
+            break
+
+        except requests.exceptions.Timeout:
+            print(f"⏱️ Timeout dla {symbol} na {chain} (próba {attempt + 1}/2)")
+            if attempt == 0:  # First attempt failed, retry once
+                time.sleep(2)
                 continue
-
-    except Exception as e:
-        print(f"❌ Błąd w detekcji whale TX dla {symbol}: {e}")
-        return False, 0.0
+            else:  # Second attempt failed, give up
+                print(f"❌ Timeout definitywny dla {symbol} - pomijam whale detection")
+                return False, 0.0
+        except Exception as e:
+            print(f"❌ Błąd w detekcji whale TX dla {symbol}: {e}")
+            return False, 0.0
 
     return False, 0.0
