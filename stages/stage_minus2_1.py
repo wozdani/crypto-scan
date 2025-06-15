@@ -130,6 +130,11 @@ def get_dex_inflow(symbol, data):
             inflow_sum = 0.0
             for tx in result[:10]:
                 try:
+                    # Sprawdź czy tx jest dictionary
+                    if not isinstance(tx, dict):
+                        logger.warning(f"⚠️ [inflow] tx nie jest dict dla {symbol}: {type(tx)} → {tx}")
+                        continue
+                        
                     if tx.get("to", "").lower() == address.lower():
                         inflow_sum += int(tx.get("value", 0)) / (10 ** 18)
                 except Exception as e:
