@@ -65,7 +65,7 @@ def check_stage_1g_activation(data, tag=None):
         trigger_type = "news_boost"
     
     # Dodatkowy boost dla airdrop tag
-    if tag and tag.lower() == "airdrop" and any([
+    if tag and isinstance(tag, str) and tag.lower() == "airdrop" and any([
         data.get("vwap_pinning"), data.get("liquidity_box"),
         data.get("RSI_flatline"), data.get("fractal_echo")
     ]):
