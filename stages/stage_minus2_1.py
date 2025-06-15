@@ -361,8 +361,6 @@ def detect_stage_minus2_1(symbol, price_usd=None):
             
             # Stage Processing
             "event_tag": event_tag,
-            "event_score": event_score,
-            "event_risk": event_risk,
             "stage1g_active": stage1g_active,
             "stage1g_trigger_type": stage1g_trigger_type,
             "compressed": compressed,
