@@ -51,13 +51,9 @@ def get_dex_inflow(symbol, data):
             return 0.0
         if token_info is None:
             print(f"⚠️ Brak kontraktu dla {symbol}")
-        else:
-            print(f"✅ Kontrakt dla {symbol}: {token_info}")
-
-    except Exception as e:
-        print(f"❌ Błąd przy pobieraniu kontraktu dla {symbol}: {e}")
-        return False, 0.0, {}  # lub inny default jeśli zwracasz więcej wartości
-
+            return 0.0
+        
+        print(f"✅ Kontrakt dla {symbol}: {token_info}")
 
         if not token_info:
             print(f"⛔ Token {symbol} nie istnieje w cache CoinGecko")
@@ -144,6 +140,10 @@ def get_dex_inflow(symbol, data):
         except Exception as e:
             logger.error(f"❌ [inflow] Błąd krytyczny dla {symbol}: {e}")
             return 0.0
+    
+    except Exception as e:
+        print(f"❌ Błąd przy pobieraniu kontraktu dla {symbol}: {e}")
+        return 0.0
 
 def is_chain_supported(chain: str) -> bool:
     """Sprawdza czy chain jest obsługiwany (ma dostępny klucz API)"""
@@ -160,7 +160,29 @@ def is_chain_supported(chain: str) -> bool:
         return True
     if chain == "tron" and os.getenv("TRONGRID_API_KEY"):
         return True
-    return False, {}, 0.0, False
+    return False
+
+def detect_dex_inflow_anomaly(symbol, price_usd=None):
+    """Wykrywa anomalie w napływie DEX - uproszczona wersja"""
+    try:
+        inflow_usd = get_dex_inflow(symbol, {})
+        if isinstance(inflow_usd, (int, float)) and inflow_usd > 0:
+            # Próg dla anomalii - możesz dostosować
+            threshold = 10000  # $10k USD
+            return inflow_usd if inflow_usd > threshold else 0.0
+        return 0.0
+    except Exception as e:
+        logger.error(f"❌ Błąd w detect_dex_inflow_anomaly dla {symbol}: {e}")
+        return 0.0
+
+def detect_event_tag(symbol):
+    """Wykrywa tagi eventów - uproszczona wersja"""
+    try:
+        # Podstawowa implementacja - możesz rozszerzyć
+        return False, 0.0, "low"
+    except Exception as e:
+        logger.error(f"❌ Błąd w detect_event_tag dla {symbol}: {e}")
+        return False, 0.0, "low"
 
 def detect_stage_minus2_1(symbol, price_usd=None):
     try:

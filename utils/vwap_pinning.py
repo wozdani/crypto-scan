@@ -33,7 +33,7 @@ def detect_vwap_pinning(symbol, data):
     
     # VWAP pinning jeśli średnie odchylenie < 0.4%
     if avg_deviation < 0.004:
-        return True
+        return True, avg_deviation
     return False, 0.0
 
 def calculate_vwap(prices, volumes):

@@ -25,7 +25,7 @@ def detect_volume_cluster_slope(data):
 
     # Próg minimalny wzrostu wolumenu i ceny
     if volume_slope > 0 and price_slope > 0:
-        return True
+        return True, volume_slope
     return False, 0.0
 
 def calculate_advanced_slope(data_points):

@@ -15,7 +15,7 @@ def detect_heatmap_exhaustion(data):
     
     # Detekcja: ściana sprzedaży zniknęła + presja akumulacyjna
     if ask_wall_disappeared and (volume_spike or whale_activity):
-        return True
+        return True, 1.0
     return False, 0.0
 
 def analyze_orderbook_exhaustion(symbol):
