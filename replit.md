@@ -84,12 +84,13 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 15, 2025 - PPWCS Scoring Debug & Whale Detection Timeout Fix
-- **PPWCS scoring debug**: Added comprehensive debug logging to identify low score issues
-- **Enhanced signals dictionary**: Complete detector fields in detect_stage_minus2_1() for PPWCS 2.6
+### June 15, 2025 - Detector Sensitivity Enhancement for PPWCS Activation
+- **Volume spike detection improved**: Uses recent_volumes array with 2.5x threshold (was market_cap based)
+- **VWAP pinning relaxed**: Scaled thresholds 0.5%/0.8%/1.2% (was rigid 0.4%)
+- **Custom detectors implemented**: Added stealth_acc and RSI_flatline with proper integration
+- **Enhanced debug logging**: Stage-by-stage PPWCS scoring breakdown with detector identification
 - **Whale detection timeout fix**: Increased timeout 10→20s, added retry logic for BSC/Etherscan APIs
-- **Type safety audit**: Fixed all .lower() method calls with proper string type validation
-- **Timing logic reverted**: User requested rollback of candle close detection changes
+- **Type safety complete**: All .lower() method calls secured with string validation
 
 ### June 15, 2025 - Complete PPWCS 2.6 + Stage 1g 2.0 Implementation
 - **PPWCS 2.6 scoring system**: Implemented new multi-stage scoring algorithm with detector count-based scoring

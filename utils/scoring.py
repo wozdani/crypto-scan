@@ -103,6 +103,7 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> int:
             tag_lower = tag.lower()
             if tag_lower in tag_scores:
                 tag_score = tag_scores[tag_lower]
+                print(f"[PPWCS DEBUG] Event tag: {tag} → {tag_score}")
                 score += tag_score
                 
                 # Blokujące tagi - zwróć bardzo niski score
@@ -117,6 +118,7 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> int:
         # --- STAGE 1G: Breakout Detection (Version 2.0) ---
         if signals.get("stage1g_active"):
             stage1g_score = score_stage_1g(signals)
+            print(f"[PPWCS DEBUG] Stage 1g score: {stage1g_score}")
             score += stage1g_score
 
         # --- Pure Accumulation Bonus ---

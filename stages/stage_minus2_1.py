@@ -343,12 +343,12 @@ def detect_stage_minus2_1(symbol, price_usd=None):
             "pure_accumulation": whale_activity and inflow_usd > 0 and not False,  # whale+DEX without social
             "inflow_usd": inflow_usd,
             
-            # Legacy/Future Detectors (for compatibility)
+            # Custom Detectors (PPWCS 2.6 Enhanced)
             "squeeze": False,
-            "stealth_acc": False,
+            "stealth_acc": detect_stealth_acc({"whale_activity": whale_activity, "dex_inflow": inflow_usd > 0, "social_spike": False}),
             "fake_reject": False,
             "liquidity_box": False,
-            "RSI_flatline": False,
+            "RSI_flatline": detect_rsi_flatline(rsi_value, {"dex_inflow": inflow_usd > 0, "whale_activity": whale_activity}),
             "fractal_echo": False,
             "news_boost": event_tag is not None and isinstance(event_tag, str) and event_tag.lower() in ["listing", "partnership", "presale", "cex_listed"],
             "inflow": inflow_usd > 0
