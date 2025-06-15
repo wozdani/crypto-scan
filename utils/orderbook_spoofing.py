@@ -1,7 +1,7 @@
 import time
 from datetime import datetime, timedelta, timezone
 
-def detect_orderbook_spoofing(data):
+def detect_orderbook_spoofing(symbol):
     """
     Orderbook Spoofing Detector - wykrywa manipulacje orderbooka
     
@@ -10,19 +10,34 @@ def detect_orderbook_spoofing(data):
     - Czas życia ściany < 90 sekund (bait pattern)
     - Jednocześnie whale activity lub volume spike
     
-    Returns: bool - True jeśli wykryto spoofing
+    Returns: (bool, float) - True jeśli wykryto spoofing, score
     """
-    ask_wall_appeared = data.get("ask_wall_appeared", False)
-    ask_wall_disappeared = data.get("ask_wall_disappeared", False)
-    wall_lifetime = data.get("ask_wall_lifetime_sec", 0)
-    whale = data.get("whale_activity", False)
-    volume_spike = data.get("volume_spike", False)
+    try:
+        # Sprawdź czy symbol jest string
+        if not isinstance(symbol, str):
+            return False, 0.0
+            
+        # Analizuj orderbook walls dla symbolu
+        data = analyze_orderbook_walls(symbol)
+        
+        if not isinstance(data, dict):
+            return False, 0.0
+            
+        ask_wall_appeared = data.get("ask_wall_appeared", False)
+        ask_wall_disappeared = data.get("ask_wall_disappeared", False)
+        wall_lifetime = data.get("ask_wall_lifetime_sec", 0)
+        whale = data.get("whale_activity", False)
+        volume_spike = data.get("volume_spike", False)
 
-    # Detekcja: krótkotrwała ściana + presja akumulacyjna
-    if ask_wall_appeared and ask_wall_disappeared and wall_lifetime < 90:
-        if whale or volume_spike:
-            return True, wall_lifetime
-    return False, 0.0
+        # Detekcja: krótkotrwała ściana + presja akumulacyjna
+        if ask_wall_appeared and ask_wall_disappeared and wall_lifetime < 90:
+            if whale or volume_spike:
+                return True, wall_lifetime
+        return False, 0.0
+        
+    except Exception as e:
+        print(f"❌ Error in detect_orderbook_spoofing for {symbol}: {e}")
+        return False, 0.0
 
 def analyze_orderbook_walls(symbol):
     """

@@ -1,4 +1,4 @@
-def detect_heatmap_exhaustion(data):
+def detect_heatmap_exhaustion(symbol):
     """
     Heatmap Exhaustion Detector - wykrywa zmęczenie podaży w orderbooku
     
@@ -7,16 +7,31 @@ def detect_heatmap_exhaustion(data):
     - Jednocześnie pojawił się volume spike lub whale inflow
     - Cena została w miejscu lub minimalnie ruszyła
     
-    Returns: bool - True jeśli wykryto wyczerpanie podaży
+    Returns: (bool, float) - True jeśli wykryto wyczerpanie podaży, score
     """
-    ask_wall_disappeared = data.get("ask_wall_disappeared", False)
-    volume_spike = data.get("volume_spike", False)
-    whale_activity = data.get("whale_activity", False)
-    
-    # Detekcja: ściana sprzedaży zniknęła + presja akumulacyjna
-    if ask_wall_disappeared and (volume_spike or whale_activity):
-        return True, 1.0
-    return False, 0.0
+    try:
+        # Sprawdź czy symbol jest string
+        if not isinstance(symbol, str):
+            return False, 0.0
+            
+        # Analizuj orderbook exhaustion dla symbolu
+        data = analyze_orderbook_exhaustion(symbol)
+        
+        if not isinstance(data, dict):
+            return False, 0.0
+            
+        ask_wall_disappeared = data.get("ask_wall_disappeared", False)
+        volume_spike = data.get("volume_spike", False)
+        whale_activity = data.get("whale_activity", False)
+        
+        # Detekcja: ściana sprzedaży zniknęła + presja akumulacyjna
+        if ask_wall_disappeared and (volume_spike or whale_activity):
+            return True, 1.0
+        return False, 0.0
+        
+    except Exception as e:
+        print(f"❌ Error in detect_heatmap_exhaustion for {symbol}: {e}")
+        return False, 0.0
 
 def analyze_orderbook_exhaustion(symbol):
     """
