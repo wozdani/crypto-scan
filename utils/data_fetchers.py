@@ -192,6 +192,42 @@ def get_fallback_symbols():
 def get_market_data(symbol):
     print(f"🧪 [get_market_data] Start dla {symbol}")
     
+    # Najpierw spróbuj pobrać dane z tickers endpoint dla prawidłowego wolumenu
+    try:
+        url = f"https://api.bybit.com/v5/market/tickers?category=linear&symbol={symbol}"
+        # Endpoint tickers nie wymaga autoryzacji
+        response = requests.get(url, timeout=10)
+        
+        if response.status_code == 200:
+            ticker_data = response.json()
+            if ticker_data.get("result", {}).get("list"):
+                ticker = ticker_data["result"]["list"][0]
+                
+                # Pobierz prawidłowy wolumen USDT z turnover24h
+                volume_usdt = float(ticker.get("turnover24h", 0))
+                price = float(ticker.get("lastPrice", 0))
+                
+                if price > 0:
+                    ticker_market_data = {
+                        "price": price,
+                        "volume": volume_usdt,  # Prawidłowy wolumen USDT
+                        "best_bid": float(ticker.get("bid1Price", 0)),
+                        "best_ask": float(ticker.get("ask1Price", 0)),
+                        "close": price,
+                        "high24h": float(ticker.get("highPrice24h", 0)),
+                        "low24h": float(ticker.get("lowPrice24h", 0)),
+                        "volume24h": float(ticker.get("volume24h", 0)),
+                        "price_change_pct": float(ticker.get("price24hPcnt", 0)) * 100
+                    }
+                    print(f"✅ [get_market_data] Ticker data dla {symbol}: cena=${price}, volume=${volume_usdt:,.0f}")
+                    return True, ticker_market_data, price, True
+        else:
+            print(f"❌ Ticker API status: {response.status_code} dla {symbol}")
+    except Exception as e:
+        print(f"❌ Błąd pobierania ticker data dla {symbol}: {e}")
+    
+    # Fallback do starej metody tylko jeśli ticker API nie działa
+    print(f"🔄 Fallback do get_all_data() dla {symbol}")
     data = get_all_data(symbol)
     
     # FIX: Sprawdź czy data nie jest None
