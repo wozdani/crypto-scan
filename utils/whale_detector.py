@@ -1,54 +1,27 @@
+from utils.contracts import get_contract
+from utils.token_price import get_token_price_usd
 import os
 import requests
-from utils.token_price import get_token_price_usd
-import json
-from datetime import datetime, timedelta
 
-WHALE_MIN_USD = 50000  # minimalna wartość USD dla uznania jako whale transfer
+WHALE_MIN_USD = 50000  # Próg detekcji whale
 
-def get_native_token_prices():
-    """Get prices of native tokens from cache - no direct API calls"""
-    try:
-        from utils.coingecko import load_cache, is_cache_valid, build_coingecko_cache
-        
-        if not is_cache_valid():
-            build_coingecko_cache()
-        
-        cache = load_cache()
-        
-        # Return placeholder values to avoid API calls - this would need enhancement
-        # to include price data in the cache system
-        return {
-            "ethereum": 2500,  # Approximate values
-            "bsc": 300,
-            "polygon": 0.8,
-            "arbitrum": 2500,
-            "optimism": 2500
-        }
-    except Exception as e:
-        print(f"❌ Błąd pobierania cen native tokenów: {e}")
-        return {
-            "ethereum": 0,
-            "bsc": 0,
-            "polygon": 0,
-            "arbitrum": 0,
-            "optimism": 0
-        }
-
-def detect_whale_transfers(symbol, token_map):
-    if symbol not in token_map:
-        print(f"⚠️ Brak mapowania dla {symbol}")
+def detect_whale_tx(symbol, price_usd=None):
+    token_info = get_contract(symbol)
+    if not token_info:
+        print(f"⚠️ Brak kontraktu dla {symbol}")
         return False, 0.0
 
-    token_data = token_map[symbol]
-    chain = token_data.get("chain", "").lower()
-    address = token_data.get("address")
+    if not price_usd or price_usd == 0:
+        print(f"⚠️ Brak ceny USD dla {symbol} (price_usd={price_usd}) – pomijam whale tx.")
+        return False, 0.0
+
+    chain = token_info.get("chain", "").lower()
+    address = token_info.get("address")
 
     if not chain or not address:
         print(f"⚠️ Brak danych chain/address dla {symbol}")
         return False, 0.0
 
-    # Wybierz API explorer w zależności od sieci
     explorer_configs = {
         "ethereum": {
             "url": "https://api.etherscan.io/api",
@@ -95,24 +68,23 @@ def detect_whale_transfers(symbol, token_map):
             return False, 0.0
 
         txs = data.get("result", [])
-        token_price = get_token_price_usd(symbol)
         
-        if not token_price:
-            return False, 0.0
-
-        for tx in txs[:10]:  # Check last 10 transactions
+        for tx in txs[:10]:
             try:
-                raw_value = int(tx["value"]) / (10 ** int(tx["tokenDecimal"]))
-                usd_value = raw_value * token_price
-                
+                raw_value = int(tx["value"])
+                decimals = int(tx["tokenDecimal"])
+                token_amount = raw_value / (10 ** decimals)
+                usd_value = token_amount * price_usd
+
+                print(f"🧪 {symbol}: token_amount={token_amount}, price_usd={price_usd}, usd_value={usd_value:.2f}")
+
                 if usd_value >= WHALE_MIN_USD:
-                    print(f"🐋 Whale TX wykryty dla {symbol}: {usd_value:.2f} USD")
                     return True, usd_value
-            except (ValueError, KeyError) as e:
+            except:
                 continue
 
+    except Exception as e:
+        print(f"❌ Błąd w detekcji whale TX dla {symbol}: {e}")
         return False, 0.0
 
-    except Exception as e:
-        print(f"❌ Błąd przy wykrywaniu whale TX dla {symbol}: {e}")
-        return False, 0.0
+    return False, 0.0

@@ -57,12 +57,15 @@ def fetch_orderbook_snapshot(symbol):
         
         if response.status_code == 200:
             data = response.json()
+            if not isinstance(data, dict): return False, 0.0
+            if not isinstance(result, dict): return False, 0.0
             if data.get("retCode") == 0:
                 result = data["result"]
-                
-                bids = [float(entry[1]) for entry in result.get("b", [])][:ORDERBOOK_DEPTH]
-                asks = [float(entry[1]) for entry in result.get("a", [])][:ORDERBOOK_DEPTH]
-                return sum(bids), sum(asks)
+            if not isinstance(data, dict): return False, 0.0
+            if not isinstance(result, dict): return False, 0.0
+            bids = [float(entry[1]) for entry in result.get("b", [])][:ORDERBOOK_DEPTH]
+            asks = [float(entry[1]) for entry in result.get("a", [])][:ORDERBOOK_DEPTH]
+            return sum(bids), sum(asks)
         
         # Fallback to v2 API
         url = f"https://api.bybit.com/v2/public/orderBook/L2"
@@ -71,6 +74,8 @@ def fetch_orderbook_snapshot(symbol):
         response = requests.get(url, params=params, timeout=10)
         if response.status_code == 200:
             data = response.json()
+            if not isinstance(data, dict): return False, 0.0
+            if not isinstance(result, dict): return False, 0.0
             if data.get("ret_code") == 0:
                 result = data["result"]
                 
@@ -87,18 +92,18 @@ def fetch_orderbook_snapshot(symbol):
 def detect_orderbook_anomaly(symbol):
     current_bid_sum, current_ask_sum = fetch_orderbook_snapshot(symbol)
     if current_bid_sum is None:
-        return False
+        return False, 0.0
 
     prev = _orderbook_cache.get(symbol)
     _orderbook_cache[symbol] = (current_bid_sum, current_ask_sum)
 
     if prev is None:
-        return False  # brak danych do porównania
+        return False, 0.0  # brak danych do porównania
 
     prev_bid_sum, prev_ask_sum = prev
 
     if prev_bid_sum == 0 or prev_ask_sum == 0:
-        return False
+        return False, 0.0
 
     bid_ratio = current_bid_sum / prev_bid_sum
     ask_ratio = current_ask_sum / prev_ask_sum
@@ -107,4 +112,4 @@ def detect_orderbook_anomaly(symbol):
         print(f"📊 Anomalia orderbook dla {symbol} (bid×{bid_ratio:.2f}, ask×{ask_ratio:.2f})")
         return True
 
-    return False
+    return False, 0.0

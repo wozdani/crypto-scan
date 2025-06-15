@@ -22,7 +22,7 @@ def detect_orderbook_spoofing(data):
     if ask_wall_appeared and ask_wall_disappeared and wall_lifetime < 90:
         if whale or volume_spike:
             return True
-    return False
+    return False, 0.0
 
 def analyze_orderbook_walls(symbol):
     """

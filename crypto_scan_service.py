@@ -7,11 +7,28 @@ import json
 import openai
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
+from utils.contracts import get_contract
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from utils.coingecko import build_coingecko_cache
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s"
+)
+
+logger = logging.getLogger(__name__)
 
 # === Load ENV ===
 load_dotenv()
 from utils.telegram_bot import send_alert, format_alert
 from utils.data_fetchers import get_symbols_cached, get_market_data
+from utils.data_fetchers import build_bybit_symbol_cache_all_categories as build_bybit_symbol_cache, is_bybit_cache_expired
+
+if is_bybit_cache_expired():
+    print("🕒 Cache symboli Bybit jest przestarzały – buduję ponownie...")
+    build_bybit_symbol_cache()
+
 from stages.stage_minus2_1 import detect_stage_minus2_1
 from utils.stage_detectors import detect_stage_minus1
 from utils.scoring import compute_ppwcs, should_alert, log_ppwcs_score, get_previous_score, save_score
@@ -100,49 +117,109 @@ def wait_for_next_candle():
 # === Main scan cycle ===
 def scan_cycle():
     print(f"\n🔁 Start scan: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC")
-    
+    from utils.cache_utils import should_rebuild_cache
+ 
+    if should_rebuild_cache():
+        print("🛠 Buduję cache CoinGecko...")
+        build_coingecko_cache()
+
     symbols = get_symbols_cached()
-    
-    # Pobierz kontrakty dla wszystkich symboli naraz (batch processing)
-    from utils.coingecko import get_multiple_token_contracts_from_coingecko
-    from utils.contracts import load_token_map, save_token_map
-    
-    token_map = load_token_map()
-    missing_symbols = [s for s in symbols if s not in token_map]
-    
-    if missing_symbols:
-        print(f"🔍 Pobieranie kontraktów dla {len(missing_symbols)} brakujących tokenów...")
-        coingecko_contracts = get_multiple_token_contracts_from_coingecko(missing_symbols)
+    symbols_bybit = get_symbols_cached()  # albo get_all_perpetual_symbols()
         
-        # Aktualizuj mapę tokenów
-        for symbol, contract_info in coingecko_contracts.items():
-            if contract_info:
-                token_map[symbol] = contract_info
         
-        save_token_map(token_map)
-        print(f"💾 Zaktualizowano mapę kontraktów")
-    
     scan_results = []
-    
-    for symbol in symbols:
+
+    def run_detect_stage(symbol, price_usd):
         try:
-            data = get_market_data(symbol)
-            if not data:
+            print(f"🧪 Wywołanie detect_stage_minus2_1({symbol})")
+            return symbol, detect_stage_minus2_1(symbol, price_usd=price_usd)
+        except Exception as e:
+            print(f"❌ Error in detect_stage_minus2_1 for {symbol}: {e}")
+            return symbol, (False, {}, 0.0, False)
+
+    futures = []
+    with ThreadPoolExecutor(max_workers=15) as executor:
+        for symbol in symbols:
+            print(f"🔍 Skanuję {symbol}...")
+            if symbol not in symbols_bybit:
+                print(f"⚠️ Pomijam {symbol} – nie znajduje się na Bybit (USDT perp)")
                 continue
-                
-            stage2_pass, signals, inflow, stage1g_active = detect_stage_minus2_1(symbol)
+
+            try:
+                success, data, price_usd, is_valid = get_market_data(symbol)
+
+                if not success or not data or not isinstance(data, dict) or price_usd is None:
+                    logger.warning(f"⚠️ Pomiń {symbol} – niepoprawne dane z get_market_data(): {data}")
+                    continue
+
+                # 📉 Filtrowanie tokenów: zbyt tanie, niska płynność, szeroki spread
+                volume_usdt = data.get("volume")
+                best_ask = data.get("best_ask")
+                best_bid = data.get("best_bid")
+
+                if not price_usd or price_usd <= 0:
+                    print(f"⚠️ Pominięto {symbol} – nieprawidłowa cena: {price_usd}")
+                    continue
+
+                if not volume_usdt or volume_usdt < 100_000:
+                    print(f"⚠️ Pominięto {symbol} – zbyt niski wolumen: ${volume_usdt}")
+                    continue
+
+                if best_ask and best_bid:
+                    spread = (best_ask - best_bid) / best_ask
+                    if spread > 0.02:
+                        print(f"⚠️ Pominięto {symbol} – zbyt szeroki spread: {spread*100:.2f}%")
+                        continue
+
+                # ✅ Token przeszedł wszystkie filtry
+                futures.append(executor.submit(run_detect_stage, symbol, price_usd))
+
+            except Exception as e:
+                print(f"❌ Błąd przy analizie {symbol}: {e}")
+                continue            
+            except Exception as e:
+                print(f"❌ Błąd przy dodawaniu {symbol} do kolejki: {e}")
+                continue
+
+            except Exception as e:
+                print(f"❌ Błąd w analizie {symbol}: {e}")
+
+                # 📉 Filtrowanie tokenów: zbyt tanie, niska płynność, szeroki spread
+                price_usd = data.get("close")
+                volume_usdt = data.get("volume")
+                best_ask = data.get("best_ask")
+                best_bid = data.get("best_bid")
+
+                if not price_usd or price_usd <= 0:
+                    print(f"⚠️ Pominięto {symbol} – nieprawidłowa cena: {price_usd}")
+                    continue
+
+                if not volume_usdt or volume_usdt < 500_000:
+                    print(f"⚠️ Pominięto {symbol} – zbyt niski wolumen: ${volume_usdt}")
+                    continue
+
+                if best_ask and best_bid:
+                    spread = (best_ask - best_bid) / best_ask
+                    if spread > 0.02:
+                        print(f"⚠️ Pominięto {symbol} – zbyt szeroki spread: {spread*100:.2f}%")
+                        continue
+
+                # ✅ Token przeszedł wszystkie filtry
+                futures.append(executor.submit(run_detect_stage, symbol, price_usd))
+
+            except Exception as e:
+                print(f"❌ Error preparing {symbol}: {e}")
+
+    for future in as_completed(futures):
+        symbol, (stage2_pass, signals, inflow, stage1g_active) = future.result()
+        try:
             compressed = detect_stage_minus1(signals) if signals else False
-            
-            # Get previous score for trailing logic
             previous_score = get_previous_score(symbol)
             score = compute_ppwcs(signals, previous_score)
-            
-            # Save current score for future trailing logic
             save_score(symbol, score)
-            
             log_ppwcs_score(symbol, score)
             save_stage_signal(symbol, score, stage2_pass, compressed, stage1g_active)
-            
+
             scan_results.append({
                 'symbol': symbol,
                 'score': score,
@@ -151,67 +228,44 @@ def scan_cycle():
                 'compressed': compressed,
                 'stage1g_active': stage1g_active
             })
-            
-            # Process alerts using the comprehensive alert system
-            from utils.alert_utils import get_alert_level, should_request_gpt_analysis
-            
-            gpt_analysis = None
-            alert_level = get_alert_level(score)
-            
-            # Generate TP forecast for all qualifying signals
+
+            from utils.alert_utils import get_alert_level
             from utils.take_profit_engine import forecast_take_profit_levels
+            alert_level = get_alert_level(score)
             tp_forecast = forecast_take_profit_levels(signals)
-            
-            # Enhanced GPT feedback for strong signals (PPWCS >= 80)
+
             gpt_feedback = None
-            feedback_score = None
             if score >= 80:
                 try:
-                    # Pass alert level to GPT function
                     alert_level_text = get_alert_level(score)
                     gpt_feedback = send_report_to_gpt(symbol, signals, tp_forecast, alert_level_text)
-                    
-                    # Auto-score the GPT feedback
                     feedback_score = score_gpt_feedback(gpt_feedback)
                     category, description, emoji = categorize_feedback_score(feedback_score)
-                    
                     print(f"[GPT FEEDBACK] {symbol}: {gpt_feedback}")
                     print(f"[FEEDBACK SCORE] {symbol}: {feedback_score}/100 ({category}) {emoji}")
-                    
-                    # Add feedback score to signals data
                     signals["feedback_score"] = feedback_score
                     signals["feedback_category"] = category
-                    
-                    # Create feedback directory and save report
                     os.makedirs("data/feedback", exist_ok=True)
                     feedback_file = f"data/feedback/{symbol}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}.txt"
                     with open(feedback_file, "w", encoding="utf-8") as f:
-                        f.write(f"Token: {symbol}\n")
-                        f.write(f"PPWCS: {score}\n")
-                        f.write(f"Alert Level: {alert_level_text}\n")
-                        f.write(f"Timestamp: {datetime.now(timezone.utc).isoformat()}\n")
-                        f.write(f"Signals: {signals}\n")
-                        f.write(f"TP Forecast: {tp_forecast}\n")
-                        f.write(f"Feedback Score: {feedback_score}/100\n")
-                        f.write(f"Feedback Category: {category} ({description})\n")
-                        f.write(f"GPT Feedback:\n{gpt_feedback}\n")
-                        
+                        f.write(f"Token: {symbol}\nPPWCS: {score}\nAlert Level: {alert_level_text}\n")
+                        f.write(f"Timestamp: {datetime.now(timezone.utc).isoformat()}\nSignals: {signals}\n")
+                        f.write(f"TP Forecast: {tp_forecast}\nFeedback Score: {feedback_score}/100\n")
+                        f.write(f"Feedback Category: {category} ({description})\nGPT Feedback:\n{gpt_feedback}\n")
                 except Exception as gpt_error:
                     print(f"⚠️ GPT feedback failed for {symbol}: {gpt_error}")
-            
-            # Send alert with GPT feedback (if available) for all qualifying signals
-            if score >= 60:  # Minimum threshold for any action
+
+            if score >= 60:
                 from utils.alert_system import process_alert
                 process_alert(symbol, score, signals, gpt_feedback)
-                        
+
         except Exception as e:
             print(f"❌ Error scanning {symbol}: {e}")
-            
+
     save_conditional_reports()
     compress_reports_to_zip()
     print(f"✅ Scan completed. Processed {len(scan_results)} symbols.")
     return scan_results
-
 # === Main execution ===
 if __name__ == "__main__":
     print("🚀 Crypto Pre-Pump Detection System Starting...")

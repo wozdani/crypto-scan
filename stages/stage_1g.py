@@ -32,7 +32,7 @@ def detect_stage_1g_signals(symbol, data):
         return main_signals, aux_signals
         
     except Exception as e:
-        print(f"❌ Błąd w Stage 1G dla {symbol}: {e}")
+        logger.error(f"❌ Błąd w Stage 1G dla {symbol}: {e}")
         return main_signals, aux_signals
 
 def check_stage_1g_activation(main_signals, aux_signals, tag=None):
@@ -50,7 +50,7 @@ def check_stage_1g_activation(main_signals, aux_signals, tag=None):
         return True, "classic"
 
     if tag and tag.lower() in boost_tags and aux_count >= 1:
-        print(f"🚀 Stage 1G aktywowany przez tag '{tag}' + {aux_count} aux sygnałów")
+        logger.info(f"🚀 Stage 1G aktywowany przez tag '{tag}' + {aux_count} aux sygnałów")
         return True, "tag_boost"
 
     return False, None
@@ -68,10 +68,18 @@ def detect_stage_1g(symbol, data, event_tag=None):
         if stage1g_active:
             main_count = sum(1 for val in main_signals.values() if val)
             aux_count = sum(1 for val in aux_signals.values() if val)
-            print(f"✅ Stage 1G aktywny dla {symbol}: main={main_count}, aux={aux_count}, tag={event_tag}, type={trigger_type}")
+            logger.info(f"✅ Stage 1G aktywny dla {symbol}")
+            logger.info(f"Main signals (✓): {[k for k,v in main_signals.items() if v]} / (✗): {[k for k,v in main_signals.items() if not v]}")
+            logger.info(f"Aux signals (✓): {[k for k,v in aux_signals.items() if v]} / (✗): {[k for k,v in aux_signals.items() if not v]}")
+            logger.info(f"Trigger type: {trigger_type}, Event tag: {event_tag}")
         
+        else:
+            logger.info(f"🚫 Stage 1G NIEaktywny dla {symbol}")
+            logger.info(f"Main active (✓): {[k for k,v in main_signals.items() if v]}")
+            logger.info(f"Aux active (✓): {[k for k,v in aux_signals.items() if v]}")
+
         return stage1g_active, trigger_type
         
     except Exception as e:
-        print(f"❌ Błąd Stage 1G dla {symbol}: {e}")
+        logger.info(f"❌ Błąd Stage 1G dla {symbol}: {e}")
         return False, None

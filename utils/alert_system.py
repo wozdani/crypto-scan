@@ -5,6 +5,8 @@ import time
 from datetime import datetime, timedelta, timezone
 from utils.take_profit_engine import forecast_take_profit_levels, calculate_risk_reward_ratio
 from utils.alert_utils import get_alert_level, get_alert_level_text, should_send_telegram_alert, should_request_gpt_analysis
+import logging
+logger = logging.getLogger(__name__)
 
 # Global tracking for trailing scores and alert timing
 trailing_scores = {}  # symbol → poprzedni PPWCS score
@@ -39,7 +41,7 @@ def save_cooldown_tracker(tracker):
         with open(COOLDOWN_FILE, "w") as f:
             json.dump(tracker, f, indent=2)
     except Exception as e:
-        print(f"Error saving cooldown tracker: {e}")
+        logger.error(f"Error saving cooldown tracker: {e}")
 
 def check_cooldown(token):
     """Check if token is in cooldown period"""
@@ -73,6 +75,11 @@ def determine_alert_level(ppwcs_score):
         return "none", ""
 
 def format_alert_message(token, ppwcs_score, signals, tp_forecast, risk_reward):
+    
+    if not isinstance(signals, dict):
+        logger.warning(f"⚠️ Nieprawidłowe signals: {signals}")
+        return
+
     """Format comprehensive alert message with TP levels"""
     now = datetime.now(timezone.utc)
     alert_level, alert_emoji = determine_alert_level(ppwcs_score)
@@ -139,7 +146,7 @@ def send_telegram_alert(token, ppwcs_score, stage_signals, tp_forecast, stage1g_
         
         # Check 60-minute cooldown
         if token in last_alert_time and now - last_alert_time[token] < 3600:
-            print(f"⏱️ {token} jest na cooldownie, pomijam alert.")
+            logger.info(f"⏱️ {token} jest na cooldownie, pomijam alert.")
             return False
         
         # Trailing score logic - require meaningful increase for non-strong alerts
@@ -152,7 +159,7 @@ def send_telegram_alert(token, ppwcs_score, stage_signals, tp_forecast, stage1g_
             
         # For non-strong alerts, require at least 5-point increase
         if alert_level != "strong" and score_increase < 5:
-            print(f"📊 {token}: Score increase {score_increase} too small for {alert_level} alert")
+            logger.info(f"📊 {token}: Score increase {score_increase} too small for {alert_level} alert")
             return False
 
         last_alert_time[token] = now
@@ -188,7 +195,7 @@ def send_telegram_alert(token, ppwcs_score, stage_signals, tp_forecast, stage1g_
         chat_id = os.getenv('TELEGRAM_CHAT_ID')
         
         if not bot_token or not chat_id:
-            print("❌ Telegram credentials not configured")
+            logger.error("❌ Telegram credentials not configured")
             return False
 
         payload = {

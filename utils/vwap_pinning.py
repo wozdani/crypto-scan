@@ -1,7 +1,7 @@
 import numpy as np
 from utils.data_fetchers import get_all_data
 
-def detect_vwap_pinning(data):
+def detect_vwap_pinning(symbol, data):
     """
     VWAP Pinning Detector - wykrywa kontrolowaną akumulację przez whales
     
@@ -12,11 +12,12 @@ def detect_vwap_pinning(data):
     
     Returns: bool - True jeśli wykryto VWAP pinning
     """
+    if not isinstance(data, dict): return False, 0.0
     closes = data.get("recent_closes", [])
     vwaps = data.get("recent_vwaps", [])
-
+       
     if len(closes) != len(vwaps) or len(closes) < 3:
-        return False
+        return False, 0.0
 
     # Oblicz odchylenia procentowe od VWAP
     deviations = []
@@ -26,14 +27,14 @@ def detect_vwap_pinning(data):
             deviations.append(deviation)
     
     if len(deviations) < 3:
-        return False
+        return False, 0.0
         
     avg_deviation = sum(deviations) / len(deviations)
     
     # VWAP pinning jeśli średnie odchylenie < 0.4%
     if avg_deviation < 0.004:
         return True
-    return False
+    return False, 0.0
 
 def calculate_vwap(prices, volumes):
     """
@@ -105,15 +106,25 @@ def analyze_vwap_control(symbol):
     """
     try:
         market_data = get_recent_market_data(symbol)
-        
-        if not market_data.get("data_available"):
+
+        if not isinstance(market_data, dict):
+            print(f"❌ market_data nie jest dict: {market_data}")
             return {
                 "vwap_pinned": False,
                 "avg_deviation": 0.0,
                 "control_strength": 0.0,
                 "candles_analyzed": 0
             }
-        
+
+        if not market_data.get("data_available"):
+            print(f"❌ Brak danych VWAP dla {symbol}")
+            return {
+                "vwap_pinned": False,
+                "avg_deviation": 0.0,
+                "control_strength": 0.0,
+                "candles_analyzed": 0
+            }
+
         closes = market_data["recent_closes"]
         vwaps = market_data["recent_vwaps"]
         

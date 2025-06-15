@@ -4,13 +4,22 @@ import time
 import os
 import hmac
 import hashlib
+import json
 from dotenv import load_dotenv
+from utils.contracts import get_contract
+from datetime import datetime, timedelta
 
-load_dotenv()
+from pathlib import Path
+dotenv_path = Path(__file__).resolve().parents[1] / ".env"
+print(f"🧪 Szukam .env w: {dotenv_path}")
+load_dotenv(dotenv_path=dotenv_path)
 
 BYBIT_BASE_URL = "https://api.bybit.com"
 BYBIT_API_KEY = os.getenv("BYBIT_API_KEY")
 BYBIT_SECRET_KEY = os.getenv("BYBIT_SECRET_KEY")
+BYBIT_SYMBOLS_PATH = "utils/data/cache/bybit_symbols.json"
+BYBIT_ENDPOINT = "https://api.bybit.com/v5/market/tickers"
+VALID_CHAINS = ["ethereum", "bsc", "arbitrum", "polygon", "optimism", "tron"]
 
 def get_bybit_headers(params=None):
     """Generate authenticated headers for Bybit API"""
@@ -107,72 +116,37 @@ def get_all_data(symbol):
 
 import requests
 
-def get_symbols_cached():
-    """Pobiera tylko prawdziwe kontrakty perpetual z Bybit (linear USDT-PERP) z obsługiwanych chainów"""
-    import os
-    from utils.contracts import get_or_fetch_token_contract
-    
-    # Definiuj obsługiwane chainy z kluczami API
-    SUPPORTED_CHAINS = {
-        "ethereum": os.getenv("ETHERSCAN_API_KEY"),
-        "bsc": os.getenv("BSCSCAN_API_KEY"),
-        "arbitrum": os.getenv("ARBISCAN_API_KEY"),
-        "polygon": os.getenv("POLYGONSCAN_API_KEY"),
-        "optimism": os.getenv("OPTIMISMSCAN_API_KEY"),
-        "tron": os.getenv("TRONGRID_API_KEY")
-    }
-    
-    # Tylko chainy z dostępnymi kluczami
-    VALID_CHAINS = {chain for chain, key in SUPPORTED_CHAINS.items() if key}
-    
+
+def get_symbols_cached(require_chain=True):
     try:
-        url = "https://api.bybit.com/v5/market/instruments-info"
-        params = {
-            "category": "linear"
-        }
-        response = requests.get(url, params=params, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-        
-        if data["retCode"] == 0:
-            valid_symbols = []
-            
-            for item in data["result"]["list"]:
-                symbol = item["symbol"]
-                contract_type = item.get("contractType", "")
-                status = item.get("status", "")
-                
-                # Filtruj tylko LinearPerpetual kontrakty w statusie Trading
-                if (status == "Trading" and 
-                    contract_type == "LinearPerpetual" and 
-                    symbol.endswith("USDT")):
-                    
-                    # Filtruj dziwne nazwy tokenów
-                    if not is_valid_perpetual_symbol(symbol):
-                        continue
-                    
-                    # Sprawdź czy token ma obsługiwany chain
-                    token_info = get_or_fetch_token_contract(symbol)
-                    if token_info:
-                        chain = token_info["chain"].lower()
-                        if chain not in VALID_CHAINS:
-                            continue  # Pomiń tokeny z nieobsługiwanych chainów
-                        
-                    valid_symbols.append(symbol)
-            
-            print(f"✅ Pobrano {len(valid_symbols)} kontraktów USDT-PERP z obsługiwanych chainów")
-            if VALID_CHAINS:
-                print(f"📡 Obsługiwane chainy: {', '.join(VALID_CHAINS)}")
-            else:
-                print("⚠️ Brak kluczy API dla chainów - wszystkie tokeny będą pomijane")
-            return valid_symbols
-        else:
-            print("❌ Błąd pobierania symboli Bybit:", data)
-            return []
-            
-    except Exception as e:
-        print(f"❌ Wyjątek przy pobieraniu symboli: {e}")
-        return []
+        with open("utils/data/cache/bybit_symbols.json", "r") as f:
+            symbols = json.load(f)
+    except FileNotFoundError:
+        print("⚠️ Brak pliku symboli Bybit – buduję cache...")
+    from utils.data_fetchers import build_bybit_symbol_cache_all_categories
+    build_bybit_symbol_cache_all_categories()
+    with open(BYBIT_SYMBOLS_PATH, "r") as f:
+        symbols = json.load(f)
+
+    valid_symbols = []
+    for symbol in symbols:
+        if not symbol.endswith("USDT"):
+            continue
+
+        if require_chain:
+            token_info = get_contract(symbol)
+            if not token_info or "chain" not in token_info:
+                print(f"⚠️ Brak danych chain w token_info dla {symbol}")
+                continue
+            chain = token_info["chain"].lower()
+            if chain not in VALID_CHAINS:
+                continue
+
+        valid_symbols.append(symbol)
+
+    print(f"🔢 Liczba symboli z Bybit: {len(valid_symbols)}")
+    print(f"🔚 Ostatnie 10 symboli: {valid_symbols[-10:]}")
+    return valid_symbols
 
 def is_valid_perpetual_symbol(symbol):
     """Sprawdza czy symbol to prawdziwy kontrakt perpetual"""
@@ -212,8 +186,132 @@ def get_fallback_symbols():
     return get_symbols_cached()
 
 def get_market_data(symbol):
-    """Get comprehensive market data for a symbol"""
-    return get_all_data(symbol)
+    print(f"🧪 [get_market_data] Start dla {symbol}")
+    
+    data = get_all_data(symbol)
+    for key in ["prev_candle", "last_candle"]:
+        if isinstance(data.get(key), dict):
+            data[key] = list(data[key].values())
+
+    # FIX: Rozpakuj tuple jeśli taka została zwrócona
+    if isinstance(data, tuple):
+        print(f"⚠️ [get_market_data] Zwrócono tuple zamiast dict → {data}")
+        data = data[1]
+
+    if not isinstance(data, dict):
+        return False, {}, 0.0, False
+
+    # ✅ Zamień listy świec na dict (dla kompatybilności)
+    for key in ["prev_candle", "last_candle"]:
+        if key in data and isinstance(data[key], list) and len(data[key]) >= 6:
+            c = data[key]
+            data[key] = {
+                "timestamp": int(c[0]),
+                "open": float(c[1]),
+                "high": float(c[2]),
+                "low": float(c[3]),
+                "close": float(c[4]),
+                "volume": float(c[5]),
+                "quote_volume": float(c[6]) if len(c) > 6 else None
+            }
+
+    # Sprawdź czy zawiera dane zamknięcia
+    price = data.get("close")
+    if price is not None:
+        print(f"✅ [get_market_data] Zwracam dane dla {symbol}: cena = {price}")
+        return True, data, price, True
+
+
+    # Fallback v2
+    try:
+        url = f"https://api.bybit.com/v2/public/tickers?symbol={symbol}"
+        print(f"🧪 Fallback URL: {url}")
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            ticker_data = response.json()
+            if ticker_data and "result" in ticker_data:
+                price_str = ticker_data["result"].get("last_price") or ticker_data["result"].get("lastPrice")
+                if price_str:
+                    price = float(price_str)
+                    if price > 0:
+                        fallback_data = {
+                            "price": price,
+                            "volume": None,
+                            "open": None,
+                            "high": None,
+                            "low": None,
+                            "close": price,
+                            "price_change": None,
+                            "body_ratio": None,
+                            "last_candle": None,
+                            "prev_candle": None
+                        }
+                        return True, fallback_data, price, True
+    except Exception as e:
+        print(f"❌ Błąd fallbacku tickera dla {symbol}: {e}")
+
+    # Fallback prywatny
+    price = get_price_from_bybit_private(symbol)
+    if price:
+        fallback_data = {
+            "price": price,
+            "volume": None,
+            "open": None,
+            "high": None,
+            "low": None,
+            "close": price,
+            "price_change": None,
+            "body_ratio": None,
+            "last_candle": None,
+            "prev_candle": None
+        }
+        return True, fallback_data, price, True
+
+    print(f"❌ Nie udało się pobrać danych dla {symbol}")
+    return False, {}, 0.0, False
+
+def get_price_from_bybit_private(symbol):
+    from utils.data_fetchers import get_bybit_headers
+
+    for category in ["linear", "inverse"]:
+        try:
+            url = "https://api.bybit.com/v5/market/tickers"
+            params = {
+                "category": category,
+                "symbol": symbol
+            }
+            headers = get_bybit_headers(params)
+            print(f"🧪 [PRIVATE API] Pobieram cenę dla {symbol} z kategorią {category}")
+            print("📤 REQUEST:", url)
+            print("📤 PARAMS:", params)
+            print("📤 HEADERS:", {k: headers[k] for k in headers if k.startswith("X-BAPI")})
+
+            response = requests.get(url, headers=headers, params=params, timeout=10)
+            print("📥 STATUS CODE:", response.status_code)
+            json_data = response.json()
+            print("📥 JSON (surowy):", json.dumps(json_data)[:1000])
+
+            if json_data.get("retCode") == 0:
+                results = json_data["result"].get("list", [])
+                if not results:
+                    print("⚠️ Brak wyników w liście result – fallback na pełną listę")
+                    fallback_params = {"category": category}
+                    fallback_response = requests.get(url, headers=headers, params=fallback_params, timeout=10)
+                    fallback_data = fallback_response.json()
+                    results = fallback_data["result"].get("list", [])
+
+                for item in results:
+                    if item.get("symbol") == symbol:
+                        price = float(item.get("lastPrice", 0))
+                        if price > 0:
+                            print(f"✅ Cena z {category} dla {symbol}: {price}")
+                            return price
+
+        except Exception as e:
+            print(f"❌ Wyjątek przy pobieraniu ceny z Bybit ({category}) dla {symbol}: {e}")
+
+    print(f"❌ Brak ceny dla {symbol} z obu kategorii")
+    return None
 
 def get_price_data(symbol):
     """Get price and volume data"""
@@ -266,3 +364,127 @@ def get_bsc_data(symbol):
 def get_polygon_data(symbol):
     """Get Polygon network data"""
     return get_blockchain_data(symbol)
+
+def build_bybit_symbol_cache():
+    from utils.data_fetchers import get_bybit_headers
+
+    symbols = set()
+    cursor = ""
+
+    while True:
+        try:
+            params = {
+                "category": "linear",
+                "limit": 1000
+            }
+            if cursor:
+                params["cursor"] = cursor
+
+            param_str = "&".join([f"{k}={v}" for k, v in sorted(params.items())])
+            url = f"{BYBIT_ENDPOINT}?{param_str}"
+
+            headers = get_bybit_headers(params)
+            response = requests.get(url, headers=headers)
+            data = response.json()
+
+            print("📦 API Response (skrót):", json.dumps(data, indent=2)[:800])
+
+            if "result" not in data or "list" not in data["result"]:
+                print("❌ Brak danych w odpowiedzi Bybit.")
+                break
+
+            page_symbols = data["result"]["list"]
+            for item in page_symbols:
+                symbol = item.get("symbol")
+                status = item.get("status")
+                if symbol and symbol.endswith("USDT") and status == "Trading":
+                    symbols.add(symbol)
+
+            cursor = data["result"].get("nextPageCursor")
+            print(f"➡️ nextPageCursor: {cursor}")
+            if not cursor:
+                break
+
+            time.sleep(0.5)
+
+        except Exception as e:
+            print(f"❌ Błąd podczas pobierania symboli z Bybit: {e}")
+            break
+
+    os.makedirs(os.path.dirname(BYBIT_SYMBOLS_PATH), exist_ok=True)
+    with open(BYBIT_SYMBOLS_PATH, "w") as f:
+        json.dump(sorted(list(symbols)), f, indent=2)
+
+    print(f"✅ Zapisano {len(symbols)} symboli do {BYBIT_SYMBOLS_PATH}")
+
+def is_bybit_cache_expired(hours=24):
+    print("🧪 Wykonuję build_bybit_symbol_cache_all_categories()")
+    
+    if not os.path.exists(BYBIT_SYMBOLS_PATH):
+        return True
+    file_time = datetime.fromtimestamp(os.path.getmtime(BYBIT_SYMBOLS_PATH))
+    return datetime.now() - file_time > timedelta(hours=hours)
+
+def build_bybit_symbol_cache_all_categories():
+    from utils.data_fetchers import get_bybit_headers
+    import time
+
+    all_symbols = set()
+    categories = ["linear", "inverse", "spot"]
+
+    for category in categories:
+        print(f"📦 Pobieram symbole dla kategorii: {category}")
+        cursor = ""
+
+        while True:
+            try:
+                params = {
+                    "category": category,
+                    "limit": 1000
+                }
+                if cursor:
+                    params["cursor"] = cursor
+
+                param_str = "&".join([f"{k}={v}" for k, v in sorted(params.items())])
+                url = f"{BYBIT_ENDPOINT}?{param_str}"
+
+                headers = get_bybit_headers(params)
+                response = requests.get(url, headers=headers)
+                
+                print(f"🌐 URL: {url}")
+                print(f"🔐 Headers: {headers}")
+                print(f"📥 Response status code: {response.status_code}")
+                print(f"📥 Response text (first 300 chars): {response.text[:300]}")
+                try:
+                    data = response.json()
+                except Exception as e:
+                    print(f"❌ Nie udało się sparsować JSON: {e}")
+                    print(f"🔴 Odpowiedź serwera: {response.text[:300]}")
+                    break
+
+
+                if "result" not in data or "list" not in data["result"]:
+                    print(f"❌ Brak danych w odpowiedzi dla kategorii {category}")
+                    break
+
+                page_symbols = data["result"]["list"]
+                usdt_symbols = [item["symbol"] for item in page_symbols if item["symbol"].endswith("USDT")]
+                all_symbols.update(usdt_symbols)
+
+                cursor = data["result"].get("nextPageCursor")
+                print(f"➡️ nextPageCursor: {cursor} ({len(usdt_symbols)} symboli)")
+                if not cursor:
+                    break
+
+                time.sleep(0.5)
+
+            except Exception as e:
+                print(f"❌ Błąd dla kategorii {category}: {e}")
+                break
+
+    os.makedirs(os.path.dirname(BYBIT_SYMBOLS_PATH), exist_ok=True)
+    with open(BYBIT_SYMBOLS_PATH, "w") as f:
+        json.dump(sorted(list(all_symbols)), f, indent=2)
+
+    print(f"✅ Zapisano {len(all_symbols)} unikalnych symboli do {BYBIT_SYMBOLS_PATH}")
+

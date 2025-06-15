@@ -12,11 +12,12 @@ def detect_volume_cluster_slope(data):
     
     Returns: bool - True jeśli wykryto pozytywny slope cluster
     """
+    if not isinstance(data, dict): return False, 0.0
     volumes = data.get("recent_volumes", [])
     closes = data.get("recent_closes", [])
 
     if len(volumes) < 3 or len(volumes) != len(closes):
-        return False
+        return False, 0.0
 
     # Oblicz proste nachylenia (slope) przez różnicę końca i początku
     volume_slope = (volumes[-1] - volumes[0]) / max(1, len(volumes) - 1)
@@ -25,7 +26,7 @@ def detect_volume_cluster_slope(data):
     # Próg minimalny wzrostu wolumenu i ceny
     if volume_slope > 0 and price_slope > 0:
         return True
-    return False
+    return False, 0.0
 
 def calculate_advanced_slope(data_points):
     """
@@ -57,6 +58,7 @@ def detect_advanced_volume_slope(data):
     
     Returns: dict with detailed slope analysis
     """
+    if not isinstance(data, dict): return False, 0.0
     volumes = data.get("recent_volumes", [])
     closes = data.get("recent_closes", [])
     
@@ -135,8 +137,9 @@ def analyze_volume_price_dynamics(symbol):
     """
     try:
         candle_data = get_recent_candle_data(symbol)
-        
-        if not candle_data.get("data_available"):
+
+        if not isinstance(candle_data, dict):
+            print(f"❌ get_recent_candle_data nie zwrócił dict dla {symbol}: {type(candle_data)}")
             return {
                 "volume_slope_up": False,
                 "analysis_available": False,
@@ -144,7 +147,17 @@ def analyze_volume_price_dynamics(symbol):
                 "price_trend": "unknown",
                 "accumulation_strength": 0.0
             }
-        
+
+        if not candle_data.get("data_available"):
+            print(f"❌ Brak danych świecowych dla {symbol}")
+            return {
+                "volume_slope_up": False,
+                "analysis_available": False,
+                "volume_trend": "unknown",
+                "price_trend": "unknown",
+                "accumulation_strength": 0.0
+            }
+       
         # Przeprowadź zaawansowaną analizę
         slope_analysis = detect_advanced_volume_slope(candle_data)
         

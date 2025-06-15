@@ -7,6 +7,10 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> int:
     PPWCS 2.5: Pre-Pump Weighted Composite Score (0-100 points)
     Enhanced multi-stage analysis with context awareness
     """
+    if not isinstance(signals, dict):
+        print(f"⚠️ signals nie jest dict: {signals}")
+        return 0  # lub inna domyślna wartość
+
     try:
         score = 0
 

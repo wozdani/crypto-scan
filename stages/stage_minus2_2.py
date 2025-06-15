@@ -70,7 +70,7 @@ def update_token_tag(symbol, tag):
         return True
     except Exception as e:
         print(f"❌ Błąd aktualizacji tagu dla {symbol}: {e}")
-        return False
+        return False, 0.0
 
 def remove_token_tag(symbol):
     """Remove tag for a specific token"""
@@ -86,7 +86,7 @@ def remove_token_tag(symbol):
             return True
         else:
             print(f"⚠️ Brak tagu do usunięcia dla {symbol}")
-            return False
+            return False, 0.0
     except Exception as e:
         print(f"❌ Błąd usuwania tagu dla {symbol}: {e}")
-        return False
+        return False, 0.0
