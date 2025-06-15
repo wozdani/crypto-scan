@@ -224,7 +224,12 @@ def detect_stage_minus2_1(symbol, price_usd=None):
         # Whale activity
         whale_activity = False
         if price_usd:
-            whale_activity = detect_whale_tx(symbol, price_usd=price_usd)
+            whale_result = detect_whale_tx(symbol, price_usd=price_usd)
+            # detect_whale_tx zwraca tuple (bool, float)
+            if isinstance(whale_result, tuple) and len(whale_result) >= 1:
+                whale_activity = whale_result[0]
+            else:
+                whale_activity = whale_result
         else:
             print(f"⚠️ Brak ceny USD dla {symbol} (price_usd={price_usd}) – pomijam whale tx.")
 

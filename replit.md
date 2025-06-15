@@ -92,6 +92,8 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Type handling improved**: All detector functions now return proper tuple (bool, float) format
 - **Environment loading**: Added proper .env loading in crypto_scan_service.py
 - **NoneType error fixed**: Resolved 'NoneType' object has no attribute 'get' error in get_market_data()
+- **Whale detection fixed**: Fixed 'str' object has no attribute 'get' error in detect_stage_minus2_1()
+- **Tuple handling improved**: Added proper handling for functions returning tuples vs single values
 - **System stability**: All Python errors resolved, service runs without critical exceptions
 
 ### Previous Optimizations Maintained
