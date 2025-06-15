@@ -110,6 +110,6 @@ def detect_orderbook_anomaly(symbol):
 
     if bid_ratio >= BID_MULTIPLIER or ask_ratio <= ASK_DROP_THRESHOLD:
         print(f"📊 Anomalia orderbook dla {symbol} (bid×{bid_ratio:.2f}, ask×{ask_ratio:.2f})")
-        return True
+        return True, bid_ratio
 
     return False, 0.0

@@ -1,5 +1,8 @@
 import numpy as np
+import logging
 from utils.data_fetchers import get_all_data
+
+logger = logging.getLogger(__name__)
 
 def detect_stage_1g_signals(symbol, data):
     """
