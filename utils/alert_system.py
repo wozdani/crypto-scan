@@ -98,9 +98,12 @@ def format_alert_message(token, ppwcs_score, signals, tp_forecast, risk_reward):
         logger.warning(f"⚠️ Nieprawidłowe signals: {signals}")
         return
 
-    """Format comprehensive alert message with TP levels"""
+    """Format comprehensive alert message with TP levels - PPWCS 2.6"""
     now = datetime.now(timezone.utc)
-    alert_level, alert_emoji = determine_alert_level(ppwcs_score)
+    
+    # Calculate Stage 1g quality for PPWCS 2.6
+    stage1g_quality = calculate_stage1g_quality(signals)
+    alert_level, alert_emoji = determine_alert_level(ppwcs_score, stage1g_quality)
     
     # Extract active signals
     active_signals = []

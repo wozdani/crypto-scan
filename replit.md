@@ -84,19 +84,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 15, 2025 - Complete Project Replacement & Comprehensive Bug Fixes
-- **Full project replacement**: Replaced entire codebase with user's latest ZIP archive
-- **Critical bug fixes**: Fixed all 'str' object has no attribute 'get' errors across entire codebase
-- **Telegram bot restored**: Fixed TELEGRAM_BOT_TOKEN configuration and tested successfully
-- **Missing functions added**: Implemented detect_dex_inflow_anomaly and detect_event_tag functions
-- **Type handling improved**: All detector functions now return proper tuple (bool, float) format
-- **Environment loading**: Added proper .env loading in crypto_scan_service.py
-- **Comprehensive error resolution**: Fixed all NoneType and type-related errors in all modules
-- **Structural fixes**: Removed duplicate code and fixed nested exception handlers in crypto_scan_service.py
-- **Return type consistency**: Ensured all functions return expected data types (dict vs tuple consistency)
-- **Production stability**: System compiles without errors and runs without critical Python exceptions
-- **Final fixes**: Resolved last remaining 'str' object has no attribute 'get' errors in detect_heatmap_exhaustion and detect_orderbook_spoofing functions
-- **System stability**: All detector functions now properly handle symbol parameters and return expected tuple format
+### June 15, 2025 - Complete PPWCS 2.6 + Stage 1g 2.0 Implementation
+- **PPWCS 2.6 scoring system**: Implemented new multi-stage scoring algorithm with detector count-based scoring
+- **Stage -2.1 improvements**: New scoring based on detector combinations (1=6pts, 2=14pts, 3=20pts, 4+=25pts)
+- **Stage -2.2 tag updates**: Updated tag scoring (listing/partnership=+10, presale/cex_listed=+5, exploit/rug/delisting=-15)
+- **Stage -1 compression filter**: Added compression detection when ≥2 Stage -2.1 signals occur in same hour (+10pts)
+- **Stage 1g 2.0 implementation**: Simplified activation with new trigger combinations and quality scoring
+- **Quality filter enhancement**: Stage 1g quality >12 allows alerts at PPWCS 60-69 range
+- **Alert system upgrade**: Enhanced alert levels with Stage 1g quality boost for watchlist promotion
+- **Pure accumulation bonus**: Added +5 bonus for whale+DEX inflow without social spike
+- **Blocking tags**: Negative tags (exploit, rug, delisting) now properly block alerts at -15 score
+- **Production ready**: All bug fixes maintained while implementing comprehensive scoring upgrades
 
 ### Previous Optimizations Maintained
 - **Cache-only system**: CoinGecko optimization preventing 429 rate limit errors
