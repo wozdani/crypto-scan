@@ -149,8 +149,11 @@ def analyze_vwap_control(symbol):
         # Siła kontroli (im mniejsze odchylenie, tym większa kontrola)
         control_strength = max(0.0, 1.0 - (avg_deviation / 0.01))  # Normalizacja do 0-1
         
+        vwap_result = detect_vwap_pinning(symbol, market_data)
+        vwap_pinned = vwap_result[0] if isinstance(vwap_result, tuple) else vwap_result
+        
         return {
-            "vwap_pinned": detect_vwap_pinning(market_data),
+            "vwap_pinned": vwap_pinned,
             "avg_deviation": avg_deviation,
             "max_deviation": max_deviation,
             "control_strength": control_strength,

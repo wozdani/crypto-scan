@@ -58,7 +58,13 @@ def detect_advanced_volume_slope(data):
     
     Returns: dict with detailed slope analysis
     """
-    if not isinstance(data, dict): return False, 0.0
+    if not isinstance(data, dict): 
+        return {
+            "volume_slope_up": False,
+            "volume_slope": 0.0,
+            "price_slope": 0.0,
+            "correlation_strength": 0.0
+        }
     volumes = data.get("recent_volumes", [])
     closes = data.get("recent_closes", [])
     
@@ -161,27 +167,38 @@ def analyze_volume_price_dynamics(symbol):
         # Przeprowadź zaawansowaną analizę
         slope_analysis = detect_advanced_volume_slope(candle_data)
         
+        # Sprawdź czy slope_analysis jest dictionary
+        if not isinstance(slope_analysis, dict):
+            print(f"❌ [volume_cluster_slope] slope_analysis nie jest dict dla {symbol}: {type(slope_analysis)}")
+            return {
+                "volume_slope_up": False,
+                "analysis_available": False,
+                "volume_trend": "unknown",
+                "price_trend": "unknown",
+                "accumulation_strength": 0.0
+            }
+        
         # Określ trendy
-        volume_trend = "up" if slope_analysis["volume_slope"] > 0 else "down"
-        price_trend = "up" if slope_analysis["price_slope"] > 0 else "down"
+        volume_trend = "up" if slope_analysis.get("volume_slope", 0) > 0 else "down"
+        price_trend = "up" if slope_analysis.get("price_slope", 0) > 0 else "down"
         
         # Siła akumulacji (kombinacja slope i korelacji)
         accumulation_strength = 0.0
-        if slope_analysis["volume_slope_up"]:
+        if slope_analysis.get("volume_slope_up", False):
             accumulation_strength = min(1.0, (
-                abs(slope_analysis["volume_slope"]) * 0.4 + 
-                abs(slope_analysis["price_slope"]) * 0.3 +
-                slope_analysis["correlation_strength"] * 0.3
+                abs(slope_analysis.get("volume_slope", 0)) * 0.4 + 
+                abs(slope_analysis.get("price_slope", 0)) * 0.3 +
+                slope_analysis.get("correlation_strength", 0) * 0.3
             ))
         
         return {
-            "volume_slope_up": slope_analysis["volume_slope_up"],
+            "volume_slope_up": slope_analysis.get("volume_slope_up", False),
             "analysis_available": True,
             "volume_trend": volume_trend,
             "price_trend": price_trend,
-            "volume_slope": slope_analysis["volume_slope"],
-            "price_slope": slope_analysis["price_slope"],
-            "correlation_strength": slope_analysis["correlation_strength"],
+            "volume_slope": slope_analysis.get("volume_slope", 0),
+            "price_slope": slope_analysis.get("price_slope", 0),
+            "correlation_strength": slope_analysis.get("correlation_strength", 0),
             "accumulation_strength": accumulation_strength
         }
         

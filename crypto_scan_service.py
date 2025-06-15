@@ -180,39 +180,7 @@ def scan_cycle():
 
             except Exception as e:
                 print(f"❌ Błąd przy analizie {symbol}: {e}")
-                continue            
-            except Exception as e:
-                print(f"❌ Błąd przy dodawaniu {symbol} do kolejki: {e}")
                 continue
-
-            except Exception as e:
-                print(f"❌ Błąd w analizie {symbol}: {e}")
-
-                # 📉 Filtrowanie tokenów: zbyt tanie, niska płynność, szeroki spread
-                price_usd = data.get("close")
-                volume_usdt = data.get("volume")
-                best_ask = data.get("best_ask")
-                best_bid = data.get("best_bid")
-
-                if not price_usd or price_usd <= 0:
-                    print(f"⚠️ Pominięto {symbol} – nieprawidłowa cena: {price_usd}")
-                    continue
-
-                if not volume_usdt or volume_usdt < 500_000:
-                    print(f"⚠️ Pominięto {symbol} – zbyt niski wolumen: ${volume_usdt}")
-                    continue
-
-                if best_ask and best_bid:
-                    spread = (best_ask - best_bid) / best_ask
-                    if spread > 0.02:
-                        print(f"⚠️ Pominięto {symbol} – zbyt szeroki spread: {spread*100:.2f}%")
-                        continue
-
-                # ✅ Token przeszedł wszystkie filtry
-                futures.append(executor.submit(run_detect_stage, symbol, price_usd))
-
-            except Exception as e:
-                print(f"❌ Error preparing {symbol}: {e}")
 
     for future in as_completed(futures):
         symbol, (stage2_pass, signals, inflow, stage1g_active) = future.result()
