@@ -2,91 +2,125 @@ import json
 import os
 from datetime import datetime, timedelta, timezone
 
+def score_stage_minus2_1(data):
+    """
+    Stage -2.1 scoring based on detector count and combinations
+    PPWCS 2.6 implementation
+    """
+    count = sum([
+        data.get("whale_activity", False),
+        data.get("dex_inflow", False),
+        data.get("orderbook_anomaly", False),
+        data.get("volume_spike", False),
+        data.get("vwap_pinning", False),
+        data.get("spoofing", False),
+        data.get("cluster_slope", False),
+        data.get("heatmap_exhaustion", False),
+        data.get("social_spike", False),
+    ])
+
+    score = 0
+    if count == 1:
+        score += 6
+    elif count == 2:
+        score += 14
+    elif count == 3:
+        score += 20
+    elif count >= 4:
+        score += 25
+
+    # Bonusy za combo
+    if data.get("whale_activity") and data.get("dex_inflow"):
+        score += 5
+    if data.get("volume_spike") and data.get("spoofing"):
+        score += 4
+    if data.get("vwap_pinning") and data.get("orderbook_anomaly"):
+        score += 4
+
+    return score
+
+def score_stage_1g(data):
+    """
+    Stage 1g quality filter scoring
+    PPWCS 2.6 implementation
+    """
+    score = 0
+    if data.get("squeeze"):
+        score += 6
+    if data.get("stealth_acc"):
+        score += 6
+    if data.get("fake_reject"):
+        score -= 4
+    if data.get("vwap_pinning"):
+        score += 3
+    if data.get("liquidity_box"):
+        score += 3
+    if data.get("RSI_flatline") and data.get("inflow"):
+        score += 3
+    if data.get("fractal_echo"):
+        score += 2
+    return score
+
 def compute_ppwcs(signals: dict, previous_score: int = 0) -> int:
     """
-    PPWCS 2.5: Pre-Pump Weighted Composite Score (0-100 points)
-    Enhanced multi-stage analysis with context awareness
+    PPWCS 2.6: Pre-Pump Weighted Composite Score (0-100 points)
+    Enhanced multi-stage analysis with new scoring algorithms
     """
     if not isinstance(signals, dict):
         print(f"⚠️ signals nie jest dict: {signals}")
-        return 0  # lub inna domyślna wartość
+        return 0
 
     try:
         score = 0
 
-        # --- STAGE -2.1: Micro-anomaly Detection ---
-        if signals.get("whale_activity"):
-            score += 15
-        if signals.get("dex_inflow"):
-            score += 15
-        if signals.get("volume_spike"):
-            score += 10
-        if signals.get("orderbook_anomaly"):
-            score += 10
-        # Social spike removed - now handled by Stage -2.2 tags
-        if signals.get("heatmap_exhaustion"):
-            score += 5
-        if signals.get("spoofing_suspected"):
-            score += 3
-        if signals.get("vwap_pinned"):
-            score += 4
-        if signals.get("volume_slope_up"):
-            score += 4
+        # --- STAGE -2.1: Micro-anomaly Detection (New Algorithm) ---
+        stage_minus2_1_score = score_stage_minus2_1(signals)
+        score += stage_minus2_1_score
 
-        # --- Pure Accumulation Bonus ---
-        # Whale + DEX inflow - clean accumulation pattern
-        if (signals.get("whale_activity") and 
-            signals.get("dex_inflow")):
-            score += 5
-
-        # --- STAGE -2.2: News/Tag Analysis ---
+        # --- STAGE -2.2: News/Tag Analysis (Updated Tags) ---
         tag = signals.get("event_tag")
-        boost_tags = {
+        tag_scores = {
             "listing": 10, 
             "partnership": 10, 
-            "cex_listed": 7, 
-            "presale": 7, 
-            "airdrop": 3
-        }
-        risk_tags = {
-            "exploit": -15, 
-            "rug": -100, 
-            "delisting": -100, 
-            "unlock": -10, 
-            "drama": -10
+            "presale": 5, 
+            "cex_listed": 5, 
+            "airdrop": 0,  # pomocniczy do Stage 1g
+            "mint": 0,     # neutralne
+            "burn": 0,     # neutralne  
+            "lock": 0,     # neutralne
+            "exploit": -15, # blokujące
+            "rug": -15,    # blokujące
+            "delisting": -15, # blokujące
+            "drama": -10,
+            "unlock": -10
         }
 
         if tag:
             tag_lower = tag.lower()
-            if tag_lower in boost_tags:
-                score += boost_tags[tag_lower]
-            elif tag_lower in risk_tags:
-                score += risk_tags[tag_lower]
+            if tag_lower in tag_scores:
+                tag_score = tag_scores[tag_lower]
+                score += tag_score
+                
+                # Blokujące tagi - zwróć bardzo niski score
+                if tag_score <= -15:
+                    return max(0, score)
 
-        if signals.get("event_risk"):
-            score -= 15
-
-        # --- STAGE -1: Compression ---
+        # --- STAGE -1: Compression Filter ---
+        # Aktywuje się gdy ≥2 sygnały z Stage -2.1 w tej samej godzinie
         if signals.get("compressed"):
-            score += 15
+            score += 10
 
-        # --- STAGE 1G: Breakout Detection ---
+        # --- STAGE 1G: Breakout Detection (Version 2.0) ---
         if signals.get("stage1g_active"):
-            trigger_type = signals.get("stage1g_trigger_type")
-            if trigger_type == "classic":
-                score += 10
-            elif trigger_type == "tag_boost":
-                score += 7
+            stage1g_score = score_stage_1g(signals)
+            score += stage1g_score
 
-        # --- Context/Timing Analysis ---
-        current_hour = datetime.now(timezone.utc).hour
-        # Market hours boost (6-18 UTC typically better for crypto)
-        if 6 <= current_hour <= 18:
-            score += 3
-
-        # Optional: Heatmap exhaustion detection
-        if signals.get("heatmap_exhaustion"):
-            score += 3
+        # --- Pure Accumulation Bonus ---
+        # Whale + DEX inflow bez social spike
+        if (signals.get("whale_activity") and 
+            signals.get("dex_inflow") and 
+            not signals.get("social_spike")):
+            score += 5
 
         # --- Scaling to 0-100 range ---
         score = max(0, min(score, 100))

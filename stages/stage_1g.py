@@ -38,25 +38,41 @@ def detect_stage_1g_signals(symbol, data):
         logger.error(f"❌ Błąd w Stage 1G dla {symbol}: {e}")
         return main_signals, aux_signals
 
-def check_stage_1g_activation(main_signals, aux_signals, tag=None):
+def check_stage_1g_activation(data, tag=None):
     """
+    Stage 1g 2.0: Uproszczona aktywacja + filtr jakości
     Zwraca: (bool, str) – czy Stage 1g aktywny, oraz typ aktywacji
     """
-    main_count = sum(1 for val in main_signals.values() if val)
-    aux_count = sum(1 for val in aux_signals.values() if val)
-
-    boost_tags = {"listing", "partnership", "cex_listed", "presale", "airdrop"}
-
-    if main_count >= 2:
-        return True, "classic"
-    if main_count >= 1 and aux_count >= 2:
-        return True, "classic"
-
-    if tag and tag.lower() in boost_tags and aux_count >= 1:
-        logger.info(f"🚀 Stage 1G aktywowany przez tag '{tag}' + {aux_count} aux sygnałów")
-        return True, "tag_boost"
-
-    return False, None
+    # Nowa aktywacja Stage 1g 2.0
+    stage1g_active = False
+    trigger_type = None
+    
+    # Warunki aktywacji
+    if (data.get("squeeze") and data.get("volume_spike")):
+        stage1g_active = True
+        trigger_type = "squeeze_volume"
+    elif (data.get("stealth_acc") and data.get("vwap_pinning")):
+        stage1g_active = True
+        trigger_type = "stealth_vwap"
+    elif (data.get("liquidity_box") and data.get("RSI_flatline")):
+        stage1g_active = True
+        trigger_type = "box_rsi"
+    elif (data.get("news_boost") and any([
+        data.get("vwap_pinning"), data.get("liquidity_box"),
+        data.get("RSI_flatline"), data.get("fractal_echo")
+    ])):
+        stage1g_active = True
+        trigger_type = "news_boost"
+    
+    # Dodatkowy boost dla airdrop tag
+    if tag and tag.lower() == "airdrop" and any([
+        data.get("vwap_pinning"), data.get("liquidity_box"),
+        data.get("RSI_flatline"), data.get("fractal_echo")
+    ]):
+        stage1g_active = True
+        trigger_type = "airdrop_boost"
+    
+    return stage1g_active, trigger_type
 
 def detect_stage_1g(symbol, data, event_tag=None):
     """
@@ -66,7 +82,26 @@ def detect_stage_1g(symbol, data, event_tag=None):
     try:
         main_signals, aux_signals = detect_stage_1g_signals(symbol, data)
         
-        stage1g_active, trigger_type = check_stage_1g_activation(main_signals, aux_signals, event_tag)
+        # Przygotuj dane do analizy Stage 1g 2.0
+        stage1g_data = {
+            # Main signals (uproszczone dla wersji 2.0)
+            "squeeze": main_signals.get("squeeze", False),
+            "stealth_acc": main_signals.get("stealth_acc", False),
+            "liquidity_box": aux_signals.get("liquidity_box", False),
+            "fake_reject": main_signals.get("fake_reject", False),
+            
+            # Auxiliary signals
+            "vwap_pinning": aux_signals.get("vwap_pinning", False),
+            "RSI_flatline": aux_signals.get("rsi_flat_inflow", False),
+            "fractal_echo": aux_signals.get("fractal_echo_squeeze", False),
+            "volume_spike": data.get("volume_spike", False) if isinstance(data, dict) else False,
+            
+            # News boost (z event_tag)
+            "news_boost": event_tag is not None and event_tag.lower() in ["listing", "partnership", "presale", "cex_listed"],
+            "inflow": data.get("dex_inflow", False) if isinstance(data, dict) else False
+        }
+        
+        stage1g_active, trigger_type = check_stage_1g_activation(stage1g_data, event_tag)
         
         if stage1g_active:
             main_count = sum(1 for val in main_signals.values() if val)

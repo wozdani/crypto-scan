@@ -2,19 +2,24 @@ import json
 import os
 
 TAG_SCORES = {
+    # Pozytywne tagi PPWCS 2.6
     "listing": (10, False),
     "partnership": (10, False),
+    "presale": (5, False),
     "cex_listed": (5, False),
-    "airdrop": (3, False),
-    "presale": (3, False),
-    "burn": (0, False),
+    "airdrop": (0, False),  # pomocniczy do Stage 1g
+    
+    # Neutralne tagi
     "mint": (0, False),
+    "burn": (0, False),
     "lock": (0, False),
-    "drama": (-10, True),
-    "unlock": (-10, True),
+    
+    # Negatywne/blokujące tagi
     "exploit": (-15, True),
-    "rug": (-1000, True),
-    "delisting": (-1000, True)
+    "rug": (-15, True),
+    "delisting": (-15, True),
+    "drama": (-10, True),
+    "unlock": (-10, True)
 }
 
 DEFAULT_SCORE = (0, False)
