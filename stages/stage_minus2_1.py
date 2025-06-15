@@ -203,8 +203,14 @@ def detect_stage_minus2_1(symbol, price_usd=None):
 
         # Wczytaj kontrakt
         contract_data = get_contract(symbol)
-        if not contract_data or not isinstance(contract_data, dict):
+        if not contract_data:
             return False, {}, 0.0, False
+        
+        # Sprawdź czy contract_data jest dict
+        if not isinstance(contract_data, dict):
+            print(f"❌ [detect_stage_minus2_1] contract_data nie jest dict dla {symbol}: {type(contract_data)} → {contract_data}")
+            return False, {}, 0.0, False
+            
         print(f"✅ Kontrakt dla {symbol}: {contract_data}")
 
         # Detektory Stage –2.1
