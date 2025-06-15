@@ -189,6 +189,17 @@ def get_market_data(symbol):
     print(f"🧪 [get_market_data] Start dla {symbol}")
     
     data = get_all_data(symbol)
+    
+    # FIX: Sprawdź czy data nie jest None
+    if data is None:
+        print(f"❌ [get_market_data] get_all_data zwróciło None dla {symbol}")
+        return False, {}, 0.0, False
+    
+    # Sprawdź czy data to dict przed wywołaniem .get()
+    if not isinstance(data, dict):
+        print(f"❌ [get_market_data] data nie jest dict dla {symbol}: {type(data)}")
+        return False, {}, 0.0, False
+    
     for key in ["prev_candle", "last_candle"]:
         if isinstance(data.get(key), dict):
             data[key] = list(data[key].values())
