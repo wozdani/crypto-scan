@@ -138,7 +138,7 @@ def get_symbols_cached(require_chain=True):
             if not token_info or "chain" not in token_info:
                 print(f"⚠️ Brak danych chain w token_info dla {symbol}")
                 continue
-            chain = token_info["chain"].lower()
+            chain = token_info["chain"].lower() if isinstance(token_info.get("chain"), str) else ""
             if chain not in VALID_CHAINS:
                 continue
 

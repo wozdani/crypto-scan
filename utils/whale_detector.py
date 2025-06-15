@@ -20,7 +20,8 @@ def detect_whale_tx(symbol, price_usd=None):
         print(f"⚠️ Brak ceny USD dla {symbol} (price_usd={price_usd}) – pomijam whale tx.")
         return False, 0.0
 
-    chain = token_info.get("chain", "").lower()
+    chain_raw = token_info.get("chain", "")
+    chain = chain_raw.lower() if isinstance(chain_raw, str) else ""
     address = token_info.get("address")
 
     if not chain or not address:
