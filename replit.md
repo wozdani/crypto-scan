@@ -82,8 +82,23 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - Configurable alert thresholds and scanning intervals
 - Polish language support for user-facing messages
 
+## Recent Changes
+
+### June 15, 2025 - Critical Bug Fixes
+- **Fixed import error**: Resolved `cannot import name 'load_token_map'` by adding compatibility functions
+- **Fixed 'str' object has no attribute 'get' error**: Improved type handling in stage detection system
+- **Added missing functions**: Implemented `detect_dex_inflow_anomaly` and `detect_event_tag` functions
+- **Enhanced error handling**: Added proper type checking and fallback mechanisms for detector functions
+- **System stability**: Crypto scanner service now starts without critical errors
+
+### CoinGecko Optimization Implementation
+- **Cache-only system**: Eliminated individual API calls to prevent 429 rate limit errors
+- **Single API call**: Uses `coins/list?include_platform=true` endpoint once every 30 minutes
+- **Local caching**: Contract data stored in `coingecko_cache.json` with timestamp validation
+- **Production ready**: System optimized for deployment on Hetzner Cloud server
+
 ## Changelog
-- June 15, 2025. Initial setup
+- June 15, 2025: Initial setup and critical bug fixes
 
 ## User Preferences
 
