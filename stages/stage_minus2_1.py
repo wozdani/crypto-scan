@@ -21,13 +21,17 @@ def detect_volume_spike(symbol, data):
     """
     Wykrywa nagly skok wolumenu: Z-score > 2.5 lub 3x Średnia z poprzednich 4 świec.
     """
-    data = get_all_data(symbol)
-    if not data or not data["prev_candle"]:
+    market_data = get_all_data(symbol)
+    if not market_data or not isinstance(market_data, dict):
+        print(f"❌ [detect_volume_spike] Brak danych lub nieprawidłowy typ dla {symbol}: {type(market_data)}")
+        return False, 0.0
+    
+    if not market_data.get("prev_candle"):
         return False, 0.0
 
     try:
-        current_volume = float(data["volume"])
-        prev_volume = float(data["prev_candle"][5])
+        current_volume = float(market_data["volume"])
+        prev_volume = float(market_data["prev_candle"][5])
 
         # Dla testow uzywamy tylko jednej wczesniejszej swiecy (w przyszlosci 4)
         volumes = [prev_volume, current_volume]
