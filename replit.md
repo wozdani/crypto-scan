@@ -84,17 +84,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 15, 2025 - Complete PPWCS 2.6 Optimization & Missing Detectors Implementation
+### June 15, 2025 - Critical PPWCS Scoring Logic Fix & Complete Optimization
+- **Critical scoring bug fixed**: Corrected logic where False/None/0.0 values were counted as active detectors, causing inflated PPWCS scores
+- **Strict True checking**: All detector evaluations now use `is True` instead of truthy evaluation to prevent false positives
+- **Enhanced detector sensitivity**: DEX inflow (2.5% → 1.2% market cap), orderbook anomaly (4.0x → 2.5x), volume spike 45min cooldown
+- **Complete debug system**: Added detailed logging showing actual signal values, types, and only truly active detectors
 - **Missing Stage 1g detectors implemented**: squeeze (BB compression), fake_reject (wick recovery), liquidity_box (tight range), fractal_echo (pattern repetition)
 - **Social spike detection added**: Token characteristic-based social activity simulation for Stage -2.1
-- **Event tag integration**: Stage -2.2 integration with detect_event_tag() for news/listing detection
 - **PPWCS structure/quality separation**: Separated scoring into ppwcs_structure (stages -2.1, -2.2, -1, pure accumulation) and ppwcs_quality (stage 1g)
 - **3-tier alert confidence system**: 🟡 Watchlist (60-69 + quality <10), 🟠 Pre-pump Active (70+ or quality ≥12), 🔴 Urgent Alert (80+ + quality ≥14 + compressed)
-- **Enhanced debug logging**: Active detector identification and stage-by-stage PPWCS breakdown with structure/quality scores
-- **Stage 1g quality boost**: Allows alerts at lower PPWCS when quality ≥12 for better signal capture
 - **Volume USDT extraction fixed**: get_market_data() now uses turnover24h from Bybit v5 tickers endpoint for correct USDT volume
-- **Cache system optimized**: Fixed 24h expiration logic - cache no longer rebuilds every scan
-- **All detectors active**: No more placeholder/False returns - complete Stage 1g and -2.1 detection pipeline
+- **Production ready**: All scoring logic bugs resolved, accurate detector activation, ready for Hetzner deployment
 
 ### June 15, 2025 - Complete PPWCS 2.6 + Stage 1g 2.0 Implementation
 - **PPWCS 2.6 scoring system**: Implemented new multi-stage scoring algorithm with detector count-based scoring

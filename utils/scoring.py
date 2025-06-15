@@ -5,19 +5,23 @@ from datetime import datetime, timedelta, timezone
 def score_stage_minus2_1(data):
     """
     Stage -2.1 scoring based on detector count and combinations
-    PPWCS 2.6 implementation
+    PPWCS 2.6 implementation - FIXED LOGIC
     """
-    count = sum([
-        data.get("whale_activity", False),
-        data.get("dex_inflow", False),
-        data.get("orderbook_anomaly", False),
-        data.get("volume_spike", False),
-        data.get("vwap_pinning", False),
-        data.get("spoofing", False),
-        data.get("cluster_slope", False),
-        data.get("heatmap_exhaustion", False),
-        data.get("social_spike", False),
-    ])
+    # Poprawiona logika: tylko explicit True counts
+    detectors = [
+        "whale_activity", "dex_inflow", "orderbook_anomaly", 
+        "volume_spike", "vwap_pinning", "spoofing", 
+        "cluster_slope", "heatmap_exhaustion", "social_spike"
+    ]
+    
+    active_detectors = []
+    for detector in detectors:
+        value = data.get(detector, False)
+        if value is True:  # Strict True check
+            active_detectors.append(detector)
+    
+    count = len(active_detectors)
+    print(f"[SCORING DEBUG] Stage -2.1 active detectors: {active_detectors} (count: {count})")
 
     score = 0
     if count == 1:
@@ -29,36 +33,46 @@ def score_stage_minus2_1(data):
     elif count >= 4:
         score += 25
 
-    # Bonusy za combo
-    if data.get("whale_activity") and data.get("dex_inflow"):
+    # Bonusy za combo - FIXED LOGIC
+    if data.get("whale_activity") is True and data.get("dex_inflow") is True:
         score += 5
-    if data.get("volume_spike") and data.get("spoofing"):
+        print(f"[SCORING DEBUG] Whale+DEX combo: +5")
+    if data.get("volume_spike") is True and data.get("spoofing") is True:
         score += 4
-    if data.get("vwap_pinning") and data.get("orderbook_anomaly"):
+        print(f"[SCORING DEBUG] Volume+Spoofing combo: +4")
+    if data.get("vwap_pinning") is True and data.get("orderbook_anomaly") is True:
         score += 4
+        print(f"[SCORING DEBUG] VWAP+Orderbook combo: +4")
 
     return score
 
 def score_stage_1g(data):
     """
     Stage 1g quality filter scoring
-    PPWCS 2.6 implementation
+    PPWCS 2.6 implementation - FIXED LOGIC
     """
     score = 0
-    if data.get("squeeze"):
+    if data.get("squeeze") is True:
         score += 6
-    if data.get("stealth_acc"):
+        print(f"[SCORING DEBUG] Stage 1g squeeze: +6")
+    if data.get("stealth_acc") is True:
         score += 6
-    if data.get("fake_reject"):
+        print(f"[SCORING DEBUG] Stage 1g stealth_acc: +6")
+    if data.get("fake_reject") is True:
         score -= 4
-    if data.get("vwap_pinning"):
+        print(f"[SCORING DEBUG] Stage 1g fake_reject: -4")
+    if data.get("vwap_pinning") is True:
         score += 3
-    if data.get("liquidity_box"):
+        print(f"[SCORING DEBUG] Stage 1g vwap_pinning: +3")
+    if data.get("liquidity_box") is True:
         score += 3
-    if data.get("RSI_flatline") and data.get("inflow"):
+        print(f"[SCORING DEBUG] Stage 1g liquidity_box: +3")
+    if data.get("RSI_flatline") is True and data.get("inflow") is True:
         score += 3
-    if data.get("fractal_echo"):
+        print(f"[SCORING DEBUG] Stage 1g RSI_flatline+inflow: +3")
+    if data.get("fractal_echo") is True:
         score += 2
+        print(f"[SCORING DEBUG] Stage 1g fractal_echo: +2")
     return score
 
 def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int]:
@@ -71,10 +85,17 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int
         return 0, 0, 0
 
     try:
-        # Debug INPUT SIGNALS and active detectors
+        # Debug INPUT SIGNALS and active detectors - FIXED LOGIC
         print(f"[PPWCS DEBUG] INPUT SIGNALS: {signals}")
-        active = [k for k, v in signals.items() if v is True]
-        print(f"[PPWCS DEBUG] Active detectors: {active}")
+        
+        # Poprawiona logika: tylko explicit True, nie False/None/0.0/""
+        active = []
+        for k, v in signals.items():
+            print(f"[PPWCS DEBUG] Signal {k} = {v} (type: {type(v)})")
+            if v is True:  # Strict True check
+                active.append(k)
+        
+        print(f"[PPWCS DEBUG] Active detectors (corrected): {active}")
         
         ppwcs_structure = 0  # Stage -2.1, compressed, news, pure accumulation
         ppwcs_quality = 0    # Stage 1g
@@ -115,20 +136,20 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int
 
         # --- STAGE -1: Compression Filter ---
         # Aktywuje się gdy ≥2 sygnały z Stage -2.1 w tej samej godzinie
-        if signals.get("compressed"):
+        if signals.get("compressed") is True:
             ppwcs_structure += 10
             print(f"[PPWCS DEBUG] Compression bonus: +10")
 
         # --- Pure Accumulation Bonus ---
-        # Whale + DEX inflow bez social spike
-        if (signals.get("whale_activity") and 
-            signals.get("dex_inflow") and 
-            not signals.get("social_spike")):
+        # Whale + DEX inflow bez social spike - FIXED LOGIC
+        if (signals.get("whale_activity") is True and 
+            signals.get("dex_inflow") is True and 
+            signals.get("social_spike") is not True):
             ppwcs_structure += 5
             print(f"[PPWCS DEBUG] Pure accumulation bonus: +5")
 
         # --- STAGE 1G: Breakout Detection (Version 2.0) ---
-        if signals.get("stage1g_active"):
+        if signals.get("stage1g_active") is True:
             ppwcs_quality = score_stage_1g(signals)
             print(f"[PPWCS DEBUG] Stage 1g score: {ppwcs_quality}")
 
