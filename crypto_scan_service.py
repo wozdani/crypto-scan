@@ -108,15 +108,25 @@ Evaluate the quality and strength of this signal. Provide a confident but concis
 
 # === Wait for next 15m candle ===
 def wait_for_next_candle():
+    """Wait for the next 15-minute candle close (00, 15, 30, 45 minutes + 5 seconds)"""
     now = datetime.now(timezone.utc)
-    next_quarter = (now.minute // 15 + 1) * 15 % 60
-    next_time = now.replace(minute=next_quarter, second=5, microsecond=0)
-    if next_quarter == 0:
-        next_time += timedelta(hours=1)
+    
+    # Find next 15-minute boundary
+    current_quarter = now.minute // 15
+    next_quarter = (current_quarter + 1) % 4
+    
+    if next_quarter == 0:  # Next hour
+        next_time = (now + timedelta(hours=1)).replace(minute=0, second=5, microsecond=0)
+    else:  # Same hour
+        next_minute = next_quarter * 15
+        next_time = now.replace(minute=next_minute, second=5, microsecond=0)
+    
     wait_seconds = (next_time - now).total_seconds()
     if wait_seconds > 0:
         print(f"⏳ Waiting {wait_seconds:.1f}s for next candle at {next_time.strftime('%H:%M:%S')} UTC")
         time.sleep(wait_seconds)
+    else:
+        print(f"⚠️ Warning: Negative wait time {wait_seconds:.1f}s - proceeding immediately")
 
 # === Main scan cycle ===
 def scan_cycle():
@@ -253,8 +263,22 @@ if __name__ == "__main__":
         # === Loop forever ===
         while True:
             try:
-                scan_cycle()
-                wait_for_next_candle()
+                # Check if we should scan now (at candle close)
+                now = datetime.now(timezone.utc)
+                current_minute = now.minute
+                current_second = now.second
+                
+                # Scan at candle close: 00, 15, 30, 45 minutes + first 10 seconds
+                is_candle_close = (current_minute % 15 == 0) and (current_second <= 10)
+                
+                if is_candle_close:
+                    print(f"🕐 Candle close detected at {now.strftime('%H:%M:%S')} UTC - starting scan")
+                    scan_cycle()
+                    # Wait for next cycle to avoid immediate re-scan
+                    time.sleep(15)
+                else:
+                    wait_for_next_candle()
+                    
             except KeyboardInterrupt:
                 print("\n🛑 Shutting down gracefully...")
                 break
