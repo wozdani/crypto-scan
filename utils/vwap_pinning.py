@@ -12,6 +12,7 @@ def detect_vwap_pinning(symbol, data):
     
     Returns: bool - True jeśli wykryto VWAP pinning
     """
+    print("RUNNING: detect_vwap_pinning")
     if not isinstance(data, dict): return False, 0.0
     closes = data.get("recent_closes", [])
     vwaps = data.get("recent_vwaps", [])
@@ -33,10 +34,13 @@ def detect_vwap_pinning(symbol, data):
     
     # Skalowane kryteria VWAP pinning (złagodzone)
     if avg_deviation < 0.005:
+        print(f"[VWAP PINNING] {symbol}: Strong pinning {avg_deviation:.3f}% < 0.5%")
         return True, 1.0
     elif avg_deviation < 0.008:
+        print(f"[VWAP PINNING] {symbol}: Medium pinning {avg_deviation:.3f}% < 0.8%")
         return True, 0.7
     elif avg_deviation < 0.012:
+        print(f"[VWAP PINNING] {symbol}: Weak pinning {avg_deviation:.3f}% < 1.2%")
         return True, 0.4
     else:
         return False, 0.0

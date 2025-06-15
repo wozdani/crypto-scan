@@ -12,6 +12,7 @@ def detect_volume_cluster_slope(data):
     
     Returns: bool - True jeśli wykryto pozytywny slope cluster
     """
+    print("RUNNING: detect_volume_cluster_slope")
     if not isinstance(data, dict): return False, 0.0
     volumes = data.get("recent_volumes", [])
     closes = data.get("recent_closes", [])
@@ -25,6 +26,7 @@ def detect_volume_cluster_slope(data):
 
     # Próg minimalny wzrostu wolumenu i ceny
     if volume_slope > 0 and price_slope > 0:
+        print(f"[VOLUME CLUSTER SLOPE] Positive trend: vol_slope={volume_slope:.1f}, price_slope={price_slope:.6f}")
         return True, volume_slope
     return False, 0.0
 

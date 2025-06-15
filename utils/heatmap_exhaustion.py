@@ -9,6 +9,7 @@ def detect_heatmap_exhaustion(symbol):
     
     Returns: (bool, float) - True jeśli wykryto wyczerpanie podaży, score
     """
+    print("RUNNING: detect_heatmap_exhaustion")
     try:
         # Sprawdź czy symbol jest string
         if not isinstance(symbol, str):
@@ -26,6 +27,7 @@ def detect_heatmap_exhaustion(symbol):
         
         # Detekcja: ściana sprzedaży zniknęła + presja akumulacyjna
         if ask_wall_disappeared and (volume_spike or whale_activity):
+            print(f"[HEATMAP EXHAUSTION] {symbol}: Ask wall disappeared with volume/whale activity")
             return True, 1.0
         return False, 0.0
         

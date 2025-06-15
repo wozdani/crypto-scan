@@ -12,6 +12,7 @@ def detect_orderbook_spoofing(symbol):
     
     Returns: (bool, float) - True jeśli wykryto spoofing, score
     """
+    print("RUNNING: detect_orderbook_spoofing")
     try:
         # Sprawdź czy symbol jest string
         if not isinstance(symbol, str):
@@ -32,6 +33,7 @@ def detect_orderbook_spoofing(symbol):
         # Detekcja: krótkotrwała ściana + presja akumulacyjna
         if ask_wall_appeared and ask_wall_disappeared and wall_lifetime < 90:
             if whale or volume_spike:
+                print(f"[ORDERBOOK SPOOFING] {symbol}: Wall lifetime {wall_lifetime}s < 90s with whale/volume")
                 return True, wall_lifetime
         return False, 0.0
         
