@@ -138,9 +138,13 @@ def get_dex_inflow(symbol, data):
                     if not isinstance(tx, dict):
                         logger.warning(f"⚠️ [inflow] tx nie jest dict dla {symbol}: {type(tx)} → {tx}")
                         continue
-                        
-                    if tx.get("to", "").lower() == address.lower():
-                        inflow_sum += int(tx.get("value", 0)) / (10 ** 18)
+                    
+                    # Dodatkowa walidacja przed użyciem .get()
+                    tx_to = tx.get("to", "") if isinstance(tx, dict) else ""
+                    tx_value = tx.get("value", 0) if isinstance(tx, dict) else 0
+                    
+                    if isinstance(tx_to, str) and tx_to.lower() == address.lower():
+                        inflow_sum += int(tx_value) / (10 ** 18)
                 except Exception as e:
                     logger.warning(f"⚠️ [inflow] Błąd w transakcji {tx} dla {symbol}: {e}")
 
