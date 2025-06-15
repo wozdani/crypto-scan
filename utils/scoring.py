@@ -95,7 +95,7 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> int:
             "unlock": -10
         }
 
-        if tag:
+        if tag and isinstance(tag, str):
             tag_lower = tag.lower()
             if tag_lower in tag_scores:
                 tag_score = tag_scores[tag_lower]

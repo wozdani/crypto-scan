@@ -97,7 +97,7 @@ def detect_stage_1g(symbol, data, event_tag=None):
             "volume_spike": data.get("volume_spike", False) if isinstance(data, dict) else False,
             
             # News boost (z event_tag)
-            "news_boost": event_tag is not None and event_tag.lower() in ["listing", "partnership", "presale", "cex_listed"],
+            "news_boost": event_tag is not None and isinstance(event_tag, str) and event_tag.lower() in ["listing", "partnership", "presale", "cex_listed"],
             "inflow": data.get("dex_inflow", False) if isinstance(data, dict) else False
         }
         

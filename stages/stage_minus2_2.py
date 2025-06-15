@@ -48,7 +48,7 @@ def detect_stage_minus2_2(symbol):
     tags = load_tags()
     tag = tags.get(symbol.upper())
     
-    if tag:
+    if tag and isinstance(tag, str):
         score_boost, risk_flag = TAG_SCORES.get(tag.lower(), DEFAULT_SCORE)
         print(f"📰 {symbol}: wykryto tag '{tag}', boost={score_boost}, risk={risk_flag}")
         return tag, score_boost, risk_flag

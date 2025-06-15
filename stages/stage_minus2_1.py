@@ -66,7 +66,7 @@ def get_dex_inflow(symbol, data):
         if "chain" not in token_info:
             print(f"⚠️ Brak danych chain w token_info dla {symbol}")
             return 0.0
-        chain = token_info["chain"].lower()
+        chain = token_info["chain"].lower() if isinstance(token_info.get("chain"), str) else ""
 
         
         # Sprawdź czy chain jest obsługiwany
@@ -161,6 +161,8 @@ def get_dex_inflow(symbol, data):
 
 def is_chain_supported(chain: str) -> bool:
     """Sprawdza czy chain jest obsługiwany (ma dostępny klucz API)"""
+    if not isinstance(chain, str):
+        return False
     chain = chain.lower()
     if chain == "ethereum" and os.getenv("ETHERSCAN_API_KEY"):
         return True
