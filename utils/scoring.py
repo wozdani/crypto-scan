@@ -71,7 +71,8 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int
         return 0, 0, 0
 
     try:
-        # Debug active detectors
+        # Debug INPUT SIGNALS and active detectors
+        print(f"[PPWCS DEBUG] INPUT SIGNALS: {signals}")
         active = [k for k, v in signals.items() if v is True]
         print(f"[PPWCS DEBUG] Active detectors: {active}")
         

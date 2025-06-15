@@ -305,19 +305,31 @@ def detect_stage_minus2_1(symbol, price_usd=None):
 
         # Detektory Stage –2.1
         try:
-            volume_spike_active, _ = detect_volume_spike(symbol, data)
+            volume_spike_result = detect_volume_spike(symbol, data)
+            if isinstance(volume_spike_result, tuple):
+                volume_spike_active, _ = volume_spike_result
+            else:
+                volume_spike_active = bool(volume_spike_result)
         except Exception as e:
             logger.error(f"❌ [detect_stage_minus2_1] Błąd w detect_volume_spike dla {symbol}: {e}")
             volume_spike_active = False
             
         try:
-            vwap_pinned, _ = detect_vwap_pinning(symbol, data)
+            vwap_result = detect_vwap_pinning(symbol, data)
+            if isinstance(vwap_result, tuple):
+                vwap_pinned, _ = vwap_result
+            else:
+                vwap_pinned = bool(vwap_result)
         except Exception as e:
             logger.error(f"❌ [detect_stage_minus2_1] Błąd w detect_vwap_pinning dla {symbol}: {e}")
             vwap_pinned = False
             
         try:
-            volume_slope_up, _ = detect_volume_cluster_slope(data)
+            cluster_result = detect_volume_cluster_slope(data)
+            if isinstance(cluster_result, tuple):
+                volume_slope_up, _ = cluster_result
+            else:
+                volume_slope_up = bool(cluster_result)
         except Exception as e:
             logger.error(f"❌ [detect_stage_minus2_1] Błąd w detect_volume_cluster_slope dla {symbol}: {e}")
             volume_slope_up = False
