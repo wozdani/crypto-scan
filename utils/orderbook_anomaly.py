@@ -58,14 +58,12 @@ def fetch_orderbook_snapshot(symbol):
         if response.status_code == 200:
             data = response.json()
             if not isinstance(data, dict): return False, 0.0
-            if not isinstance(result, dict): return False, 0.0
             if data.get("retCode") == 0:
-                result = data["result"]
-            if not isinstance(data, dict): return False, 0.0
-            if not isinstance(result, dict): return False, 0.0
-            bids = [float(entry[1]) for entry in result.get("b", [])][:ORDERBOOK_DEPTH]
-            asks = [float(entry[1]) for entry in result.get("a", [])][:ORDERBOOK_DEPTH]
-            return sum(bids), sum(asks)
+                result = data.get("result", {})
+                if not isinstance(result, dict): return False, 0.0
+                bids = [float(entry[1]) for entry in result.get("b", [])][:ORDERBOOK_DEPTH]
+                asks = [float(entry[1]) for entry in result.get("a", [])][:ORDERBOOK_DEPTH]
+                return sum(bids), sum(asks)
         
         # Fallback to v2 API
         url = f"https://api.bybit.com/v2/public/orderBook/L2"
@@ -75,9 +73,9 @@ def fetch_orderbook_snapshot(symbol):
         if response.status_code == 200:
             data = response.json()
             if not isinstance(data, dict): return False, 0.0
-            if not isinstance(result, dict): return False, 0.0
             if data.get("ret_code") == 0:
-                result = data["result"]
+                result = data.get("result", [])
+                if not isinstance(result, list): return False, 0.0
                 
                 bids = [float(entry["size"]) for entry in result if entry["side"] == "Buy"][:ORDERBOOK_DEPTH]
                 asks = [float(entry["size"]) for entry in result if entry["side"] == "Sell"][:ORDERBOOK_DEPTH]

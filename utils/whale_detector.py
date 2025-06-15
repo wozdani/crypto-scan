@@ -11,6 +11,11 @@ def detect_whale_tx(symbol, price_usd=None):
         print(f"⚠️ Brak kontraktu dla {symbol}")
         return False, 0.0
 
+    # Sprawdź czy token_info jest dictionary
+    if not isinstance(token_info, dict):
+        print(f"❌ [whale_detector] token_info nie jest dict dla {symbol}: {type(token_info)} → {token_info}")
+        return False, 0.0
+
     if not price_usd or price_usd == 0:
         print(f"⚠️ Brak ceny USD dla {symbol} (price_usd={price_usd}) – pomijam whale tx.")
         return False, 0.0
