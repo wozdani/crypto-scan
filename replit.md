@@ -84,7 +84,9 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 15, 2025 - Detector Sensitivity Enhancement for PPWCS Activation
+### June 15, 2025 - Cache Optimization & Detector Sensitivity Enhancement
+- **Cache system optimized**: Fixed 24h expiration logic - cache no longer rebuilds every scan
+- **Eliminated duplicate API calls**: Removed duplicate get_symbols_cached() calls in scan cycle
 - **Volume spike detection improved**: Uses recent_volumes array with 2.5x threshold (was market_cap based)
 - **VWAP pinning relaxed**: Scaled thresholds 0.5%/0.8%/1.2% (was rigid 0.4%)
 - **Custom detectors implemented**: Added stealth_acc and RSI_flatline with proper integration
