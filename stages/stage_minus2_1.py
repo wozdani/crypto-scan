@@ -227,12 +227,41 @@ def detect_stage_minus2_1(symbol, price_usd=None):
         print(f"✅ Kontrakt dla {symbol}: {contract_data}")
 
         # Detektory Stage –2.1
-        volume_spike_active, _ = detect_volume_spike(symbol, data)
-        vwap_pinned, _ = detect_vwap_pinning(symbol, data)
-        volume_slope_up, _ = detect_volume_cluster_slope(data)
-        heatmap_exhaustion, _ = detect_heatmap_exhaustion(symbol)
-        spoofing_suspected, _ = detect_orderbook_spoofing(symbol)
-        orderbook_anomaly, _ = detect_orderbook_anomaly(symbol)
+        try:
+            volume_spike_active, _ = detect_volume_spike(symbol, data)
+        except Exception as e:
+            logger.error(f"❌ [detect_stage_minus2_1] Błąd w detect_volume_spike dla {symbol}: {e}")
+            volume_spike_active = False
+            
+        try:
+            vwap_pinned, _ = detect_vwap_pinning(symbol, data)
+        except Exception as e:
+            logger.error(f"❌ [detect_stage_minus2_1] Błąd w detect_vwap_pinning dla {symbol}: {e}")
+            vwap_pinned = False
+            
+        try:
+            volume_slope_up, _ = detect_volume_cluster_slope(data)
+        except Exception as e:
+            logger.error(f"❌ [detect_stage_minus2_1] Błąd w detect_volume_cluster_slope dla {symbol}: {e}")
+            volume_slope_up = False
+            
+        try:
+            heatmap_exhaustion, _ = detect_heatmap_exhaustion(symbol)
+        except Exception as e:
+            logger.error(f"❌ [detect_stage_minus2_1] Błąd w detect_heatmap_exhaustion dla {symbol}: {e}")
+            heatmap_exhaustion = False
+            
+        try:
+            spoofing_suspected, _ = detect_orderbook_spoofing(symbol)
+        except Exception as e:
+            logger.error(f"❌ [detect_stage_minus2_1] Błąd w detect_orderbook_spoofing dla {symbol}: {e}")
+            spoofing_suspected = False
+            
+        try:
+            orderbook_anomaly, _ = detect_orderbook_anomaly(symbol)
+        except Exception as e:
+            logger.error(f"❌ [detect_stage_minus2_1] Błąd w detect_orderbook_anomaly dla {symbol}: {e}")
+            orderbook_anomaly = False
 
         # Whale activity
         whale_activity = False
