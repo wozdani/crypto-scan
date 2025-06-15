@@ -72,9 +72,13 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> int:
 
     try:
         score = 0
+        print(f"[PPWCS DEBUG] Computing score for signals keys: {list(signals.keys())}")
+        active_detectors = [k for k, v in signals.items() if v is True]
+        print(f"[PPWCS DEBUG] Active detectors: {active_detectors}")
 
         # --- STAGE -2.1: Micro-anomaly Detection (New Algorithm) ---
         stage_minus2_1_score = score_stage_minus2_1(signals)
+        print(f"[PPWCS DEBUG] Stage -2.1 score: {stage_minus2_1_score}")
         score += stage_minus2_1_score
 
         # --- STAGE -2.2: News/Tag Analysis (Updated Tags) ---

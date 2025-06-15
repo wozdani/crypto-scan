@@ -304,27 +304,38 @@ def detect_stage_minus2_1(symbol, price_usd=None):
         compressed = detect_stage_minus1_compression(symbol, stage_minus2_1_signals)
 
         signals = {
+            # Stage -2.1 Core Detectors (PPWCS 2.6)
             "whale_activity": whale_activity,
+            "dex_inflow": inflow_usd > 0,
             "orderbook_anomaly": orderbook_anomaly,
             "volume_spike": volume_spike_active,
-            "dex_inflow": inflow_usd > 0,
+            "spoofing": spoofing_suspected,
+            "vwap_pinning": vwap_pinned,
             "heatmap_exhaustion": heatmap_exhaustion,
-            "spoofing_suspected": spoofing_suspected,
-            "vwap_pinned": vwap_pinned,
-            "volume_slope_up": volume_slope_up,
+            "cluster_slope": volume_slope_up,
+            "social_spike": False,  # TODO: implement social spike detection
+            
+            # Stage Processing
             "event_tag": event_tag,
             "event_score": event_score,
             "event_risk": event_risk,
             "stage1g_active": stage1g_active,
             "stage1g_trigger_type": stage1g_trigger_type,
             "compressed": compressed,
-            # Dodaj sygnały dla nowego systemu scoringowego
-            "squeeze": False,  # TODO: implement squeeze detection
-            "stealth_acc": False,  # TODO: implement stealth accumulation
-            "fake_reject": False,  # TODO: implement fake rejection
-            "liquidity_box": False,  # TODO: implement liquidity box
-            "RSI_flatline": False,  # TODO: implement RSI flatline
-            "fractal_echo": False,  # TODO: implement fractal echo
+            
+            # Additional PPWCS 2.6 Fields
+            "spoofing_suspected": spoofing_suspected,
+            "volume_slope_up": volume_slope_up,
+            "pure_accumulation": whale_activity and inflow_usd > 0 and not False,  # whale+DEX without social
+            "inflow_usd": inflow_usd,
+            
+            # Legacy/Future Detectors (for compatibility)
+            "squeeze": False,
+            "stealth_acc": False,
+            "fake_reject": False,
+            "liquidity_box": False,
+            "RSI_flatline": False,
+            "fractal_echo": False,
             "news_boost": event_tag is not None and isinstance(event_tag, str) and event_tag.lower() in ["listing", "partnership", "presale", "cex_listed"],
             "inflow": inflow_usd > 0
         }
