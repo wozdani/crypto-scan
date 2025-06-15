@@ -198,23 +198,37 @@ def scan_cycle():
 
             scan_results.append({
                 'symbol': symbol,
-                'score': score,
+                'score': final_score,
                 'timestamp': datetime.now(timezone.utc).isoformat(),
                 'stage2_pass': stage2_pass,
                 'compressed': compressed,
                 'stage1g_active': stage1g_active
             })
 
-            from utils.alert_utils import get_alert_level
             from utils.take_profit_engine import forecast_take_profit_levels
-            alert_level = get_alert_level(score)
             tp_forecast = forecast_take_profit_levels(signals)
 
+            # 3-Tier Alert Confidence System
+            allow_alert = False
+            alert_tier = None
+            
+            # Stage 1g quality boost allows alerts at lower PPWCS
+            if signals.get("stage1g_active") and ppwcs_quality >= 12:
+                allow_alert = True
+            
+            if final_score >= 80 and ppwcs_quality >= 14 and compressed:
+                alert_tier = "🔴 Urgent Alert"
+                allow_alert = True
+            elif final_score >= 70 or ppwcs_quality >= 12:
+                alert_tier = "🟠 Pre-pump Active"
+                allow_alert = True
+            elif 60 <= final_score <= 69 and ppwcs_quality < 10:
+                alert_tier = "🟡 Watchlist"
+
             gpt_feedback = None
-            if score >= 80:
+            if allow_alert and alert_tier in ["🔴 Urgent Alert", "🟠 Pre-pump Active"]:
                 try:
-                    alert_level_text = get_alert_level(score)
-                    gpt_feedback = send_report_to_gpt(symbol, signals, tp_forecast, alert_level_text)
+                    gpt_feedback = send_report_to_gpt(symbol, signals, tp_forecast, alert_tier)
                     feedback_score = score_gpt_feedback(gpt_feedback)
                     category, description, emoji = categorize_feedback_score(feedback_score)
                     print(f"[GPT FEEDBACK] {symbol}: {gpt_feedback}")
@@ -224,16 +238,17 @@ def scan_cycle():
                     os.makedirs("data/feedback", exist_ok=True)
                     feedback_file = f"data/feedback/{symbol}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}.txt"
                     with open(feedback_file, "w", encoding="utf-8") as f:
-                        f.write(f"Token: {symbol}\nPPWCS: {score}\nAlert Level: {alert_level_text}\n")
-                        f.write(f"Timestamp: {datetime.now(timezone.utc).isoformat()}\nSignals: {signals}\n")
-                        f.write(f"TP Forecast: {tp_forecast}\nFeedback Score: {feedback_score}/100\n")
+                        f.write(f"Token: {symbol}\nPPWCS: {final_score} (Structure: {ppwcs_structure}, Quality: {ppwcs_quality})\n")
+                        f.write(f"Alert Tier: {alert_tier}\nTimestamp: {datetime.now(timezone.utc).isoformat()}\n")
+                        f.write(f"Signals: {signals}\nTP Forecast: {tp_forecast}\nFeedback Score: {feedback_score}/100\n")
                         f.write(f"Feedback Category: {category} ({description})\nGPT Feedback:\n{gpt_feedback}\n")
                 except Exception as gpt_error:
                     print(f"⚠️ GPT feedback failed for {symbol}: {gpt_error}")
 
-            if score >= 60:
+            if allow_alert and alert_tier:
+                print(f"✅ Alert triggered: {symbol} - {alert_tier} (Score: {final_score}, Quality: {ppwcs_quality})")
                 from utils.alert_system import process_alert
-                process_alert(symbol, score, signals, gpt_feedback)
+                process_alert(symbol, final_score, signals, gpt_feedback)
 
         except Exception as e:
             print(f"❌ Error scanning {symbol}: {e}")
