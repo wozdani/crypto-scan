@@ -4,6 +4,114 @@ from utils.data_fetchers import get_all_data
 
 logger = logging.getLogger(__name__)
 
+def detect_squeeze(data):
+    """Detect Bollinger Band squeeze - low volatility compression"""
+    try:
+        if not isinstance(data, dict) or "last_candle" not in data:
+            return False
+        
+        last_candle = data["last_candle"]
+        if not isinstance(last_candle, dict):
+            return False
+            
+        # Simple squeeze detection based on small candle body
+        high = float(last_candle.get("high", 0))
+        low = float(last_candle.get("low", 0))
+        open_price = float(last_candle.get("open", 0))
+        close = float(last_candle.get("close", 0))
+        
+        if high <= 0 or low <= 0:
+            return False
+            
+        # Calculate range and body ratio
+        range_pct = (high - low) / low * 100
+        body_pct = abs(close - open_price) / open_price * 100
+        
+        # Squeeze: small range and small body
+        return range_pct < 3.0 and body_pct < 1.5
+    except:
+        return False
+
+def detect_fake_reject(data):
+    """Detect fake rejection - wick followed by recovery"""
+    try:
+        if not isinstance(data, dict):
+            return False
+            
+        last_candle = data.get("last_candle", {})
+        prev_candle = data.get("prev_candle", {})
+        
+        if not isinstance(last_candle, dict) or not isinstance(prev_candle, dict):
+            return False
+            
+        # Get candle data
+        last_low = float(last_candle.get("low", 0))
+        last_close = float(last_candle.get("close", 0))
+        last_open = float(last_candle.get("open", 0))
+        
+        prev_close = float(prev_candle.get("close", 0))
+        
+        if last_low <= 0 or last_close <= 0 or prev_close <= 0:
+            return False
+            
+        # Fake reject: significant wick below open/close, but recovery
+        wick_size = min(last_open, last_close) - last_low
+        wick_pct = wick_size / last_low * 100
+        
+        # Current close above previous close despite the wick
+        recovery = last_close > prev_close
+        
+        return wick_pct > 2.0 and recovery
+    except:
+        return False
+
+def detect_liquidity_box(data):
+    """Detect sideways price action in tight range"""
+    try:
+        if not isinstance(data, dict) or "last_candle" not in data:
+            return False
+            
+        last_candle = data["last_candle"]
+        if not isinstance(last_candle, dict):
+            return False
+            
+        high = float(last_candle.get("high", 0))
+        low = float(last_candle.get("low", 0))
+        
+        if high <= 0 or low <= 0:
+            return False
+            
+        # Tight range indicates liquidity box
+        range_pct = (high - low) / low * 100
+        return 0.5 < range_pct < 2.5
+    except:
+        return False
+
+def detect_fractal_echo(data):
+    """Detect fractal pattern repetition"""
+    try:
+        if not isinstance(data, dict):
+            return False
+            
+        last_candle = data.get("last_candle", {})
+        prev_candle = data.get("prev_candle", {})
+        
+        if not isinstance(last_candle, dict) or not isinstance(prev_candle, dict):
+            return False
+            
+        # Simple pattern: similar candle structures
+        last_body = abs(float(last_candle.get("close", 0)) - float(last_candle.get("open", 0)))
+        prev_body = abs(float(prev_candle.get("close", 0)) - float(prev_candle.get("open", 0)))
+        
+        if last_body <= 0 or prev_body <= 0:
+            return False
+            
+        # Similar body sizes indicate fractal pattern
+        ratio = min(last_body, prev_body) / max(last_body, prev_body)
+        return ratio > 0.8
+    except:
+        return False
+
 def detect_stage_1g_signals(symbol, data):
     """
     Stage 1G: Breakout initiation detection
@@ -26,11 +134,13 @@ def detect_stage_1g_signals(symbol, data):
         if not data or len(data) < 20:
             return main_signals, aux_signals
             
-        # Main signal detection (simplified for now)
-        # TODO: Implement actual detection algorithms
+        # Main signal detection
+        main_signals["squeeze"] = detect_squeeze(data)
+        main_signals["fake_reject"] = detect_fake_reject(data)
         
-        # Auxiliary signal detection (simplified for now)
-        # TODO: Implement actual detection algorithms
+        # Auxiliary signal detection
+        aux_signals["liquidity_box"] = detect_liquidity_box(data)
+        aux_signals["fractal_echo_squeeze"] = detect_fractal_echo(data)
         
         return main_signals, aux_signals
         
