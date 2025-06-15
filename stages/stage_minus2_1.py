@@ -19,16 +19,36 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Volume spike cooldown tracker
+volume_spike_cooldown = {}
+
 def detect_volume_spike(symbol, data):
     """
-    Wykrywa nagly skok wolumenu bazując na recent_volumes (improved detection)
+    Wykrywa nagly skok wolumenu bazując na recent_volumes z cooldown (3 świece = 45 min)
     """
+    print("RUNNING: detect_volume_spike")
+    
+    # Sprawdź cooldown (3 świece = 45 minut)
+    import time
+    current_time = time.time()
+    cooldown_period = 45 * 60  # 45 minut w sekundach
+    
+    if symbol in volume_spike_cooldown:
+        time_since_spike = current_time - volume_spike_cooldown[symbol]
+        if time_since_spike < cooldown_period:
+            remaining = int((cooldown_period - time_since_spike) / 60)
+            print(f"[VOLUME SPIKE] {symbol} w cooldown ({remaining}min pozostało)")
+            return False
+    
     # Sprawdź recent_volumes z data (preferred method)
     recent_volumes = data.get("recent_volumes", [])
     if len(recent_volumes) >= 4:
         avg = sum(recent_volumes[-4:]) / 4
         current = recent_volumes[-1]
         if current > avg * 2.5:
+            # Aktywuj volume spike i zapisz czas
+            volume_spike_cooldown[symbol] = current_time
+            print(f"[VOLUME SPIKE] {symbol} spike detected: {current:,.0f} > {avg * 2.5:,.0f}")
             return True, current
         return False, 0.0
     
@@ -190,13 +210,25 @@ def is_chain_supported(chain: str) -> bool:
     return False
 
 def detect_dex_inflow_anomaly(symbol, price_usd=None):
-    """Wykrywa anomalie w napływie DEX - uproszczona wersja"""
+    """Wykrywa anomalie w napływie DEX - zwiększona czułość"""
+    print("RUNNING: detect_dex_inflow_anomaly")
     try:
         inflow_usd = get_dex_inflow(symbol, {})
         if isinstance(inflow_usd, (int, float)) and inflow_usd > 0:
-            # Próg dla anomalii - możesz dostosować
-            threshold = 10000  # $10k USD
-            return inflow_usd if inflow_usd > threshold else 0.0
+            # Oblicz market cap dla dynamicznego progu
+            market_cap = price_usd * 1000000 if price_usd else 50000000  # fallback 50M
+            
+            # Zwiększona czułość: 1.2% market cap (było 2.5%)
+            threshold = market_cap * 0.012
+            weak_threshold = market_cap * 0.006  # 0.6% dla słabych sygnałów
+            
+            if inflow_usd > threshold:
+                print(f"[DEX INFLOW] Strong anomaly: ${inflow_usd:,.0f} > ${threshold:,.0f}")
+                return inflow_usd
+            elif inflow_usd > weak_threshold:
+                print(f"[DEX INFLOW] Weak anomaly: ${inflow_usd:,.0f} > ${weak_threshold:,.0f}")
+                return inflow_usd * 0.5  # Słabszy sygnał, ale nadal aktywny
+                
         return 0.0
     except Exception as e:
         logger.error(f"❌ Błąd w detect_dex_inflow_anomaly dla {symbol}: {e}")
@@ -204,6 +236,7 @@ def detect_dex_inflow_anomaly(symbol, price_usd=None):
 
 def detect_social_spike(symbol):
     """Detect social media activity spike"""
+    print("RUNNING: detect_social_spike")
     try:
         # Simple simulation based on symbol characteristics
         # In production, this would connect to Twitter/Reddit APIs
@@ -218,6 +251,9 @@ def detect_social_spike(symbol):
         
         # Basic heuristic: if 2+ indicators, simulate social spike
         spike_detected = sum(social_indicators) >= 2
+        
+        if spike_detected:
+            print(f"[SOCIAL SPIKE] Detected for {symbol} (indicators: {sum(social_indicators)})")
         
         return spike_detected
     except Exception as e:

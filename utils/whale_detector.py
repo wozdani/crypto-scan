@@ -7,6 +7,7 @@ import time
 WHALE_MIN_USD = 50000  # Próg detekcji whale
 
 def detect_whale_tx(symbol, price_usd=None):
+    print("RUNNING: detect_whale_tx")
     token_info = get_contract(symbol)
     if not token_info:
         print(f"⚠️ Brak kontraktu dla {symbol}")

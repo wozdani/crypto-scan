@@ -88,9 +88,14 @@ def fetch_orderbook_snapshot(symbol):
         return None, None
 
 def detect_orderbook_anomaly(symbol):
+    print("RUNNING: detect_orderbook_anomaly")
     current_bid_sum, current_ask_sum = fetch_orderbook_snapshot(symbol)
     if current_bid_sum is None:
         return False, 0.0
+
+    # Złagodzone progi: 2.5x zamiast 4.0x
+    RELAXED_BID_MULTIPLIER = 2.5  # było 4.0
+    RELAXED_ASK_DROP = 0.4  # było 0.25 (mniej restrykcyjne)
 
     prev = _orderbook_cache.get(symbol)
     _orderbook_cache[symbol] = (current_bid_sum, current_ask_sum)
@@ -106,8 +111,8 @@ def detect_orderbook_anomaly(symbol):
     bid_ratio = current_bid_sum / prev_bid_sum
     ask_ratio = current_ask_sum / prev_ask_sum
 
-    if bid_ratio >= BID_MULTIPLIER or ask_ratio <= ASK_DROP_THRESHOLD:
-        print(f"📊 Anomalia orderbook dla {symbol} (bid×{bid_ratio:.2f}, ask×{ask_ratio:.2f})")
+    if bid_ratio >= RELAXED_BID_MULTIPLIER or ask_ratio <= RELAXED_ASK_DROP:
+        print(f"[ORDERBOOK ANOMALY] {symbol}: bid×{bid_ratio:.2f}, ask×{ask_ratio:.2f} (thresholds: {RELAXED_BID_MULTIPLIER}x, {RELAXED_ASK_DROP})")
         return True, bid_ratio
 
     return False, 0.0
