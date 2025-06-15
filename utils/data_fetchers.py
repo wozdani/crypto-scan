@@ -118,15 +118,19 @@ import requests
 
 
 def get_symbols_cached(require_chain=True):
+    # Sprawdź czy cache istnieje i czy nie jest wygasły
+    if is_bybit_cache_expired():
+        print("⚠️ Cache Bybit wygasł lub nie istnieje – buduję cache...")
+        from utils.data_fetchers import build_bybit_symbol_cache_all_categories
+        build_bybit_symbol_cache_all_categories()
+    
+    # Załaduj symbole z cache'u
     try:
-        with open("utils/data/cache/bybit_symbols.json", "r") as f:
+        with open(BYBIT_SYMBOLS_PATH, "r") as f:
             symbols = json.load(f)
     except FileNotFoundError:
-        print("⚠️ Brak pliku symboli Bybit – buduję cache...")
-    from utils.data_fetchers import build_bybit_symbol_cache_all_categories
-    build_bybit_symbol_cache_all_categories()
-    with open(BYBIT_SYMBOLS_PATH, "r") as f:
-        symbols = json.load(f)
+        print("❌ Błąd: Nie można załadować cache'u symboli po rebuild")
+        return []
 
     valid_symbols = []
     for symbol in symbols:
@@ -432,12 +436,17 @@ def build_bybit_symbol_cache():
     print(f"✅ Zapisano {len(symbols)} symboli do {BYBIT_SYMBOLS_PATH}")
 
 def is_bybit_cache_expired(hours=24):
-    print("🧪 Wykonuję build_bybit_symbol_cache_all_categories()")
-    
+    """Check if Bybit cache is older than specified hours"""
     if not os.path.exists(BYBIT_SYMBOLS_PATH):
+        print(f"🕒 Cache file nie istnieje: {BYBIT_SYMBOLS_PATH}")
         return True
+    
     file_time = datetime.fromtimestamp(os.path.getmtime(BYBIT_SYMBOLS_PATH))
-    return datetime.now() - file_time > timedelta(hours=hours)
+    age = datetime.now() - file_time
+    is_expired = age > timedelta(hours=hours)
+    
+    print(f"🕒 Cache age: {age}, expired: {is_expired}")
+    return is_expired
 
 def build_bybit_symbol_cache_all_categories():
     from utils.data_fetchers import get_bybit_headers

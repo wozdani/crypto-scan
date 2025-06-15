@@ -124,11 +124,13 @@ def scan_cycle():
     from utils.cache_utils import should_rebuild_cache
  
     if should_rebuild_cache():
-        print("🛠 Buduję cache CoinGecko...")
+        print("🛠 Cache CoinGecko wygasł - buduję cache...")
         build_coingecko_cache()
+    else:
+        print("✅ Cache CoinGecko jest aktualny - pomijam rebuild")
 
     symbols = get_symbols_cached()
-    symbols_bybit = get_symbols_cached()  # albo get_all_perpetual_symbols()
+    symbols_bybit = symbols  # Używaj tych samych symboli
         
         
     scan_results = []
