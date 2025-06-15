@@ -276,21 +276,57 @@ def get_market_data(symbol):
         return True, data, price, True
 
 
-    # Fallback v2
+    # Fallback v2 - try v5 tickers without auth
+    try:
+        url = f"https://api.bybit.com/v5/market/tickers?category=linear&symbol={symbol}"
+        print(f"🧪 Fallback v5 tickers URL: {url}")
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            ticker_data = response.json()
+            if ticker_data.get("result", {}).get("list"):
+                ticker = ticker_data["result"]["list"][0]
+                volume_usdt = float(ticker.get("turnover24h", 0))
+                price = float(ticker.get("lastPrice", 0))
+                
+                if price > 0:
+                    print(f"✅ Fallback v5: {symbol} price=${price}, volume=${volume_usdt:,.0f}")
+                    fallback_data = {
+                        "price": price,
+                        "volume": volume_usdt,  # Correct USDT volume from turnover24h
+                        "best_bid": float(ticker.get("bid1Price", 0)),
+                        "best_ask": float(ticker.get("ask1Price", 0)),
+                        "close": price,
+                        "high24h": float(ticker.get("highPrice24h", 0)),
+                        "low24h": float(ticker.get("lowPrice24h", 0)),
+                        "price_change": float(ticker.get("price24hPcnt", 0)) * 100
+                    }
+                    return True, fallback_data, price, True
+        else:
+            print(f"❌ Fallback v5 status: {response.status_code}")
+    except Exception as e:
+        print(f"❌ Błąd fallback v5 dla {symbol}: {e}")
+
+    # Fallback v2 (legacy)
     try:
         url = f"https://api.bybit.com/v2/public/tickers?symbol={symbol}"
-        print(f"🧪 Fallback URL: {url}")
+        print(f"🧪 Fallback v2 URL: {url}")
         response = requests.get(url, timeout=10)
         if response.status_code == 200:
             ticker_data = response.json()
             if ticker_data and "result" in ticker_data:
                 price_str = ticker_data["result"].get("last_price") or ticker_data["result"].get("lastPrice")
+                # Try to get volume from v2 API if available
+                volume_str = ticker_data["result"].get("turnover_24h")
+                
                 if price_str:
                     price = float(price_str)
+                    volume = float(volume_str) if volume_str else None
+                    
                     if price > 0:
+                        print(f"✅ Fallback v2: {symbol} price=${price}, volume=${volume or 0:,.0f}")
                         fallback_data = {
                             "price": price,
-                            "volume": None,
+                            "volume": volume,  # May be None if not available
                             "open": None,
                             "high": None,
                             "low": None,

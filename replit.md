@@ -84,7 +84,8 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 15, 2025 - Cache Optimization & Detector Sensitivity Enhancement
+### June 15, 2025 - Volume USDT Fix & Complete System Optimization
+- **Volume USDT extraction fixed**: get_market_data() now uses turnover24h from Bybit v5 tickers endpoint for correct USDT volume
 - **Cache system optimized**: Fixed 24h expiration logic - cache no longer rebuilds every scan
 - **Eliminated duplicate API calls**: Removed duplicate get_symbols_cached() calls in scan cycle
 - **Volume spike detection improved**: Uses recent_volumes array with 2.5x threshold (was market_cap based)
