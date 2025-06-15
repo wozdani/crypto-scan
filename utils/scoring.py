@@ -61,25 +61,27 @@ def score_stage_1g(data):
         score += 2
     return score
 
-def compute_ppwcs(signals: dict, previous_score: int = 0) -> int:
+def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int]:
     """
     PPWCS 2.6: Pre-Pump Weighted Composite Score (0-100 points)
     Enhanced multi-stage analysis with new scoring algorithms
     """
     if not isinstance(signals, dict):
         print(f"⚠️ signals nie jest dict: {signals}")
-        return 0
+        return 0, 0, 0
 
     try:
-        score = 0
-        print(f"[PPWCS DEBUG] Computing score for signals keys: {list(signals.keys())}")
-        active_detectors = [k for k, v in signals.items() if v is True]
-        print(f"[PPWCS DEBUG] Active detectors: {active_detectors}")
+        # Debug active detectors
+        active = [k for k, v in signals.items() if v is True]
+        print(f"[PPWCS DEBUG] Active detectors: {active}")
+        
+        ppwcs_structure = 0  # Stage -2.1, compressed, news, pure accumulation
+        ppwcs_quality = 0    # Stage 1g
 
         # --- STAGE -2.1: Micro-anomaly Detection (New Algorithm) ---
         stage_minus2_1_score = score_stage_minus2_1(signals)
         print(f"[PPWCS DEBUG] Stage -2.1 score: {stage_minus2_1_score}")
-        score += stage_minus2_1_score
+        ppwcs_structure += stage_minus2_1_score
 
         # --- STAGE -2.2: News/Tag Analysis (Updated Tags) ---
         tag = signals.get("event_tag")
@@ -104,42 +106,39 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> int:
             if tag_lower in tag_scores:
                 tag_score = tag_scores[tag_lower]
                 print(f"[PPWCS DEBUG] Event tag: {tag} → {tag_score}")
-                score += tag_score
+                ppwcs_structure += tag_score
                 
                 # Blokujące tagi - zwróć bardzo niski score
                 if tag_score <= -15:
-                    return max(0, score)
+                    return max(0, ppwcs_structure), 0, 0
 
         # --- STAGE -1: Compression Filter ---
         # Aktywuje się gdy ≥2 sygnały z Stage -2.1 w tej samej godzinie
         if signals.get("compressed"):
-            score += 10
-
-        # --- STAGE 1G: Breakout Detection (Version 2.0) ---
-        if signals.get("stage1g_active"):
-            stage1g_score = score_stage_1g(signals)
-            print(f"[PPWCS DEBUG] Stage 1g score: {stage1g_score}")
-            score += stage1g_score
+            ppwcs_structure += 10
+            print(f"[PPWCS DEBUG] Compression bonus: +10")
 
         # --- Pure Accumulation Bonus ---
         # Whale + DEX inflow bez social spike
         if (signals.get("whale_activity") and 
             signals.get("dex_inflow") and 
             not signals.get("social_spike")):
-            score += 5
+            ppwcs_structure += 5
+            print(f"[PPWCS DEBUG] Pure accumulation bonus: +5")
 
-        # --- Scaling to 0-100 range ---
-        score = max(0, min(score, 100))
+        # --- STAGE 1G: Breakout Detection (Version 2.0) ---
+        if signals.get("stage1g_active"):
+            ppwcs_quality = score_stage_1g(signals)
+            print(f"[PPWCS DEBUG] Stage 1g score: {ppwcs_quality}")
 
-        # --- Trailing Logic: Only accept significant improvements ---
-        if previous_score and score < previous_score + 5:
-            return previous_score
-
-        return score
+        final_score = ppwcs_structure + ppwcs_quality
+        print(f"[PPWCS DEBUG] Final: structure={ppwcs_structure}, quality={ppwcs_quality}, total={final_score}")
+        
+        return max(0, final_score), max(0, ppwcs_structure), max(0, ppwcs_quality)
         
     except Exception as e:
         print(f"❌ Error computing PPWCS: {e}")
-        return 0
+        return 0, 0, 0
 
 def get_previous_score(symbol):
     """

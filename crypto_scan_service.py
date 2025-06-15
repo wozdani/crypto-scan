@@ -191,10 +191,10 @@ def scan_cycle():
         try:
             compressed = detect_stage_minus1(signals) if signals else False
             previous_score = get_previous_score(symbol)
-            score = compute_ppwcs(signals, previous_score)
-            save_score(symbol, score)
-            log_ppwcs_score(symbol, score)
-            save_stage_signal(symbol, score, stage2_pass, compressed, stage1g_active)
+            final_score, ppwcs_structure, ppwcs_quality = compute_ppwcs(signals, previous_score)
+            save_score(symbol, final_score)
+            log_ppwcs_score(symbol, final_score)
+            save_stage_signal(symbol, final_score, stage2_pass, compressed, stage1g_active)
 
             scan_results.append({
                 'symbol': symbol,
