@@ -63,16 +63,34 @@ def update_cooldown(token):
     tracker[token] = datetime.now(timezone.utc).isoformat()
     save_cooldown_tracker(tracker)
 
-def determine_alert_level(ppwcs_score):
-    """Determine alert level based on PPWCS score"""
+def determine_alert_level(ppwcs_score, stage1g_quality=0):
+    """
+    Determine alert level based on PPWCS score and Stage 1g quality
+    PPWCS 2.6: Stage 1g quality > 12 allows alerts at 60-69 range
+    """
     if ppwcs_score >= 80:
         return "strong_alert", "🚨 STRONG ALERT"
     elif ppwcs_score >= 70:
         return "pre_pump_active", "⚠️ PRE-PUMP WATCH"
     elif ppwcs_score >= 60:
-        return "watchlist", "📊 WATCHLIST"
+        # PPWCS 2.6: Enhanced watchlist with Stage 1g quality filter
+        if stage1g_quality > 12:
+            return "pre_pump_active", "⚠️ PRE-PUMP WATCH (Quality Boost)"
+        else:
+            return "watchlist", "📊 WATCHLIST"
     else:
         return "none", ""
+
+def calculate_stage1g_quality(signals):
+    """
+    Calculate Stage 1g quality score for PPWCS 2.6
+    Returns: int (0-20+ points)
+    """
+    from utils.scoring import score_stage_1g
+    
+    if signals.get("stage1g_active"):
+        return score_stage_1g(signals)
+    return 0
 
 def format_alert_message(token, ppwcs_score, signals, tp_forecast, risk_reward):
     

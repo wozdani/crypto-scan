@@ -8,6 +8,7 @@ from utils.vwap_pinning import detect_vwap_pinning, analyze_vwap_control, get_re
 from utils.volume_cluster_slope import detect_volume_cluster_slope, get_recent_candle_data, analyze_volume_price_dynamics
 from stages.stage_minus2_2 import detect_stage_minus2_2
 from stages.stage_1g import detect_stage_1g
+from stages.stage_minus1 import detect_stage_minus1_compression
 import numpy as np
 import json
 import os
@@ -282,7 +283,23 @@ def detect_stage_minus2_1(symbol, price_usd=None):
         event_tag, event_score, event_risk = detect_event_tag(symbol)
 
         # Stage 1g – tylko jeśli spełnione warunki wstępne
-        stage1g_active, stage1g_trigger_type = detect_stage_1g(symbol, data)
+        stage1g_active, stage1g_trigger_type = detect_stage_1g(symbol, data, event_tag)
+
+        # Przygotuj sygnały Stage -2.1 dla PPWCS 2.6
+        stage_minus2_1_signals = {
+            "whale_activity": whale_activity,
+            "dex_inflow": inflow_usd > 0,
+            "orderbook_anomaly": orderbook_anomaly,
+            "volume_spike": volume_spike_active,
+            "vwap_pinning": vwap_pinned,
+            "spoofing": spoofing_suspected,
+            "cluster_slope": volume_slope_up,
+            "heatmap_exhaustion": heatmap_exhaustion,
+            "social_spike": False  # TODO: implementacja social spike detection
+        }
+
+        # Stage -1: Compression Filter (PPWCS 2.6)
+        compressed = detect_stage_minus1_compression(symbol, stage_minus2_1_signals)
 
         signals = {
             "whale_activity": whale_activity,
@@ -297,7 +314,17 @@ def detect_stage_minus2_1(symbol, price_usd=None):
             "event_score": event_score,
             "event_risk": event_risk,
             "stage1g_active": stage1g_active,
-            "stage1g_trigger_type": stage1g_trigger_type
+            "stage1g_trigger_type": stage1g_trigger_type,
+            "compressed": compressed,
+            # Dodaj sygnały dla nowego systemu scoringowego
+            "squeeze": False,  # TODO: implement squeeze detection
+            "stealth_acc": False,  # TODO: implement stealth accumulation
+            "fake_reject": False,  # TODO: implement fake rejection
+            "liquidity_box": False,  # TODO: implement liquidity box
+            "RSI_flatline": False,  # TODO: implement RSI flatline
+            "fractal_echo": False,  # TODO: implement fractal echo
+            "news_boost": event_tag is not None and isinstance(event_tag, str) and event_tag.lower() in ["listing", "partnership", "presale", "cex_listed"],
+            "inflow": inflow_usd > 0
         }
 
         # Czy aktywować Stage 2.1 (Stage –2 w strategii)
