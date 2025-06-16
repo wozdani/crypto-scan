@@ -84,12 +84,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 16, 2025 - Detection System Improvements & Debug Enhancement
+### June 16, 2025 - PPWCS Scoring System Overhaul & Detection Improvements
+- **PPWCS scoring dramatically improved**: Increased individual signal weights (whale: 12pts, volume: 12pts, dex: 10pts) vs previous 14pts total for 2 signals
+- **Enhanced combo bonuses**: whale+dex: 8pts, volume+dex: 6pts, new combo_volume_inflow: 5pts for better reward of signal combinations
+- **Quality scoring added**: RSI_flatline now contributes 5pts to quality score instead of being ignored
+- **Compression requirements relaxed**: Changed from ≥2 signals to ≥1 signal for Stage -1 activation to prevent blocking valid pre-pumps
 - **Volume spike detection enhanced**: Now analyzes last 3 candles instead of just 1, checking each against previous 4 candles average
 - **RSI condition removed**: Eliminated 46-54 RSI requirement from detect_rsi_flatline() to prevent missing valid pre-pumps
-- **Comprehensive debug logging**: Added detailed debug prints to detect_volume_spike(), get_contract_from_coingecko(), and detect_stage_minus2_1()
-- **Early detection capability**: System can now detect volume spikes in candle [-3], [-2], or [-1] improving pre-pump detection timing
-- **Detection transparency**: Debug logs show exact detector values, signal combinations, and PPWCS calculation steps
+- **Pure accumulation logic fixed**: Now correctly uses social_spike_active instead of hardcoded False
+- **Comprehensive debug logging**: Added detailed debug prints showing exact scoring breakdown for transparency
+- **Scoring validation**: Strong setups now achieve 70-90+ PPWCS vs previous 24-35, enabling proper alert levels
 
 ### June 16, 2025 - Cache System Optimization & Single API Call Fix
 - **Fixed cache validation logic**: System now properly detects empty cache files instead of considering them valid

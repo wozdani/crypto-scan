@@ -23,26 +23,51 @@ def score_stage_minus2_1(data):
     count = len(active_detectors)
     print(f"[SCORING DEBUG] Stage -2.1 active detectors: {active_detectors} (count: {count})")
 
+    # NOWE WAGI - znacznie wyższe dla silnych sygnałów
     score = 0
-    if count == 1:
+    
+    # Individual signal scores - PODWYŻSZONE
+    if data.get("whale_activity") is True:
+        score += 12
+        print(f"[SCORING DEBUG] Whale activity: +12")
+    if data.get("volume_spike") is True:
+        score += 12
+        print(f"[SCORING DEBUG] Volume spike: +12")
+    if data.get("dex_inflow") is True:
+        score += 10
+        print(f"[SCORING DEBUG] DEX inflow: +10")
+    if data.get("orderbook_anomaly") is True:
+        score += 8
+        print(f"[SCORING DEBUG] Orderbook anomaly: +8")
+    if data.get("vwap_pinning") is True:
         score += 6
-    elif count == 2:
-        score += 14
-    elif count == 3:
-        score += 20
-    elif count >= 4:
-        score += 25
-
-    # Bonusy za combo - FIXED LOGIC
-    if data.get("whale_activity") is True and data.get("dex_inflow") is True:
+        print(f"[SCORING DEBUG] VWAP pinning: +6")
+    if data.get("spoofing") is True:
+        score += 6
+        print(f"[SCORING DEBUG] Spoofing: +6")
+    if data.get("heatmap_exhaustion") is True:
+        score += 6
+        print(f"[SCORING DEBUG] Heatmap exhaustion: +6")
+    if data.get("cluster_slope") is True:
         score += 5
-        print(f"[SCORING DEBUG] Whale+DEX combo: +5")
+        print(f"[SCORING DEBUG] Cluster slope: +5")
+    if data.get("social_spike") is True:
+        score += 4
+        print(f"[SCORING DEBUG] Social spike: +4")
+
+    # COMBO BONUSY - jeszcze wyższe
+    if data.get("whale_activity") is True and data.get("dex_inflow") is True:
+        score += 8
+        print(f"[SCORING DEBUG] Whale+DEX combo: +8")
+    if data.get("volume_spike") is True and data.get("dex_inflow") is True:
+        score += 6
+        print(f"[SCORING DEBUG] Volume+DEX combo: +6")
     if data.get("volume_spike") is True and data.get("spoofing") is True:
-        score += 4
-        print(f"[SCORING DEBUG] Volume+Spoofing combo: +4")
+        score += 6
+        print(f"[SCORING DEBUG] Volume+Spoofing combo: +6")
     if data.get("vwap_pinning") is True and data.get("orderbook_anomaly") is True:
-        score += 4
-        print(f"[SCORING DEBUG] VWAP+Orderbook combo: +4")
+        score += 5
+        print(f"[SCORING DEBUG] VWAP+Orderbook combo: +5")
 
     return score
 
@@ -134,8 +159,13 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int
                 if tag_score <= -15:
                     return max(0, ppwcs_structure), 0, 0
 
+        # --- COMBO VOLUME INFLOW BONUS ---
+        if signals.get("combo_volume_inflow") is True:
+            ppwcs_structure += 5
+            print(f"[PPWCS DEBUG] Combo volume+inflow: +5")
+
         # --- STAGE -1: Compression Filter ---
-        # Aktywuje się gdy ≥2 sygnały z Stage -2.1 w tej samej godzinie
+        # Aktywuje się gdy ≥1 sygnał z Stage -2.1 (złagodzone warunki)
         if signals.get("compressed") is True:
             ppwcs_structure += 10
             print(f"[PPWCS DEBUG] Compression bonus: +10")
@@ -148,10 +178,16 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int
             ppwcs_structure += 5
             print(f"[PPWCS DEBUG] Pure accumulation bonus: +5")
 
+        # --- RSI FLATLINE QUALITY BONUS ---
+        if signals.get("RSI_flatline") is True:
+            ppwcs_quality += 5
+            print(f"[PPWCS DEBUG] RSI flatline quality: +5")
+
         # --- STAGE 1G: Breakout Detection (Version 2.0) ---
         if signals.get("stage1g_active") is True:
-            ppwcs_quality = score_stage_1g(signals)
-            print(f"[PPWCS DEBUG] Stage 1g score: {ppwcs_quality}")
+            stage1g_score = score_stage_1g(signals)
+            ppwcs_quality += stage1g_score
+            print(f"[PPWCS DEBUG] Stage 1g score: {stage1g_score}")
 
         final_score = ppwcs_structure + ppwcs_quality
         print(f"[PPWCS DEBUG] Final: structure={ppwcs_structure}, quality={ppwcs_quality}, total={final_score}")
