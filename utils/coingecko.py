@@ -65,27 +65,77 @@ def build_coingecko_cache():
         cache_data = {}
         excluded_prefixes = ['wrapped', 'bridged', 'binance-peg', 'polygon-peg', 'avalanche-peg', 'fantom-peg']
         
-        # Przetwarzaj wszystkie tokeny - dla każdego symbolu bierz pierwszy nie-wrapped
-        for i, token in enumerate(token_list):
+        # Grupuj tokeny wg symbolu dla inteligentnego wyboru
+        symbol_groups = {}
+        for token in token_list:
             symbol = token.get('symbol', '').upper()
-            if not symbol:
-                continue
+            if symbol:
+                if symbol not in symbol_groups:
+                    symbol_groups[symbol] = []
+                symbol_groups[symbol].append(token)
+
+        # Przetwarzaj każdy symbol z inteligentnym wyborem najlepszego tokena
+        for symbol, candidates in symbol_groups.items():
+            best_candidate = None
+            symbol_lower = symbol.lower()
+            
+            # 1. Preferuj tokeny z dokładnym dopasowaniem ID do symbolu (np. BTC -> bitcoin)
+            for candidate in candidates:
+                candidate_id = candidate['id'].lower()
+                if candidate_id == symbol_lower:
+                    best_candidate = candidate
+                    break
+            
+            # 2. Preferuj tokeny gdzie nazwa == symbol (np. MAGIC -> "Magic")
+            if not best_candidate:
+                for candidate in candidates:
+                    name = candidate.get('name', '').lower()
+                    candidate_id = candidate['id'].lower()
+                    if (name == symbol_lower and 
+                        not any(prefix in candidate_id for prefix in excluded_prefixes)):
+                        best_candidate = candidate
+                        break
+            
+            # 3. Preferuj główne tokeny z ID zawierającym symbol (np. FLOKI -> floki)
+            if not best_candidate:
+                for candidate in candidates:
+                    candidate_id = candidate['id'].lower()
+                    if (symbol_lower in candidate_id and 
+                        candidate_id.startswith(symbol_lower) and
+                        not any(prefix in candidate_id for prefix in excluded_prefixes)):
+                        best_candidate = candidate
+                        break
+            
+            # 4. Preferuj tokeny z nazwą zaczynającą się od symbolu
+            if not best_candidate:
+                for candidate in candidates:
+                    name = candidate.get('name', '').lower()
+                    candidate_id = candidate['id'].lower()
+                    if (name.startswith(symbol_lower) and 
+                        not any(prefix in candidate_id for prefix in excluded_prefixes)):
+                        best_candidate = candidate
+                        break
+            
+            # 5. Weź pierwszy nie-wrapped token
+            if not best_candidate:
+                for candidate in candidates:
+                    if not any(prefix in candidate['id'] for prefix in excluded_prefixes):
+                        best_candidate = candidate
+                        break
+            
+            # 6. Fallback - weź pierwszy dostępny
+            if not best_candidate and candidates:
+                best_candidate = candidates[0]
+            
+            if best_candidate:
+                platforms = best_candidate.get("platforms", {})
+                cache_data[symbol] = {
+                    "id": best_candidate['id'],
+                    "name": best_candidate.get("name", "").lower(),
+                    "platforms": platforms
+                }
                 
-            # Dla każdego symbolu zapisz tylko jeśli jeszcze nie ma lub jest lepszy
-            if symbol not in cache_data:
-                # Sprawdź czy to nie wrapped token
-                if not any(prefix in token['id'] for prefix in excluded_prefixes):
-                    platforms = token.get("platforms", {})
-                    cache_data[symbol] = {
-                        "id": token['id'],
-                        "name": token.get("name", "").lower(),
-                        "platforms": platforms
-                    }
-                    
-            if i % 2000 == 0:
-                print(f"📦 {i}/{len(token_list)} tokenów przetworzonych")
-                
-        print(f"🎯 Cache zbudowany: {len(cache_data)} unikalnych symboli")
+        print(f"🎯 Cache zbudowany: {len(cache_data)} unikalnych symboli z {len(symbol_groups)} grup")
         
         save_coingecko_cache(cache_data)
         print("✅ Zakończono budowę cache CoinGecko")
