@@ -7,11 +7,12 @@ def score_stage_minus2_1(data):
     Stage -2.1 scoring based on detector count and combinations
     PPWCS 2.6 implementation - FIXED LOGIC
     """
-    # Poprawiona logika: tylko explicit True counts
+    # Poprawiona logika: tylko explicit True counts + compressed jako aktywny detektor
     detectors = [
         "whale_activity", "dex_inflow", "orderbook_anomaly", 
         "volume_spike", "vwap_pinning", "spoofing", 
-        "cluster_slope", "heatmap_exhaustion", "social_spike"
+        "cluster_slope", "heatmap_exhaustion", "social_spike",
+        "compressed"  # DODANE: compressed jako pełnoprawny detektor Stage -2.1
     ]
     
     active_detectors = []
@@ -54,6 +55,9 @@ def score_stage_minus2_1(data):
     if data.get("social_spike") is True:
         score += 4
         print(f"[SCORING DEBUG] Social spike: +4")
+    if data.get("compressed") is True:
+        score += 10
+        print(f"[SCORING DEBUG] Compressed: +10")
 
     # COMBO BONUSY - jeszcze wyższe
     if data.get("whale_activity") is True and data.get("dex_inflow") is True:
@@ -165,10 +169,8 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int
             print(f"[PPWCS DEBUG] Combo volume+inflow: +5")
 
         # --- STAGE -1: Compression Filter ---
-        # Aktywuje się gdy ≥1 sygnał z Stage -2.1 (złagodzone warunki)
-        if signals.get("compressed") is True:
-            ppwcs_structure += 10
-            print(f"[PPWCS DEBUG] Compression bonus: +10")
+        # USUNIĘTE: compressed już liczony w Stage -2.1 jako pełnoprawny detektor
+        # Nie dodajemy duplikatu bonusu
 
         # --- Pure Accumulation Bonus ---
         # Whale + DEX inflow bez social spike - FIXED LOGIC

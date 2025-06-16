@@ -86,6 +86,7 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ### June 16, 2025 - PPWCS Scoring System Overhaul & Detection Improvements
 - **PPWCS scoring dramatically improved**: Increased individual signal weights (whale: 12pts, volume: 12pts, dex: 10pts) vs previous 14pts total for 2 signals
+- **Compressed signal promoted**: Now counted as full Stage -2.1 detector (+10pts) instead of just bonus, properly recognizing price compression patterns
 - **Enhanced combo bonuses**: whale+dex: 8pts, volume+dex: 6pts, new combo_volume_inflow: 5pts for better reward of signal combinations
 - **Quality scoring added**: RSI_flatline now contributes 5pts to quality score instead of being ignored
 - **Compression requirements relaxed**: Changed from ≥2 signals to ≥1 signal for Stage -1 activation to prevent blocking valid pre-pumps
