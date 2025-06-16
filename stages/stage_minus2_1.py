@@ -577,7 +577,7 @@ def detect_stage_minus2_1(symbol, price_usd=None):
         # PPWCS v2.8 New Detectors
         gas_pressure = detect_blockspace_friction(symbol)
         whale_value = whale_activity if isinstance(whale_activity, (int, float)) else (1 if whale_activity else 0)
-        whale_dominance = detect_whale_dominance_ratio(symbol, int(inflow_usd), whale_value)
+        whale_dominance = detect_whale_dominance_ratio(symbol, float(inflow_usd), float(whale_value))
         
         # Simulate buy/sell volumes for execution intent
         buy_volume = inflow_usd * 1.2 if inflow_usd > 0 else 0
@@ -591,6 +591,23 @@ def detect_stage_minus2_1(symbol, price_usd=None):
             "orderbook_anomaly": orderbook_anomaly
         }
         whale_sequence = detect_whale_execution_pattern(initial_signals)
+        
+        # Import Stage 1g detectors for quality scoring
+        from stages.stage_1g import detect_dex_pool_divergence, detect_fake_reject, detect_heatmap_liquidity_trap
+        
+        # Get price for DEX divergence detection
+        current_price = price_usd if price_usd else 1.0
+        dex_divergence = detect_dex_pool_divergence(symbol, current_price)
+        fake_reject = detect_fake_reject(data, bool(volume_spike_active))
+        heatmap_trap = detect_heatmap_liquidity_trap(symbol)
+        
+        # Time clustering detector
+        temp_signals = {
+            "compressed": compressed,
+            "whale_activity": whale_activity,
+            "volume_spike": volume_spike_active
+        }
+        sector_clustering = detect_time_clustering(symbol, temp_signals)
 
         signals = {
             # Stage -2.1 Core Detectors (PPWCS 2.6)
@@ -631,6 +648,10 @@ def detect_stage_minus2_1(symbol, price_usd=None):
             "gas_pressure": gas_pressure,
             "dominant_accumulation": whale_dominance,
             "execution_intent": execution_intent,
+            "sector_clustering": sector_clustering,
+            "dex_divergence": dex_divergence,
+            "fake_reject": fake_reject,
+            "heatmap_trap": heatmap_trap,
             
             # Combo Signals for PPWCS boosting
             "combo_volume_inflow": volume_spike_active and inflow_usd > 0

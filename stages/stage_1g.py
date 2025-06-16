@@ -150,18 +150,6 @@ def detect_heatmap_liquidity_trap(symbol):
     except Exception as e:
         print(f"[HEATMAP TRAP] Error detecting trap for {symbol}: {e}")
         return False
-            return False
-            
-        # Fake reject: significant wick below open/close, but recovery
-        wick_size = min(last_open, last_close) - last_low
-        wick_pct = wick_size / last_low * 100
-        
-        # Current close above previous close despite the wick
-        recovery = last_close > prev_close
-        
-        return wick_pct > 2.0 and recovery
-    except:
-        return False
 
 def detect_liquidity_box(data):
     """Detect sideways price action in tight range"""

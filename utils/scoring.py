@@ -168,6 +168,32 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int
             ppwcs_structure += 5
             print(f"[PPWCS DEBUG] Combo volume+inflow: +5")
 
+        # --- PPWCS v2.8 NEW DETECTORS ---
+        # 1. Whale Execution Pattern (+10)
+        if signals.get("whale_sequence") is True:
+            ppwcs_structure += 10
+            print(f"[PPWCS DEBUG] Whale execution pattern: +10")
+
+        # 2. Blockspace Friction (+5)
+        if signals.get("gas_pressure") is True:
+            ppwcs_structure += 5
+            print(f"[PPWCS DEBUG] Gas pressure/blockspace friction: +5")
+
+        # 3. Whale Dominance Ratio (+5)
+        if signals.get("dominant_accumulation") is True:
+            ppwcs_structure += 5
+            print(f"[PPWCS DEBUG] Dominant accumulation: +5")
+
+        # 4. Execution Intent (+5)
+        if signals.get("execution_intent") is True:
+            ppwcs_structure += 5
+            print(f"[PPWCS DEBUG] Execution intent: +5")
+
+        # 5. Time Clustering (+10)
+        if signals.get("sector_clustering") is True:
+            ppwcs_structure += 10
+            print(f"[PPWCS DEBUG] Sector clustering: +10")
+
         # --- STAGE -1: Compression Filter ---
         # USUNIĘTE: compressed już liczony w Stage -2.1 jako pełnoprawny detektor
         # Nie dodajemy duplikatu bonusu
@@ -185,11 +211,27 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int
             ppwcs_quality += 5
             print(f"[PPWCS DEBUG] RSI flatline quality: +5")
 
-        # --- STAGE 1G: Breakout Detection (Version 2.0) ---
+        # --- STAGE 1G: Breakout Detection (PPWCS v2.8) ---
         if signals.get("stage1g_active") is True:
             stage1g_score = score_stage_1g(signals)
             ppwcs_quality += stage1g_score
             print(f"[PPWCS DEBUG] Stage 1g score: {stage1g_score}")
+
+        # PPWCS v2.8 Stage 1g Quality Detectors
+        # 6. DEX Pool Divergence (+8)
+        if signals.get("dex_divergence") is True:
+            ppwcs_quality += 8
+            print(f"[PPWCS DEBUG] DEX pool divergence: +8")
+
+        # 7. Fake Reject/Pre-Shakeout (+6)
+        if signals.get("fake_reject") is True:
+            ppwcs_quality += 6
+            print(f"[PPWCS DEBUG] Fake reject pattern: +6")
+
+        # 8. Heatmap Liquidity Trap (+8)
+        if signals.get("heatmap_trap") is True:
+            ppwcs_quality += 8
+            print(f"[PPWCS DEBUG] Heatmap liquidity trap: +8")
 
         final_score = ppwcs_structure + ppwcs_quality
         print(f"[PPWCS DEBUG] Final: structure={ppwcs_structure}, quality={ppwcs_quality}, total={final_score}")
