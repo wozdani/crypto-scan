@@ -29,8 +29,17 @@ def detect_stage_minus1_compression(symbol, stage_minus2_1_signals):
             stage_minus2_1_signals.get("social_spike", False),
         ])
         
-        # Kompresja aktywna gdy ≥2 sygnały
-        compression_active = active_signals >= 2
+        # ZŁAGODZONE WARUNKI: kompresja aktywna gdy ≥1 sygnał (zamiast ≥2)
+        # lub specjalne kombinacje wysokiej wartości
+        compression_active = active_signals >= 1
+        
+        # Bonus dla silnych kombinacji
+        strong_combo = (
+            (stage_minus2_1_signals.get("whale_activity", False) and stage_minus2_1_signals.get("dex_inflow", False)) or
+            (stage_minus2_1_signals.get("volume_spike", False) and stage_minus2_1_signals.get("orderbook_anomaly", False))
+        )
+        
+        print(f"[DEBUG] {symbol} compression - signals: {active_signals}, strong_combo: {strong_combo}")
         
         if compression_active:
             logger.info(f"✅ Stage -1 kompresja aktywna dla {symbol}: {active_signals} sygnałów")

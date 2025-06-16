@@ -467,7 +467,10 @@ def detect_stage_minus2_1(symbol, price_usd=None):
             "RSI_flatline": detect_rsi_flatline(rsi_value, {"dex_inflow": inflow_usd > 0, "whale_activity": whale_activity}),
             "fractal_echo": False,
             "news_boost": event_tag is not None and isinstance(event_tag, str) and event_tag.lower() in ["listing", "partnership", "presale", "cex_listed"],
-            "inflow": inflow_usd > 0
+            "inflow": inflow_usd > 0,
+            
+            # Combo Signals for PPWCS boosting
+            "combo_volume_inflow": volume_spike_active and inflow_usd > 0
         }
 
         # Debug wszystkich detektorów przed finalną decyzją

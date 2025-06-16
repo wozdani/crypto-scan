@@ -8,13 +8,17 @@ def detect_stealth_acc(signals):
     Stealth Accumulation Detector
     Wykrywa cichą akumulację: whale + DEX inflow bez social spike
     """
-    if (
-        signals.get("whale_activity") and
-        signals.get("dex_inflow") and
-        not signals.get("social_spike")
-    ):
-        return True
-    return False
+    print(f"[DEBUG] detect_stealth_acc signals: {signals}")
+    
+    whale_activity = signals.get("whale_activity", False)
+    dex_inflow = signals.get("dex_inflow", False) 
+    social_spike = signals.get("social_spike", False)
+    
+    # POPRAWKA: używaj rzeczywistej wartości social_spike zamiast False
+    result = whale_activity and dex_inflow and not social_spike
+    
+    print(f"[DEBUG] stealth_acc result: {result} (whale: {whale_activity}, dex: {dex_inflow}, social: {social_spike})")
+    return result
 
 def detect_rsi_flatline(rsi_value, signals):
     """
