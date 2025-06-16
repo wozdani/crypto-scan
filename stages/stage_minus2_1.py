@@ -307,13 +307,19 @@ def detect_event_tag(symbol):
         return None
 
 def detect_stage_minus2_1(symbol, price_usd=None):
+    print(f"[DEBUG] === STAGE -2.1 ANALYSIS START: {symbol} ===")
+    print(f"[DEBUG] Input price_usd: {price_usd}")
+    
     try:
         result = get_market_data(symbol)
+        print(f"[DEBUG] get_market_data result type: {type(result)}, length: {len(result) if isinstance(result, (tuple, list)) else 'N/A'}")
+        
         if not isinstance(result, tuple) or len(result) != 4:
             print(f"❌ Dane rynkowe {symbol} nieprawidłowe: {result}")
             return False, {}, 0.0, False
 
         success, data, price_usd, compressed = result
+        print(f"[DEBUG] Market data unpacked - success: {success}, data type: {type(data)}, price_usd: {price_usd}")
 
         if not success or not isinstance(data, dict):
             print(f"❌ [get_market_data] {symbol} → oczekiwano dict, otrzymano: {type(data)} → przerwanie etapu")
@@ -423,9 +429,11 @@ def detect_stage_minus2_1(symbol, price_usd=None):
 
         # Stage -1: Compression Filter (PPWCS 2.6)
         compressed = detect_stage_minus1_compression(symbol, stage_minus2_1_signals)
+        print(f"[DEBUG] {symbol} compression result: {compressed}")
 
         # Get RSI value for RSI flatline detection
         rsi_value = get_rsi_from_data(data)
+        print(f"[DEBUG] {symbol} RSI value: {rsi_value}")
 
         signals = {
             # Stage -2.1 Core Detectors (PPWCS 2.6)
@@ -453,7 +461,7 @@ def detect_stage_minus2_1(symbol, price_usd=None):
             
             # Custom Detectors (PPWCS 2.6 Enhanced)
             "squeeze": False,
-            "stealth_acc": detect_stealth_acc({"whale_activity": whale_activity, "dex_inflow": inflow_usd > 0, "social_spike": False}),
+            "stealth_acc": detect_stealth_acc({"whale_activity": whale_activity, "dex_inflow": inflow_usd > 0, "social_spike": social_spike_active}),
             "fake_reject": False,
             "liquidity_box": False,
             "RSI_flatline": detect_rsi_flatline(rsi_value, {"dex_inflow": inflow_usd > 0, "whale_activity": whale_activity}),
@@ -462,6 +470,27 @@ def detect_stage_minus2_1(symbol, price_usd=None):
             "inflow": inflow_usd > 0
         }
 
+        # Debug wszystkich detektorów przed finalną decyzją
+        detector_results = {
+            "whale_activity": whale_activity,
+            "orderbook_anomaly": orderbook_anomaly, 
+            "volume_spike_active": volume_spike_active,
+            "dex_inflow": inflow_usd > 0,
+            "heatmap_exhaustion": heatmap_exhaustion,
+            "spoofing_suspected": spoofing_suspected,
+            "vwap_pinned": vwap_pinned,
+            "volume_slope_up": volume_slope_up,
+            "social_spike_active": social_spike_active
+        }
+        
+        print(f"[DEBUG] {symbol} detector results: {detector_results}")
+        print(f"[DEBUG] {symbol} inflow_usd: {inflow_usd}")
+        
+        # PPWCS boost logic - combo signals
+        combo_volume_inflow = volume_spike_active and inflow_usd > 0
+        if combo_volume_inflow:
+            print(f"💥 {symbol} = COMBO signal volume + inflow")
+        
         # Czy aktywować Stage 2.1 (Stage –2 w strategii)
         stage2_pass = any([
             whale_activity,
@@ -473,6 +502,9 @@ def detect_stage_minus2_1(symbol, price_usd=None):
             vwap_pinned,
             volume_slope_up
         ])
+        
+        print(f"[DEBUG] {symbol} stage2_pass result: {stage2_pass}")
+        print(f"[DEBUG] === STAGE -2.1 ANALYSIS END: {symbol} ===")
 
         return stage2_pass, signals, inflow_usd, stage1g_active
 

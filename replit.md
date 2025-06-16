@@ -84,6 +84,13 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 16, 2025 - Detection System Improvements & Debug Enhancement
+- **Volume spike detection enhanced**: Now analyzes last 3 candles instead of just 1, checking each against previous 4 candles average
+- **RSI condition removed**: Eliminated 46-54 RSI requirement from detect_rsi_flatline() to prevent missing valid pre-pumps
+- **Comprehensive debug logging**: Added detailed debug prints to detect_volume_spike(), get_contract_from_coingecko(), and detect_stage_minus2_1()
+- **Early detection capability**: System can now detect volume spikes in candle [-3], [-2], or [-1] improving pre-pump detection timing
+- **Detection transparency**: Debug logs show exact detector values, signal combinations, and PPWCS calculation steps
+
 ### June 16, 2025 - Cache System Optimization & Single API Call Fix
 - **Fixed cache validation logic**: System now properly detects empty cache files instead of considering them valid
 - **CoinGecko optimization complete**: Eliminated individual token API calls, now uses single `/v3/coins/list?include_platform=true` request
