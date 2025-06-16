@@ -3,6 +3,7 @@ import json
 import requests
 import time
 from datetime import datetime, timedelta
+from utils.data_fetchers import get_symbols_cached, get_basic_bybit_symbols_for_cache
 from utils.normalize import normalize_token_name
 
 CACHE_FILE = "cache/coingecko_cache.json"
@@ -55,6 +56,9 @@ def save_coingecko_cache(cache):
         json.dump(cache, f)
 
 def build_coingecko_cache():
+    import time
+    import requests
+
     print("🛠 Buduję pełny cache CoinGecko dla wszystkich tokenów...")
     try:
         # Jedno zapytanie o wszystkie tokeny z platforms (contract addresses)
@@ -92,6 +96,15 @@ def build_coingecko_cache():
 
     except requests.exceptions.RequestException as e:
         print(f"❌ Błąd podczas budowy cache: {e}")
+            
+            if i == len(bybit_base) - 1:
+                print("✅ Pętla zakończona prawidłowo – wszystkie symbole przetworzone")
+
+        save_coingecko_cache(cache_data)
+        print("✅ Zakończono budowę cache CoinGecko")
+
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Błąd ogólny podczas budowy cache: {e}")
 
 def get_contract_from_coingecko(symbol):
     cache = load_coingecko_cache()
@@ -110,3 +123,4 @@ def get_contract_from_coingecko(symbol):
 
     print(f"⚠️ Nie znaleziono kontraktu w cache dla {symbol}")
     return {"address": "", "chain": ""}
+
