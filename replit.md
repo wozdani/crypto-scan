@@ -84,6 +84,18 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 16, 2025 - PPWCS v2.8 Complete Implementation & 8 New Detectors
+- **PPWCS v2.8 system implemented**: Added 8 new advanced detectors achieving 125+ total score vs previous 70-90
+- **Whale Execution Pattern detector**: Detects dex_inflow → whale_tx → orderbook_anomaly sequence (+10pts structure)
+- **Blockspace Friction detector**: Monitors gas price and mempool pressure indicating whale activity (+5pts structure)
+- **Whale Dominance Ratio detector**: Identifies when top 3 wallets control >65% of volume (+5pts structure)
+- **Execution Intent detector**: Confirms buy_volume > 2x sell_volume showing real accumulation (+5pts structure)
+- **Time Clustering detector**: Detects ≥2 tokens from same sector activating within 30 minutes (+10pts structure)
+- **DEX Pool Divergence detector**: Identifies DEX price premium >1.5% vs CEX indicating demand (+8pts quality)
+- **Fake Reject detector**: Recognizes shakeout candles with long wicks followed by recovery (+6pts quality)
+- **Heatmap Liquidity Trap detector**: Detects disappearance of large sell walls followed by volume spike (+8pts quality)
+- **Enhanced scoring system**: Structure detectors +35pts, Quality detectors +22pts, achieving 100+ PPWCS for strong setups
+
 ### June 16, 2025 - PPWCS Scoring System Overhaul & Detection Improvements
 - **PPWCS scoring dramatically improved**: Increased individual signal weights (whale: 12pts, volume: 12pts, dex: 10pts) vs previous 14pts total for 2 signals
 - **Compressed signal promoted**: Now counted as full Stage -2.1 detector (+10pts) instead of just bonus, properly recognizing price compression patterns
