@@ -1,11 +1,12 @@
 import os
 import json
 import zipfile
+import time
 from datetime import datetime, timedelta, timezone
 
 def save_stage_signal(symbol, score, stage2_pass, compressed, stage1g_active):
     """
-    Save stage detection results to individual symbol file
+    Save stage detection results to individual symbol file with robust error handling
     """
     try:
         signal_data = {
@@ -24,20 +25,54 @@ def save_stage_signal(symbol, score, stage2_pass, compressed, stage1g_active):
         date_str = datetime.now(timezone.utc).strftime('%Y%m%d')
         signals_file = f"reports/signals/signals_{date_str}.json"
         
-        # Load existing signals or create new list
+        # Load existing signals with robust error handling
+        signals = []
         if os.path.exists(signals_file):
-            with open(signals_file, 'r') as f:
-                signals = json.load(f)
-        else:
-            signals = []
+            try:
+                with open(signals_file, 'r', encoding='utf-8') as f:
+                    content = f.read().strip()
+                    if content:  # Only parse if file has content
+                        signals = json.loads(content)
+                    else:
+                        print(f"📝 Empty signals file {signals_file}, starting fresh")
+            except json.JSONDecodeError as json_err:
+                print(f"🔧 JSON corruption detected in {signals_file}: {json_err}")
+                print(f"🔧 Creating backup and starting fresh")
+                # Backup corrupted file
+                import time
+                backup_file = f"{signals_file}.corrupted_{int(time.time())}"
+                try:
+                    import shutil
+                    shutil.copy2(signals_file, backup_file)
+                    print(f"📋 Backup saved as {backup_file}")
+                except Exception as backup_err:
+                    print(f"⚠️ Could not create backup: {backup_err}")
+                signals = []
+            except Exception as read_err:
+                print(f"⚠️ Could not read {signals_file}: {read_err}")
+                signals = []
             
         signals.append(signal_data)
         
-        with open(signals_file, 'w') as f:
-            json.dump(signals, f, indent=2)
+        # Write with atomic operation
+        temp_file = f"{signals_file}.tmp"
+        try:
+            with open(temp_file, 'w', encoding='utf-8') as f:
+                json.dump(signals, f, indent=2, ensure_ascii=False)
+            
+            # Atomic rename
+            os.replace(temp_file, signals_file)
+            
+        except Exception as write_err:
+            print(f"⚠️ Could not write signals file: {write_err}")
+            # Clean up temp file if it exists
+            if os.path.exists(temp_file):
+                os.unlink(temp_file)
             
     except Exception as e:
         print(f"❌ Error saving stage signal for {symbol}: {e}")
+        import traceback
+        print(f"🔍 Full traceback: {traceback.format_exc()}")
 
 def save_conditional_reports():
     """
