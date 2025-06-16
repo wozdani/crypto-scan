@@ -317,12 +317,15 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int
         # Nie dodajemy duplikatu bonusu
 
         # --- Pure Accumulation Bonus ---
-        # Whale + DEX inflow bez social spike - FIXED LOGIC
-        if (signals.get("whale_activity") is True and 
-            signals.get("dex_inflow") is True and 
-            signals.get("social_spike") is not True):
+        # --- PURE ACCUMULATION DETECTION & BONUS ---
+        pure_accumulation = (signals.get("whale_activity") is True and 
+                           signals.get("dex_inflow") is True and 
+                           signals.get("social_spike") is not True)
+        
+        if pure_accumulation:
             ppwcs_structure += 5
-            print(f"[PPWCS DEBUG] Pure accumulation bonus: +5")
+            signals["pure_accumulation"] = True  # Set flag for lowered alert threshold
+            print(f"[PPWCS DEBUG] Pure accumulation detected: +5 bonus, lowered alert threshold enabled")
 
         # --- RSI FLATLINE QUALITY BONUS ---
         if signals.get("RSI_flatline") is True:

@@ -83,14 +83,25 @@ def detect_stage_minus1_compression(symbol, stage_minus2_1_signals):
         # 2. NOWA COMBO-BASED LOGIKA
         combo_active = check_stage_minus1_activation(stage_minus2_1_signals, active_signals)
         
+        # 3. HEATMAP EXHAUSTION → STAGE -1 ACTIVATION
+        heatmap_activation = (stage_minus2_1_signals.get("heatmap_exhaustion") is True and 
+                             stage_minus2_1_signals.get("volume_spike") is True)
+        
+        if heatmap_activation:
+            # Force activate compressed signal for Stage -1
+            stage_minus2_1_signals["compressed"] = True
+            print(f"[HEATMAP ACTIVATION] {symbol}: Heatmap exhaustion + volume spike → Stage -1 activated")
+        
         # Stage -1 aktywny jeśli którakolwiek metoda się powiedzie
-        compression_active = traditional_active or combo_active
+        compression_active = traditional_active or combo_active or heatmap_activation
         
         activation_reason = []
         if traditional_active:
             activation_reason.append(f"traditional({active_signals} signals)")
         if combo_active:
             activation_reason.append("combo-based")
+        if heatmap_activation:
+            activation_reason.append("heatmap-exhaustion")
             
         if compression_active:
             reason = " + ".join(activation_reason)

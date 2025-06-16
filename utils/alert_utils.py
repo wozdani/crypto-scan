@@ -1,13 +1,16 @@
-def get_alert_level(ppwcs_score: float) -> str:
+def get_alert_level(ppwcs_score: float, pure_accumulation: bool = False) -> str:
     """
     Determine alert level based on PPWCS score
+    Pure accumulation allows lowered threshold (65 instead of 70)
     Returns: 'strong', 'active', 'watchlist', or 'none'
     """
     if ppwcs_score >= 80:
         return "strong"     # 🚨
-    elif 70 <= ppwcs_score < 80:
+    elif ppwcs_score >= 70:
         return "active"     # ⚠️
-    elif 60 <= ppwcs_score < 70:
+    elif pure_accumulation and ppwcs_score >= 65:
+        return "active"     # ⚠️ (lowered threshold for pure accumulation)
+    elif ppwcs_score >= 60:
         return "watchlist"  # 👀
     else:
         return "none"
