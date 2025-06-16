@@ -100,6 +100,14 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Production-ready logging**: Comprehensive transaction tracking with timestamps and USD values
 - **Prevents signal loss**: Catches intensive whale accumulation sequences that single-transaction detection misses
 
+### June 16, 2025 - Enhanced Pre-Pump System with Early Detection - PRODUCTION OPTIMIZED
+- **Heatmap Exhaustion → Stage -1 activation**: Detects supply exhaustion phase before breakouts (heatmap_exhaustion + volume_spike)
+- **Pure Accumulation detection**: Identifies stealth whale accumulation without social media noise (whale + dex_inflow + !social_spike)
+- **Lowered alert threshold**: Pure accumulation triggers alerts at 65 PPWCS instead of 70, enabling earlier detection
+- **Triple Stage -1 activation**: Traditional (≥1 signal) + combo-based (12+ points) + heatmap-exhaustion paths
+- **Enhanced scoring precision**: Pure accumulation adds +5 bonus and sets lowered threshold flag automatically
+- **Early warning system**: Catches tokens before market reaction with stealth accumulation and supply exhaustion detection
+
 ### June 16, 2025 - Pre-Pump 1.0 Integration Complete - MAXIMUM PRECISION ACHIEVED
 - **3 advanced Pre-Pump 1.0 detectors integrated**: Substructure Squeeze (+4pts), Fractal Momentum Echo (+5pts), Momentum Kill-Switch
 - **Maximum score achieved**: System now reaches 242+ points with complete detector suite vs previous 229 maximum
