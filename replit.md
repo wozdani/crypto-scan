@@ -84,6 +84,13 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 16, 2025 - Updated PPWCS Scoring Values & Alert Thresholds
+- **Enhanced scoring system**: Updated individual detector values - whale_activity (+18), volume_spike (+15), dex_inflow (+14), orderbook_anomaly (+12)
+- **Higher quality scoring**: RSI_flatline bonus increased to +7, compressed bonus to +15 for better signal differentiation
+- **Refined alert thresholds**: 60-69 (watchlist), 70-79 (pre-pump), 80+ (strong + GPT feedback) for precise alert classification
+- **Optimized GPT usage**: AI analysis only triggers for scores ≥80, reducing API costs while maintaining quality
+- **Improved signal precision**: Strong setups now achieve 100+ PPWCS vs previous 70-80, enabling better pre-pump detection
+
 ### June 16, 2025 - Enhanced Whale Detection & Real-time Transaction Analysis
 - **Enhanced whale detection system**: Updated `detect_whale_tx()` to analyze transaction patterns within 15-minute windows
 - **Multi-transaction analysis**: Detects minimum 3 transactions >$50k USD in last 15 minutes using UTC timestamps

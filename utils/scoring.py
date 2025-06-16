@@ -27,37 +27,37 @@ def score_stage_minus2_1(data):
     # NOWE WAGI - znacznie wyższe dla silnych sygnałów
     score = 0
     
-    # Individual signal scores - PODWYŻSZONE
+    # Individual signal scores - NOWA LOGIKA SCORINGU
     if data.get("whale_activity") is True:
-        score += 12
-        print(f"[SCORING DEBUG] Whale activity: +12")
+        score += 18
+        print(f"[SCORING DEBUG] Whale activity: +18")
     if data.get("volume_spike") is True:
-        score += 12
-        print(f"[SCORING DEBUG] Volume spike: +12")
+        score += 15
+        print(f"[SCORING DEBUG] Volume spike: +15")
     if data.get("dex_inflow") is True:
-        score += 10
-        print(f"[SCORING DEBUG] DEX inflow: +10")
+        score += 14
+        print(f"[SCORING DEBUG] DEX inflow: +14")
     if data.get("orderbook_anomaly") is True:
+        score += 12
+        print(f"[SCORING DEBUG] Orderbook anomaly: +12")
+    if data.get("spoofing") is True:
+        score += 10
+        print(f"[SCORING DEBUG] Spoofing: +10")
+    if data.get("cluster_slope") is True:
+        score += 9
+        print(f"[SCORING DEBUG] Cluster slope: +9")
+    if data.get("social_spike") is True:
         score += 8
-        print(f"[SCORING DEBUG] Orderbook anomaly: +8")
+        print(f"[SCORING DEBUG] Social spike: +8")
+    if data.get("heatmap_exhaustion") is True:
+        score += 8
+        print(f"[SCORING DEBUG] Heatmap exhaustion: +8")
     if data.get("vwap_pinning") is True:
         score += 6
         print(f"[SCORING DEBUG] VWAP pinning: +6")
-    if data.get("spoofing") is True:
-        score += 6
-        print(f"[SCORING DEBUG] Spoofing: +6")
-    if data.get("heatmap_exhaustion") is True:
-        score += 6
-        print(f"[SCORING DEBUG] Heatmap exhaustion: +6")
-    if data.get("cluster_slope") is True:
-        score += 5
-        print(f"[SCORING DEBUG] Cluster slope: +5")
-    if data.get("social_spike") is True:
-        score += 4
-        print(f"[SCORING DEBUG] Social spike: +4")
     if data.get("compressed") is True:
-        score += 10
-        print(f"[SCORING DEBUG] Compressed: +10")
+        score += 15
+        print(f"[SCORING DEBUG] Compressed: +15")
 
     # COMBO BONUSY - jeszcze wyższe
     if data.get("whale_activity") is True and data.get("dex_inflow") is True:
@@ -208,8 +208,8 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int
 
         # --- RSI FLATLINE QUALITY BONUS ---
         if signals.get("RSI_flatline") is True:
-            ppwcs_quality += 5
-            print(f"[PPWCS DEBUG] RSI flatline quality: +5")
+            ppwcs_quality += 7
+            print(f"[PPWCS DEBUG] RSI flatline quality: +7")
 
         # --- STAGE 1G: Breakout Detection (PPWCS v2.8) ---
         if signals.get("stage1g_active") is True:
