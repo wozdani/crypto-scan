@@ -27,37 +27,54 @@ def score_stage_minus2_1(data):
     # NOWE WAGI - znacznie wyższe dla silnych sygnałów
     score = 0
     
-    # Individual signal scores - NOWA LOGIKA SCORINGU
+    # Individual signal scores - PPWCS v2.8
     if data.get("whale_activity") is True:
         score += 18
         print(f"[SCORING DEBUG] Whale activity: +18")
     if data.get("volume_spike") is True:
-        score += 15
-        print(f"[SCORING DEBUG] Volume spike: +15")
-    if data.get("dex_inflow") is True:
-        score += 14
-        print(f"[SCORING DEBUG] DEX inflow: +14")
+        score += 16
+        print(f"[SCORING DEBUG] Volume spike: +16")
     if data.get("orderbook_anomaly") is True:
         score += 12
         print(f"[SCORING DEBUG] Orderbook anomaly: +12")
+    if data.get("dex_inflow") is True:
+        score += 12
+        print(f"[SCORING DEBUG] DEX inflow: +12")
     if data.get("spoofing") is True:
         score += 10
         print(f"[SCORING DEBUG] Spoofing: +10")
-    if data.get("cluster_slope") is True:
-        score += 9
-        print(f"[SCORING DEBUG] Cluster slope: +9")
-    if data.get("social_spike") is True:
+    if data.get("compressed") is True:
+        score += 10
+        print(f"[SCORING DEBUG] Compressed: +10")
+    if data.get("vwap_pinning") is True:
         score += 8
-        print(f"[SCORING DEBUG] Social spike: +8")
+        print(f"[SCORING DEBUG] VWAP pinning: +8")
+    if data.get("cluster_slope") is True:
+        score += 8
+        print(f"[SCORING DEBUG] Cluster slope: +8")
+    if data.get("social_spike") is True:
+        score += 6
+        print(f"[SCORING DEBUG] Social spike: +6")
     if data.get("heatmap_exhaustion") is True:
         score += 8
         print(f"[SCORING DEBUG] Heatmap exhaustion: +8")
-    if data.get("vwap_pinning") is True:
-        score += 6
-        print(f"[SCORING DEBUG] VWAP pinning: +6")
-    if data.get("compressed") is True:
-        score += 15
-        print(f"[SCORING DEBUG] Compressed: +15")
+
+    # PPWCS v2.8 - New detectors scoring
+    if data.get("whale_sequence") is True:
+        score += 10
+        print(f"[SCORING DEBUG] Whale execution pattern: +10")
+    if data.get("gas_pressure") is True:
+        score += 5
+        print(f"[SCORING DEBUG] Blockspace friction: +5")
+    if data.get("dominant_accumulation") is True:
+        score += 8
+        print(f"[SCORING DEBUG] Whale dominance ratio: +8")
+    if data.get("sector_clustering") is True:
+        score += 10
+        print(f"[SCORING DEBUG] Time clustering: +10")
+    if data.get("execution_intent") is True:
+        score += 5
+        print(f"[SCORING DEBUG] Execution intent: +5")
 
     # COMBO BONUSY - jeszcze wyższe
     if data.get("whale_activity") is True and data.get("dex_inflow") is True:
@@ -88,8 +105,8 @@ def score_stage_1g(data):
         score += 6
         print(f"[SCORING DEBUG] Stage 1g stealth_acc: +6")
     if data.get("fake_reject") is True:
-        score -= 4
-        print(f"[SCORING DEBUG] Stage 1g fake_reject: -4")
+        score += 10
+        print(f"[SCORING DEBUG] Stage 1g fake_reject: +10")
     if data.get("vwap_pinning") is True:
         score += 3
         print(f"[SCORING DEBUG] Stage 1g vwap_pinning: +3")
@@ -97,8 +114,8 @@ def score_stage_1g(data):
         score += 3
         print(f"[SCORING DEBUG] Stage 1g liquidity_box: +3")
     if data.get("RSI_flatline") is True and data.get("inflow") is True:
-        score += 3
-        print(f"[SCORING DEBUG] Stage 1g RSI_flatline+inflow: +3")
+        score += 6
+        print(f"[SCORING DEBUG] Stage 1g RSI_flatline+inflow: +6")
     if data.get("fractal_echo") is True:
         score += 2
         print(f"[SCORING DEBUG] Stage 1g fractal_echo: +2")
