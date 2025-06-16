@@ -18,16 +18,19 @@ def detect_stealth_acc(signals):
 
 def detect_rsi_flatline(rsi_value, signals):
     """
-    RSI Flatline Detector
-    Wykrywa płaską linię RSI (45-55) z whale/DEX aktywnością
+    RSI Flatline Detector - USUNIĘTO WARUNEK RSI (45-55)
+    Teraz wykrywa tylko kombinację whale/DEX aktywności (bez RSI ograniczenia)
     """
-    if rsi_value is None:
-        return False
-        
-    if 45 <= rsi_value <= 55:
-        if signals.get("dex_inflow") or signals.get("whale_activity"):
-            return True
-    return False
+    print(f"[DEBUG] detect_rsi_flatline - RSI: {rsi_value}, signals: {signals}")
+    
+    # Usuń warunek RSI - sprawdzaj tylko whale/DEX aktywność
+    whale_activity = signals.get("whale_activity", False)
+    dex_inflow = signals.get("dex_inflow", False)
+    
+    result = whale_activity or dex_inflow
+    print(f"[DEBUG] RSI flatline result: {result} (whale: {whale_activity}, dex: {dex_inflow})")
+    
+    return result
 
 def get_rsi_from_data(data):
     """

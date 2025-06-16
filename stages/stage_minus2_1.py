@@ -24,9 +24,10 @@ volume_spike_cooldown = {}
 
 def detect_volume_spike(symbol, data):
     """
-    Wykrywa nagly skok wolumenu bazując na recent_volumes z cooldown (3 świece = 45 min)
+    Wykrywa nagly skok wolumenu w ostatnich 2-3 świecach z cooldown (45 min)
+    Analizuje każdą z ostatnich 3 świec względem wcześniejszych 4
     """
-    print("RUNNING: detect_volume_spike")
+    print(f"[DEBUG] detect_volume_spike({symbol}) - START")
     
     # Sprawdź cooldown (3 świece = 45 minut)
     import time
@@ -37,18 +38,49 @@ def detect_volume_spike(symbol, data):
         time_since_spike = current_time - volume_spike_cooldown[symbol]
         if time_since_spike < cooldown_period:
             remaining = int((cooldown_period - time_since_spike) / 60)
-            print(f"[VOLUME SPIKE] {symbol} w cooldown ({remaining}min pozostało)")
+            print(f"[DEBUG] {symbol} w cooldown ({remaining}min pozostało)")
             return False
     
     # Sprawdź recent_volumes z data (preferred method)
     recent_volumes = data.get("recent_volumes", [])
-    if len(recent_volumes) >= 4:
-        avg = sum(recent_volumes[-4:]) / 4
+    print(f"[DEBUG] {symbol} recent_volumes: {recent_volumes}")
+    
+    if len(recent_volumes) >= 7:  # Potrzebujemy co najmniej 7 świec (4 bazowe + 3 do sprawdzenia)
+        # Sprawdź każdą z ostatnich 3 świec względem wcześniejszych 4
+        for i in range(-3, 0):  # -3, -2, -1 (ostatnie 3 świece)
+            # Porównaj świecę i z średnią z 4 wcześniejszych świec
+            base_start = i - 4
+            base_end = i
+            
+            if base_start >= -len(recent_volumes):
+                base_volumes = recent_volumes[base_start:base_end]
+                current_volume = recent_volumes[i]
+                
+                if len(base_volumes) >= 4:
+                    avg_base = sum(base_volumes) / len(base_volumes)
+                    spike_threshold = avg_base * 2.5
+                    
+                    print(f"[DEBUG] {symbol} świeca[{i}]: {current_volume:,.0f} vs avg: {avg_base:,.0f} (threshold: {spike_threshold:,.0f})")
+                    
+                    if current_volume > spike_threshold:
+                        volume_spike_cooldown[symbol] = current_time
+                        print(f"[VOLUME SPIKE] {symbol} spike w świecy[{i}]: {current_volume:,.0f} > {spike_threshold:,.0f}")
+                        return True, current_volume
+        
+        print(f"[DEBUG] {symbol} brak spike w ostatnich 3 świecach")
+        return False, 0.0
+    
+    # Sprawdź pojedynczą świecę jako fallback
+    elif len(recent_volumes) >= 5:
+        avg = sum(recent_volumes[-5:-1]) / 4
         current = recent_volumes[-1]
-        if current > avg * 2.5:
-            # Aktywuj volume spike i zapisz czas
+        spike_threshold = avg * 2.5
+        
+        print(f"[DEBUG] {symbol} fallback - current: {current:,.0f} vs avg: {avg:,.0f} (threshold: {spike_threshold:,.0f})")
+        
+        if current > spike_threshold:
             volume_spike_cooldown[symbol] = current_time
-            print(f"[VOLUME SPIKE] {symbol} spike detected: {current:,.0f} > {avg * 2.5:,.0f}")
+            print(f"[VOLUME SPIKE] {symbol} fallback spike: {current:,.0f} > {spike_threshold:,.0f}")
             return True, current
         return False, 0.0
     
