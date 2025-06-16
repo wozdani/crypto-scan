@@ -117,6 +117,33 @@ def get_all_data(symbol):
 import requests
 
 
+def get_basic_bybit_symbols_for_cache():
+    """Get basic Bybit USDT symbols without chain requirements for cache building"""
+    try:
+        # Try to load from existing cache first
+        if os.path.exists(BYBIT_SYMBOLS_PATH):
+            with open(BYBIT_SYMBOLS_PATH, "r") as f:
+                symbols = json.load(f)
+            if symbols:
+                print(f"📦 Loaded {len(symbols)} symbols from Bybit cache")
+                return symbols
+    except:
+        pass
+    
+    # If no cache or cache is empty, rebuild
+    print("🔄 Building fresh Bybit symbols list...")
+    build_bybit_symbol_cache_all_categories()
+    
+    # Load the fresh cache
+    try:
+        with open(BYBIT_SYMBOLS_PATH, "r") as f:
+            symbols = json.load(f)
+        print(f"✅ Built and loaded {len(symbols)} Bybit symbols")
+        return symbols
+    except:
+        print("❌ Failed to build Bybit symbols cache")
+        return []
+
 def get_symbols_cached(require_chain=True):
     # Sprawdź czy cache istnieje i czy nie jest wygasły
     if is_bybit_cache_expired():

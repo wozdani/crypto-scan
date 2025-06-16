@@ -3,7 +3,7 @@ import json
 import requests
 import time
 from datetime import datetime, timedelta
-from utils.data_fetchers import get_symbols_cached
+from utils.data_fetchers import get_symbols_cached, get_basic_bybit_symbols_for_cache
 from utils.normalize import normalize_token_name
 
 CACHE_FILE = "cache/coingecko_cache.json"
@@ -83,7 +83,8 @@ def build_coingecko_cache():
                 print(f"🔍 {t}: ❌ brak")
 
 
-        bybit_symbols = get_symbols_cached()
+        # Get basic Bybit symbols without chain requirements for cache building
+        bybit_symbols = get_basic_bybit_symbols_for_cache()
         bybit_base = [s.replace("USDT", "").upper() for s in bybit_symbols]
 
         print(f"🔢 Liczba symboli z Bybit: {len(bybit_base)}")
