@@ -62,7 +62,8 @@ def build_coingecko_cache():
 
     print("🛠 Buduję cache CoinGecko na podstawie tokenów z Bybit...")
     try:
-        token_list = requests.get("https://api.coingecko.com/api/v3/coins/list", timeout=15).json()
+        # Jedno zapytanie o wszystkie tokeny z platforms (contract addresses)
+        token_list = requests.get("https://api.coingecko.com/api/v3/coins/list?include_platform=true", timeout=15).json()
         
         # Grupuj tokeny wg symbolu dla dokładnej weryfikacji
         symbol_groups = {}
@@ -100,6 +101,7 @@ def build_coingecko_cache():
 
             # Inteligentny wybór tokena z weryfikacją symbolu - FIXED
             token_id = None
+            best_candidate = None
             if symbol in symbol_groups:
                 candidates = symbol_groups[symbol]
                 print(f"🔍 {symbol}: {len(candidates)} kandydatów")
@@ -148,44 +150,22 @@ def build_coingecko_cache():
                 if best_candidate:
                     token_id = best_candidate['id']
             
-            if not token_id:
+            if not token_id or not best_candidate:
                 print(f"⛔ Nie znaleziono prawidłowego ID CoinGecko dla {symbol}")
                 continue
 
-            detail_url = f"https://api.coingecko.com/api/v3/coins/{token_id}"
-            retries = 0
-            while retries < 3:
-                try:
-                    r = requests.get(detail_url, timeout=10)
-                    if r.status_code == 429:
-                        print(f"🕒 Rate limit (429) dla {symbol}, retry {retries+1}/3 – czekam 10s...")
-                        time.sleep(10)
-                        retries += 1
-                        continue
-                    elif r.status_code != 200:
-                        print(f"❌ HTTP {r.status_code} dla {symbol}, pomijam.")
-                        break
+            # Użyj danych z platforms jeśli są dostępne w głównym zapytaniu
+            platforms = best_candidate.get("platforms", {})
+            cache_data[symbol] = {
+                "id": token_id,
+                "name": best_candidate.get("name", "").lower(),
+                "platforms": platforms
+            }
+            print(f"✅ Dodano token dla {symbol}: {best_candidate['id']}")
 
-                    details = r.json()
-                    platforms = details.get("platforms", {})
-                    cache_data[symbol] = {
-                        "id": token_id,
-                        "name": details.get("name", "").lower(),
-                        "platforms": platforms
-                    }
-                    print(f"✅ Dodano kontrakt dla {symbol}: {platforms}")
-                    break  # sukces – wychodzimy z retry loop
-
-                except Exception as e:
-                    print(f"⚠️ Błąd przy {symbol}, retry {retries+1}/3: {e}")
-                    retries += 1
-                    time.sleep(3)
-
-            if i % 10 == 0:
+            if i % 50 == 0:
                 print(f"📦 {i}/{len(bybit_base)} tokenów przetworzonych")
                 save_coingecko_cache(cache_data)
-
-            time.sleep(1.2)
             
             if i == len(bybit_base) - 1:
                 print("✅ Pętla zakończona prawidłowo – wszystkie symbole przetworzone")
