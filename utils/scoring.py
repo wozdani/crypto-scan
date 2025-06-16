@@ -119,6 +119,15 @@ def score_stage_1g(data):
     if data.get("fractal_echo") is True:
         score += 2
         print(f"[SCORING DEBUG] Stage 1g fractal_echo: +2")
+    
+    # PPWCS v2.8 - New Stage 1g detectors
+    if data.get("dex_divergence") is True:
+        score += 6
+        print(f"[SCORING DEBUG] Stage 1g dex_divergence: +6")
+    if data.get("heatmap_trap") is True:
+        score += 8
+        print(f"[SCORING DEBUG] Stage 1g heatmap_trap: +8")
+    
     return score
 
 def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int]:
