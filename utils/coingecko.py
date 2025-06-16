@@ -105,12 +105,24 @@ def build_coingecko_cache():
                             print(f"✅ Priorytetowy token dla {symbol}: {candidate['id']}")
                             break
                 
-                # 2. Jeśli nie znaleziono priorytetowego, weź pierwszy pasujący symbol
+                # 2. Jeśli nie znaleziono priorytetowego, weź najlepszy pasujący (nie wrapped)
+                if not best_candidate:
+                    for candidate in candidates:
+                        if candidate['symbol'].upper() == symbol.upper():
+                            candidate_id = candidate['id'].lower()
+                            is_wrapped = any(prefix in candidate_id for prefix in excluded_prefixes)
+                            
+                            if not is_wrapped:
+                                best_candidate = candidate
+                                print(f"✅ Standardowy token dla {symbol}: {candidate['id']}")
+                                break
+                
+                # 3. Ostateczny fallback - weź dowolny pasujący symbol
                 if not best_candidate:
                     for candidate in candidates:
                         if candidate['symbol'].upper() == symbol.upper():
                             best_candidate = candidate
-                            print(f"✅ Standardowy token dla {symbol}: {candidate['id']}")
+                            print(f"✅ Fallback token dla {symbol}: {candidate['id']}")
                             break
                 
                 if best_candidate:
