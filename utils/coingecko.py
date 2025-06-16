@@ -44,12 +44,24 @@ def build_coingecko_cache():
     print("🛠 Buduję cache CoinGecko na podstawie tokenów z Bybit...")
     try:
         token_list = requests.get("https://api.coingecko.com/api/v3/coins/list", timeout=15).json()
-        symbol_to_id = {t['symbol'].upper(): t['id'] for t in token_list if 'symbol' in t and 'id' in t}
+        
+        # Grupuj tokeny wg symbolu dla dokładnej weryfikacji
+        symbol_groups = {}
+        for token in token_list:
+            if 'symbol' in token and 'id' in token:
+                symbol = token['symbol'].upper()
+                if symbol not in symbol_groups:
+                    symbol_groups[symbol] = []
+                symbol_groups[symbol].append(token)
 
         # 🔍 DEBUG: test czy TRX, WLD, XRP itd. są w mapie
-        test_tokens = ["TRX", "XRP", "WLD", "ZETA"]
+        test_tokens = ["TRX", "XRP", "WLD", "ZETA", "MAGIC"]
         for t in test_tokens:
-            print(f"🔍 Test ID CoinGecko dla {t}: {'✅ jest' if t in symbol_to_id else '❌ brak'}")
+            if t in symbol_groups:
+                candidates = [token['id'] for token in symbol_groups[t]]
+                print(f"🔍 {t} candidates: {candidates[:3]}...")  # Pierwszych 3
+            else:
+                print(f"🔍 {t}: ❌ brak")
 
 
         bybit_symbols = get_symbols_cached()
@@ -66,9 +78,46 @@ def build_coingecko_cache():
             if symbol in cache_data and cache_data[symbol].get("platforms"):
                 continue
 
-            token_id = symbol_to_id.get(symbol)
+            # Inteligentny wybór tokena z weryfikacją symbolu - FIXED
+            token_id = None
+            if symbol in symbol_groups:
+                candidates = symbol_groups[symbol]
+                print(f"🔍 {symbol}: {len(candidates)} kandydatów")
+                
+                # Znajdź najlepszy kandydat
+                best_candidate = None
+                
+                # Lista priorytetowych nazw tokenów (główne tokeny)
+                priority_names = [symbol.lower(), f"{symbol.lower()}-token", f"{symbol.lower()}-coin"]
+                
+                # Lista wykluczonych prefiksów (wrapped/bridged tokens)
+                excluded_prefixes = ['wrapped', 'bridged', 'binance-peg', 'polygon-peg', 'avalanche-peg', 'fantom-peg']
+                
+                # 1. Preferuj tokeny z priorytetowymi nazwami (nie wrapped)
+                for candidate in candidates:
+                    if candidate['symbol'].upper() == symbol.upper():
+                        candidate_id = candidate['id'].lower()
+                        # Sprawdź czy to nie wrapped token
+                        is_wrapped = any(prefix in candidate_id for prefix in excluded_prefixes)
+                        
+                        if any(priority in candidate_id for priority in priority_names) and not is_wrapped:
+                            best_candidate = candidate
+                            print(f"✅ Priorytetowy token dla {symbol}: {candidate['id']}")
+                            break
+                
+                # 2. Jeśli nie znaleziono priorytetowego, weź pierwszy pasujący symbol
+                if not best_candidate:
+                    for candidate in candidates:
+                        if candidate['symbol'].upper() == symbol.upper():
+                            best_candidate = candidate
+                            print(f"✅ Standardowy token dla {symbol}: {candidate['id']}")
+                            break
+                
+                if best_candidate:
+                    token_id = best_candidate['id']
+            
             if not token_id:
-                print(f"⛔ Nie znaleziono ID CoinGecko dla {symbol}")
+                print(f"⛔ Nie znaleziono prawidłowego ID CoinGecko dla {symbol}")
                 continue
 
             detail_url = f"https://api.coingecko.com/api/v3/coins/{token_id}"
