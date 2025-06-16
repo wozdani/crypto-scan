@@ -23,8 +23,27 @@ CHAIN_ALIASES = {
 def is_cache_valid():
     if not os.path.exists(CACHE_FILE):
         return False
+    
+    # Check if file has actual content (not just {})
+    try:
+        with open(CACHE_FILE, "r") as f:
+            cache_content = json.load(f)
+        if not cache_content or len(cache_content) == 0:
+            print("🚫 Cache file is empty - marking as invalid")
+            return False
+    except (json.JSONDecodeError, Exception) as e:
+        print(f"🚫 Cache file corrupted: {e}")
+        return False
+    
     file_time = datetime.fromtimestamp(os.path.getmtime(CACHE_FILE))
-    return datetime.now() - file_time < timedelta(hours=CACHE_EXPIRATION_HOURS)
+    is_expired = datetime.now() - file_time >= timedelta(hours=CACHE_EXPIRATION_HOURS)
+    
+    if is_expired:
+        print(f"🚫 Cache expired - age: {datetime.now() - file_time}")
+        return False
+    
+    print(f"✅ Cache valid - contains {len(cache_content)} tokens")
+    return True
 
 def load_coingecko_cache():
     if not os.path.exists(CACHE_FILE):
