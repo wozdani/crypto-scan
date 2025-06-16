@@ -317,3 +317,74 @@ def detect_stage_1g(symbol, data, event_tag=None):
     except Exception as e:
         logger.info(f"❌ Błąd Stage 1G dla {symbol}: {e}")
         return False, None
+
+def detect_substructure_squeeze(symbol, data):
+    """
+    Substructure Squeeze Detector - Pre-Pump 1.0 Integration
+    Wykrycie wewnętrznych mikroskopijnych kompresji (1M/5M) poprzedzających większe ruchy
+    """
+    try:
+        if not data or len(data) < 10:
+            return False
+            
+        # Pobierz ostatnie 10 świec dla analizy ATR i RSI
+        recent_candles = data[-10:] if len(data) >= 10 else data
+        
+        if len(recent_candles) < 5:
+            return False
+            
+        # Oblicz ATR z ostatnich 5 świec
+        atr_values = []
+        for i in range(1, len(recent_candles)):
+            high = float(recent_candles[i].get('high', 0))
+            low = float(recent_candles[i].get('low', 0))
+            prev_close = float(recent_candles[i-1].get('close', 0))
+            
+            tr = max(
+                high - low,
+                abs(high - prev_close),
+                abs(low - prev_close)
+            )
+            atr_values.append(tr)
+        
+        if len(atr_values) < 5:
+            return False
+            
+        atr_current = atr_values[-1]
+        atr_mean = sum(atr_values) / len(atr_values)
+        
+        # Oblicz RSI z ostatnich 5 świec
+        closes = [float(candle.get('close', 0)) for candle in recent_candles[-5:]]
+        if len(closes) < 5:
+            return False
+            
+        gains = []
+        losses = []
+        for i in range(1, len(closes)):
+            change = closes[i] - closes[i-1]
+            if change > 0:
+                gains.append(change)
+                losses.append(0)
+            else:
+                gains.append(0)
+                losses.append(abs(change))
+        
+        avg_gain = sum(gains) / len(gains) if gains else 0
+        avg_loss = sum(losses) / len(losses) if losses else 0.0001
+        
+        rs = avg_gain / avg_loss
+        rsi = 100 - (100 / (1 + rs))
+        
+        # Warunki substructure squeeze
+        atr_compressed = atr_current < 0.7 * atr_mean if atr_mean > 0 else False
+        rsi_neutral = 45 < rsi < 55
+        
+        if atr_compressed and rsi_neutral:
+            print(f"[SUBSTRUCTURE SQUEEZE] Detected for {symbol}: ATR={atr_current:.6f}, RSI={rsi:.1f}")
+            return True
+            
+        return False
+        
+    except Exception as e:
+        print(f"[SUBSTRUCTURE SQUEEZE] Error for {symbol}: {e}")
+        return False

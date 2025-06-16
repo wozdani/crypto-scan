@@ -40,6 +40,80 @@ from utils.gpt_feedback import send_report_to_chatgpt, score_gpt_feedback, categ
 from utils.alert_system import process_alert
 from utils.reports import save_stage_signal, save_conditional_reports, compress_reports_to_zip
 
+def check_momentum_kill_switch(symbol, candle_data, signals):
+    """
+    Momentum Kill-Switch - Pre-Pump 1.0 Integration
+    Anulowanie sygnału, jeśli po wybiciu nie ma kontynuacji
+    """
+    try:
+        if not candle_data or not signals:
+            return False
+            
+        # Sprawdź czy Stage 1g był aktywny
+        if not signals.get("stage1g_active"):
+            return False
+            
+        # Pobierz ostatnią świeczkę
+        if isinstance(candle_data, list) and len(candle_data) > 0:
+            last_candle = candle_data[-1]
+        elif isinstance(candle_data, dict):
+            last_candle = candle_data
+        else:
+            return False
+            
+        # Pobierz dane świecy
+        open_price = float(last_candle.get('open', 0))
+        close_price = float(last_candle.get('close', 0))
+        high_price = float(last_candle.get('high', 0))
+        low_price = float(last_candle.get('low', 0))
+        volume = float(last_candle.get('volume', 0))
+        
+        if any(x <= 0 for x in [open_price, close_price, high_price, low_price]):
+            return False
+            
+        # Oblicz body ratio
+        candle_range = high_price - low_price
+        body_size = abs(close_price - open_price)
+        body_ratio = body_size / candle_range if candle_range > 0 else 0
+        
+        # Oblicz RSI z ostatnich 5 świec (uproszczone)
+        if isinstance(candle_data, list) and len(candle_data) >= 5:
+            recent_closes = [float(c.get('close', 0)) for c in candle_data[-5:]]
+            gains = []
+            losses = []
+            for i in range(1, len(recent_closes)):
+                change = recent_closes[i] - recent_closes[i-1]
+                if change > 0:
+                    gains.append(change)
+                    losses.append(0)
+                else:
+                    gains.append(0)
+                    losses.append(abs(change))
+            
+            avg_gain = sum(gains) / len(gains) if gains else 0
+            avg_loss = sum(losses) / len(losses) if losses else 0.0001
+            rs = avg_gain / avg_loss
+            rsi = 100 - (100 / (1 + rs))
+        else:
+            rsi = 50  # Neutralny RSI jako fallback
+            
+        # Warunki kill-switch
+        weak_body = body_ratio < 0.4
+        weak_rsi = rsi < 60
+        low_volume = volume < signals.get('avg_volume', volume * 1.5) * 1.5
+        
+        momentum_killed = weak_body and weak_rsi and low_volume
+        
+        if momentum_killed:
+            print(f"[MOMENTUM KILL-SWITCH] Alert cancelled for {symbol}: body_ratio={body_ratio:.2f}, RSI={rsi:.1f}")
+            return True
+            
+        return False
+        
+    except Exception as e:
+        print(f"[MOMENTUM KILL-SWITCH] Error for {symbol}: {e}")
+        return False
+
 def send_report_to_gpt(symbol, data, tp_forecast, alert_level):
     """Send comprehensive signal report to GPT for analysis"""
     openai.api_key = os.getenv("OPENAI_API_KEY")

@@ -75,6 +75,14 @@ def score_stage_minus2_1(data):
     if data.get("execution_intent") is True:
         score += 5
         print(f"[SCORING DEBUG] Execution intent: +5")
+    
+    # Pre-Pump 1.0 Advanced Detectors
+    if data.get("fractal_momentum_echo") is True:
+        score += 5
+        print(f"[SCORING DEBUG] Fractal momentum echo: +5")
+    if data.get("substructure_squeeze") is True:
+        score += 4
+        print(f"[SCORING DEBUG] Substructure squeeze: +4")
 
     # COMBO BONUSY - jeszcze wyższe
     if data.get("whale_activity") is True and data.get("dex_inflow") is True:
@@ -129,6 +137,90 @@ def score_stage_1g(data):
         print(f"[SCORING DEBUG] Stage 1g heatmap_trap: +8")
     
     return score
+
+def detect_fractal_momentum_echo(symbol, data, signals):
+    """
+    Fractal Momentum Echo Detector - Pre-Pump 1.0 Integration
+    Wykrycie podobieństw do poprzednich pump danego tokena (RSI, świeczki, wolumen)
+    """
+    try:
+        if not data or len(data) < 20:
+            return False
+            
+        # Pobierz ostatnie 5 świec dla analizy
+        recent_candles = data[-5:] if len(data) >= 5 else data
+        
+        if len(recent_candles) < 5:
+            return False
+            
+        # Oblicz obecny RSI
+        closes = [float(candle.get('close', 0)) for candle in recent_candles]
+        if len(closes) < 5:
+            return False
+            
+        gains = []
+        losses = []
+        for i in range(1, len(closes)):
+            change = closes[i] - closes[i-1]
+            if change > 0:
+                gains.append(change)
+                losses.append(0)
+            else:
+                gains.append(0)
+                losses.append(abs(change))
+        
+        avg_gain = sum(gains) / len(gains) if gains else 0
+        avg_loss = sum(losses) / len(losses) if losses else 0.0001
+        
+        rs = avg_gain / avg_loss
+        current_rsi = 100 - (100 / (1 + rs))
+        
+        # Sprawdź strukturę świec (long wicks, quick rise)
+        last_candle = recent_candles[-1]
+        open_price = float(last_candle.get('open', 0))
+        close_price = float(last_candle.get('close', 0))
+        high_price = float(last_candle.get('high', 0))
+        low_price = float(last_candle.get('low', 0))
+        
+        if open_price <= 0 or close_price <= 0 or high_price <= 0 or low_price <= 0:
+            return False
+            
+        # Analiza struktury świecy
+        body_size = abs(close_price - open_price)
+        upper_wick = high_price - max(open_price, close_price)
+        lower_wick = min(open_price, close_price) - low_price
+        candle_range = high_price - low_price
+        
+        if candle_range <= 0:
+            return False
+            
+        # Warunki fractal echo
+        conditions = [
+            # RSI w zakresie breakout (50-70)
+            50 <= current_rsi <= 70,
+            
+            # Świeca ma długi knot górny (momentum test)
+            upper_wick > 0.3 * candle_range,
+            
+            # Volume spike present
+            signals.get("volume_spike") is True,
+            
+            # Wzrostowa świeca
+            close_price > open_price,
+            
+            # Znaczący body (nie doji)
+            body_size > 0.4 * candle_range
+        ]
+        
+        if sum(conditions) >= 4:  # Co najmniej 4 z 5 warunków
+            print(f"[FRACTAL ECHO] Momentum echo detected for {symbol}: RSI={current_rsi:.1f}")
+            return True
+            
+        return False
+        
+    except Exception as e:
+        print(f"[FRACTAL ECHO] Error for {symbol}: {e}")
+        return False
 
 def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int]:
     """
@@ -236,6 +328,23 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int
         if signals.get("RSI_flatline") is True:
             ppwcs_quality += 7
             print(f"[PPWCS DEBUG] RSI flatline quality: +7")
+        
+        # --- PRE-PUMP 1.0 ADVANCED DETECTORS ---
+        # Detect fractal momentum echo if market data available
+        if "market_data" in signals:
+            fractal_echo = detect_fractal_momentum_echo(
+                signals.get("symbol", "UNKNOWN"), 
+                signals.get("market_data"), 
+                signals
+            )
+            if fractal_echo:
+                ppwcs_structure += 5
+                print(f"[PPWCS DEBUG] Fractal momentum echo: +5")
+        
+        # Substructure squeeze bonus
+        if signals.get("substructure_squeeze") is True:
+            ppwcs_quality += 4
+            print(f"[PPWCS DEBUG] Substructure squeeze quality: +4")
 
         # --- STAGE 1G: Breakout Detection (PPWCS v2.8) ---
         if signals.get("stage1g_active") is True:
