@@ -529,15 +529,26 @@ def detect_stage_minus2_1(symbol, price_usd=None):
             logger.error(f"❌ [detect_stage_minus2_1] Błąd w detect_orderbook_anomaly dla {symbol}: {e}")
             orderbook_anomaly = False
 
-        # Whale activity
+        # Enhanced Whale activity detection
         whale_activity = False
+        large_tx_count = 0
+        whale_total_usd = 0.0
+        
         if price_usd:
             whale_result = detect_whale_tx(symbol, price_usd=price_usd)
-            # detect_whale_tx zwraca tuple (bool, float)
-            if isinstance(whale_result, tuple) and len(whale_result) >= 1:
-                whale_activity = whale_result[0]
+            # detect_whale_tx now returns (whale_active, large_tx_count, total_usd)
+            if isinstance(whale_result, tuple) and len(whale_result) >= 3:
+                whale_activity, large_tx_count, whale_total_usd = whale_result
+                print(f"[WHALE INTEGRATION] {symbol}: active={whale_activity}, count={large_tx_count}, total=${whale_total_usd:,.0f}")
+                
+                # Enhanced whale scoring logic
+                if large_tx_count >= 3 and whale_total_usd > 150_000:
+                    print(f"[WHALE ENHANCED] {symbol}: Strong whale pattern detected")
+                    whale_activity = True
             else:
-                whale_activity = whale_result
+                # Backward compatibility for old format
+                whale_activity = bool(whale_result[0] if isinstance(whale_result, tuple) else whale_result)
+                print(f"[WHALE LEGACY] {symbol}: Using legacy detection result: {whale_activity}")
         else:
             print(f"⚠️ Brak ceny USD dla {symbol} (price_usd={price_usd}) – pomijam whale tx.")
 
@@ -632,6 +643,10 @@ def detect_stage_minus2_1(symbol, price_usd=None):
             "volume_slope_up": volume_slope_up,
             "pure_accumulation": whale_activity and inflow_usd > 0 and not social_spike_active,  # whale+DEX without social
             "inflow_usd": inflow_usd,
+            
+            # Enhanced Whale Data
+            "large_tx_count": large_tx_count,
+            "whale_total_usd": whale_total_usd,
             
             # Custom Detectors (PPWCS 2.6 Enhanced)
             "squeeze": False,

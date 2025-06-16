@@ -84,6 +84,15 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 16, 2025 - Enhanced Whale Detection & Real-time Transaction Analysis
+- **Enhanced whale detection system**: Updated `detect_whale_tx()` to analyze transaction patterns within 15-minute windows
+- **Multi-transaction analysis**: Detects minimum 3 transactions >$50k USD in last 15 minutes using UTC timestamps
+- **Detailed whale metrics**: Returns `(whale_active, large_tx_count, total_usd)` for comprehensive analysis
+- **Intensity-based scoring**: Enhanced PPWCS scoring - extreme activity (+20pts), strong activity (+16pts), standard (+12pts)
+- **Real-time blockchain integration**: Uses Etherscan/BSCScan/PolygonScan APIs for authentic transaction data
+- **Production-ready logging**: Comprehensive transaction tracking with timestamps and USD values
+- **Prevents signal loss**: Catches intensive whale accumulation sequences that single-transaction detection misses
+
 ### June 16, 2025 - PPWCS v2.8 Complete Implementation & 8 New Detectors
 - **PPWCS v2.8 system implemented**: Added 8 new advanced detectors achieving 125+ total score vs previous 70-90
 - **Whale Execution Pattern detector**: Detects dex_inflow → whale_tx → orderbook_anomaly sequence (+10pts structure)
