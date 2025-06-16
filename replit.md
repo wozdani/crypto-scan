@@ -90,6 +90,7 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Enhanced combo bonuses**: whale+dex: 8pts, volume+dex: 6pts, new combo_volume_inflow: 5pts for better reward of signal combinations
 - **Quality scoring added**: RSI_flatline now contributes 5pts to quality score instead of being ignored
 - **Compression requirements relaxed**: Changed from ≥2 signals to ≥1 signal for Stage -1 activation to prevent blocking valid pre-pumps
+- **Combo-based Stage -1 activation**: Added new logic detecting powerful signal combinations (whale+dex+compressed: 16pts, whale+volume+compressed: 15pts) that activate Stage -1 even without traditional structure
 - **Volume spike detection enhanced**: Now analyzes last 3 candles instead of just 1, checking each against previous 4 candles average
 - **RSI condition removed**: Eliminated 46-54 RSI requirement from detect_rsi_flatline() to prevent missing valid pre-pumps
 - **Pure accumulation logic fixed**: Now correctly uses social_spike_active instead of hardcoded False

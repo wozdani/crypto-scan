@@ -3,10 +3,56 @@ from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
 
+def calculate_stage_minus1_combo_score(signals):
+    """
+    Calculate Stage -1 combo score based on powerful signal combinations
+    Returns score for combo-based activation
+    """
+    score = 0
+
+    if signals.get("whale_activity") and signals.get("volume_spike") and signals.get("compressed"):
+        score += 15
+        print(f"[COMBO] Whale+Volume+Compressed: +15")
+
+    if signals.get("dex_inflow") and signals.get("compressed") and signals.get("RSI_flatline"):
+        score += 15
+        print(f"[COMBO] DEX+Compressed+RSI: +15")
+
+    if signals.get("orderbook_anomaly") and signals.get("spoofing") and signals.get("heatmap_exhaustion"):
+        score += 12
+        print(f"[COMBO] Orderbook+Spoofing+Heatmap: +12")
+
+    if signals.get("volume_spike") and signals.get("compressed") and signals.get("vwap_pinning"):
+        score += 12
+        print(f"[COMBO] Volume+Compressed+VWAP: +12")
+
+    if signals.get("whale_activity") and signals.get("dex_inflow") and signals.get("compressed"):
+        score += 16
+        print(f"[COMBO] Whale+DEX+Compressed: +16")
+
+    return score
+
+def check_stage_minus1_activation(signals, stage_2_1_active):
+    """
+    Check if Stage -1 should activate based on combo score
+    Returns True if combo score >= 12
+    """
+    combo_score = calculate_stage_minus1_combo_score(signals)
+    
+    print(f"[STAGE -1] Combo score: {combo_score}")
+    
+    if combo_score >= 12:
+        print(f"[STAGE -1] Combo-based activation. Score: {combo_score}")
+        return True
+
+    return False
+
 def detect_stage_minus1_compression(symbol, stage_minus2_1_signals):
     """
-    Stage -1: Compression Filter (PPWCS 2.6)
-    Aktywuje się gdy ≥2 sygnały z Stage -2.1 pojawiły się w tej samej godzinie
+    Stage -1: Compression Filter (PPWCS 2.6) - Enhanced with Combo-based Activation
+    Aktywuje się na podstawie:
+    1. Tradycyjnej logiki ≥1 sygnał z Stage -2.1
+    2. NOWEJ combo-based logiki dla mocnych kombinacji sygnałów
     
     Args:
         symbol: symbol tokena
@@ -16,7 +62,9 @@ def detect_stage_minus1_compression(symbol, stage_minus2_1_signals):
         bool: True jeśli kompresja aktywna
     """
     try:
-        # Policz aktywne sygnały z Stage -2.1
+        print(f"[DEBUG] {symbol} Stage -1 analysis START")
+        
+        # 1. TRADYCYJNA LOGIKA - policz aktywne sygnały z Stage -2.1
         active_signals = sum([
             stage_minus2_1_signals.get("whale_activity", False),
             stage_minus2_1_signals.get("dex_inflow", False),
@@ -29,22 +77,28 @@ def detect_stage_minus1_compression(symbol, stage_minus2_1_signals):
             stage_minus2_1_signals.get("social_spike", False),
         ])
         
-        # ZŁAGODZONE WARUNKI: kompresja aktywna gdy ≥1 sygnał (zamiast ≥2)
-        # lub specjalne kombinacje wysokiej wartości
-        compression_active = active_signals >= 1
+        traditional_active = active_signals >= 1
+        print(f"[DEBUG] {symbol} traditional compression - signals: {active_signals}, active: {traditional_active}")
         
-        # Bonus dla silnych kombinacji
-        strong_combo = (
-            (stage_minus2_1_signals.get("whale_activity", False) and stage_minus2_1_signals.get("dex_inflow", False)) or
-            (stage_minus2_1_signals.get("volume_spike", False) and stage_minus2_1_signals.get("orderbook_anomaly", False))
-        )
+        # 2. NOWA COMBO-BASED LOGIKA
+        combo_active = check_stage_minus1_activation(stage_minus2_1_signals, active_signals)
         
-        print(f"[DEBUG] {symbol} compression - signals: {active_signals}, strong_combo: {strong_combo}")
+        # Stage -1 aktywny jeśli którakolwiek metoda się powiedzie
+        compression_active = traditional_active or combo_active
         
+        activation_reason = []
+        if traditional_active:
+            activation_reason.append(f"traditional({active_signals} signals)")
+        if combo_active:
+            activation_reason.append("combo-based")
+            
         if compression_active:
-            logger.info(f"✅ Stage -1 kompresja aktywna dla {symbol}: {active_signals} sygnałów")
+            reason = " + ".join(activation_reason)
+            logger.info(f"✅ Stage -1 aktywny dla {symbol}: {reason}")
+            print(f"[STAGE -1] {symbol} ACTIVATED via {reason}")
         else:
-            logger.debug(f"🚫 Stage -1 kompresja nieaktywna dla {symbol}: tylko {active_signals} sygnałów")
+            logger.debug(f"🚫 Stage -1 nieaktywny dla {symbol}: {active_signals} signals, combo failed")
+            print(f"[STAGE -1] {symbol} NOT ACTIVATED")
             
         return compression_active
         
