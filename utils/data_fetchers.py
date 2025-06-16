@@ -274,8 +274,12 @@ def get_market_data(symbol):
     # FIX: Rozpakuj tuple jeśli taka została zwrócona
     if isinstance(data, tuple):
         print(f"⚠️ [get_market_data] Zwrócono tuple zamiast dict → {data}")
-        if len(data) > 1 and isinstance(data[1], dict):
-            data = data[1]
+        if len(data) > 1:
+            second_element = data[1]
+            if isinstance(second_element, dict):
+                data = second_element
+            else:
+                data = {}
         else:
             data = {}
 

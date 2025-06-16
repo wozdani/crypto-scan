@@ -74,17 +74,46 @@ def build_coingecko_cache():
                     symbol_groups[symbol] = []
                 symbol_groups[symbol].append(token)
 
+        # Mapowanie specjalne dla głównych kryptowalut
+        special_mappings = {
+            'BTC': 'bitcoin',
+            'ETH': 'ethereum', 
+            'USDT': 'tether',
+            'USDC': 'usd-coin',
+            'BNB': 'binancecoin',
+            'XRP': 'ripple',
+            'ADA': 'cardano',
+            'SOL': 'solana',
+            'DOGE': 'dogecoin',
+            'MATIC': 'matic-network',
+            'AVAX': 'avalanche-2',
+            'TRX': 'tron',
+            'DOT': 'polkadot',
+            'UNI': 'uniswap',
+            'LINK': 'chainlink',
+            'LTC': 'litecoin'
+        }
+        
         # Przetwarzaj każdy symbol z inteligentnym wyborem najlepszego tokena
         for symbol, candidates in symbol_groups.items():
             best_candidate = None
             symbol_lower = symbol.lower()
             
-            # 1. Preferuj tokeny z dokładnym dopasowaniem ID do symbolu (np. BTC -> bitcoin)
-            for candidate in candidates:
-                candidate_id = candidate['id'].lower()
-                if candidate_id == symbol_lower:
-                    best_candidate = candidate
-                    break
+            # 1. Sprawdź specjalne mapowania dla głównych kryptowalut
+            if symbol in special_mappings:
+                target_id = special_mappings[symbol]
+                for candidate in candidates:
+                    if candidate['id'] == target_id:
+                        best_candidate = candidate
+                        break
+            
+            # 2. Preferuj tokeny z dokładnym dopasowaniem ID do symbolu
+            if not best_candidate:
+                for candidate in candidates:
+                    candidate_id = candidate['id'].lower()
+                    if candidate_id == symbol_lower:
+                        best_candidate = candidate
+                        break
             
             # 2. Preferuj tokeny gdzie nazwa == symbol (np. MAGIC -> "Magic")
             if not best_candidate:
