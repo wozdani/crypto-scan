@@ -286,6 +286,11 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int
             ppwcs_structure += 5
             print(f"[PPWCS DEBUG] Combo volume+inflow: +5")
 
+        # --- STEALTH INFLOW DETECTION (+5) ---
+        if signals.get("stealth_inflow") is True:
+            ppwcs_structure += 5
+            print(f"[PPWCS DEBUG] Stealth inflow detected: +5")
+
         # --- PPWCS v2.8 NEW DETECTORS ---
         # 1. Whale Execution Pattern (+10)
         if signals.get("whale_sequence") is True:

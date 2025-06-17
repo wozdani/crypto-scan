@@ -393,6 +393,37 @@ def get_token_transfers(address, chain):
         print(f"❌ Error getting token transfers for {address} on {chain}: {e}")
         return []
 
+def detect_stealth_inflow(symbol, whale_activity, volume_spike, compressed, dex_inflow_detected):
+    """
+    Stealth Inflow Detector - wykrywa ukryty inflow gdy brak klasycznego DEX inflow
+    
+    Args:
+        symbol: symbol tokena
+        whale_activity: czy wykryto aktywność wielorybów
+        volume_spike: czy wykryto skok wolumenu
+        compressed: czy wykryto kompresję
+        dex_inflow_detected: czy wykryto klasyczny DEX inflow
+    
+    Returns:
+        tuple: (stealth_inflow_active, inflow_strength)
+    """
+    try:
+        # Stealth inflow wykrywany tylko gdy brak klasycznego DEX inflow
+        if not dex_inflow_detected:
+            # Warunki stealth inflow: whale_activity + (volume_spike OR compressed)
+            if whale_activity and (volume_spike or compressed):
+                print(f"🕵️ Stealth inflow wykryty dla {symbol}: whale + {'volume' if volume_spike else 'compressed'}")
+                return True, "stealth"
+            else:
+                return False, "none"
+        else:
+            # Gdy jest klasyczny DEX inflow, nie oznaczamy jako stealth
+            return False, "dex_confirmed"
+            
+    except Exception as e:
+        print(f"❌ Błąd w detect_stealth_inflow dla {symbol}: {e}")
+        return False, "error"
+
 def detect_social_spike(symbol):
     """Detect social media activity spike"""
     print("RUNNING: detect_social_spike")
@@ -681,6 +712,12 @@ def detect_stage_minus2_1(symbol, price_usd=None):
 
         # DEX inflow
         inflow_usd = detect_dex_inflow_anomaly(symbol, price_usd=price_usd)
+        dex_inflow_detected = inflow_usd > 0
+        
+        # Stealth inflow detection
+        stealth_inflow_active, inflow_strength = detect_stealth_inflow(
+            symbol, whale_activity, volume_spike_active, compressed, dex_inflow_detected
+        )
         
         # Social spike detection
         social_spike_active = detect_social_spike(symbol)
@@ -758,6 +795,10 @@ def detect_stage_minus2_1(symbol, price_usd=None):
             "heatmap_exhaustion": heatmap_exhaustion,
             "cluster_slope": volume_slope_up,
             "social_spike": social_spike_active,
+            
+            # Stealth Inflow Detection
+            "stealth_inflow": stealth_inflow_active,
+            "inflow_strength": inflow_strength,
             
             # Stage Processing
             "event_tag": event_tag,
