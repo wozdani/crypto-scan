@@ -1,409 +1,221 @@
-import json
+"""
+PPWCS v3.0: Hard Signal Detection & Checklist Scoring System
+Separated scoring layers for maximum precision
+"""
+
 import os
-from datetime import datetime, timedelta, timezone
+import json
+import logging
+from typing import Dict, Any, Tuple, List
 
-def score_stage_minus2_1(data):
-    """
-    Stage -2.1 scoring based on detector count and combinations
-    PPWCS 2.6 implementation - FIXED LOGIC
-    """
-    # Poprawiona logika: tylko explicit True counts + compressed jako aktywny detektor
-    detectors = [
-        "whale_activity", "dex_inflow", "orderbook_anomaly", 
-        "volume_spike", "vwap_pinning", "spoofing", 
-        "cluster_slope", "heatmap_exhaustion", "social_spike",
-        "compressed"  # DODANE: compressed jako pełnoprawny detektor Stage -2.1
-    ]
-    
-    active_detectors = []
-    for detector in detectors:
-        value = data.get(detector, False)
-        if value is True:  # Strict True check
-            active_detectors.append(detector)
-    
-    count = len(active_detectors)
-    print(f"[SCORING DEBUG] Stage -2.1 active detectors: {active_detectors} (count: {count})")
-
-    # NOWE WAGI - znacznie wyższe dla silnych sygnałów
-    score = 0
-    
-    # Individual signal scores - PPWCS v2.8
-    if data.get("whale_activity") is True:
-        score += 18
-        print(f"[SCORING DEBUG] Whale activity: +18")
-    if data.get("volume_spike") is True:
-        score += 16
-        print(f"[SCORING DEBUG] Volume spike: +16")
-    if data.get("orderbook_anomaly") is True:
-        score += 12
-        print(f"[SCORING DEBUG] Orderbook anomaly: +12")
-    if data.get("dex_inflow") is True:
-        score += 12
-        print(f"[SCORING DEBUG] DEX inflow: +12")
-    if data.get("spoofing") is True:
-        score += 10
-        print(f"[SCORING DEBUG] Spoofing: +10")
-    if data.get("compressed") is True:
-        score += 10
-        print(f"[SCORING DEBUG] Compressed: +10")
-    if data.get("vwap_pinning") is True:
-        score += 8
-        print(f"[SCORING DEBUG] VWAP pinning: +8")
-    if data.get("cluster_slope") is True:
-        score += 8
-        print(f"[SCORING DEBUG] Cluster slope: +8")
-    if data.get("social_spike") is True:
-        score += 6
-        print(f"[SCORING DEBUG] Social spike: +6")
-    if data.get("heatmap_exhaustion") is True:
-        score += 8
-        print(f"[SCORING DEBUG] Heatmap exhaustion: +8")
-
-    # PPWCS v2.8 - New detectors scoring
-    if data.get("whale_sequence") is True:
-        score += 10
-        print(f"[SCORING DEBUG] Whale execution pattern: +10")
-    if data.get("gas_pressure") is True:
-        score += 5
-        print(f"[SCORING DEBUG] Blockspace friction: +5")
-    if data.get("dominant_accumulation") is True:
-        score += 8
-        print(f"[SCORING DEBUG] Whale dominance ratio: +8")
-    if data.get("sector_clustering") is True:
-        score += 10
-        print(f"[SCORING DEBUG] Time clustering: +10")
-    if data.get("execution_intent") is True:
-        score += 5
-        print(f"[SCORING DEBUG] Execution intent: +5")
-    
-    # Pre-Pump 1.0 Advanced Detectors
-    if data.get("fractal_momentum_echo") is True:
-        score += 5
-        print(f"[SCORING DEBUG] Fractal momentum echo: +5")
-    if data.get("substructure_squeeze") is True:
-        score += 4
-        print(f"[SCORING DEBUG] Substructure squeeze: +4")
-
-    # COMBO BONUSY - jeszcze wyższe
-    if data.get("whale_activity") is True and data.get("dex_inflow") is True:
-        score += 8
-        print(f"[SCORING DEBUG] Whale+DEX combo: +8")
-    if data.get("volume_spike") is True and data.get("dex_inflow") is True:
-        score += 6
-        print(f"[SCORING DEBUG] Volume+DEX combo: +6")
-    if data.get("volume_spike") is True and data.get("spoofing") is True:
-        score += 6
-        print(f"[SCORING DEBUG] Volume+Spoofing combo: +6")
-    if data.get("vwap_pinning") is True and data.get("orderbook_anomaly") is True:
-        score += 5
-        print(f"[SCORING DEBUG] VWAP+Orderbook combo: +5")
-
-    return score
-
-def score_stage_1g(data):
-    """
-    Stage 1g quality filter scoring
-    PPWCS 2.6 implementation - FIXED LOGIC
-    """
-    score = 0
-    if data.get("squeeze") is True:
-        score += 6
-        print(f"[SCORING DEBUG] Stage 1g squeeze: +6")
-    if data.get("stealth_acc") is True:
-        score += 6
-        print(f"[SCORING DEBUG] Stage 1g stealth_acc: +6")
-    if data.get("fake_reject") is True:
-        score += 10
-        print(f"[SCORING DEBUG] Stage 1g fake_reject: +10")
-    if data.get("vwap_pinning") is True:
-        score += 3
-        print(f"[SCORING DEBUG] Stage 1g vwap_pinning: +3")
-    if data.get("liquidity_box") is True:
-        score += 3
-        print(f"[SCORING DEBUG] Stage 1g liquidity_box: +3")
-    if data.get("RSI_flatline") is True and data.get("inflow") is True:
-        score += 6
-        print(f"[SCORING DEBUG] Stage 1g RSI_flatline+inflow: +6")
-    if data.get("fractal_echo") is True:
-        score += 2
-        print(f"[SCORING DEBUG] Stage 1g fractal_echo: +2")
-    
-    # PPWCS v2.8 - New Stage 1g detectors
-    if data.get("dex_divergence") is True:
-        score += 6
-        print(f"[SCORING DEBUG] Stage 1g dex_divergence: +6")
-    if data.get("heatmap_trap") is True:
-        score += 8
-        print(f"[SCORING DEBUG] Stage 1g heatmap_trap: +8")
-    
-    return score
-
-def detect_fractal_momentum_echo(symbol, data, signals):
-    """
-    Fractal Momentum Echo Detector - Pre-Pump 1.0 Integration
-    Wykrycie podobieństw do poprzednich pump danego tokena (RSI, świeczki, wolumen)
-    """
-    try:
-        if not data or len(data) < 20:
-            return False
-            
-        # Pobierz ostatnie 5 świec dla analizy
-        recent_candles = data[-5:] if len(data) >= 5 else data
-        
-        if len(recent_candles) < 5:
-            return False
-            
-        # Oblicz obecny RSI
-        closes = [float(candle.get('close', 0)) for candle in recent_candles]
-        if len(closes) < 5:
-            return False
-            
-        gains = []
-        losses = []
-        for i in range(1, len(closes)):
-            change = closes[i] - closes[i-1]
-            if change > 0:
-                gains.append(change)
-                losses.append(0)
-            else:
-                gains.append(0)
-                losses.append(abs(change))
-        
-        avg_gain = sum(gains) / len(gains) if gains else 0
-        avg_loss = sum(losses) / len(losses) if losses else 0.0001
-        
-        rs = avg_gain / avg_loss
-        current_rsi = 100 - (100 / (1 + rs))
-        
-        # Sprawdź strukturę świec (long wicks, quick rise)
-        last_candle = recent_candles[-1]
-        open_price = float(last_candle.get('open', 0))
-        close_price = float(last_candle.get('close', 0))
-        high_price = float(last_candle.get('high', 0))
-        low_price = float(last_candle.get('low', 0))
-        
-        if open_price <= 0 or close_price <= 0 or high_price <= 0 or low_price <= 0:
-            return False
-            
-        # Analiza struktury świecy
-        body_size = abs(close_price - open_price)
-        upper_wick = high_price - max(open_price, close_price)
-        lower_wick = min(open_price, close_price) - low_price
-        candle_range = high_price - low_price
-        
-        if candle_range <= 0:
-            return False
-            
-        # Warunki fractal echo
-        conditions = [
-            # RSI w zakresie breakout (50-70)
-            50 <= current_rsi <= 70,
-            
-            # Świeca ma długi knot górny (momentum test)
-            upper_wick > 0.3 * candle_range,
-            
-            # Volume spike present
-            signals.get("volume_spike") is True,
-            
-            # Wzrostowa świeca
-            close_price > open_price,
-            
-            # Znaczący body (nie doji)
-            body_size > 0.4 * candle_range
-        ]
-        
-        if sum(conditions) >= 4:  # Co najmniej 4 z 5 warunków
-            print(f"[FRACTAL ECHO] Momentum echo detected for {symbol}: RSI={current_rsi:.1f}")
-            return True
-            
-        return False
-        
-    except Exception as e:
-        print(f"[FRACTAL ECHO] Error for {symbol}: {e}")
-        return False
+logger = logging.getLogger(__name__)
 
 def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int]:
     """
-    PPWCS 2.6: Pre-Pump Weighted Composite Score (0-100 points)
-    Enhanced multi-stage analysis with new scoring algorithms
+    PPWCS v3.0: Hard Signal Detection Only (0-70 points max)
+    Simplified scoring for core hard detectors only
+    
+    Args:
+        signals: Dictionary containing all detected signals
+        previous_score: Previous score for trailing logic (unused in v3.0)
+        
+    Returns:
+        tuple: (total_score, structure_score, quality_score)
     """
     if not isinstance(signals, dict):
         print(f"⚠️ signals nie jest dict: {signals}")
         return 0, 0, 0
 
     try:
-        # Debug INPUT SIGNALS and active detectors - FIXED LOGIC
-        print(f"[PPWCS DEBUG] INPUT SIGNALS: {signals}")
+        print(f"[PPWCS v3.0] === HARD SIGNALS ONLY ===")
         
-        # Poprawiona logika: tylko explicit True, nie False/None/0.0/""
-        active = []
-        for k, v in signals.items():
-            print(f"[PPWCS DEBUG] Signal {k} = {v} (type: {type(v)})")
-            if v is True:  # Strict True check
-                active.append(k)
+        ppwcs_score = 0
         
-        print(f"[PPWCS DEBUG] Active detectors (corrected): {active}")
-        
-        ppwcs_structure = 0  # Stage -2.1, compressed, news, pure accumulation
-        ppwcs_quality = 0    # Stage 1g
-
-        # --- STAGE -2.1: Micro-anomaly Detection (New Algorithm) ---
-        stage_minus2_1_score = score_stage_minus2_1(signals)
-        print(f"[PPWCS DEBUG] Stage -2.1 score: {stage_minus2_1_score}")
-        ppwcs_structure += stage_minus2_1_score
-
-        # --- STAGE -2.2: News/Tag Analysis (Updated Tags) ---
-        tag = signals.get("event_tag")
-        tag_scores = {
-            "listing": 10, 
-            "partnership": 10, 
-            "presale": 5, 
-            "cex_listed": 5, 
-            "airdrop": 0,  # pomocniczy do Stage 1g
-            "mint": 0,     # neutralne
-            "burn": 0,     # neutralne  
-            "lock": 0,     # neutralne
-            "exploit": -15, # blokujące
-            "rug": -15,    # blokujące
-            "delisting": -15, # blokujące
-            "drama": -10,
-            "unlock": -10
+        # Hard Detectors (+10 points each, max 70 points)
+        hard_detectors = {
+            "whale_activity": 10,     # Whale transactions detected
+            "dex_inflow": 10,         # DEX inflow anomaly
+            "volume_spike": 10,       # Volume spike detected
+            "compressed": 10,         # Stage -1 compression
+            "stage1g_active": 10      # Stage 1G breakout active
         }
-
-        if tag and isinstance(tag, str):
-            tag_lower = tag.lower()
-            if tag_lower in tag_scores:
-                tag_score = tag_scores[tag_lower]
-                print(f"[PPWCS DEBUG] Event tag: {tag} → {tag_score}")
-                ppwcs_structure += tag_score
-                
-                # Blokujące tagi - zwróć bardzo niski score
-                if tag_score <= -15:
-                    return max(0, ppwcs_structure), 0, 0
-
-        # --- COMBO VOLUME INFLOW BONUS ---
-        if signals.get("combo_volume_inflow") is True:
-            ppwcs_structure += 5
-            print(f"[PPWCS DEBUG] Combo volume+inflow: +5")
-
-        # --- STEALTH INFLOW DETECTION (+5) ---
-        if signals.get("stealth_inflow") is True:
-            ppwcs_structure += 5
-            print(f"[PPWCS DEBUG] Stealth inflow detected: +5")
-
-        # --- PPWCS v2.8 NEW DETECTORS ---
-        # 1. Whale Execution Pattern (+10)
-        if signals.get("whale_sequence") is True:
-            ppwcs_structure += 10
-            print(f"[PPWCS DEBUG] Whale execution pattern: +10")
-
-        # 2. Blockspace Friction (+5)
-        if signals.get("gas_pressure") is True:
-            ppwcs_structure += 5
-            print(f"[PPWCS DEBUG] Gas pressure/blockspace friction: +5")
-
-        # 3. Whale Dominance Ratio (+5)
-        if signals.get("dominant_accumulation") is True:
-            ppwcs_structure += 5
-            print(f"[PPWCS DEBUG] Dominant accumulation: +5")
-
-        # 4. Execution Intent (+5)
-        if signals.get("execution_intent") is True:
-            ppwcs_structure += 5
-            print(f"[PPWCS DEBUG] Execution intent: +5")
-
-        # 5. Time Clustering (+10)
-        if signals.get("sector_clustering") is True:
-            ppwcs_structure += 10
-            print(f"[PPWCS DEBUG] Sector clustering: +10")
-
-        # --- STAGE -1: Compression Filter ---
-        # USUNIĘTE: compressed już liczony w Stage -2.1 jako pełnoprawny detektor
-        # Nie dodajemy duplikatu bonusu
-
-        # --- Pure Accumulation Bonus ---
-        # --- PURE ACCUMULATION DETECTION & BONUS ---
-        pure_accumulation = (signals.get("whale_activity") is True and 
-                           signals.get("dex_inflow") is True and 
-                           signals.get("social_spike") is not True)
         
-        if pure_accumulation:
-            ppwcs_structure += 5
-            signals["pure_accumulation"] = True  # Set flag for lowered alert threshold
-            print(f"[PPWCS DEBUG] Pure accumulation detected: +5 bonus, lowered alert threshold enabled")
-
-        # --- RSI FLATLINE QUALITY BONUS ---
-        if signals.get("RSI_flatline") is True:
-            ppwcs_quality += 7
-            print(f"[PPWCS DEBUG] RSI flatline quality: +7")
+        for detector, points in hard_detectors.items():
+            if signals.get(detector) is True:
+                ppwcs_score += points
+                print(f"[PPWCS v3.0] ✅ {detector}: +{points}")
+            else:
+                print(f"[PPWCS v3.0] ❌ {detector}: not active")
         
-        # --- PRE-PUMP 1.0 ADVANCED DETECTORS ---
-        # Detect fractal momentum echo if market data available
-        if "market_data" in signals:
-            fractal_echo = detect_fractal_momentum_echo(
-                signals.get("symbol", "UNKNOWN"), 
-                signals.get("market_data"), 
-                signals
-            )
-            if fractal_echo:
-                ppwcs_structure += 5
-                print(f"[PPWCS DEBUG] Fractal momentum echo: +5")
+        # Event Tags (positive +10, negative -15)
+        event_tag = signals.get("event_tag")
+        if event_tag and isinstance(event_tag, str):
+            tag_lower = event_tag.lower()
+            if tag_lower in ["listing", "partnership"]:
+                ppwcs_score += 10
+                print(f"[PPWCS v3.0] ✅ Positive event tag ({tag_lower}): +10")
+            elif tag_lower in ["exploit", "unlock", "rug", "delisting"]:
+                penalty = -15
+                ppwcs_score += penalty
+                print(f"[PPWCS v3.0] ❌ Risk tag ({tag_lower}): {penalty}")
+                # Ensure score doesn't go below 0
+                if ppwcs_score < 0:
+                    ppwcs_score = 0
         
-        # Substructure squeeze bonus
-        if signals.get("substructure_squeeze") is True:
-            ppwcs_quality += 4
-            print(f"[PPWCS DEBUG] Substructure squeeze quality: +4")
-
-        # --- STAGE 1G: Breakout Detection (PPWCS v2.8) ---
-        if signals.get("stage1g_active") is True:
-            stage1g_score = score_stage_1g(signals)
-            ppwcs_quality += stage1g_score
-            print(f"[PPWCS DEBUG] Stage 1g score: {stage1g_score}")
-
-        # PPWCS v2.8 Stage 1g Quality Detectors
-        # 6. DEX Pool Divergence (+8)
-        if signals.get("dex_divergence") is True:
-            ppwcs_quality += 8
-            print(f"[PPWCS DEBUG] DEX pool divergence: +8")
-
-        # 7. Fake Reject/Pre-Shakeout (+6)
-        if signals.get("fake_reject") is True:
-            ppwcs_quality += 6
-            print(f"[PPWCS DEBUG] Fake reject pattern: +6")
-
-        # 8. Heatmap Liquidity Trap (+8)
-        if signals.get("heatmap_trap") is True:
-            ppwcs_quality += 8
-            print(f"[PPWCS DEBUG] Heatmap liquidity trap: +8")
-
-        final_score = ppwcs_structure + ppwcs_quality
-        print(f"[PPWCS DEBUG] Final: structure={ppwcs_structure}, quality={ppwcs_quality}, total={final_score}")
+        final_score = max(0, ppwcs_score)
+        print(f"[PPWCS v3.0] Final hard signals score: {final_score}/70")
         
-        return max(0, final_score), max(0, ppwcs_structure), max(0, ppwcs_quality)
+        return final_score, final_score, 0
         
     except Exception as e:
-        print(f"❌ Error computing PPWCS: {e}")
+        print(f"❌ Error computing PPWCS v3.0: {e}")
         return 0, 0, 0
 
-def get_previous_score(symbol):
+def compute_checklist_score_simplified(signals: dict) -> tuple[int, list[str]]:
     """
-    Get the previous PPWCS score for trailing logic
+    Simplified checklist scoring for soft signals (+5 each)
+    
+    Args:
+        signals: Dictionary containing all detected signals
+        
+    Returns:
+        tuple: (checklist_score, fulfilled_conditions_list)
     """
     try:
-        # Try to get from recent scores file
+        print(f"[CHECKLIST] === SOFT SIGNALS EVALUATION ===")
+        
+        fulfilled_conditions = []
+        checklist_score = 0
+        
+        # Soft Signal Checklist (+5 points each)
+        soft_signals = {
+            # Technical indicators
+            "RSI_flatline": "RSI flatline (45-55)",
+            "vwap_pinning": "VWAP pinning",
+            "fake_reject": "Fake reject pattern",
+            
+            # Smart money behavior (secondary)
+            "spoofing": "Spoofing detected",
+            "stealth_inflow": "Stealth inflow",
+            "orderbook_anomaly": "Orderbook anomaly",
+            
+            # Microstructure patterns
+            "fractal_momentum_echo": "Fractal momentum echo",
+            "substructure_squeeze": "Substructure squeeze",
+            "liquidity_box": "Liquidity box pattern",
+            
+            # Context signals
+            "time_clustering": "Time clustering",
+            "sector_clustering": "Sector clustering", 
+            "whale_sequence": "Whale execution pattern",
+            "gas_pressure": "Gas pressure/blockspace friction",
+            "execution_intent": "Execution intent confirmed",
+            "dex_divergence": "DEX pool divergence",
+            "heatmap_trap": "Heatmap liquidity trap",
+            
+            # Quality filters
+            "pure_accumulation": "Pure accumulation (no social hype)",
+            "no_social_spike": "No social media hype",
+        }
+        
+        # Evaluate each soft signal
+        for signal_key, description in soft_signals.items():
+            if signals.get(signal_key) is True:
+                fulfilled_conditions.append(signal_key)
+                checklist_score += 5
+                print(f"[CHECKLIST] ✅ {description}: +5")
+            else:
+                print(f"[CHECKLIST] ❌ {description}: not detected")
+        
+        # Special logic for "no social spike" (inverted)
+        if signals.get("social_spike") is False or signals.get("social_spike") is None:
+            if "no_social_spike" not in fulfilled_conditions:
+                fulfilled_conditions.append("no_social_spike")
+                checklist_score += 5
+                print(f"[CHECKLIST] ✅ No social media hype: +5")
+        
+        print(f"[CHECKLIST] Total checklist score: {checklist_score}/90")
+        print(f"[CHECKLIST] Fulfilled conditions: {len(fulfilled_conditions)}/18")
+        
+        return checklist_score, fulfilled_conditions
+        
+    except Exception as e:
+        print(f"❌ Error computing checklist score: {e}")
+        return 0, []
+
+def compute_combined_scores(signals: dict) -> dict:
+    """
+    Compute both PPWCS and checklist scores with combined analysis
+    
+    Args:
+        signals: Dictionary containing all detected signals
+        
+    Returns:
+        dict: Combined scoring results
+    """
+    try:
+        # Compute PPWCS (hard signals)
+        ppwcs_score, ppwcs_structure, ppwcs_quality = compute_ppwcs(signals)
+        
+        # Compute checklist (soft signals)  
+        checklist_score, checklist_summary = compute_checklist_score_simplified(signals)
+        
+        # Combined analysis
+        total_combined = ppwcs_score + checklist_score
+        hard_signal_count = sum([1 for k in ["whale_activity", "dex_inflow", "volume_spike", "compressed", "stage1g_active"] 
+                                if signals.get(k) is True])
+        soft_signal_count = len(checklist_summary)
+        
+        print(f"[COMBINED ANALYSIS] PPWCS: {ppwcs_score}/70, Checklist: {checklist_score}/90")
+        print(f"[COMBINED ANALYSIS] Total: {total_combined}/160, Hard: {hard_signal_count}/5, Soft: {soft_signal_count}/18")
+        
+        return {
+            "ppwcs": ppwcs_score,
+            "checklist_score": checklist_score, 
+            "checklist_summary": checklist_summary,
+            "total_combined": total_combined,
+            "hard_signal_count": hard_signal_count,
+            "soft_signal_count": soft_signal_count,
+            "ppwcs_structure": ppwcs_structure,
+            "ppwcs_quality": ppwcs_quality
+        }
+        
+    except Exception as e:
+        print(f"❌ Error in combined scoring: {e}")
+        return {
+            "ppwcs": 0,
+            "checklist_score": 0,
+            "checklist_summary": [],
+            "total_combined": 0,
+            "hard_signal_count": 0,
+            "soft_signal_count": 0,
+            "ppwcs_structure": 0,
+            "ppwcs_quality": 0
+        }
+
+# Legacy function aliases for compatibility
+def score_stage_minus2_1(signals):
+    """Legacy compatibility function"""
+    return 0
+
+def score_stage_1g(signals):
+    """Legacy compatibility function"""
+    return 0
+
+def get_previous_score(symbol):
+    """Get the previous PPWCS score for trailing logic"""
+    try:
         scores_file = os.path.join("data", "ppwcs_scores.json")
         if os.path.exists(scores_file):
             with open(scores_file, "r") as f:
                 scores = json.load(f)
                 return scores.get(symbol, 0)
         return 0
-    except Exception as e:
+    except Exception:
         return 0
 
 def save_score(symbol, score):
-    """
-    Save current PPWCS score for future trailing logic
-    """
+    """Save current PPWCS score for future trailing logic"""
     try:
         scores_file = os.path.join("data", "ppwcs_scores.json")
         scores = {}
@@ -414,7 +226,6 @@ def save_score(symbol, score):
         
         scores[symbol] = score
         
-        # Ensure data directory exists
         os.makedirs(os.path.dirname(scores_file), exist_ok=True)
         
         with open(scores_file, "w") as f:
@@ -424,213 +235,73 @@ def save_score(symbol, score):
         print(f"Error saving score for {symbol}: {e}")
 
 def should_alert(symbol, score):
-    """
-    Determine if an alert should be sent based on score and recent alert history
-    """
-    try:
-        # Minimum score threshold
-        if score < 60:
-            return False
-            
-        # Check recent alerts to avoid spam
-        recent_alerts = get_recent_alerts(symbol, hours=4)
-        
-        # If there was a recent alert with similar or higher score, don't alert again
-        for alert in recent_alerts:
-            if alert.get('score', 0) >= score - 10:  # 10 point tolerance
-                return False
-                
-        # If score is very high (90+), always alert regardless of recent history
-        if score >= 90:
-            return True
-            
-        # For scores 80-89, allow alerts every 2 hours
-        if score >= 80:
-            recent_high_alerts = get_recent_alerts(symbol, hours=2)
-            return len(recent_high_alerts) == 0
-            
-        # For scores 70-79, allow alerts every 4 hours
-        if score >= 70:
-            return len(recent_alerts) == 0
-            
-        # For scores 60-69, allow alerts every 8 hours
-        recent_medium_alerts = get_recent_alerts(symbol, hours=8)
-        return len(recent_medium_alerts) == 0
-        
-    except Exception as e:
-        print(f"❌ Error checking alert conditions for {symbol}: {e}")
-        return False
+    """Determine if an alert should be sent based on score"""
+    return score >= 70  # Simplified threshold for v3.0
 
-def apply_alert_decay(symbol, score):
-    """
-    Apply time-based decay to reduce score for symbols that have been alerting frequently
-    """
+def log_ppwcs_score(symbol, score, signals):
+    """Log PPWCS score for analysis"""
     try:
-        recent_alerts = get_recent_alerts(symbol, hours=24)
-        
-        if len(recent_alerts) == 0:
-            return score
-            
-        # Calculate decay factor based on alert frequency
-        decay_factor = min(len(recent_alerts) * 0.05, 0.3)  # Max 30% decay
-        decayed_score = score * (1 - decay_factor)
-        
-        return max(decayed_score, score * 0.7)  # Minimum 70% of original score
-        
-    except Exception as e:
-        print(f"❌ Error applying alert decay for {symbol}: {e}")
-        return score
-
-def get_recent_alerts(symbol, hours=4):
-    """
-    Get recent alerts for a symbol within specified hours
-    """
-    try:
-        alerts_file = "data/alerts/alerts_history.json"
-        if not os.path.exists(alerts_file):
-            return []
-            
-        with open(alerts_file, 'r') as f:
-            alerts = json.load(f)
-            
-        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
-        
-        recent_alerts = []
-        for alert in alerts:
-            try:
-                alert_time = datetime.fromisoformat(alert.get('timestamp', ''))
-                if alert_time > cutoff_time and symbol in alert.get('message', ''):
-                    # Extract score from message if possible
-                    message = alert.get('message', '')
-                    if 'PPWCS:' in message:
-                        score_part = message.split('PPWCS:')[1].split()[0]
-                        try:
-                            alert['score'] = float(score_part)
-                        except:
-                            alert['score'] = 0
-                    recent_alerts.append(alert)
-            except:
-                continue
-                
-        return recent_alerts
-        
-    except Exception as e:
-        print(f"❌ Error getting recent alerts for {symbol}: {e}")
-        return []
-
-def log_ppwcs_score(symbol, score):
-    """
-    Log PPWCS score to file for tracking and analysis
-    """
-    try:
-        score_entry = {
-            'symbol': symbol,
-            'score': score,
-            'timestamp': datetime.now(timezone.utc).isoformat()
+        log_file = os.path.join("data", "ppwcs_log.json")
+        log_entry = {
+            "symbol": symbol,
+            "score": score,
+            "timestamp": json.dumps(None, default=str),
+            "signals": len([k for k, v in signals.items() if v is True])
         }
         
-        # Ensure scores directory exists
-        os.makedirs("data/scores", exist_ok=True)
+        logs = []
+        if os.path.exists(log_file):
+            with open(log_file, "r") as f:
+                logs = json.load(f)
         
-        # Load existing scores or create new list
-        scores_file = "data/scores/ppwcs_scores.json"
-        if os.path.exists(scores_file):
-            with open(scores_file, 'r') as f:
-                scores = json.load(f)
-        else:
-            scores = []
-            
-        scores.append(score_entry)
+        logs.append(log_entry)
         
-        # Keep only last 10000 scores
-        if len(scores) > 10000:
-            scores = scores[-10000:]
-            
-        with open(scores_file, 'w') as f:
-            json.dump(scores, f, indent=2)
+        # Keep only last 1000 entries
+        if len(logs) > 1000:
+            logs = logs[-1000:]
+        
+        os.makedirs(os.path.dirname(log_file), exist_ok=True)
+        with open(log_file, "w") as f:
+            json.dump(logs, f, indent=2)
             
     except Exception as e:
-        print(f"❌ Error logging PPWCS score for {symbol}: {e}")
+        print(f"Error logging PPWCS score: {e}")
 
-def get_symbol_stats(symbol, days=7):
-    """
-    Get statistics for a symbol over specified days
-    """
+def get_top_performers(hours=24, limit=10):
+    """Get top performing symbols by PPWCS score"""
     try:
-        scores_file = "data/scores/ppwcs_scores.json"
-        if not os.path.exists(scores_file):
-            return None
-            
-        with open(scores_file, 'r') as f:
-            scores = json.load(f)
-            
-        cutoff_time = datetime.now(timezone.utc) - timedelta(days=days)
-        
-        symbol_scores = []
-        for entry in scores:
-            try:
-                entry_time = datetime.fromisoformat(entry.get('timestamp', ''))
-                if entry_time > cutoff_time and entry.get('symbol') == symbol:
-                    symbol_scores.append(entry.get('score', 0))
-            except:
-                continue
-                
-        if not symbol_scores:
-            return None
-            
-        return {
-            'symbol': symbol,
-            'count': len(symbol_scores),
-            'avg_score': sum(symbol_scores) / len(symbol_scores),
-            'max_score': max(symbol_scores),
-            'min_score': min(symbol_scores),
-            'latest_score': symbol_scores[-1] if symbol_scores else 0
-        }
-        
-    except Exception as e:
-        print(f"❌ Error getting stats for {symbol}: {e}")
-        return None
-
-def get_top_performers(limit=10, hours=24):
-    """
-    Get top performing symbols by PPWCS score in recent hours
-    """
-    try:
-        scores_file = "data/scores/ppwcs_scores.json"
+        scores_file = os.path.join("data", "ppwcs_scores.json")
         if not os.path.exists(scores_file):
             return []
             
-        with open(scores_file, 'r') as f:
+        with open(scores_file, "r") as f:
             scores = json.load(f)
-            
-        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
         
-        # Group by symbol and get max score
-        symbol_max_scores = {}
-        for entry in scores:
-            try:
-                entry_time = datetime.fromisoformat(entry.get('timestamp', ''))
-                if entry_time > cutoff_time:
-                    symbol = entry.get('symbol')
-                    score = entry.get('score', 0)
-                    if symbol not in symbol_max_scores or score > symbol_max_scores[symbol]['score']:
-                        symbol_max_scores[symbol] = {
-                            'symbol': symbol,
-                            'score': score,
-                            'timestamp': entry.get('timestamp')
-                        }
-            except:
-                continue
-                
         # Sort by score and return top performers
-        top_performers = sorted(
-            symbol_max_scores.values(), 
-            key=lambda x: x['score'], 
-            reverse=True
-        )
-        
-        return top_performers[:limit]
+        sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        return [{"symbol": symbol, "score": score} for symbol, score in sorted_scores[:limit]]
         
     except Exception as e:
-        print(f"❌ Error getting top performers: {e}")
+        print(f"Error getting top performers: {e}")
         return []
+
+def get_symbol_stats(symbol):
+    """Get statistics for a specific symbol"""
+    try:
+        scores_file = os.path.join("data", "ppwcs_scores.json")
+        if not os.path.exists(scores_file):
+            return {"symbol": symbol, "score": 0, "alerts": 0}
+            
+        with open(scores_file, "r") as f:
+            scores = json.load(f)
+        
+        score = scores.get(symbol, 0)
+        return {
+            "symbol": symbol,
+            "score": score,
+            "alerts": 1 if score >= 70 else 0
+        }
+        
+    except Exception as e:
+        print(f"Error getting symbol stats: {e}")
+        return {"symbol": symbol, "score": 0, "alerts": 0}

@@ -856,37 +856,35 @@ def detect_stage_minus2_1(symbol, price_usd=None):
             "combo_volume_inflow": volume_spike_active and inflow_usd > 0
         }
 
-        # Pre-Pump v3.0 Checklist Scoring System
-        from utils.checklist_scoring import compute_checklist_score, get_checklist_summary
+        # PPWCS v3.0 & Checklist Scoring System - Separated Layers
+        from utils.scoring import compute_combined_scores
         
         try:
-            checklist_score, fulfilled_conditions, category_scores = compute_checklist_score(signals)
-            checklist_summary = get_checklist_summary(fulfilled_conditions, category_scores)
+            scoring_results = compute_combined_scores(signals)
             
-            # Add checklist results to signals
+            # Add scoring results to signals
             signals.update({
-                "checklist_score": checklist_score,
-                "checklist_summary": fulfilled_conditions,
-                "checklist_percentage": checklist_summary["checklist_percentage"],
-                "setup_type": checklist_summary["setup_type"],
-                "setup_icon": checklist_summary["setup_icon"],
-                "condition_count": checklist_summary["condition_count"],
-                "checklist_breakdown": checklist_summary["category_breakdown"]
+                "ppwcs": scoring_results["ppwcs"],
+                "checklist_score": scoring_results["checklist_score"],
+                "checklist_summary": scoring_results["checklist_summary"],
+                "total_combined": scoring_results["total_combined"],
+                "hard_signal_count": scoring_results["hard_signal_count"],
+                "soft_signal_count": scoring_results["soft_signal_count"]
             })
             
-            print(f"[CHECKLIST INTEGRATION] {symbol}: Score={checklist_score}/100, Conditions={len(fulfilled_conditions)}/20, Type={checklist_summary['setup_type']}")
+            print(f"[SCORING v3.0] {symbol}: PPWCS={scoring_results['ppwcs']}/70, Checklist={scoring_results['checklist_score']}/90")
+            print(f"[SCORING v3.0] Hard signals: {scoring_results['hard_signal_count']}/5, Soft signals: {scoring_results['soft_signal_count']}/18")
             
         except Exception as e:
-            print(f"❌ Error in checklist scoring for {symbol}: {e}")
-            # Add default checklist values if error occurs
+            print(f"❌ Error in v3.0 scoring for {symbol}: {e}")
+            # Add default scoring values if error occurs
             signals.update({
+                "ppwcs": 0,
                 "checklist_score": 0,
                 "checklist_summary": [],
-                "checklist_percentage": 0.0,
-                "setup_type": "Error",
-                "setup_icon": "❌",
-                "condition_count": 0,
-                "checklist_breakdown": {"technical_structure": 0, "smart_money": 0, "microstructure": 0, "anti_fake_filters": 0}
+                "total_combined": 0,
+                "hard_signal_count": 0,
+                "soft_signal_count": 0
             })
 
         # Debug wszystkich detektorów przed finalną decyzją
