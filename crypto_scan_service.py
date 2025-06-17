@@ -28,6 +28,12 @@ load_dotenv()
 from utils.telegram_bot import send_alert, format_alert
 from utils.data_fetchers import get_symbols_cached, get_market_data
 from utils.data_fetchers import build_bybit_symbol_cache_all_categories as build_bybit_symbol_cache, is_bybit_cache_expired
+from utils.trend_mode import compute_trend_score, check_trend_cooldown, update_trend_cooldown, get_trend_alert_message, save_trend_alert
+
+# === CONFIGURATION ===
+TREND_MODE_ENABLED = True  # Enable/disable Trend Mode v1.0
+TREND_ALERT_THRESHOLD = 35  # Minimum score for trend alerts (max 50)
+TREND_COOLDOWN_MINUTES = 45  # Independent cooldown for trend alerts
 
 if is_bybit_cache_expired():
     print("🕒 Cache symboli Bybit jest przestarzały – buduję ponownie...")
@@ -375,6 +381,57 @@ def scan_cycle():
                 # Fallback to legacy system for additional features (TP forecast, GPT)
                 from utils.alert_system import process_alert
                 process_alert(symbol, final_score, signals, gpt_feedback)
+
+            # === TREND MODE v1.0 INTEGRATION ===
+            # Independent trend continuation analysis (separate from pre-pump)
+            if TREND_MODE_ENABLED:
+                try:
+                    # Check trend cooldown first
+                    in_cooldown, remaining_minutes = check_trend_cooldown(symbol, TREND_COOLDOWN_MINUTES)
+                    
+                    if not in_cooldown:
+                        # Get OHLCV data for trend analysis
+                        success, market_data, price_usd, is_valid = get_market_data(symbol)
+                        
+                        if success and market_data and 'candles' in market_data:
+                            candle_data = market_data['candles']
+                            
+                            # Run trend analysis
+                            trend_result = compute_trend_score(candle_data, symbol)
+                            
+                            if trend_result['trend_mode_active'] and trend_result['trend_score'] >= TREND_ALERT_THRESHOLD:
+                                print(f"🚀 [TREND MODE] {symbol}: Score {trend_result['trend_score']}/50 - Sending alert")
+                                
+                                # Generate trend alert message
+                                trend_message = get_trend_alert_message(
+                                    symbol, 
+                                    trend_result['trend_score'], 
+                                    trend_result['trend_summary'], 
+                                    trend_result
+                                )
+                                
+                                # Send trend alert (independent from pre-pump alerts)
+                                try:
+                                    from utils.telegram_bot import send_telegram_message
+                                    send_telegram_message(trend_message)
+                                    print(f"📢 Trend alert sent for {symbol}")
+                                    
+                                    # Update cooldown and save alert
+                                    update_trend_cooldown(symbol)
+                                    save_trend_alert(symbol, trend_result['trend_score'], trend_result['trend_summary'], trend_result)
+                                    
+                                except Exception as trend_alert_error:
+                                    print(f"❌ Failed to send trend alert for {symbol}: {trend_alert_error}")
+                            
+                            elif trend_result['trend_mode_active']:
+                                print(f"📊 [TREND MODE] {symbol}: Score {trend_result['trend_score']}/50 - Below threshold ({TREND_ALERT_THRESHOLD})")
+                            else:
+                                print(f"⏸️ [TREND MODE] {symbol}: Activation failed - {trend_result.get('activation_details', 'Unknown')}")
+                    else:
+                        print(f"⏳ [TREND MODE] {symbol}: In cooldown ({remaining_minutes:.1f} min remaining)")
+                        
+                except Exception as trend_error:
+                    print(f"❌ Trend Mode error for {symbol}: {trend_error}")
 
         except Exception as e:
             print(f"❌ Error scanning {symbol}: {e}")
