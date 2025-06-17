@@ -293,45 +293,38 @@ def scan_cycle():
             from utils.take_profit_engine import forecast_take_profit_levels
             tp_forecast = forecast_take_profit_levels(signals)
 
-            # Enhanced 3-Tier Alert Confidence System with Checklist Integration
+            # New Alert Level System - Updated for PPWCS 0-65 and Checklist 0-85 ranges
+            from utils.scoring import get_alert_level
+            
+            alert_level = get_alert_level(final_score, checklist_score)
             allow_alert = False
             alert_tier = None
             is_high_confidence = False
             structure_ok = False
             
-            # Check checklist scoring conditions
+            # Enhanced conditions based on checklist scoring
             if checklist_score >= 50 and final_score >= 70:
                 is_high_confidence = True
                 print(f"[HIGH CONFIDENCE] {symbol}: PPWCS={final_score}, Checklist={checklist_score}")
             
             if checklist_score >= 60:
                 structure_ok = True
-                print(f"[STRUCTURE OK] {symbol}: Checklist score {checklist_score}/100")
+                print(f"[STRUCTURE OK] {symbol}: Checklist score {checklist_score}/85")
             
-            # Stage 1g quality boost allows alerts at lower PPWCS
-            if signals.get("stage1g_active") and ppwcs_quality >= 12:
+            # Map alert levels to tiers and determine if alert should be sent
+            if alert_level == 3:  # Strong alert
+                alert_tier = "🔴 Strong Alert" + (" [HIGH CONFIDENCE]" if is_high_confidence else "")
+                alert_tier += " [STRUCTURE OK]" if structure_ok and not is_high_confidence else ""
                 allow_alert = True
+            elif alert_level == 2:  # Pre-pump active
+                alert_tier = "🟠 Pre-pump Active" + (" [HIGH CONFIDENCE]" if is_high_confidence else "")
+                alert_tier += " [STRUCTURE OK]" if structure_ok and not is_high_confidence else ""
+                allow_alert = True
+            elif alert_level == 1:  # Watchlist
+                alert_tier = "🟡 Watchlist" + (" [STRUCTURE OK]" if structure_ok else "")
+                allow_alert = False  # Watchlist items don't send alerts, only logged
             
-            # Enhanced alert tiers with checklist integration
-            if is_high_confidence and final_score >= 80 and ppwcs_quality >= 14 and compressed:
-                alert_tier = "🔴 Urgent Alert [HIGH CONFIDENCE]"
-                allow_alert = True
-            elif final_score >= 80 and ppwcs_quality >= 14 and compressed:
-                alert_tier = "🔴 Urgent Alert"
-                allow_alert = True
-            elif is_high_confidence and final_score >= 70:
-                alert_tier = "🟠 Pre-pump Active [HIGH CONFIDENCE]"
-                allow_alert = True
-            elif final_score >= 70 or ppwcs_quality >= 12:
-                alert_tier = "🟠 Pre-pump Active"
-                allow_alert = True
-            elif 60 <= final_score <= 69 and ppwcs_quality < 10:
-                alert_tier = "🟡 Watchlist"
-            
-            # Add structure tag to alert tier if applicable
-            if structure_ok and alert_tier and "[HIGH CONFIDENCE]" not in alert_tier:
-                alert_tier = alert_tier.replace("🟠 Pre-pump Active", "🟠 Pre-pump Active [STRUCTURE OK]")
-                alert_tier = alert_tier.replace("🔴 Urgent Alert", "🔴 Urgent Alert [STRUCTURE OK]")
+            print(f"[ALERT EVALUATION] {symbol}: Level={alert_level}, Tier='{alert_tier}', Send={allow_alert}")
 
             gpt_feedback = None
             # Enhanced GPT conditions to include high confidence alerts

@@ -84,15 +84,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 17, 2025 - Volume Spike Removal & Stealth Inflow Compensation - PRODUCTION READY
+### June 17, 2025 - Alert Level System Integration & Volume Spike Removal - PRODUCTION READY
+- **get_alert_level() function implemented**: New 4-tier alert system (0=none, 1=watchlist, 2=pre-pump, 3=strong) calibrated for updated scoring ranges
+- **Alert level integration complete**: Fully integrated with scan_cycle() replacing legacy alert tier logic with precise threshold-based decisions
 - **volume_spike completely removed**: Eliminated from PPWCS hard_detectors (no longer scores +10 points) to prevent post-breakout alerts
 - **stealth_inflow compensation added**: Added as +5 PPWCS hard detector to maintain early accumulation detection capability
 - **Updated scoring ranges**: PPWCS max 60→65 points (with stealth_inflow), checklist max remains 100→95 (v3.0: 90→85)
 - **Enhanced pre-pump focus**: System prioritizes stealth_inflow + whale_activity + compressed + dex_inflow over reactive volume
+- **Smart alert thresholds**: Level 2+ triggers alerts (PPWCS≥40 + checklist≥35), Level 1 creates watchlist entries only
 - **Context preservation**: volume_spike remains in signals dictionary for GPT analysis without affecting scoring decisions
-- **Stealth accumulation priority**: System now rewards quiet whale accumulation (+5) over noisy volume spikes (0)
-- **Alert thresholds maintained**: High confidence (≥50 checklist + ≥70 ppwcs) logic preserved with new scoring maximums
-- **Production optimized**: All functions updated - max 150 total points (65 PPWCS + 85 checklist), 5 hard signals including stealth_inflow
+- **Production optimized**: Complete system tested with edge cases, max 150 total points (65 PPWCS + 85 checklist), ready for deployment
 
 ### June 17, 2025 - Dynamic Alert Update System & Enhanced DEX Inflow Detection - PRODUCTION READY
 - **Dynamic alert updates implemented**: Replaced "1 alert per hour" limit with intelligent update system that strengthens alerts when new signals appear

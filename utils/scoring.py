@@ -398,3 +398,45 @@ def get_recent_alerts(hours=24, limit=100):
     except Exception as e:
         print(f"Error getting recent alerts: {e}")
         return []
+
+
+def get_alert_level(ppwcs: int, checklist_score: int) -> int:
+    """
+    Zwraca poziom alertu na podstawie PPWCS (0-65) i checklist_score (0-85).
+    
+    Poziomy alertów po aktualizacji scoring system (volume_spike removed):
+    - 0: brak alertu (słabe sygnały)
+    - 1: obserwacja / watchlist (podstawowe sygnały)
+    - 2: pre-pump aktywny (silne sygnały strukturalne)
+    - 3: silny alert / impuls możliwy (maksymalna siła)
+    
+    Args:
+        ppwcs: PPWCS score (0-65 range after stealth_inflow compensation)
+        checklist_score: Checklist score (0-85 v3.0 range)
+        
+    Returns:
+        int: Alert level (0-3)
+    """
+    print(f"[ALERT LEVEL] Evaluating: PPWCS {ppwcs}/65, Checklist {checklist_score}/85")
+    
+    # Level 0: Weak signals - no alert
+    if ppwcs < 25 or checklist_score < 20:
+        print(f"[ALERT LEVEL] Level 0: Too weak (PPWCS<25 or checklist<20)")
+        return 0
+    
+    # Start with level 1 as base
+    level = 1
+    print(f"[ALERT LEVEL] Level 1: Watchlist (basic signals)")
+    
+    # Level 2: Pre-pump active - strong structural signals
+    if ppwcs >= 40 and checklist_score >= 35:
+        level = 2
+        print(f"[ALERT LEVEL] Level 2: Pre-pump active (strong structure)")
+    
+    # Level 3: Strong alert - maximum signal strength
+    if ppwcs >= 50 and checklist_score >= 50:
+        level = 3
+        print(f"[ALERT LEVEL] Level 3: Strong alert (maximum strength)")
+    
+    print(f"[ALERT LEVEL] Final level: {level}")
+    return level
