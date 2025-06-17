@@ -306,6 +306,86 @@ def get_symbol_stats(symbol):
         print(f"Error getting symbol stats: {e}")
         return {"symbol": symbol, "score": 0, "alerts": 0}
 
+def compute_checklist_score(signals: dict):
+    """
+    Oblicza strukturę pre-pump na podstawie checklisty (maksymalnie 100 pkt)
+    Każdy warunek = +5 punktów
+    
+    Args:
+        signals: Dictionary containing all detected signals
+        
+    Returns:
+        tuple: (checklist_score, checklist_summary)
+    """
+    score = 0
+    summary = []
+
+    # I. STRUKTURA TECHNICZNA
+    if signals.get("rsi_flatline"):
+        score += 5
+        summary.append("rsi_flatline")
+
+    if signals.get("volume_spike"):
+        score += 5
+        summary.append("volume_spike")
+
+    if signals.get("fake_reject"):
+        score += 5
+        summary.append("fake_reject")
+
+    if signals.get("compressed"):
+        score += 5
+        summary.append("compressed")
+
+    # II. ZACHOWANIE SMART MONEY
+    if signals.get("whale_activity"):
+        score += 5
+        summary.append("whale_activity")
+
+    if signals.get("dex_inflow"):
+        score += 5
+        summary.append("dex_inflow")
+
+    if signals.get("stealth_inflow"):
+        score += 5
+        summary.append("stealth_inflow")
+
+    if signals.get("spoofing") or signals.get("heatmap_exhaustion"):
+        score += 5
+        summary.append("spoofing_or_exhaustion")
+
+    # III. KONTEKST MIKROSTRUKTURALNY
+    if signals.get("vwap_pinning"):
+        score += 5
+        summary.append("vwap_pinning")
+
+    if signals.get("fractal_echo_squeeze"):
+        score += 5
+        summary.append("fractal_echo_squeeze")
+
+    if signals.get("time_clustering"):
+        score += 5
+        summary.append("time_clustering")
+
+    if signals.get("event_tag") in ["listing", "presale", "airdrop", "partnership"]:
+        score += 5
+        summary.append("positive_event_tag")
+
+    # IV. FILTRY ANTY-FAKE
+    if signals.get("pure_accumulation"):
+        score += 5
+        summary.append("pure_accumulation")
+
+    if signals.get("rsi") and signals["rsi"] < 65:
+        score += 5
+        summary.append("rsi_below_65")
+
+    if signals.get("risk_tag") not in ["exploit", "unlock", "rug", "delisting"]:
+        score += 5
+        summary.append("no_risk_tags")
+
+    return score, summary
+
 def get_recent_alerts(hours=24, limit=100):
     """Get recent alerts for dashboard"""
     try:

@@ -856,27 +856,37 @@ def detect_stage_minus2_1(symbol, price_usd=None):
             "combo_volume_inflow": volume_spike_active and inflow_usd > 0
         }
 
-        # PPWCS v3.0 & Checklist Scoring System - Separated Layers
-        from utils.scoring import compute_combined_scores
+        # PPWCS v3.0 & New Checklist Scoring System Integration
+        from utils.scoring import compute_combined_scores, compute_checklist_score
         
         try:
+            # Original PPWCS v3.0 system
             scoring_results = compute_combined_scores(signals)
             
-            # Add scoring results to signals
+            # New checklist scoring system per user request
+            user_checklist_score, user_checklist_summary = compute_checklist_score(signals)
+            
+            # Add both scoring systems to signals
             signals.update({
+                # PPWCS v3.0 system
                 "ppwcs": scoring_results["ppwcs"],
                 "checklist_score": scoring_results["checklist_score"],
                 "checklist_summary": scoring_results["checklist_summary"],
                 "total_combined": scoring_results["total_combined"],
                 "hard_signal_count": scoring_results["hard_signal_count"],
-                "soft_signal_count": scoring_results["soft_signal_count"]
+                "soft_signal_count": scoring_results["soft_signal_count"],
+                
+                # User requested checklist system
+                "user_checklist_score": user_checklist_score,
+                "user_checklist_summary": user_checklist_summary
             })
             
             print(f"[SCORING v3.0] {symbol}: PPWCS={scoring_results['ppwcs']}/70, Checklist={scoring_results['checklist_score']}/90")
-            print(f"[SCORING v3.0] Hard signals: {scoring_results['hard_signal_count']}/5, Soft signals: {scoring_results['soft_signal_count']}/18")
+            print(f"[USER CHECKLIST] {symbol}: Score={user_checklist_score}/100, Conditions={len(user_checklist_summary)}/20")
+            print(f"[COMBINED] {symbol}: v3.0_total={scoring_results['total_combined']}/160, user_checklist={user_checklist_score}/100")
             
         except Exception as e:
-            print(f"❌ Error in v3.0 scoring for {symbol}: {e}")
+            print(f"❌ Error in scoring for {symbol}: {e}")
             # Add default scoring values if error occurs
             signals.update({
                 "ppwcs": 0,
@@ -884,7 +894,9 @@ def detect_stage_minus2_1(symbol, price_usd=None):
                 "checklist_summary": [],
                 "total_combined": 0,
                 "hard_signal_count": 0,
-                "soft_signal_count": 0
+                "soft_signal_count": 0,
+                "user_checklist_score": 0,
+                "user_checklist_summary": []
             })
 
         # Debug wszystkich detektorów przed finalną decyzją

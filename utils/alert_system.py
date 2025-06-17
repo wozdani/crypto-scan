@@ -257,19 +257,20 @@ def send_telegram_alert(token, ppwcs_score, stage_signals, tp_forecast, stage1g_
 
 🔬 Signals: {signals_text}"""
 
-        # Add Pre-Pump v3.0 Checklist information
-        checklist_score = stage_signals.get('checklist_score', 0)
-        setup_type = stage_signals.get('setup_type', 'Unknown')
-        setup_icon = stage_signals.get('setup_icon', '❓')
-        condition_count = stage_signals.get('condition_count', 0)
+        # Add new user checklist score information
+        user_checklist_score = stage_signals.get('user_checklist_score', 0)
+        user_checklist_summary = stage_signals.get('user_checklist_summary', [])
         
-        if checklist_score > 0:
-            from utils.checklist_scoring import format_checklist_for_alert
-            checklist_breakdown = stage_signals.get('checklist_breakdown', {})
-            fulfilled_conditions = stage_signals.get('checklist_summary', [])
+        if user_checklist_score > 0:
+            text += f"\n\n📋 Checklist Score: *{user_checklist_score}/100*"
+            text += f"\n✅ Conditions: {len(user_checklist_summary)}/20"
             
-            checklist_text = format_checklist_for_alert(checklist_score, fulfilled_conditions, checklist_breakdown)
-            text += f"\n\n{checklist_text}"
+            # Show active conditions in groups
+            if user_checklist_summary:
+                conditions_text = ", ".join(user_checklist_summary[:8])  # First 8 conditions
+                if len(user_checklist_summary) > 8:
+                    conditions_text += f"... (+{len(user_checklist_summary) - 8} more)"
+                text += f"\n🎯 Active: {conditions_text}"
 
         if stage1g_trigger_type:
             text += f"\n🧩 Trigger: {stage1g_trigger_type}"

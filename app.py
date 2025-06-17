@@ -100,7 +100,7 @@ def get_symbol_info(symbol):
         symbol = symbol.upper()
         
         # Get symbol stats
-        stats = get_symbol_stats(symbol, days=7)
+        stats = get_symbol_stats(symbol)
         
         # Get recent scores
         scores_file = "data/scores/ppwcs_scores.json"
