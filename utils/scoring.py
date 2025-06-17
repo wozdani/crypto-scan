@@ -31,12 +31,13 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int
         
         ppwcs_score = 0
         
-        # Hard Detectors (+10 points each, max 60 points)
+        # Hard Detectors - volume_spike removed, stealth_inflow added as compensation
         hard_detectors = {
             "whale_activity": 10,     # Whale transactions detected
             "dex_inflow": 10,         # DEX inflow anomaly
             "compressed": 10,         # Stage -1 compression
-            "stage1g_active": 10      # Stage 1G breakout active
+            "stage1g_active": 10,     # Stage 1G breakout active
+            "stealth_inflow": 5       # Stealth accumulation (compensation for volume_spike removal)
         }
         
         for detector, points in hard_detectors.items():
@@ -62,7 +63,7 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int
                     ppwcs_score = 0
         
         final_score = max(0, ppwcs_score)
-        print(f"[PPWCS v3.0] Final hard signals score: {final_score}/60")
+        print(f"[PPWCS v3.0] Final hard signals score: {final_score}/65")
         
         return final_score, final_score, 0
         
@@ -161,12 +162,12 @@ def compute_combined_scores(signals: dict) -> dict:
         
         # Combined analysis
         total_combined = ppwcs_score + checklist_score
-        hard_signal_count = sum([1 for k in ["whale_activity", "dex_inflow", "compressed", "stage1g_active"] 
+        hard_signal_count = sum([1 for k in ["whale_activity", "dex_inflow", "compressed", "stage1g_active", "stealth_inflow"] 
                                 if signals.get(k) is True])
         soft_signal_count = len(checklist_summary)
         
-        print(f"[COMBINED ANALYSIS] PPWCS: {ppwcs_score}/60, Checklist: {checklist_score}/85")
-        print(f"[COMBINED ANALYSIS] Total: {total_combined}/145, Hard: {hard_signal_count}/4, Soft: {soft_signal_count}/17")
+        print(f"[COMBINED ANALYSIS] PPWCS: {ppwcs_score}/65, Checklist: {checklist_score}/85")
+        print(f"[COMBINED ANALYSIS] Total: {total_combined}/150, Hard: {hard_signal_count}/5, Soft: {soft_signal_count}/17")
         
         return {
             "ppwcs": ppwcs_score,

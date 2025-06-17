@@ -84,15 +84,15 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 17, 2025 - Volume Spike Removal & Pre-Pump Focus Optimization - PRODUCTION READY
-- **volume_spike removed from scoring**: Eliminated from both PPWCS hard_detectors and checklist soft_signals to prevent post-breakout alerts
-- **Refined scoring ranges**: PPWCS max reduced 70→60 points, checklist max reduced 100→95 points (v3.0: 90→85)
-- **Pre-pump focus enhanced**: System now relies on compressed (Stage -1), RSI_flatline, whale_activity, dex_inflow, stealth_inflow for early detection
-- **Context preservation**: volume_spike still available in signals dictionary for GPT analysis without affecting alert decisions
-- **Microstructural emphasis**: Greater weight on compressed signals, whale patterns, and stealth accumulation over reactive volume
-- **Alert logic maintained**: High confidence (≥50 checklist + ≥70 ppwcs) and structure OK (≥60 checklist) thresholds preserved
-- **Enhanced pre-pump timing**: Prevents delayed alerts triggered by post-breakout volume while maintaining early detection capability
-- **Production optimized**: All scoring functions, debug output, and alert systems updated with new maximum values
+### June 17, 2025 - Volume Spike Removal & Stealth Inflow Compensation - PRODUCTION READY
+- **volume_spike completely removed**: Eliminated from PPWCS hard_detectors (no longer scores +10 points) to prevent post-breakout alerts
+- **stealth_inflow compensation added**: Added as +5 PPWCS hard detector to maintain early accumulation detection capability
+- **Updated scoring ranges**: PPWCS max 60→65 points (with stealth_inflow), checklist max remains 100→95 (v3.0: 90→85)
+- **Enhanced pre-pump focus**: System prioritizes stealth_inflow + whale_activity + compressed + dex_inflow over reactive volume
+- **Context preservation**: volume_spike remains in signals dictionary for GPT analysis without affecting scoring decisions
+- **Stealth accumulation priority**: System now rewards quiet whale accumulation (+5) over noisy volume spikes (0)
+- **Alert thresholds maintained**: High confidence (≥50 checklist + ≥70 ppwcs) logic preserved with new scoring maximums
+- **Production optimized**: All functions updated - max 150 total points (65 PPWCS + 85 checklist), 5 hard signals including stealth_inflow
 
 ### June 17, 2025 - Dynamic Alert Update System & Enhanced DEX Inflow Detection - PRODUCTION READY
 - **Dynamic alert updates implemented**: Replaced "1 alert per hour" limit with intelligent update system that strengthens alerts when new signals appear
