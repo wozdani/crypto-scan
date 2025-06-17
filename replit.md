@@ -84,6 +84,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 17, 2025 - Dynamic Alert Update System & Enhanced DEX Inflow Detection - PRODUCTION READY
+- **Dynamic alert updates implemented**: Replaced "1 alert per hour" limit with intelligent update system that strengthens alerts when new signals appear
+- **Enhanced DEX inflow detection**: Added dynamic threshold calculation max(market_cap * 0.0005, 3000 USD), known DEX address filtering, and microscopic transaction filtering (minimum $50)
+- **Stealth inflow detection**: New fallback detector for whale_activity + (volume_spike OR compressed) without classic DEX inflow (+5 PPWCS bonus)
+- **Alert cache system**: File-based cache (alerts_cache.json) tracks active alerts with datetime serialization and automatic cleanup
+- **Priority signal updates**: dex_inflow, stealth_inflow, event_tag, spoofing, whale_sequence trigger immediate alert updates
+- **Update logic**: PPWCS increase ≥5 points or new priority signals within 60-minute window trigger [UPDATE] alerts
+- **Multi-chain support**: Enhanced DEX inflow works across Ethereum, BSC, Polygon, Arbitrum, Optimism with authentic blockchain data
+- **Production optimized**: Complete error handling, comprehensive logging, and seamless integration with existing PPWCS v2.8 system
+
 ### June 16, 2025 - Updated PPWCS Scoring Values & Alert Thresholds
 - **Enhanced scoring system**: Updated individual detector values - whale_activity (+18), volume_spike (+15), dex_inflow (+14), orderbook_anomaly (+12)
 - **Higher quality scoring**: RSI_flatline bonus increased to +7, compressed bonus to +15 for better signal differentiation

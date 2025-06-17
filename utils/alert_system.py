@@ -1,61 +1,62 @@
+"""
+Alert System with Dynamic Updates
+Handles crypto pre-pump alerts with cache-based update logic
+"""
+
 import os
+import time
 import json
 import requests
-import time
-from datetime import datetime, timedelta, timezone
-from utils.take_profit_engine import forecast_take_profit_levels, calculate_risk_reward_ratio
-from utils.alert_utils import get_alert_level, get_alert_level_text, should_send_telegram_alert, should_request_gpt_analysis
 import logging
+from datetime import datetime, timezone, timedelta
+from typing import Dict, Any, Tuple, List
+
+# Global state for trailing scores and cooldowns
+trailing_scores = {}
+last_alert_time = {}
+
+# Setup logging
 logger = logging.getLogger(__name__)
-
-# Global tracking for trailing scores and alert timing
-trailing_scores = {}  # symbol → poprzedni PPWCS score
-last_alert_time = {}  # symbol → timestamp ostatniego alertu
-
-COOLDOWN_FILE = os.path.join("data", "cooldown_tracker.json")
-COOLDOWN_MINUTES = 60
 
 def load_cooldown_tracker():
     """Load cooldown tracker from file"""
     try:
-        if os.path.exists(COOLDOWN_FILE):
-            with open(COOLDOWN_FILE, "r") as f:
+        if os.path.exists("data/cooldown_tracker.json"):
+            with open("data/cooldown_tracker.json", "r") as f:
                 return json.load(f)
         return {}
-    except Exception:
+    except Exception as e:
+        logger.error(f"Error loading cooldown tracker: {e}")
         return {}
-
-def get_feedback_icon(score):
-    """Get quality icon based on feedback score"""
-    if score >= 85:
-        return "🔥"  # High confidence
-    elif score >= 70:
-        return "⚠️"  # Decent with some risk
-    else:
-        return "💤"  # Weak or risky
 
 def save_cooldown_tracker(tracker):
     """Save cooldown tracker to file"""
     try:
-        os.makedirs(os.path.dirname(COOLDOWN_FILE), exist_ok=True)
-        with open(COOLDOWN_FILE, "w") as f:
-            json.dump(tracker, f, indent=2)
+        os.makedirs("data", exist_ok=True)
+        with open("data/cooldown_tracker.json", "w") as f:
+            json.dump(tracker, f, default=str)
     except Exception as e:
         logger.error(f"Error saving cooldown tracker: {e}")
+
+def get_feedback_icon(score):
+    """Get quality icon based on feedback score"""
+    if score >= 8:
+        return "🔥"  # Excellent
+    elif score >= 6:
+        return "✅"  # Good
+    elif score >= 4:
+        return "⚠️"   # Caution
+    else:
+        return "❌"  # Poor
 
 def check_cooldown(token):
     """Check if token is in cooldown period"""
     tracker = load_cooldown_tracker()
-    
-    if token not in tracker:
-        return False
-        
-    try:
-        last_alert = datetime.fromisoformat(tracker[token])
+    if token in tracker:
+        last_time = datetime.fromisoformat(tracker[token])
         now = datetime.now(timezone.utc)
-        return (now - last_alert).total_seconds() < (COOLDOWN_MINUTES * 60)
-    except Exception:
-        return False
+        return (now - last_time).total_seconds() < 3600  # 1 hour cooldown
+    return False
 
 def update_cooldown(token):
     """Update cooldown timestamp for token"""
@@ -68,16 +69,17 @@ def determine_alert_level(ppwcs_score, stage1g_quality=0):
     Determine alert level based on PPWCS score and Stage 1g quality
     PPWCS 2.6: Stage 1g quality > 12 allows alerts at 60-69 range
     """
+    # Stage 1g quality boost: quality > 12 allows watchlist promotion
+    quality_boost = stage1g_quality > 12
+    
     if ppwcs_score >= 80:
         return "strong_alert", "🚨 STRONG ALERT"
     elif ppwcs_score >= 70:
         return "pre_pump_active", "⚠️ PRE-PUMP WATCH"
+    elif ppwcs_score >= 60 and quality_boost:
+        return "pre_pump_active", "⚠️ PRE-PUMP WATCH (Quality Boost)"
     elif ppwcs_score >= 60:
-        # PPWCS 2.6: Enhanced watchlist with Stage 1g quality filter
-        if stage1g_quality > 12:
-            return "pre_pump_active", "⚠️ PRE-PUMP WATCH (Quality Boost)"
-        else:
-            return "watchlist", "📊 WATCHLIST"
+        return "watchlist", "📊 WATCHLIST"
     else:
         return "none", ""
 
@@ -92,106 +94,143 @@ def calculate_stage1g_quality(signals):
         return score_stage_1g(signals)
     return 0
 
-def format_alert_message(token, ppwcs_score, signals, tp_forecast, risk_reward):
+def forecast_take_profit_levels(signals):
+    """Generate TP levels based on signal strength"""
+    base_tp = {
+        'TP1': 15,
+        'TP2': 35,
+        'TP3': 65,
+        'TrailingTP': 100
+    }
     
-    if not isinstance(signals, dict):
-        logger.warning(f"⚠️ Nieprawidłowe signals: {signals}")
-        return
+    # Adjust based on signal strength
+    signal_count = sum([1 for k, v in signals.items() if v and isinstance(v, bool)])
+    multiplier = 1 + (signal_count * 0.1)
+    
+    return {k: round(v * multiplier) for k, v in base_tp.items()}
 
-    """Format comprehensive alert message with TP levels - PPWCS 2.6"""
-    now = datetime.now(timezone.utc)
-    
-    # Calculate Stage 1g quality for PPWCS 2.6
-    stage1g_quality = calculate_stage1g_quality(signals)
-    alert_level, alert_emoji = determine_alert_level(ppwcs_score, stage1g_quality)
-    
-    # Extract active signals
-    active_signals = []
-    if signals.get('whale_activity'):
-        active_signals.append('Whale Activity')
-    if signals.get('dex_inflow'):
-        active_signals.append('DEX Inflow')
-    if signals.get('volume_spike'):
-        active_signals.append('Volume Spike')
-    if signals.get('orderbook_anomaly'):
-        active_signals.append('Orderbook Anomaly')
-    if signals.get('spoofing_suspected'):
-        active_signals.append('Orderbook Spoofing')
-    if signals.get('heatmap_exhaustion'):
-        active_signals.append('Supply Exhaustion')
-    if signals.get('vwap_pinned'):
-        active_signals.append('VWAP Pinning')
-    if signals.get('volume_slope_up'):
-        active_signals.append('Volume Cluster Slope')
-    # Social spike detection removed - handled by Stage -2.2 tags
-    if False:  # Disabled social spike check
-        active_signals.append('Social Spike')
-    if signals.get('stage1g_active'):
-        trigger_type = signals.get('stage1g_trigger_type', 'unknown')
-        active_signals.append(f'Stage 1G ({trigger_type})')
-    if signals.get('event_tag'):
-        active_signals.append(f"Event: {signals['event_tag']}")
-    
-    signals_text = ', '.join(active_signals) if active_signals else 'Multiple micro-signals'
-    
-    alert_text = f"""
-{alert_emoji}
-**Token:** `{token}`
-**Score:** {ppwcs_score} / 100
-**Confidence:** {tp_forecast.get('confidence', 'medium')}
+def calculate_risk_reward_ratio(signals, tp_forecast):
+    """Calculate risk/reward ratio"""
+    return round(tp_forecast['TP1'] / 8, 1)  # Assuming 8% risk
 
-**🎯 Take Profit Levels:**
-TP1: +{tp_forecast['TP1']}% (R:R {risk_reward['RR_TP1']})
-TP2: +{tp_forecast['TP2']}% (R:R {risk_reward['RR_TP2']})
-TP3: +{tp_forecast['TP3']}% (R:R {risk_reward['RR_TP3']})
-Trailing TP: +{tp_forecast['TrailingTP']}%
-
-**🛡️ Risk Management:**
-Stop Loss: -{risk_reward['stop_loss']}%
-Position Size: {risk_reward['recommended_position_size']}
-
-**📊 Active Signals:** {signals_text}
-
-🕒 UTC: {now.strftime('%Y-%m-%d %H:%M')}
-"""
-    
-    return alert_text.strip()
-
-def send_telegram_alert(token, ppwcs_score, stage_signals, tp_forecast, stage1g_trigger_type=None, gpt_feedback=None, feedback_score=None, is_update=False, new_signals=None, update_reason=None):
-    """Enhanced Telegram alert with Polish formatting, trailing score logic, and GPT feedback"""
-    global trailing_scores, last_alert_time
-    
+def save_alert_cache_to_file(active_alerts: dict, filename="data/alerts_cache.json"):
+    """Save active alerts cache to file with datetime serialization"""
     try:
+        os.makedirs("data", exist_ok=True)
+        
+        # Convert datetime to string (ISO format) for JSON serialization
+        serializable_alerts = {}
+        for symbol, data in active_alerts.items():
+            serializable_alerts[symbol] = {
+                "timestamp": data["timestamp"].isoformat(),
+                "ppwcs": data["ppwcs"],
+                "signals": data["signals"]
+            }
+
+        with open(filename, "w") as f:
+            json.dump(serializable_alerts, f, indent=2)
+    except Exception as e:
+        logger.error(f"Error saving alert cache: {e}")
+
+def load_alert_cache_from_file(filename="data/alerts_cache.json"):
+    """Load active alerts cache from file with datetime parsing"""
+    try:
+        with open(filename, "r") as f:
+            raw = json.load(f)
+
+        # Convert timestamp from ISO string back to datetime
+        parsed = {}
+        for symbol, data in raw.items():
+            parsed[symbol] = {
+                "timestamp": datetime.fromisoformat(data["timestamp"]),
+                "ppwcs": data["ppwcs"],
+                "signals": data["signals"]
+            }
+
+        return parsed
+    except FileNotFoundError:
+        return {}
+    except Exception as e:
+        logger.error(f"Error loading alerts cache: {e}")
+        return {}
+
+def update_alert_cache(symbol, new_signals: dict, ppwcs_score: float, active_alerts: dict):
+    """
+    Update alert cache entry after sending alert or alert update
+    
+    Args:
+        symbol: e.g. 'PEPEUSDT'
+        new_signals: current signals dict, e.g. {"dex_inflow": True, "spoofing": False}
+        ppwcs_score: current PPWCS scoring
+        active_alerts: global dict with alert cache
+    
+    Saves:
+        - timestamp: time of last alert or update
+        - ppwcs: last score
+        - signals: last signal state
+    """
+    active_alerts[symbol] = {
+        "timestamp": datetime.now(timezone.utc),
+        "ppwcs": ppwcs_score,
+        "signals": new_signals.copy()
+    }
+
+def should_update_alert(symbol, new_signals: dict, active_alerts: dict, ppwcs_score: float):
+    """
+    Determine if alert for given symbol should be updated
+    
+    Args:
+        symbol: token symbol
+        new_signals: dict with new signals (e.g. {"dex_inflow": True, "spoofing": True})
+        active_alerts: dict with saved active alerts and their timestamps
+        ppwcs_score: current scoring result
+
+    Returns:
+        - update_needed: bool
+        - reason: str
+    """
+    now = datetime.now(timezone.utc)
+    cooldown = timedelta(minutes=60)
+    significant_keys = {"dex_inflow", "spoofing", "event_tag", "stealth_inflow"}
+
+    # If token has no active alert - new alert
+    if symbol not in active_alerts:
+        return False, "no_active_alert"
+
+    last_alert_time = active_alerts[symbol]["timestamp"]
+    last_ppwcs = active_alerts[symbol].get("ppwcs", 0)
+
+    # If an hour has passed - new alert
+    if now - last_alert_time > cooldown:
+        return False, "cooldown_expired"
+
+    # If new significant signal appeared - update alert
+    for key in significant_keys:
+        if new_signals.get(key) and not active_alerts[symbol]["signals"].get(key):
+            return True, f"new_signal: {key}"
+
+    # If PPWCS increased significantly (by ≥5)
+    if ppwcs_score - last_ppwcs >= 5:
+        return True, "ppwcs_rise"
+
+    # Otherwise - no update needed
+    return False, "no_update_needed"
+
+def send_telegram_alert(token, ppwcs_score, stage_signals, tp_forecast, stage1g_trigger_type=None, 
+                       gpt_feedback=None, feedback_score=None, is_update=False, new_signals=None, update_reason=None):
+    """Enhanced Telegram alert with Polish formatting, update support, and GPT feedback"""
+    try:
+        from utils.alert_utils import get_alert_level, get_alert_level_text, should_send_telegram_alert
+        
         alert_level = get_alert_level(ppwcs_score)
-        now = time.time()
-        
-        # Check 60-minute cooldown
-        if token in last_alert_time and now - last_alert_time[token] < 3600:
-            logger.info(f"⏱️ {token} jest na cooldownie, pomijam alert.")
-            return False
-        
-        # Trailing score logic - require meaningful increase for non-strong alerts
-        previous_score = trailing_scores.get(token, 0)
-        score_increase = ppwcs_score - previous_score
-        trailing_scores[token] = ppwcs_score
         
         if not should_send_telegram_alert(alert_level):
             return False  # Score too low for alerts
             
-        # For non-strong alerts, require at least 5-point increase
-        if alert_level != "strong" and score_increase < 5:
-            logger.info(f"📊 {token}: Score increase {score_increase} too small for {alert_level} alert")
-            return False
-
-        last_alert_time[token] = now
-
         alert_level_text = get_alert_level_text(alert_level)
         active_signals = [k for k, v in stage_signals.items() if v and isinstance(v, bool)]
         signals_text = ', '.join(active_signals) if active_signals else "None"
 
-        # Enhanced message format with score tracking and update handling
-        score_change_text = f" (+{score_increase})" if score_increase > 0 else ""
-        
         # Alert prefix based on update status
         if is_update:
             alert_prefix = f"🔄 *ALERT UPDATE* - {alert_level_text}"
@@ -202,11 +241,13 @@ def send_telegram_alert(token, ppwcs_score, stage_signals, tp_forecast, stage1g_
         
         text = f"""{alert_prefix}
 📈 Token: *{token}*
-🧠 Score: *{ppwcs_score}{score_change_text} / 100*"""
+🧠 Score: *{ppwcs_score:.1f} / 100*"""
 
         # Add update reason if this is an update
         if is_update and update_reason:
             text += f"\n🔄 Update: {update_reason.replace(':', ' - ')}"
+
+        text += f"""
 
 🎯 TP Forecast:
 • TP1: +{tp_forecast['TP1']}%
@@ -214,8 +255,10 @@ def send_telegram_alert(token, ppwcs_score, stage_signals, tp_forecast, stage1g_
 • TP3: +{tp_forecast['TP3']}%
 • Trailing TP: +{tp_forecast['TrailingTP']}%
 
-🔬 Signals: {signals_text}
-{"🧩 Trigger: " + stage1g_trigger_type if stage1g_trigger_type else ""}"""
+🔬 Signals: {signals_text}"""
+
+        if stage1g_trigger_type:
+            text += f"\n🧩 Trigger: {stage1g_trigger_type}"
 
         # Add GPT feedback for strong alerts (PPWCS >= 80)
         if gpt_feedback and ppwcs_score >= 80:
@@ -228,7 +271,7 @@ def send_telegram_alert(token, ppwcs_score, stage_signals, tp_forecast, stage1g_
         chat_id = os.getenv('TELEGRAM_CHAT_ID')
         
         if not bot_token or not chat_id:
-            logger.error("❌ Telegram credentials not configured")
+            logger.error("Telegram credentials not configured")
             return False
 
         payload = {
@@ -241,21 +284,19 @@ def send_telegram_alert(token, ppwcs_score, stage_signals, tp_forecast, stage1g_
         response = requests.post(url, data=payload, timeout=10)
         response.raise_for_status()
         
-        print(f"✅ Alert wysłany dla {token}")
+        print(f"✅ Alert sent for {token}")
         update_cooldown(token)
         return True
         
     except Exception as e:
-        print(f"❌ Błąd wysyłania alertu Telegram: {e}")
+        print(f"❌ Error sending Telegram alert: {e}")
         return False
 
 def process_alert(token, ppwcs_score, signals, gpt_analysis=None):
     """Main alert processing function with dynamic updates"""
     try:
-        from utils.alert_cache import (
-            is_alert_active, should_update_alert, add_active_alert, 
-            update_active_alert, detect_new_signals
-        )
+        # Load active alerts cache
+        active_alerts = load_alert_cache_from_file()
         
         # Determine if alert should be sent
         if ppwcs_score < 70:
@@ -264,42 +305,40 @@ def process_alert(token, ppwcs_score, signals, gpt_analysis=None):
                 log_to_watchlist(token, ppwcs_score, signals)
             return False
         
-        # Check if token has active alert
-        is_active, alert_data = is_alert_active(token)
+        # Check if update is needed
+        should_update, update_reason = should_update_alert(token, signals, active_alerts, ppwcs_score)
         
-        if is_active:
-            # Check if alert should be updated
-            should_update, update_reason = should_update_alert(token, signals, ppwcs_score)
+        if should_update:
+            # Update existing alert
+            new_signals_list = []
+            for key in ["dex_inflow", "spoofing", "event_tag", "stealth_inflow"]:
+                if signals.get(key) and not active_alerts[token]["signals"].get(key):
+                    new_signals_list.append(key)
             
-            if should_update:
-                # Get new signals for update
-                has_new_signals, new_signals = detect_new_signals(token, signals)
+            # Generate TP forecast
+            tp_forecast = forecast_take_profit_levels(signals)
+            stage1g_trigger_type = signals.get('stage1g_trigger_type') if signals.get('stage1g_active') else None
+            
+            # Send updated alert
+            feedback_score = signals.get('feedback_score')
+            success = send_telegram_alert(
+                token, ppwcs_score, signals, tp_forecast, stage1g_trigger_type, 
+                gpt_analysis, feedback_score, is_update=True, new_signals=new_signals_list,
+                update_reason=update_reason
+            )
+            
+            if success:
+                # Update cache
+                update_alert_cache(token, signals, ppwcs_score, active_alerts)
+                save_alert_cache_to_file(active_alerts)
                 
-                # Update active alert
-                updated_alert_data = update_active_alert(token, signals, ppwcs_score, new_signals)
-                
-                # Generate TP forecast
-                tp_forecast = forecast_take_profit_levels(signals)
-                stage1g_trigger_type = signals.get('stage1g_trigger_type') if signals.get('stage1g_active') else None
-                
-                # Send updated alert
-                feedback_score = signals.get('feedback_score')
-                success = send_telegram_alert(
-                    token, ppwcs_score, signals, tp_forecast, stage1g_trigger_type, 
-                    gpt_analysis, feedback_score, is_update=True, new_signals=new_signals,
-                    update_reason=update_reason
-                )
-                
-                if success:
-                    print(f"🔄 UPDATED alert sent for {token} (Score: {ppwcs_score}, Reason: {update_reason})")
-                    return True
-                else:
-                    print(f"❌ Failed to send updated alert for {token}")
-                    return False
+                print(f"🔄 UPDATED alert sent for {token} (Score: {ppwcs_score}, Reason: {update_reason})")
+                return True
             else:
-                print(f"⏭️ {token} has active alert but no significant updates ({update_reason})")
+                print(f"❌ Failed to send updated alert for {token}")
                 return False
-        else:
+                
+        elif token not in active_alerts:
             # New alert - check traditional cooldown
             if check_cooldown(token):
                 print(f"⏱️ {token} in cooldown period, skipping alert")
@@ -318,15 +357,17 @@ def process_alert(token, ppwcs_score, signals, gpt_analysis=None):
             
             if success:
                 # Add to active alerts cache
-                alert_level, _ = determine_alert_level(ppwcs_score)
-                initial_signals = [k for k, v in signals.items() if v is True]
-                add_active_alert(token, ppwcs_score, signals, alert_level, initial_signals)
+                update_alert_cache(token, signals, ppwcs_score, active_alerts)
+                save_alert_cache_to_file(active_alerts)
                 
                 print(f"📢 NEW alert sent for {token} (Score: {ppwcs_score})")
                 return True
             else:
                 print(f"❌ Failed to send new alert for {token}")
                 return False
+        else:
+            print(f"⏭️ {token} has active alert but no significant updates ({update_reason})")
+            return False
             
     except Exception as e:
         print(f"❌ Error processing alert for {token}: {e}")
@@ -358,27 +399,19 @@ def log_to_watchlist(token, ppwcs_score, signals):
 def get_alert_statistics():
     """Get alert statistics for dashboard"""
     try:
-        tracker = load_cooldown_tracker()
+        active_alerts = load_alert_cache_from_file()
         now = datetime.now(timezone.utc)
         
-        recent_alerts = []
-        for token, timestamp_str in tracker.items():
-            try:
-                timestamp = datetime.fromisoformat(timestamp_str)
-                if (now - timestamp).total_seconds() < (24 * 3600):  # Last 24 hours
-                    recent_alerts.append({
-                        'token': token,
-                        'timestamp': timestamp,
-                        'hours_ago': round((now - timestamp).total_seconds() / 3600, 1)
-                    })
-            except Exception:
-                continue
-                
-        return {
-            'total_recent_alerts': len(recent_alerts),
-            'recent_alerts': sorted(recent_alerts, key=lambda x: x['timestamp'], reverse=True)[:10]
-        }
+        # Count active alerts (within 2 hours)
+        active_count = 0
+        for symbol, data in active_alerts.items():
+            if now - data["timestamp"] <= timedelta(hours=2):
+                active_count += 1
         
+        return {
+            "active_alerts": active_count,
+            "total_cached": len(active_alerts)
+        }
     except Exception as e:
-        print(f"Error getting alert statistics: {e}")
-        return {'total_recent_alerts': 0, 'recent_alerts': []}
+        logger.error(f"Error getting alert statistics: {e}")
+        return {"active_alerts": 0, "total_cached": 0}
