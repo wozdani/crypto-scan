@@ -242,29 +242,156 @@ def is_chain_supported(chain: str) -> bool:
     return False
 
 def detect_dex_inflow_anomaly(symbol, price_usd=None):
-    """Wykrywa anomalie w napływie DEX - zwiększona czułość"""
-    print("RUNNING: detect_dex_inflow_anomaly")
+    """
+    Enhanced DEX inflow detection with dynamic thresholds and known DEX addresses
+    Returns: True/False based on inflow analysis
+    """
     try:
-        inflow_usd = get_dex_inflow(symbol, {})
-        if isinstance(inflow_usd, (int, float)) and inflow_usd > 0:
-            # Oblicz market cap dla dynamicznego progu
-            market_cap = price_usd * 1000000 if price_usd else 50000000  # fallback 50M
-            
-            # Zwiększona czułość: 1.2% market cap (było 2.5%)
-            threshold = market_cap * 0.012
-            weak_threshold = market_cap * 0.006  # 0.6% dla słabych sygnałów
-            
-            if inflow_usd > threshold:
-                print(f"[DEX INFLOW] Strong anomaly: ${inflow_usd:,.0f} > ${threshold:,.0f}")
-                return inflow_usd
-            elif inflow_usd > weak_threshold:
-                print(f"[DEX INFLOW] Weak anomaly: ${inflow_usd:,.0f} > ${weak_threshold:,.0f}")
-                return inflow_usd * 0.5  # Słabszy sygnał, ale nadal aktywny
+        from data.known_dex_addresses import DEX_ADDRESSES
+        
+        # Get contract information
+        contract_info = get_contract(symbol)
+        if not contract_info or not isinstance(contract_info, dict):
+            print(f"⚠️ Brak kontraktu dla {symbol}")
+            return False
+
+        address = contract_info.get("address")
+        chain = contract_info.get("chain", "").lower()
+        
+        if not address or not chain:
+            print(f"⚠️ Niepełne dane kontraktu dla {symbol}")
+            return False
+
+        # Check if chain is supported
+        if not is_chain_supported(chain):
+            print(f"⚠️ Chain {chain} nieobsługiwany dla {symbol}")
+            return False
+
+        # Get DEX addresses for this chain
+        dex_addresses = DEX_ADDRESSES.get(chain, [])
+        if not dex_addresses:
+            print(f"⚠️ Brak adresów DEX dla chain {chain}")
+            return False
+
+        # Convert DEX addresses to lowercase for comparison
+        dex_addresses_lower = [addr.lower() for addr in dex_addresses]
+
+        # 1. Get token transactions
+        txs = get_token_transfers(address, chain)
+        if not txs:
+            return False
+
+        # 2. Calculate dynamic threshold: max(market_cap * 0.0005, 3000 USD)
+        if price_usd and price_usd > 0:
+            # Estimate market cap (simplified calculation)
+            estimated_market_cap = price_usd * 1000000000  # Assume 1B token supply
+            base_threshold = estimated_market_cap * 0.0005  # 0.05% market cap
+        else:
+            base_threshold = 0
+        
+        min_usd = 3000
+        threshold = max(base_threshold, min_usd)
+
+        # 3. Process transactions and calculate inflow
+        inflow_total = 0
+        inflow_tx_count = 0
+
+        for tx in txs[:50]:  # Analyze last 50 transactions
+            try:
+                to_addr = tx.get("to", "").lower()
                 
-        return 0.0
+                # Check if transaction is to a known DEX address
+                if to_addr in dex_addresses_lower:
+                    # Calculate USD value
+                    decimals = int(tx.get("decimals", 18))
+                    amount = float(tx.get("value", 0)) / (10 ** decimals)
+                    
+                    if price_usd and price_usd > 0:
+                        usd_value = amount * price_usd
+                        
+                        # Filter microscopic transactions below $50
+                        if usd_value >= 50:
+                            inflow_total += usd_value
+                            inflow_tx_count += 1
+                            
+            except (ValueError, TypeError) as e:
+                print(f"⚠️ Error processing transaction for {symbol}: {e}")
+                continue
+
+        # 4. Determine inflow status
+        if inflow_total >= threshold:
+            print(f"✅ DEX inflow wykryty dla {symbol}: {inflow_total:.2f} USD > próg {threshold:.2f}")
+            print(f"   Transakcji DEX: {inflow_tx_count}, Chain: {chain}")
+            return True
+
+        elif inflow_tx_count >= 3 and inflow_total >= threshold * 0.5:
+            print(f"🟡 Umiarkowany inflow dla {symbol}: {inflow_total:.2f} USD ({inflow_tx_count} txs)")
+            return True
+
+        else:
+            print(f"❌ Brak istotnego inflow dla {symbol}: {inflow_total:.2f} USD ({inflow_tx_count} txs)")
+            return False
+
     except Exception as e:
-        logger.error(f"❌ Błąd w detect_dex_inflow_anomaly dla {symbol}: {e}")
-        return 0.0
+        print(f"❌ Błąd w detect_dex_inflow dla {symbol}: {e}")
+        return False
+
+def get_token_transfers(address, chain):
+    """
+    Get token transfer transactions from blockchain explorers
+    Returns list of transactions
+    """
+    import requests
+    import os
+    
+    try:
+        # Select appropriate API endpoint and key
+        if chain == "ethereum":
+            base_url = "https://api.etherscan.io/api"
+            api_key = os.getenv("ETHERSCAN_API_KEY")
+        elif chain == "bsc":
+            base_url = "https://api.bscscan.com/api"
+            api_key = os.getenv("BSCSCAN_API_KEY")
+        elif chain == "arbitrum":
+            base_url = "https://api.arbiscan.io/api"
+            api_key = os.getenv("ARBISCAN_API_KEY")
+        elif chain == "polygon":
+            base_url = "https://api.polygonscan.com/api"
+            api_key = os.getenv("POLYGONSCAN_API_KEY")
+        elif chain == "optimism":
+            base_url = "https://api-optimistic.etherscan.io/api"
+            api_key = os.getenv("OPTIMISMSCAN_API_KEY")
+        else:
+            print(f"⚠️ Chain {chain} not supported for token transfers")
+            return []
+
+        if not api_key:
+            print(f"⚠️ Missing API key for {chain}")
+            return []
+
+        # Get token transfer transactions
+        params = {
+            "module": "account",
+            "action": "tokentx",
+            "contractaddress": address,
+            "page": 1,
+            "offset": 50,
+            "sort": "desc",
+            "apikey": api_key,
+        }
+
+        response = requests.get(base_url, params=params, timeout=10)
+        data = response.json()
+
+        if data.get("status") == "1" and isinstance(data.get("result"), list):
+            return data["result"]
+        else:
+            print(f"⚠️ No token transfers found for {address} on {chain}")
+            return []
+
+    except Exception as e:
+        print(f"❌ Error getting token transfers for {address} on {chain}: {e}")
+        return []
 
 def detect_social_spike(symbol):
     """Detect social media activity spike"""
