@@ -84,7 +84,9 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 17, 2025 - Trend Mode Reporting Integration + CMC Category Cache Builder - PRODUCTION READY
+### June 17, 2025 - Trend Mode Reporting Integration + CMC Category Cache Builder + Import Fix - PRODUCTION READY
+- **Import fix for known_dex_addresses**: Fixed module import error in stages/stage_minus2_1.py by adding proper path resolution
+- **DEX inflow detection restored**: Enhanced DEX inflow detection now works correctly with known DEX addresses across all chains
 - **Trend Mode reporting integration**: Complete integration of trend scores into daily signal reports and feedback files
 - **Enhanced report structure**: Extended `save_stage_signal` function with 11 fields including trend_score, trend_active, trend_summary
 - **Backward compatibility**: Legacy report calls work without trend parameters, defaulting to None/False/[]

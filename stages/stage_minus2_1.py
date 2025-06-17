@@ -247,6 +247,9 @@ def detect_dex_inflow_anomaly(symbol, price_usd=None):
     Returns: True/False based on inflow analysis
     """
     try:
+        import sys
+        import os
+        sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
         from data.known_dex_addresses import DEX_ADDRESSES
         
         # Get contract information
