@@ -84,6 +84,14 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 17, 2025 - Trend Mode v1.0 & Weighted Quality Scoring Complete - PRODUCTION READY
+- **Trend Mode v1.0 implemented**: Professional trend continuation detection based on Minervini, Raschke, Grimes, SMB Capital techniques
+- **Activation conditions**: RSI >68, Price >VWAP for 3 candles, Volume rising for 3 consecutive candles (mandatory for trend analysis)
+- **7-detector scoring system**: RSI strong +10, 2x ATR candle +10, Volume rising +10, 3x close up +5, Above VWAP +5, Orderbook pressure +5, Social burst +5 (max 50 points)
+- **Independent alert system**: Alert threshold ≥35/50, separate 45-minute cooldown from pre-pump alerts
+- **Dashboard integration**: New /api/trend-alerts endpoint, trend_alerts.json data storage, Polish trend strength categorization
+- **Scan cycle integration**: Runs after pre-pump analysis when TREND_MODE_ENABLED=True, separate error handling and logging
+
 ### June 17, 2025 - Weighted Quality Scoring & Pre-Pump 2.0 Complete - PRODUCTION READY
 - **Weighted checklist scoring implemented**: Replaced simple count-based scoring with quality-weighted system for precise signal assessment
 - **Quality detector weights**: rsi_flatline +7, gas_pressure +5, dominant_accumulation +5, vwap_pinning +5, liquidity_box +5, pure_accumulation +5, spoofing +3, heatmap_exhaustion +3, cluster_slope_up +3 (max 41 points)

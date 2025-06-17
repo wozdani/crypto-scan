@@ -412,13 +412,17 @@ def scan_cycle():
                                 
                                 # Send trend alert (independent from pre-pump alerts)
                                 try:
-                                    from utils.telegram_bot import send_telegram_message
-                                    send_telegram_message(trend_message)
-                                    print(f"📢 Trend alert sent for {symbol}")
+                                    from utils.telegram_bot import send_alert
+                                    alert_success = send_alert(trend_message)
                                     
-                                    # Update cooldown and save alert
-                                    update_trend_cooldown(symbol)
-                                    save_trend_alert(symbol, trend_result['trend_score'], trend_result['trend_summary'], trend_result)
+                                    if alert_success:
+                                        print(f"📢 Trend alert sent for {symbol}")
+                                        
+                                        # Update cooldown and save alert
+                                        update_trend_cooldown(symbol)
+                                        save_trend_alert(symbol, trend_result['trend_score'], trend_result['trend_summary'], trend_result)
+                                    else:
+                                        print(f"❌ Failed to send trend alert for {symbol}")
                                     
                                 except Exception as trend_alert_error:
                                     print(f"❌ Failed to send trend alert for {symbol}: {trend_alert_error}")
