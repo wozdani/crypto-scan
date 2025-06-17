@@ -305,3 +305,20 @@ def get_symbol_stats(symbol):
     except Exception as e:
         print(f"Error getting symbol stats: {e}")
         return {"symbol": symbol, "score": 0, "alerts": 0}
+
+def get_recent_alerts(hours=24, limit=100):
+    """Get recent alerts for dashboard"""
+    try:
+        alerts_file = os.path.join("data", "recent_alerts.json")
+        if not os.path.exists(alerts_file):
+            return []
+            
+        with open(alerts_file, "r") as f:
+            alerts = json.load(f)
+        
+        # Return recent alerts (simplified for v3.0)
+        return alerts[-limit:] if alerts else []
+        
+    except Exception as e:
+        print(f"Error getting recent alerts: {e}")
+        return []
