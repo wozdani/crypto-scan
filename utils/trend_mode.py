@@ -135,7 +135,7 @@ def compute_trend_score(data, symbol=None, enable_extensions=True):
     
     Returns:
         dict: {
-            "trend_score": int (0-50),
+            "trend_score": int (0-57),
             "trend_mode_active": bool,
             "trend_summary": list of active signals,
             "activation_details": str,
@@ -231,10 +231,26 @@ def compute_trend_score(data, symbol=None, enable_extensions=True):
         summary.append("Social burst")
         print(f"[TREND] ✅ Social momentum: +5")
     
+    # 8. EMA Alignment Detection (+7 points) - NEW MODULE
+    try:
+        from utils.ema_alignment_detector import compute_ema_alignment_boost
+        ema_result = compute_ema_alignment_boost(data, symbol)
+        
+        ema_boost = ema_result.get("ema_boost", 0)
+        if ema_boost > 0:
+            score += ema_boost
+            summary.append(ema_result.get("summary_text", "EMA alignment confirmed"))
+            print(f"[TREND] ✅ EMA alignment: +{ema_boost} ({ema_result.get('summary_text', 'confirmed')})")
+        else:
+            print(f"[TREND] ❌ EMA alignment: not detected")
+            
+    except Exception as ema_error:
+        print(f"[TREND] ⚠️ EMA alignment error: {ema_error}")
+    
     base_score = score
     base_summary = summary.copy()
     
-    print(f"[TREND MODE] Base score: {base_score}/50 points")
+    print(f"[TREND MODE] Base score: {base_score}/57 points")
     
     # Step 3: Apply Extension Modules (if enabled)
     extensions = {}
