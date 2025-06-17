@@ -84,16 +84,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 17, 2025 - Alert Level System Integration & Volume Spike Removal - PRODUCTION READY
-- **get_alert_level() function implemented**: New 4-tier alert system (0=none, 1=watchlist, 2=pre-pump, 3=strong) calibrated for updated scoring ranges
-- **Alert level integration complete**: Fully integrated with scan_cycle() replacing legacy alert tier logic with precise threshold-based decisions
-- **volume_spike completely removed**: Eliminated from PPWCS hard_detectors (no longer scores +10 points) to prevent post-breakout alerts
-- **stealth_inflow compensation added**: Added as +5 PPWCS hard detector to maintain early accumulation detection capability
-- **Updated scoring ranges**: PPWCS max 60→65 points (with stealth_inflow), checklist max remains 100→95 (v3.0: 90→85)
-- **Enhanced pre-pump focus**: System prioritizes stealth_inflow + whale_activity + compressed + dex_inflow over reactive volume
-- **Smart alert thresholds**: Level 2+ triggers alerts (PPWCS≥40 + checklist≥35), Level 1 creates watchlist entries only
-- **Context preservation**: volume_spike remains in signals dictionary for GPT analysis without affecting scoring decisions
-- **Production optimized**: Complete system tested with edge cases, max 150 total points (65 PPWCS + 85 checklist), ready for deployment
+### June 17, 2025 - Pre-Pump 2.0 Complete Implementation - PRODUCTION READY
+- **Pre-Pump 2.0 architecture implemented**: Complete separation of hard/soft/contextual detectors with clear scoring boundaries
+- **CORE hard detectors (PPWCS only)**: whale_activity +10, dex_inflow +10, stealth_inflow +5, compressed +10, stage1g_active +10, event_tag +10 (max 65)
+- **Soft detectors (checklist only)**: rsi_flatline, gas_pressure, dominant_accumulation, spoofing, heatmap_exhaustion, vwap_pinning, liquidity_box, cluster_slope_up (8 core soft)
+- **Contextual detectors (alerts/GPT)**: fake_reject, fractal_momentum_echo, time_clustering, sector_clustering, whale_sequence, pure_accumulation, execution_intent (11 contextual)
+- **Anti-fake filters**: rsi_below_65, no_risk_tags, no_social_spike for quality validation
+- **volume_spike completely eliminated**: No longer affects any scoring, GPT context only
+- **Updated scoring maximums**: PPWCS 65 points (core only), checklist 110 points (22 conditions), combined 175 points
+- **Enhanced debug output**: Clear separation showing [CORE], [SOFT], [CONTEXT], [FILTER] categories with proper Pre-Pump 2.0 labeling
+- **System verified**: All compliance tests passed, proper detector separation confirmed, ready for production deployment
 
 ### June 17, 2025 - Dynamic Alert Update System & Enhanced DEX Inflow Detection - PRODUCTION READY
 - **Dynamic alert updates implemented**: Replaced "1 alert per hour" limit with intelligent update system that strengthens alerts when new signals appear

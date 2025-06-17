@@ -12,8 +12,16 @@ logger = logging.getLogger(__name__)
 
 def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int]:
     """
-    PPWCS v3.0: Hard Signal Detection Only (0-65 points max)
-    Pre-Pump 2.0 compliant scoring for core hard detectors only
+    PPWCS Pre-Pump 2.0: CORE Hard Detectors Only (0-65 points max)
+    Only core structural signals affect PPWCS scoring
+    
+    CORE Detectors (Hard):
+    - whale_activity: +10 (whale transaction patterns)
+    - dex_inflow: +10 (DEX accumulation anomaly)
+    - stealth_inflow: +5 (stealth accumulation pattern)
+    - compressed: +10 (Stage -1 compression)
+    - stage1g_active: +10 (Stage 1G breakout signal)
+    - event_tag: +10 (listing/partnership events)
     
     Args:
         signals: Dictionary containing all detected signals
@@ -27,53 +35,69 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int
         return 0, 0, 0
 
     try:
-        print(f"[PPWCS v3.0] === HARD SIGNALS ONLY ===")
+        print(f"[PPWCS Pre-Pump 2.0] === CORE HARD DETECTORS ONLY ===")
         
         ppwcs_score = 0
+        active_core_detectors = []
         
-        # Hard Detectors - volume_spike removed, stealth_inflow added as compensation
-        hard_detectors = {
+        # CORE Hard Detectors - Only these affect PPWCS scoring
+        core_detectors = {
             "whale_activity": 10,     # Whale transactions detected
-            "dex_inflow": 10,         # DEX inflow anomaly
+            "dex_inflow": 10,         # DEX inflow anomaly 
+            "stealth_inflow": 5,      # Stealth accumulation pattern
             "compressed": 10,         # Stage -1 compression
-            "stage1g_active": 10,     # Stage 1G breakout active
-            "stealth_inflow": 5       # Stealth accumulation (compensation for volume_spike removal)
+            "stage1g_active": 10      # Stage 1G breakout active
         }
         
-        for detector, points in hard_detectors.items():
+        for detector, points in core_detectors.items():
             if signals.get(detector) is True:
                 ppwcs_score += points
-                print(f"[PPWCS v3.0] ✅ {detector}: +{points}")
+                active_core_detectors.append(detector)
+                print(f"[CORE] ✅ {detector}: +{points}")
             else:
-                print(f"[PPWCS v3.0] ❌ {detector}: not active")
+                print(f"[CORE] ❌ {detector}: not active")
         
-        # Event Tags (positive +10, negative -15)
+        # Event Tags - Core scoring component
         event_tag = signals.get("event_tag")
         if event_tag and isinstance(event_tag, str):
             tag_lower = event_tag.lower()
             if tag_lower in ["listing", "partnership"]:
                 ppwcs_score += 10
-                print(f"[PPWCS v3.0] ✅ Positive event tag ({tag_lower}): +10")
-            elif tag_lower in ["exploit", "unlock", "rug", "delisting"]:
+                active_core_detectors.append("event_tag")
+                print(f"[CORE] ✅ Positive event tag ({tag_lower}): +10")
+        
+        # Risk Tags - Core penalty component
+        risk_tag = signals.get("risk_tag")
+        if risk_tag and isinstance(risk_tag, str):
+            tag_lower = risk_tag.lower()
+            if tag_lower in ["exploit", "unlock", "rug", "delisting"]:
                 penalty = -15
                 ppwcs_score += penalty
-                print(f"[PPWCS v3.0] ❌ Risk tag ({tag_lower}): {penalty}")
+                print(f"[CORE] ❌ Risk tag ({tag_lower}): {penalty}")
                 # Ensure score doesn't go below 0
                 if ppwcs_score < 0:
                     ppwcs_score = 0
         
         final_score = max(0, ppwcs_score)
-        print(f"[PPWCS v3.0] Final hard signals score: {final_score}/65")
+        print(f"[PPWCS Pre-Pump 2.0] Final CORE score: {final_score}/65 (Active: {len(active_core_detectors)}/6)")
+        
+        # Log soft detectors for context (not scored)
+        soft_detectors = ["rsi_flatline", "gas_pressure", "dominant_accumulation", "spoofing", 
+                         "heatmap_exhaustion", "vwap_pinning", "liquidity_box", "cluster_slope_up"]
+        active_soft = [d for d in soft_detectors if signals.get(d) is True]
+        if active_soft:
+            print(f"[SOFT CONTEXT] Active quality signals: {active_soft} (checklist only)")
         
         return final_score, final_score, 0
         
     except Exception as e:
-        print(f"❌ Error computing PPWCS v3.0: {e}")
+        print(f"❌ Error computing PPWCS Pre-Pump 2.0: {e}")
         return 0, 0, 0
 
 def compute_checklist_score_simplified(signals: dict) -> tuple[int, list[str]]:
     """
-    Simplified checklist scoring for soft signals (+5 each)
+    Pre-Pump 2.0: Soft Detectors Checklist Scoring (+5 each)
+    Only soft/quality signals - hard detectors excluded from checklist
     
     Args:
         signals: Dictionary containing all detected signals
@@ -82,60 +106,75 @@ def compute_checklist_score_simplified(signals: dict) -> tuple[int, list[str]]:
         tuple: (checklist_score, fulfilled_conditions_list)
     """
     try:
-        print(f"[CHECKLIST] === SOFT SIGNALS EVALUATION ===")
+        print(f"[CHECKLIST Pre-Pump 2.0] === SOFT DETECTORS ONLY ===")
         
         fulfilled_conditions = []
         checklist_score = 0
         
-        # Soft Signal Checklist (+5 points each) - volume_spike removed per user request
-        soft_signals = {
-            # Technical indicators
-            "RSI_flatline": "RSI flatline (45-55)",
-            "vwap_pinning": "VWAP pinning",
-            "fake_reject": "Fake reject pattern",
-            
-            # Smart money behavior (secondary)
-            "spoofing": "Spoofing detected",
-            "stealth_inflow": "Stealth inflow",
-            "orderbook_anomaly": "Orderbook anomaly",
-            
-            # Microstructure patterns
-            "fractal_momentum_echo": "Fractal momentum echo",
-            "substructure_squeeze": "Substructure squeeze",
-            "liquidity_box": "Liquidity box pattern",
-            
-            # Context signals
-            "time_clustering": "Time clustering",
-            "sector_clustering": "Sector clustering", 
-            "whale_sequence": "Whale execution pattern",
-            "gas_pressure": "Gas pressure/blockspace friction",
-            "execution_intent": "Execution intent confirmed",
-            "dex_divergence": "DEX pool divergence",
-            "heatmap_trap": "Heatmap liquidity trap",
-            
-            # Quality filters
-            "pure_accumulation": "Pure accumulation (no social hype)",
-            "no_social_spike": "No social media hype",
+        # Soft Detectors - Pre-Pump 2.0 specification (miękkie detektory)
+        soft_detectors = {
+            "rsi_flatline": "RSI flatline (45-55)",
+            "gas_pressure": "Gas pressure/blockspace friction", 
+            "dominant_accumulation": "Dominant accumulation pattern",
+            "spoofing": "Spoofing/orderbook manipulation",
+            "heatmap_exhaustion": "Heatmap exhaustion pattern",
+            "vwap_pinning": "VWAP pinning behavior",
+            "liquidity_box": "Liquidity box consolidation",
+            "cluster_slope_up": "Volume cluster slope up"
         }
         
-        # Evaluate each soft signal
-        for signal_key, description in soft_signals.items():
-            if signals.get(signal_key) is True:
-                fulfilled_conditions.append(signal_key)
+        # Check each soft detector
+        for detector_key, description in soft_detectors.items():
+            if signals.get(detector_key) is True:
+                fulfilled_conditions.append(detector_key)
                 checklist_score += 5
-                print(f"[CHECKLIST] ✅ {description}: +5")
+                print(f"[SOFT] ✅ {description}: +5")
             else:
-                print(f"[CHECKLIST] ❌ {description}: not detected")
+                print(f"[SOFT] ❌ {description}: not detected")
+        
+        # Contextual detectors (do kontekstu alertów i feedbacku)
+        contextual_detectors = {
+            "fake_reject": "Fake reject recovery pattern",
+            "fractal_momentum_echo": "Fractal momentum echo",
+            "substructure_squeeze": "Substructure squeeze",
+            "time_clustering": "Time clustering (sector sync)",
+            "sector_clustering": "Sector clustering pattern",
+            "whale_sequence": "Whale execution sequence",
+            "execution_intent": "Execution intent confirmed",
+            "dex_divergence": "DEX pool divergence", 
+            "heatmap_trap": "Heatmap liquidity trap",
+            "pure_accumulation": "Pure accumulation (no social)",
+            "orderbook_anomaly": "Orderbook anomaly"
+        }
+        
+        for detector_key, description in contextual_detectors.items():
+            if signals.get(detector_key) is True:
+                fulfilled_conditions.append(detector_key)
+                checklist_score += 5
+                print(f"[CONTEXT] ✅ {description}: +5")
+            else:
+                print(f"[CONTEXT] ❌ {description}: not detected")
+        
+        # Anti-fake filters
+        if signals.get("rsi") and isinstance(signals["rsi"], (int, float)) and signals["rsi"] < 65:
+            fulfilled_conditions.append("rsi_below_65")
+            checklist_score += 5
+            print(f"[FILTER] ✅ RSI below 65 ({signals['rsi']}): +5")
+        
+        if signals.get("risk_tag") not in ["exploit", "rug", "delisting", "unlock"]:
+            fulfilled_conditions.append("no_risk_tags")
+            checklist_score += 5
+            print(f"[FILTER] ✅ No risk tags: +5")
         
         # Special logic for "no social spike" (inverted)
         if signals.get("social_spike") is False or signals.get("social_spike") is None:
             if "no_social_spike" not in fulfilled_conditions:
                 fulfilled_conditions.append("no_social_spike")
                 checklist_score += 5
-                print(f"[CHECKLIST] ✅ No social media hype: +5")
+                print(f"[FILTER] ✅ No social media hype: +5")
         
-        print(f"[CHECKLIST] Total checklist score: {checklist_score}/85")
-        print(f"[CHECKLIST] Fulfilled conditions: {len(fulfilled_conditions)}/17")
+        print(f"[CHECKLIST Pre-Pump 2.0] Total soft score: {checklist_score}/110")
+        print(f"[CHECKLIST Pre-Pump 2.0] Fulfilled conditions: {len(fulfilled_conditions)}/22")
         
         return checklist_score, fulfilled_conditions
         
@@ -166,8 +205,8 @@ def compute_combined_scores(signals: dict) -> dict:
                                 if signals.get(k) is True])
         soft_signal_count = len(checklist_summary)
         
-        print(f"[COMBINED ANALYSIS] PPWCS: {ppwcs_score}/65, Checklist: {checklist_score}/85")
-        print(f"[COMBINED ANALYSIS] Total: {total_combined}/150, Hard: {hard_signal_count}/5, Soft: {soft_signal_count}/17")
+        print(f"[COMBINED Pre-Pump 2.0] PPWCS: {ppwcs_score}/65, Checklist: {checklist_score}/110")
+        print(f"[COMBINED Pre-Pump 2.0] Total: {total_combined}/175, Hard: {hard_signal_count}/6, Soft: {soft_signal_count}/22")
         
         return {
             "ppwcs": ppwcs_score,
