@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 
 def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int]:
     """
-    PPWCS v3.0: Hard Signal Detection Only (0-70 points max)
-    Simplified scoring for core hard detectors only
+    PPWCS v3.0: Hard Signal Detection Only (0-65 points max)
+    Pre-Pump 2.0 compliant scoring for core hard detectors only
     
     Args:
         signals: Dictionary containing all detected signals
