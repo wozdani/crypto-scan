@@ -84,7 +84,12 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 17, 2025 - CMC Category Cache Builder + Sector Enhancement System - PRODUCTION READY
+### June 17, 2025 - Trend Mode Reporting Integration + CMC Category Cache Builder - PRODUCTION READY
+- **Trend Mode reporting integration**: Complete integration of trend scores into daily signal reports and feedback files
+- **Enhanced report structure**: Extended `save_stage_signal` function with 11 fields including trend_score, trend_active, trend_summary
+- **Backward compatibility**: Legacy report calls work without trend parameters, defaulting to None/False/[]
+- **Feedback file enhancement**: GPT feedback files now include Trend Score alongside PPWCS and Checklist scores
+- **Complete data flow**: Trend analysis results flow from scan_cycle through reports to persistent JSON storage
 - **CMC Category Cache Builder implemented**: New module `utils/cmc_category_cache_builder.py` for token categorization from CoinMarketCap API
 - **Batch processing system**: Processes 100 symbols per API call with 2-second rate limiting to respect CMC API limits
 - **Category classification**: Automatic token vs coin classification based on platform data (Ethereum, BSC, native coins)

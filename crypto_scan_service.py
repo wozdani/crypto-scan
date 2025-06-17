@@ -359,7 +359,8 @@ def scan_cycle():
                     feedback_file = f"data/feedback/{symbol}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}.txt"
                     with open(feedback_file, "w", encoding="utf-8") as f:
                         f.write(f"Token: {symbol}\nPPWCS: {final_score} (Structure: {ppwcs_structure}, Quality: {ppwcs_quality})\n")
-                        f.write(f"Checklist Score: {checklist_score}/100 ({len(checklist_summary)}/20 conditions)\n")
+                        f.write(f"Checklist Score: {checklist_score}/41 ({len(checklist_summary)}/20 conditions)\n")
+                        f.write(f"Trend Score: {trend_score if trend_score is not None else 'N/A'}/57 (Active: {trend_active})\n")
                         f.write(f"Alert Tier: {alert_tier}\nTimestamp: {datetime.now(timezone.utc).isoformat()}\n")
                         f.write(f"Signals: {signals}\nTP Forecast: {tp_forecast}\nFeedback Score: {feedback_score}/100\n")
                         f.write(f"Feedback Category: {category} ({description})\nGPT Feedback:\n{gpt_feedback}\n")
