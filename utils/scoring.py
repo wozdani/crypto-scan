@@ -347,8 +347,8 @@ def get_symbol_stats(symbol):
 
 def compute_checklist_score(signals: dict):
     """
-    Oblicza strukturę pre-pump na podstawie checklisty (maksymalnie 100 pkt)
-    Każdy warunek = +5 punktów
+    Weighted Quality Score - Pre-Pump 2.0 Quality Analysis
+    Based on quality detectors with assigned weights for precise signal assessment
     
     Args:
         signals: Dictionary containing all detected signals
@@ -359,67 +359,33 @@ def compute_checklist_score(signals: dict):
     score = 0
     summary = []
 
-    # I. STRUKTURA TECHNICZNA
-    if signals.get("rsi_flatline"):
-        score += 5
-        summary.append("rsi_flatline")
-
-    if signals.get("fake_reject"):
-        score += 5
-        summary.append("fake_reject")
-
-    if signals.get("compressed"):
-        score += 5
-        summary.append("compressed")
-
-    # II. ZACHOWANIE SMART MONEY
-    if signals.get("whale_activity"):
-        score += 5
-        summary.append("whale_activity")
-
-    if signals.get("dex_inflow"):
-        score += 5
-        summary.append("dex_inflow")
-
-    if signals.get("stealth_inflow"):
-        score += 5
-        summary.append("stealth_inflow")
-
-    if signals.get("spoofing") or signals.get("heatmap_exhaustion"):
-        score += 5
-        summary.append("spoofing_or_exhaustion")
-
-    # III. KONTEKST MIKROSTRUKTURALNY
-    if signals.get("vwap_pinning"):
-        score += 5
-        summary.append("vwap_pinning")
-
-    if signals.get("fractal_echo_squeeze"):
-        score += 5
-        summary.append("fractal_echo_squeeze")
-
-    if signals.get("time_clustering"):
-        score += 5
-        summary.append("time_clustering")
-
-    if signals.get("event_tag") in ["listing", "presale", "airdrop", "partnership"]:
-        score += 5
-        summary.append("positive_event_tag")
-
-    # IV. FILTRY ANTY-FAKE
-    if signals.get("pure_accumulation"):
-        score += 5
-        summary.append("pure_accumulation")
-
-    if signals.get("rsi") and signals["rsi"] < 65:
-        score += 5
-        summary.append("rsi_below_65")
-
-    if signals.get("risk_tag") not in ["exploit", "unlock", "rug", "delisting"]:
-        score += 5
-        summary.append("no_risk_tags")
-
+    # Quality detectors with weighted scoring
+    quality_detectors = {
+        "rsi_flatline": 7,           # High weight - strong technical signal
+        "gas_pressure": 5,           # Medium - blockchain pressure indicator
+        "dominant_accumulation": 5,  # Medium - smart money accumulation
+        "spoofing": 3,              # Low - orderbook manipulation
+        "heatmap_exhaustion": 3,    # Low - supply exhaustion signal
+        "vwap_pinning": 5,          # Medium - price anchoring behavior
+        "liquidity_box": 5,         # Medium - consolidation pattern
+        "cluster_slope_up": 3,      # Low - volume cluster analysis
+        "pure_accumulation": 5      # Medium - stealth accumulation
+    }
+    
+    # Calculate weighted quality score
+    for detector, weight in quality_detectors.items():
+        if signals.get(detector) is True:
+            score += weight
+            summary.append(detector)
+            print(f"[QUALITY] ✅ {detector}: +{weight}")
+        else:
+            print(f"[QUALITY] ❌ {detector}: not detected")
+    
+    print(f"[CHECKLIST DEBUG] Quality score: {score}")
+    print(f"[CHECKLIST DEBUG] Active quality signals: {len(summary)}/9")
+    
     return score, summary
+
 
 def get_recent_alerts(hours=24, limit=100):
     """Get recent alerts for dashboard"""

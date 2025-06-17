@@ -302,14 +302,14 @@ def scan_cycle():
             is_high_confidence = False
             structure_ok = False
             
-            # Enhanced conditions based on checklist scoring
-            if checklist_score >= 50 and final_score >= 70:
+            # Enhanced conditions based on weighted checklist scoring (new system)
+            if checklist_score >= 25 and final_score >= 45:  # Adjusted for weighted scoring (max 41)
                 is_high_confidence = True
-                print(f"[HIGH CONFIDENCE] {symbol}: PPWCS={final_score}, Checklist={checklist_score}")
+                print(f"[HIGH CONFIDENCE] {symbol}: PPWCS={final_score}, Weighted Checklist={checklist_score}")
             
-            if checklist_score >= 60:
+            if checklist_score >= 15:  # Quality threshold instead of count-based ≥3
                 structure_ok = True
-                print(f"[STRUCTURE OK] {symbol}: Checklist score {checklist_score}/85")
+                print(f"[STRUCTURE OK] {symbol}: Quality score {checklist_score}/41")
             
             # Map alert levels to tiers and determine if alert should be sent
             if alert_level == 3:  # Strong alert
