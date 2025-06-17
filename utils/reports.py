@@ -4,15 +4,18 @@ import zipfile
 import time
 from datetime import datetime, timedelta, timezone
 
-def save_stage_signal(symbol, score, stage2_pass, compressed, stage1g_active):
+def save_stage_signal(symbol, score, stage2_pass, compressed, stage1g_active, checklist_score=0, checklist_summary=None):
     """
     Save stage detection results to individual symbol file with robust error handling
+    Enhanced with checklist scoring data
     """
     try:
         signal_data = {
             'symbol': symbol,
             'timestamp': datetime.now(timezone.utc).isoformat(),
             'ppwcs_score': score,
+            'checklist_score': checklist_score,
+            'checklist_summary': checklist_summary or [],
             'stage_minus2': stage2_pass,
             'stage_minus1': compressed,
             'stage_1g': stage1g_active

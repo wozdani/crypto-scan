@@ -84,6 +84,15 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 17, 2025 - PPWCS v3.0 with Separated Scoring Layers & New Checklist Function - PRODUCTION READY
+- **PPWCS v3.0 implemented**: Separated hard signals (0-70 points) from soft signals (0-90 points) for maximum precision
+- **Hard signals system**: whale_activity, dex_inflow, volume_spike, compressed, stage1g_active (+10 each), event tags (+10/-15)
+- **New compute_checklist_score() function**: User-requested 20-condition checklist (5 points each, max 100 points)
+- **Dual scoring integration**: Both PPWCS v3.0 and user checklist run simultaneously in detection pipeline
+- **Enhanced Telegram alerts**: Include both PPWCS score and new checklist score with condition breakdown
+- **JSON reporting updated**: All reports now contain ppwcs, checklist_score, and checklist_summary fields
+- **Production ready**: Complete integration with detection pipeline, alert system, and dashboard
+
 ### June 17, 2025 - Dynamic Alert Update System & Enhanced DEX Inflow Detection - PRODUCTION READY
 - **Dynamic alert updates implemented**: Replaced "1 alert per hour" limit with intelligent update system that strengthens alerts when new signals appear
 - **Enhanced DEX inflow detection**: Added dynamic threshold calculation max(market_cap * 0.0005, 3000 USD), known DEX address filtering, and microscopic transaction filtering (minimum $50)

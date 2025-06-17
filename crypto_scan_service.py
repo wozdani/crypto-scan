@@ -266,13 +266,24 @@ def scan_cycle():
             compressed = detect_stage_minus1(signals) if signals else False
             previous_score = get_previous_score(symbol)
             final_score, ppwcs_structure, ppwcs_quality = compute_ppwcs(signals, previous_score)
+            
+            # Integrate checklist scoring with scan cycle
+            from utils.scoring import compute_checklist_score
+            checklist_score, checklist_summary = compute_checklist_score(signals)
+            
+            # Add checklist data to signals for downstream processing
+            signals["checklist_score"] = checklist_score
+            signals["checklist_summary"] = checklist_summary
+            
             save_score(symbol, final_score)
-            log_ppwcs_score(symbol, final_score)
-            save_stage_signal(symbol, final_score, stage2_pass, compressed, stage1g_active)
+            log_ppwcs_score(symbol, final_score, signals)
+            save_stage_signal(symbol, final_score, stage2_pass, compressed, stage1g_active, checklist_score, checklist_summary)
 
             scan_results.append({
                 'symbol': symbol,
                 'score': final_score,
+                'checklist_score': checklist_score,
+                'checklist_summary': checklist_summary,
                 'timestamp': datetime.now(timezone.utc).isoformat(),
                 'stage2_pass': stage2_pass,
                 'compressed': compressed,
@@ -282,25 +293,55 @@ def scan_cycle():
             from utils.take_profit_engine import forecast_take_profit_levels
             tp_forecast = forecast_take_profit_levels(signals)
 
-            # 3-Tier Alert Confidence System
+            # Enhanced 3-Tier Alert Confidence System with Checklist Integration
             allow_alert = False
             alert_tier = None
+            is_high_confidence = False
+            structure_ok = False
+            
+            # Check checklist scoring conditions
+            if checklist_score >= 50 and final_score >= 70:
+                is_high_confidence = True
+                print(f"[HIGH CONFIDENCE] {symbol}: PPWCS={final_score}, Checklist={checklist_score}")
+            
+            if checklist_score >= 60:
+                structure_ok = True
+                print(f"[STRUCTURE OK] {symbol}: Checklist score {checklist_score}/100")
             
             # Stage 1g quality boost allows alerts at lower PPWCS
             if signals.get("stage1g_active") and ppwcs_quality >= 12:
                 allow_alert = True
             
-            if final_score >= 80 and ppwcs_quality >= 14 and compressed:
+            # Enhanced alert tiers with checklist integration
+            if is_high_confidence and final_score >= 80 and ppwcs_quality >= 14 and compressed:
+                alert_tier = "🔴 Urgent Alert [HIGH CONFIDENCE]"
+                allow_alert = True
+            elif final_score >= 80 and ppwcs_quality >= 14 and compressed:
                 alert_tier = "🔴 Urgent Alert"
+                allow_alert = True
+            elif is_high_confidence and final_score >= 70:
+                alert_tier = "🟠 Pre-pump Active [HIGH CONFIDENCE]"
                 allow_alert = True
             elif final_score >= 70 or ppwcs_quality >= 12:
                 alert_tier = "🟠 Pre-pump Active"
                 allow_alert = True
             elif 60 <= final_score <= 69 and ppwcs_quality < 10:
                 alert_tier = "🟡 Watchlist"
+            
+            # Add structure tag to alert tier if applicable
+            if structure_ok and alert_tier and "[HIGH CONFIDENCE]" not in alert_tier:
+                alert_tier = alert_tier.replace("🟠 Pre-pump Active", "🟠 Pre-pump Active [STRUCTURE OK]")
+                alert_tier = alert_tier.replace("🔴 Urgent Alert", "🔴 Urgent Alert [STRUCTURE OK]")
 
             gpt_feedback = None
-            if allow_alert and alert_tier in ["🔴 Urgent Alert", "🟠 Pre-pump Active"]:
+            # Enhanced GPT conditions to include high confidence alerts
+            gpt_alert_conditions = [
+                "🔴 Urgent Alert", "🟠 Pre-pump Active", 
+                "🔴 Urgent Alert [HIGH CONFIDENCE]", "🟠 Pre-pump Active [HIGH CONFIDENCE]",
+                "🔴 Urgent Alert [STRUCTURE OK]", "🟠 Pre-pump Active [STRUCTURE OK]"
+            ]
+            
+            if allow_alert and any(tier in alert_tier for tier in gpt_alert_conditions if alert_tier):
                 try:
                     gpt_feedback = send_report_to_gpt(symbol, signals, tp_forecast, alert_tier)
                     feedback_score = score_gpt_feedback(gpt_feedback)
@@ -313,6 +354,7 @@ def scan_cycle():
                     feedback_file = f"data/feedback/{symbol}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}.txt"
                     with open(feedback_file, "w", encoding="utf-8") as f:
                         f.write(f"Token: {symbol}\nPPWCS: {final_score} (Structure: {ppwcs_structure}, Quality: {ppwcs_quality})\n")
+                        f.write(f"Checklist Score: {checklist_score}/100 ({len(checklist_summary)}/20 conditions)\n")
                         f.write(f"Alert Tier: {alert_tier}\nTimestamp: {datetime.now(timezone.utc).isoformat()}\n")
                         f.write(f"Signals: {signals}\nTP Forecast: {tp_forecast}\nFeedback Score: {feedback_score}/100\n")
                         f.write(f"Feedback Category: {category} ({description})\nGPT Feedback:\n{gpt_feedback}\n")
