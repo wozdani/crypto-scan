@@ -784,6 +784,7 @@ def detect_stage_minus2_1(symbol, price_usd=None):
         }
         sector_clustering = detect_time_clustering(symbol, temp_signals)
 
+        # Build comprehensive signals dictionary
         signals = {
             # Stage -2.1 Core Detectors (PPWCS 2.6)
             "whale_activity": whale_activity,
@@ -800,11 +801,26 @@ def detect_stage_minus2_1(symbol, price_usd=None):
             "stealth_inflow": stealth_inflow_active,
             "inflow_strength": inflow_strength,
             
+            # RSI value for checklist evaluation
+            "rsi_value": rsi_value,
+            
             # Stage Processing
             "event_tag": event_tag,
             "stage1g_active": stage1g_active,
             "stage1g_trigger_type": stage1g_trigger_type,
             "compressed": compressed,
+            
+            # PPWCS v2.8 New Detectors
+            "whale_sequence": whale_sequence,
+            "gas_pressure": gas_pressure,
+            "dominant_accumulation": whale_dominance,
+            "sector_clustering": sector_clustering,
+            "execution_intent": execution_intent,
+            
+            # Stage 1g Quality Detectors
+            "dex_divergence": dex_divergence,
+            "fake_reject": fake_reject,
+            "heatmap_trap": heatmap_trap,
             
             # Additional PPWCS 2.6 Fields
             "spoofing_suspected": spoofing_suspected,
@@ -839,6 +855,39 @@ def detect_stage_minus2_1(symbol, price_usd=None):
             # Combo Signals for PPWCS boosting
             "combo_volume_inflow": volume_spike_active and inflow_usd > 0
         }
+
+        # Pre-Pump v3.0 Checklist Scoring System
+        from utils.checklist_scoring import compute_checklist_score, get_checklist_summary
+        
+        try:
+            checklist_score, fulfilled_conditions, category_scores = compute_checklist_score(signals)
+            checklist_summary = get_checklist_summary(fulfilled_conditions, category_scores)
+            
+            # Add checklist results to signals
+            signals.update({
+                "checklist_score": checklist_score,
+                "checklist_summary": fulfilled_conditions,
+                "checklist_percentage": checklist_summary["checklist_percentage"],
+                "setup_type": checklist_summary["setup_type"],
+                "setup_icon": checklist_summary["setup_icon"],
+                "condition_count": checklist_summary["condition_count"],
+                "checklist_breakdown": checklist_summary["category_breakdown"]
+            })
+            
+            print(f"[CHECKLIST INTEGRATION] {symbol}: Score={checklist_score}/100, Conditions={len(fulfilled_conditions)}/20, Type={checklist_summary['setup_type']}")
+            
+        except Exception as e:
+            print(f"❌ Error in checklist scoring for {symbol}: {e}")
+            # Add default checklist values if error occurs
+            signals.update({
+                "checklist_score": 0,
+                "checklist_summary": [],
+                "checklist_percentage": 0.0,
+                "setup_type": "Error",
+                "setup_icon": "❌",
+                "condition_count": 0,
+                "checklist_breakdown": {"technical_structure": 0, "smart_money": 0, "microstructure": 0, "anti_fake_filters": 0}
+            })
 
         # Debug wszystkich detektorów przed finalną decyzją
         detector_results = {

@@ -257,6 +257,20 @@ def send_telegram_alert(token, ppwcs_score, stage_signals, tp_forecast, stage1g_
 
 🔬 Signals: {signals_text}"""
 
+        # Add Pre-Pump v3.0 Checklist information
+        checklist_score = stage_signals.get('checklist_score', 0)
+        setup_type = stage_signals.get('setup_type', 'Unknown')
+        setup_icon = stage_signals.get('setup_icon', '❓')
+        condition_count = stage_signals.get('condition_count', 0)
+        
+        if checklist_score > 0:
+            from utils.checklist_scoring import format_checklist_for_alert
+            checklist_breakdown = stage_signals.get('checklist_breakdown', {})
+            fulfilled_conditions = stage_signals.get('checklist_summary', [])
+            
+            checklist_text = format_checklist_for_alert(checklist_score, fulfilled_conditions, checklist_breakdown)
+            text += f"\n\n{checklist_text}"
+
         if stage1g_trigger_type:
             text += f"\n🧩 Trigger: {stage1g_trigger_type}"
 
