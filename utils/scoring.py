@@ -31,11 +31,10 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int
         
         ppwcs_score = 0
         
-        # Hard Detectors (+10 points each, max 70 points)
+        # Hard Detectors (+10 points each, max 60 points)
         hard_detectors = {
             "whale_activity": 10,     # Whale transactions detected
             "dex_inflow": 10,         # DEX inflow anomaly
-            "volume_spike": 10,       # Volume spike detected
             "compressed": 10,         # Stage -1 compression
             "stage1g_active": 10      # Stage 1G breakout active
         }

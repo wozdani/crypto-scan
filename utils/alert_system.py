@@ -216,92 +216,128 @@ def should_update_alert(symbol, new_signals: dict, active_alerts: dict, ppwcs_sc
     # Otherwise - no update needed
     return False, "no_update_needed"
 
-def send_telegram_alert(token, ppwcs_score, stage_signals, tp_forecast, stage1g_trigger_type=None, 
-                       gpt_feedback=None, feedback_score=None, is_update=False, new_signals=None, update_reason=None):
-    """Enhanced Telegram alert with Polish formatting, update support, and GPT feedback"""
+def send_alert(symbol, ppwcs, checklist_score, checklist_summary, signals):
+    """
+    Enhanced alert function with checklist_score integration
+    Changes alert content based on structure quality
+    """
     try:
-        from utils.alert_utils import get_alert_level, get_alert_level_text, should_send_telegram_alert
-        
-        alert_level = get_alert_level(ppwcs_score)
-        
-        if not should_send_telegram_alert(alert_level):
-            return False  # Score too low for alerts
-            
-        alert_level_text = get_alert_level_text(alert_level)
-        active_signals = [k for k, v in stage_signals.items() if v and isinstance(v, bool)]
-        signals_text = ', '.join(active_signals) if active_signals else "None"
+        alert_lines = []
 
-        # Alert prefix based on update status
-        if is_update:
-            alert_prefix = f"🔄 *ALERT UPDATE* - {alert_level_text}"
-            if new_signals:
-                signals_text += f" | NEW: {', '.join(new_signals)}"
+        # Header with enhanced structure assessment
+        alert_lines.append(f"🚨 **PRE-PUMP ALERT** – {symbol}")
+        alert_lines.append(f"PPWCS Score: {ppwcs}/100")
+        alert_lines.append(f"Checklist Score: {checklist_score}/100")
+
+        # Structure quality assessment
+        if checklist_score >= 70:
+            alert_lines.append("✅ Struktura: bardzo silna (setup high-confidence)")
+        elif checklist_score >= 50:
+            alert_lines.append("⚠️ Struktura: akceptowalna, ale warto monitorować")
         else:
-            alert_prefix = alert_level_text
+            alert_lines.append("❗ Uwaga: słaba struktura – możliwy fałszywy sygnał")
+
+        # Active signals section
+        alert_lines.append("\n📡 Aktywne sygnały:")
+        for k, v in signals.items():
+            if isinstance(v, bool) and v:
+                alert_lines.append(f"• {k}")
+            elif isinstance(v, str) and v.strip():
+                alert_lines.append(f"• {k}: {v}")
         
-        text = f"""{alert_prefix}
-📈 Token: *{token}*
-🧠 Score: *{ppwcs_score:.1f} / 100*"""
+        # Structure setup summary
+        if checklist_summary:
+            alert_lines.append("\n🧠 Struktura setupu:")
+            # Show first 8 conditions, then summarize rest
+            if len(checklist_summary) <= 8:
+                alert_lines.append(" + ".join(checklist_summary))
+            else:
+                main_conditions = " + ".join(checklist_summary[:6])
+                additional_count = len(checklist_summary) - 6
+                alert_lines.append(f"{main_conditions} + {additional_count} more")
 
-        # Add update reason if this is an update
-        if is_update and update_reason:
-            text += f"\n🔄 Update: {update_reason.replace(':', ' - ')}"
-
-        text += f"""
-
-🎯 TP Forecast:
-• TP1: +{tp_forecast['TP1']}%
-• TP2: +{tp_forecast['TP2']}%
-• TP3: +{tp_forecast['TP3']}%
-• Trailing TP: +{tp_forecast['TrailingTP']}%
-
-🔬 Signals: {signals_text}"""
-
-        # Add new user checklist score information
-        user_checklist_score = stage_signals.get('user_checklist_score', 0)
-        user_checklist_summary = stage_signals.get('user_checklist_summary', [])
+        # Add chart link
+        alert_lines.append(f"\n🔗 Sprawdź wykres: https://www.bybit.com/en-US/trade/spot/{symbol}")
         
-        if user_checklist_score > 0:
-            text += f"\n\n📋 Checklist Score: *{user_checklist_score}/100*"
-            text += f"\n✅ Conditions: {len(user_checklist_summary)}/20"
-            
-            # Show active conditions in groups
-            if user_checklist_summary:
-                conditions_text = ", ".join(user_checklist_summary[:8])  # First 8 conditions
-                if len(user_checklist_summary) > 8:
-                    conditions_text += f"... (+{len(user_checklist_summary) - 8} more)"
-                text += f"\n🎯 Active: {conditions_text}"
+        # Add timestamp
+        alert_lines.append(f"\n🕒 UTC: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}")
 
-        if stage1g_trigger_type:
-            text += f"\n🧩 Trigger: {stage1g_trigger_type}"
-
-        # Add GPT feedback for strong alerts (PPWCS >= 80)
-        if gpt_feedback and ppwcs_score >= 80:
-            icon = get_feedback_icon(feedback_score or 0)
-            text += f"\n\n🤖 GPT Feedback {icon}:\n{gpt_feedback}"
-
-        text += f"\n\n🕒 UTC: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}"
-
+        # Prepare final message
+        final_msg = "\n".join(alert_lines)
+        
+        # Send to Telegram if configured
         bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
         chat_id = os.getenv('TELEGRAM_CHAT_ID')
         
-        if not bot_token or not chat_id:
-            logger.error("Telegram credentials not configured")
-            return False
+        if bot_token and chat_id:
+            payload = {
+                "chat_id": chat_id,
+                "text": final_msg,
+                "parse_mode": "Markdown"
+            }
 
-        payload = {
-            "chat_id": chat_id,
-            "text": text,
-            "parse_mode": "Markdown"
-        }
+            url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+            response = requests.post(url, data=payload, timeout=10)
+            response.raise_for_status()
+            
+            print(f"✅ Enhanced alert sent for {symbol}")
+            print(final_msg)
+            return True
+        else:
+            # Fallback to console output
+            print("📢 ENHANCED ALERT (Telegram not configured):")
+            print(final_msg)
+            return True
+            
+    except Exception as e:
+        logger.error(f"Error sending enhanced alert for {symbol}: {e}")
+        return False
 
-        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-        response = requests.post(url, data=payload, timeout=10)
-        response.raise_for_status()
+def send_telegram_alert(token, ppwcs_score, stage_signals, tp_forecast, stage1g_trigger_type=None, 
+                       gpt_feedback=None, feedback_score=None, is_update=False, new_signals=None, update_reason=None):
+    """
+    Enhanced Telegram alert that uses new send_alert function with checklist integration
+    Maintained for backward compatibility
+    """
+    try:
+        # Extract checklist data from signals
+        checklist_score = stage_signals.get('checklist_score', 0)
+        checklist_summary = stage_signals.get('checklist_summary', [])
         
-        print(f"✅ Alert sent for {token}")
-        update_cooldown(token)
-        return True
+        # Use new enhanced alert function
+        success = send_alert(token, ppwcs_score, checklist_score, checklist_summary, stage_signals)
+        
+        # Add TP forecast and GPT feedback for legacy compatibility
+        if success and (tp_forecast or gpt_feedback):
+            additional_lines = []
+            
+            if tp_forecast:
+                additional_lines.append("\n🎯 TP Forecast:")
+                additional_lines.append(f"• TP1: +{tp_forecast['TP1']}%")
+                additional_lines.append(f"• TP2: +{tp_forecast['TP2']}%") 
+                additional_lines.append(f"• TP3: +{tp_forecast['TP3']}%")
+                additional_lines.append(f"• Trailing TP: +{tp_forecast['TrailingTP']}%")
+            
+            if gpt_feedback and ppwcs_score >= 80:
+                icon = get_feedback_icon(feedback_score or 0)
+                additional_lines.append(f"\n🤖 GPT Feedback {icon}:\n{gpt_feedback}")
+            
+            if additional_lines:
+                additional_msg = "\n".join(additional_lines)
+                
+                bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
+                chat_id = os.getenv('TELEGRAM_CHAT_ID')
+                
+                if bot_token and chat_id:
+                    payload = {
+                        "chat_id": chat_id,
+                        "text": additional_msg,
+                        "parse_mode": "Markdown"
+                    }
+                    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+                    requests.post(url, data=payload, timeout=10)
+        
+        return success
         
     except Exception as e:
         print(f"❌ Error sending Telegram alert: {e}")
