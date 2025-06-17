@@ -84,16 +84,15 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 17, 2025 - Pre-Pump 2.0 Complete Implementation - PRODUCTION READY
-- **Pre-Pump 2.0 architecture implemented**: Complete separation of hard/soft/contextual detectors with clear scoring boundaries
+### June 17, 2025 - Weighted Quality Scoring & Pre-Pump 2.0 Complete - PRODUCTION READY
+- **Weighted checklist scoring implemented**: Replaced simple count-based scoring with quality-weighted system for precise signal assessment
+- **Quality detector weights**: rsi_flatline +7, gas_pressure +5, dominant_accumulation +5, vwap_pinning +5, liquidity_box +5, pure_accumulation +5, spoofing +3, heatmap_exhaustion +3, cluster_slope_up +3 (max 41 points)
 - **CORE hard detectors (PPWCS only)**: whale_activity +10, dex_inflow +10, stealth_inflow +5, compressed +10, stage1g_active +10, event_tag +10 (max 65)
-- **Soft detectors (checklist only)**: rsi_flatline, gas_pressure, dominant_accumulation, spoofing, heatmap_exhaustion, vwap_pinning, liquidity_box, cluster_slope_up (8 core soft)
-- **Contextual detectors (alerts/GPT)**: fake_reject, fractal_momentum_echo, time_clustering, sector_clustering, whale_sequence, pure_accumulation, execution_intent (11 contextual)
-- **Anti-fake filters**: rsi_below_65, no_risk_tags, no_social_spike for quality validation
+- **Alert thresholds updated**: Structure OK ≥15 (was count ≥3), High Confidence ≥25 quality + ≥45 PPWCS, GPT feedback ≥15 quality
+- **Enhanced debug output**: [QUALITY] categories with individual detector weights, [CHECKLIST DEBUG] shows weighted scores
+- **Scan cycle integration**: Complete integration with weighted scoring, JSON reports include checklist_score as weighted value
 - **volume_spike completely eliminated**: No longer affects any scoring, GPT context only
-- **Updated scoring maximums**: PPWCS 65 points (core only), checklist 110 points (22 conditions), combined 175 points
-- **Enhanced debug output**: Clear separation showing [CORE], [SOFT], [CONTEXT], [FILTER] categories with proper Pre-Pump 2.0 labeling
-- **System verified**: All compliance tests passed, proper detector separation confirmed, ready for production deployment
+- **System verified**: All weighted scoring tests passed, thresholds calibrated for quality-based decisions, ready for production deployment
 
 ### June 17, 2025 - Dynamic Alert Update System & Enhanced DEX Inflow Detection - PRODUCTION READY
 - **Dynamic alert updates implemented**: Replaced "1 alert per hour" limit with intelligent update system that strengthens alerts when new signals appear
