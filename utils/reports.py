@@ -4,10 +4,10 @@ import zipfile
 import time
 from datetime import datetime, timedelta, timezone
 
-def save_stage_signal(symbol, score, stage2_pass, compressed, stage1g_active, checklist_score=0, checklist_summary=None):
+def save_stage_signal(symbol, score, stage2_pass, compressed, stage1g_active, checklist_score=0, checklist_summary=None, trend_score=None, trend_active=False, trend_summary=None):
     """
     Save stage detection results to individual symbol file with robust error handling
-    Enhanced with checklist scoring data
+    Enhanced with checklist scoring data and trend mode integration
     """
     try:
         signal_data = {
@@ -18,7 +18,10 @@ def save_stage_signal(symbol, score, stage2_pass, compressed, stage1g_active, ch
             'checklist_summary': checklist_summary or [],
             'stage_minus2': stage2_pass,
             'stage_minus1': compressed,
-            'stage_1g': stage1g_active
+            'stage_1g': stage1g_active,
+            'trend_score': trend_score,
+            'trend_active': trend_active,
+            'trend_summary': trend_summary or []
         }
         
         # Ensure reports directory exists

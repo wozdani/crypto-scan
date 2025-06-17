@@ -283,7 +283,10 @@ def scan_cycle():
             
             save_score(symbol, final_score)
             log_ppwcs_score(symbol, final_score, signals)
-            save_stage_signal(symbol, final_score, stage2_pass, compressed, stage1g_active, checklist_score, checklist_summary)
+            # Initialize trend data (will be updated later if Trend Mode runs)
+            trend_score = None
+            trend_active = False
+            trend_summary = []
 
             scan_results.append({
                 'symbol': symbol,
@@ -293,7 +296,10 @@ def scan_cycle():
                 'timestamp': datetime.now(timezone.utc).isoformat(),
                 'stage2_pass': stage2_pass,
                 'compressed': compressed,
-                'stage1g_active': stage1g_active
+                'stage1g_active': stage1g_active,
+                'trend_score': None,  # Will be updated if Trend Mode runs
+                'trend_active': False,
+                'trend_summary': []
             })
 
             from utils.take_profit_engine import forecast_take_profit_levels
@@ -399,6 +405,19 @@ def scan_cycle():
                             # Run trend analysis
                             trend_result = compute_trend_score(candle_data, symbol)
                             
+                            # Update trend data for reports
+                            trend_score = trend_result['trend_score']
+                            trend_active = trend_result['trend_mode_active']
+                            trend_summary = trend_result['trend_summary']
+                            
+                            # Update scan_results with trend data
+                            for result in scan_results:
+                                if result['symbol'] == symbol:
+                                    result['trend_score'] = trend_score
+                                    result['trend_active'] = trend_active
+                                    result['trend_summary'] = trend_summary
+                                    break
+                            
                             if trend_result['trend_mode_active'] and trend_result['trend_score'] >= TREND_ALERT_THRESHOLD:
                                 print(f"🚀 [TREND MODE] {symbol}: Score {trend_result['trend_score']}/50 - Sending alert")
                                 
@@ -436,6 +455,10 @@ def scan_cycle():
                         
                 except Exception as trend_error:
                     print(f"❌ Trend Mode error for {symbol}: {trend_error}")
+
+            # Save complete stage signal data including trend mode results
+            save_stage_signal(symbol, final_score, stage2_pass, compressed, stage1g_active, 
+                            checklist_score, checklist_summary, trend_score, trend_active, trend_summary)
 
         except Exception as e:
             print(f"❌ Error scanning {symbol}: {e}")
