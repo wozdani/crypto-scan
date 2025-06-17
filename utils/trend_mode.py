@@ -124,20 +124,22 @@ def detect_social_burst(symbol):
         return False
 
 
-def compute_trend_score(data, symbol=None):
+def compute_trend_score(data, symbol=None, enable_extensions=True):
     """
-    Trend Mode v1.0 - Professional trend continuation scoring
+    Trend Mode v1.0 - Professional trend continuation scoring with extensions
     
     Args:
         data: OHLCV candle data (list of [timestamp, open, high, low, close, volume])
         symbol: token symbol for additional analysis
+        enable_extensions: whether to use advanced extension modules
     
     Returns:
         dict: {
             "trend_score": int (0-50),
             "trend_mode_active": bool,
             "trend_summary": list of active signals,
-            "activation_details": str
+            "activation_details": str,
+            "extensions": dict (if enabled)
         }
     """
     print(f"[TREND MODE v1.0] Analyzing trend for {symbol}")
@@ -151,12 +153,13 @@ def compute_trend_score(data, symbol=None):
             "trend_score": 0,
             "trend_mode_active": False,
             "trend_summary": [],
-            "activation_details": activation_details
+            "activation_details": activation_details,
+            "extensions": {}
         }
     
     print(f"[TREND MODE] ✅ Activation confirmed: {activation_details}")
     
-    # Step 2: Calculate trend continuation score (max 50 points)
+    # Step 2: Calculate basic trend continuation score (max 50 points)
     score = 0
     summary = []
     
@@ -170,7 +173,8 @@ def compute_trend_score(data, symbol=None):
             "trend_score": 0,
             "trend_mode_active": False,
             "trend_summary": [],
-            "activation_details": "Insufficient data"
+            "activation_details": "Insufficient data",
+            "extensions": {}
         }
     
     last_candle = data[-1]
@@ -227,14 +231,76 @@ def compute_trend_score(data, symbol=None):
         summary.append("Social burst")
         print(f"[TREND] ✅ Social momentum: +5")
     
-    print(f"[TREND MODE] Final score: {score}/50 points")
-    print(f"[TREND MODE] Active signals: {len(summary)}/7")
+    base_score = score
+    base_summary = summary.copy()
+    
+    print(f"[TREND MODE] Base score: {base_score}/50 points")
+    
+    # Step 3: Apply Extension Modules (if enabled)
+    extensions = {}
+    
+    if enable_extensions and symbol:
+        print(f"[TREND EXTENSIONS] Running advanced modules for {symbol}")
+        
+        try:
+            # Extension 1: Trailing TP Engine
+            from utils.trailing_tp_engine import compute_trailing_tp_levels
+            tp_levels = compute_trailing_tp_levels(data, symbol, base_score)
+            extensions["trailing_tp"] = tp_levels
+            
+            # Extension 2: Breakout Cluster Scoring
+            from utils.breakout_cluster_scoring import compute_cluster_boost
+            cluster_result = compute_cluster_boost(symbol, base_score, base_summary)
+            extensions["cluster_scoring"] = cluster_result
+            
+            # Add cluster boost to score (max 25 additional points)
+            cluster_boost = cluster_result.get("cluster_boost", 0)
+            if cluster_boost > 0:
+                score = min(50, score + min(cluster_boost, 10))  # Cap boost at 10 for trend mode
+                summary.append(f"Cluster boost (+{min(cluster_boost, 10)})")
+                print(f"[TREND EXTENSIONS] Cluster boost: +{min(cluster_boost, 10)} points")
+            
+            # Extension 3: VWAP Anchoring Tracker
+            from utils.vwap_anchoring_tracker import compute_vwap_anchoring_score
+            vwap_result = compute_vwap_anchoring_score(data, symbol, "up")
+            extensions["vwap_anchoring"] = vwap_result
+            
+            # Add VWAP anchoring boost (max 15 additional points)
+            vwap_boost = vwap_result.get("anchoring_score", 0)
+            if vwap_boost >= 8:  # Only if anchoring is active
+                boost_points = min(8, int(vwap_boost * 0.3))  # 30% of anchoring score, max 8
+                score = min(50, score + boost_points)
+                summary.append(f"VWAP anchoring (+{boost_points})")
+                print(f"[TREND EXTENSIONS] VWAP anchoring: +{boost_points} points")
+            
+            # Extension 4: Trend Confirmation GPT (for high scores only)
+            if base_score >= 35:  # Only for strong trends
+                from utils.trend_confirmation_gpt import compute_gpt_trend_boost
+                gpt_result = compute_gpt_trend_boost(symbol, base_score, base_summary, data, tp_levels)
+                extensions["gpt_confirmation"] = gpt_result
+                
+                # Add GPT boost (max 10 additional points)
+                gpt_boost = gpt_result.get("gpt_boost", 0)
+                if gpt_boost > 0:
+                    score = min(50, score + gpt_boost)
+                    summary.append(f"GPT confirmation (+{gpt_boost})")
+                    print(f"[TREND EXTENSIONS] GPT boost: +{gpt_boost} points")
+            else:
+                extensions["gpt_confirmation"] = {"gpt_boost": 0, "gpt_analysis": {"gpt_assessment": "Score below GPT threshold (35)"}}
+            
+        except Exception as e:
+            print(f"[TREND EXTENSIONS] Error in extensions: {e}")
+            extensions["error"] = str(e)
+    
+    print(f"[TREND MODE] Final score: {score}/50 points (base: {base_score})")
+    print(f"[TREND MODE] Active signals: {len(summary)}")
     
     return {
         "trend_score": score,
         "trend_mode_active": True,
         "trend_summary": summary,
-        "activation_details": activation_details
+        "activation_details": activation_details,
+        "extensions": extensions
     }
 
 
