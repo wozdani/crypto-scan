@@ -84,16 +84,15 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 17, 2025 - Enhanced Alert System with Dynamic Structure Assessment - PRODUCTION READY
-- **Enhanced send_alert() function implemented**: Dynamic alert content based on checklist_score quality assessment
-- **Structure quality messaging**: Very Strong (≥70), Acceptable (50-69), Weak (<50) with appropriate warnings
-- **Complete scan_cycle integration**: Enhanced alerts replace legacy system with full checklist integration
-- **Smart alert content**: Active signals listing, structure breakdown, chart links, and quality-based messaging
-- **High confidence detection**: Automatic identification when checklist_score ≥ 50 AND ppwcs ≥ 70
-- **Production alert logic**: Prevents false positives by warning about weak structure even with high PPWCS
-- **Telegram integration**: Enhanced alerts sent with Markdown formatting and fallback to console output
-- **Backward compatibility**: Legacy system maintained for TP forecasts and GPT feedback integration
-- **Quality control**: System now distinguishes between random spikes and structured pre-pump setups
+### June 17, 2025 - Volume Spike Removal & Pre-Pump Focus Optimization - PRODUCTION READY
+- **volume_spike removed from scoring**: Eliminated from both PPWCS hard_detectors and checklist soft_signals to prevent post-breakout alerts
+- **Refined scoring ranges**: PPWCS max reduced 70→60 points, checklist max reduced 100→95 points (v3.0: 90→85)
+- **Pre-pump focus enhanced**: System now relies on compressed (Stage -1), RSI_flatline, whale_activity, dex_inflow, stealth_inflow for early detection
+- **Context preservation**: volume_spike still available in signals dictionary for GPT analysis without affecting alert decisions
+- **Microstructural emphasis**: Greater weight on compressed signals, whale patterns, and stealth accumulation over reactive volume
+- **Alert logic maintained**: High confidence (≥50 checklist + ≥70 ppwcs) and structure OK (≥60 checklist) thresholds preserved
+- **Enhanced pre-pump timing**: Prevents delayed alerts triggered by post-breakout volume while maintaining early detection capability
+- **Production optimized**: All scoring functions, debug output, and alert systems updated with new maximum values
 
 ### June 17, 2025 - Dynamic Alert Update System & Enhanced DEX Inflow Detection - PRODUCTION READY
 - **Dynamic alert updates implemented**: Replaced "1 alert per hour" limit with intelligent update system that strengthens alerts when new signals appear

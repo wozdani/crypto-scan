@@ -62,7 +62,7 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int
                     ppwcs_score = 0
         
         final_score = max(0, ppwcs_score)
-        print(f"[PPWCS v3.0] Final hard signals score: {final_score}/70")
+        print(f"[PPWCS v3.0] Final hard signals score: {final_score}/60")
         
         return final_score, final_score, 0
         
@@ -86,7 +86,7 @@ def compute_checklist_score_simplified(signals: dict) -> tuple[int, list[str]]:
         fulfilled_conditions = []
         checklist_score = 0
         
-        # Soft Signal Checklist (+5 points each)
+        # Soft Signal Checklist (+5 points each) - volume_spike removed per user request
         soft_signals = {
             # Technical indicators
             "RSI_flatline": "RSI flatline (45-55)",
@@ -133,8 +133,8 @@ def compute_checklist_score_simplified(signals: dict) -> tuple[int, list[str]]:
                 checklist_score += 5
                 print(f"[CHECKLIST] ✅ No social media hype: +5")
         
-        print(f"[CHECKLIST] Total checklist score: {checklist_score}/90")
-        print(f"[CHECKLIST] Fulfilled conditions: {len(fulfilled_conditions)}/18")
+        print(f"[CHECKLIST] Total checklist score: {checklist_score}/85")
+        print(f"[CHECKLIST] Fulfilled conditions: {len(fulfilled_conditions)}/17")
         
         return checklist_score, fulfilled_conditions
         
@@ -161,12 +161,12 @@ def compute_combined_scores(signals: dict) -> dict:
         
         # Combined analysis
         total_combined = ppwcs_score + checklist_score
-        hard_signal_count = sum([1 for k in ["whale_activity", "dex_inflow", "volume_spike", "compressed", "stage1g_active"] 
+        hard_signal_count = sum([1 for k in ["whale_activity", "dex_inflow", "compressed", "stage1g_active"] 
                                 if signals.get(k) is True])
         soft_signal_count = len(checklist_summary)
         
-        print(f"[COMBINED ANALYSIS] PPWCS: {ppwcs_score}/70, Checklist: {checklist_score}/90")
-        print(f"[COMBINED ANALYSIS] Total: {total_combined}/160, Hard: {hard_signal_count}/5, Soft: {soft_signal_count}/18")
+        print(f"[COMBINED ANALYSIS] PPWCS: {ppwcs_score}/60, Checklist: {checklist_score}/85")
+        print(f"[COMBINED ANALYSIS] Total: {total_combined}/145, Hard: {hard_signal_count}/4, Soft: {soft_signal_count}/17")
         
         return {
             "ppwcs": ppwcs_score,
@@ -323,10 +323,6 @@ def compute_checklist_score(signals: dict):
     if signals.get("rsi_flatline"):
         score += 5
         summary.append("rsi_flatline")
-
-    if signals.get("volume_spike"):
-        score += 5
-        summary.append("volume_spike")
 
     if signals.get("fake_reject"):
         score += 5
