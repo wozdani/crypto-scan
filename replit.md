@@ -84,6 +84,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 17, 2025 - CMC Category Cache Builder + Sector Enhancement System - PRODUCTION READY
+- **CMC Category Cache Builder implemented**: New module `utils/cmc_category_cache_builder.py` for token categorization from CoinMarketCap API
+- **Batch processing system**: Processes 100 symbols per API call with 2-second rate limiting to respect CMC API limits
+- **Category classification**: Automatic token vs coin classification based on platform data (Ethereum, BSC, native coins)
+- **Tag extraction and normalization**: Clean processing of CMC tags with sector mapping suggestions
+- **Sector enhancement system**: Generates automatic sector mappings compatible with existing SECTOR_MAPPING in breakout_cluster_scoring.py
+- **Cache management**: Persistent storage in `data/cache/cmc_category_cache.json` with statistics and enhancement reports
+- **Integration ready**: Compatible with existing 40-token SECTOR_MAPPING, adds new mappings without overwriting existing ones
+- **API key requirement**: Requires `CMC_API_KEY` environment variable for live CoinMarketCap API access
+- **Enhancement reports**: Detailed analysis saved to `data/cache/sector_enhancement_report.json` for mapping improvements
+
 ### June 17, 2025 - Trend Mode v1.0 + EMA Alignment + 4 Extensions Complete - PRODUCTION READY
 - **Trend Mode v1.0 implemented**: Professional trend continuation detection based on Minervini, Raschke, Grimes, SMB Capital techniques
 - **Activation conditions**: RSI >68, Price >VWAP for 3 candles, Volume rising for 3 consecutive candles (mandatory for trend analysis)
