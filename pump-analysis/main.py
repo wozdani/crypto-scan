@@ -89,63 +89,66 @@ class BybitDataFetcher:
             logger.error(f"Error fetching data for {symbol}: {e}")
             return []
     
-    def get_active_symbols(self, limit: int = 50) -> List[str]:
+    def get_active_symbols(self, limit: int = None) -> List[str]:
         """
-        Get active trading symbols using single optimized request (like main scanner)
-        Fetches ALL symbols once, then sorts by volume for maximum efficiency
+        Get active trading symbols from Bybit futures perpetual (linear category)
+        Uses same logic as crypto-scan main scanner
         """
-        logger.info(f"📊 Fetching top {limit} USDT symbols with single optimized request...")
+        logger.info(f"📊 Fetching USDT perpetual futures symbols from Bybit...")
+        
+        symbols = set()
+        cursor = ""
         
         try:
-            # Single request to get ALL spot symbols at once
-            endpoint = f"{self.base_url}/v5/market/tickers"
-            params = {'category': 'spot'}
-            
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Accept': 'application/json'
-            }
-            
-            if self.api_key:
-                headers['X-BAPI-API-KEY'] = self.api_key
-            
-            logger.debug(f"🔗 Single API call: {endpoint}")
-            response = requests.get(endpoint, params=params, headers=headers, timeout=20)
-            response.raise_for_status()
-            data = response.json()
-            
-            if data.get('retCode') == 0:
-                all_tickers = data.get('result', {}).get('list', [])
-                logger.info(f"📈 Retrieved {len(all_tickers)} total symbols from Bybit")
+            while True:
+                # Use linear category for futures perpetual (same as crypto-scan)
+                endpoint = f"{self.base_url}/v5/market/tickers"
+                params = {
+                    "category": "linear",
+                    "limit": 1000
+                }
+                if cursor:
+                    params["cursor"] = cursor
                 
-                # Filter and sort USDT pairs by volume
-                usdt_symbols = []
-                for ticker in all_tickers:
-                    symbol = ticker.get('symbol', '')
-                    if symbol.endswith('USDT'):
-                        volume_24h = float(ticker.get('volume24h', 0))
-                        if volume_24h > 50000:  # Filter low volume tokens
-                            usdt_symbols.append({
-                                'symbol': symbol,
-                                'volume': volume_24h
-                            })
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    'Accept': 'application/json'
+                }
                 
-                # Sort by volume (highest first) - most active symbols for pump detection
-                usdt_symbols.sort(key=lambda x: x['volume'], reverse=True)
+                if self.api_key:
+                    headers['X-BAPI-API-KEY'] = self.api_key
                 
-                # Extract symbol names
-                symbol_list = [item['symbol'] for item in usdt_symbols]
+                logger.debug(f"🔗 Fetching symbols with cursor: {cursor}")
+                response = requests.get(endpoint, params=params, headers=headers, timeout=20)
+                response.raise_for_status()
+                data = response.json()
                 
-                logger.info(f"✅ Filtered to {len(symbol_list)} high-volume USDT symbols")
-                logger.info(f"🔝 Top 10: {symbol_list[:10]}")
-                
-                return symbol_list[:limit]
-                
-            else:
-                logger.error(f"Bybit API error: {data.get('retMsg', 'Unknown error')}")
-                
+                if data.get('retCode') == 0:
+                    page_symbols = data.get('result', {}).get('list', [])
+                    
+                    for item in page_symbols:
+                        symbol = item.get('symbol', '')
+                        status = item.get('status', '')
+                        if symbol and symbol.endswith('USDT') and status == 'Trading':
+                            symbols.add(symbol)
+                    
+                    cursor = data.get('result', {}).get('nextPageCursor')
+                    if not cursor:
+                        break
+                        
+                    time.sleep(0.1)  # Rate limiting
+                else:
+                    logger.error(f"Bybit API error: {data.get('retMsg', 'Unknown error')}")
+                    break
+                    
         except Exception as e:
-            logger.error(f"Error in optimized symbol fetch: {e}")
+            logger.error(f"Error fetching symbols from Bybit: {e}")
+        
+        if symbols:
+            symbol_list = sorted(list(symbols))
+            logger.info(f"✅ Retrieved {len(symbol_list)} USDT perpetual futures symbols")
+            logger.info(f"🔝 First 10: {symbol_list[:10]}")
+            return symbol_list
         
         # Fallback only if API completely fails
         fallback_symbols = [
@@ -157,7 +160,7 @@ class BybitDataFetcher:
             'AXSUSDT', 'SANDUSDT', 'MANAUSDT', 'GALAUSDT', 'PAWSUSDT'
         ]
         logger.warning("⚠️ Using fallback symbol list due to API failure")
-        return fallback_symbols[:limit]
+        return fallback_symbols
 
 class PumpDetector:
     """Detects pump events in price data"""
@@ -788,8 +791,8 @@ class PumpAnalysisSystem:
         logger.info("🚀 Starting Pump Analysis System")
         logger.info(f"📊 Analyzing {days_back} days of data for up to {max_symbols} symbols")
         
-        # Get active symbols
-        symbols = self.bybit.get_active_symbols(limit=max_symbols)
+        # Get active symbols (unlimited)
+        symbols = self.bybit.get_active_symbols()
         
         if not symbols:
             logger.error("❌ No symbols retrieved from Bybit")
