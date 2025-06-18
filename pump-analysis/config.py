@@ -6,6 +6,11 @@ Handles environment variables and system settings
 
 import os
 from typing import Optional
+from dotenv import load_dotenv
+
+# Load environment variables from multiple locations
+load_dotenv()  # Load from pump-analysis/.env
+load_dotenv('../.env')  # Load from parent directory
 
 class Config:
     """Configuration class for pump analysis system"""

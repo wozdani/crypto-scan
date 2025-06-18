@@ -781,7 +781,7 @@ class PumpAnalysisSystem:
         # Create data directory
         os.makedirs('pump_data', exist_ok=True)
         
-    def run_analysis(self, days_back: int = 7, max_symbols: int = 30):
+    def run_analysis(self, days_back: float = 7, max_symbols: int = 30):
         """
         Run complete pump analysis
         
