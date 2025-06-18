@@ -23,6 +23,7 @@ from functions_history.function_manager import FunctionMetadata
 from modules import get_heatmap_manager, initialize_heatmap_system
 from modules.extended_orderbook_analysis import get_extended_orderbook_analyzer
 from modules.heatmap_detectors import get_simplified_heatmap_detector
+from detect_pumps import detect_biggest_pump_15m, categorize_pump_15m, get_pump_statistics, filter_pumps_by_type
 
 # Configure logging with DEBUG level for detailed pump analysis debugging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -353,7 +354,7 @@ class PumpDetector:
         
     def detect_pumps_in_data(self, kline_data: List[List], symbol: str) -> List[PumpEvent]:
         """
-        Detect pump events in kline data
+        Detect pump events in kline data using advanced 15-minute candle analysis
         
         Args:
             kline_data: List of kline data from Bybit API
@@ -364,76 +365,52 @@ class PumpDetector:
         """
         if len(kline_data) < 4:  # Need at least 1 hour of 15-min data
             return []
-            
+        
         pumps = []
         
-        # Convert to DataFrame for easier analysis
-        df = pd.DataFrame(kline_data, columns=[
-            'start_time', 'open', 'high', 'low', 'close', 'volume', 'turnover'
-        ])
+        # Convert kline data to format expected by detect_biggest_pump_15m
+        candles = []
+        for candle in kline_data:
+            candles.append({
+                "timestamp": int(candle[0]) / 1000,  # Convert ms to seconds
+                "open": float(candle[1]),
+                "high": float(candle[2]),
+                "low": float(candle[3]),
+                "close": float(candle[4]),
+                "volume": float(candle[5])
+            })
         
-        # Convert to numeric
-        df['open'] = pd.to_numeric(df['open'])
-        df['high'] = pd.to_numeric(df['high'])
-        df['low'] = pd.to_numeric(df['low'])
-        df['close'] = pd.to_numeric(df['close'])
-        df['volume'] = pd.to_numeric(df['volume'])
-        df['start_time'] = pd.to_numeric(df['start_time'])
+        # Use the new advanced pump detection algorithm
+        pump_result = detect_biggest_pump_15m(candles, symbol)
         
-        # Convert timestamp to datetime
-        df['datetime'] = pd.to_datetime(df['start_time'], unit='ms')
-        df = df.sort_values('datetime')
+        if pump_result:
+            # Convert pump result to PumpEvent format
+            start_time_str = pump_result["start_time"]
+            try:
+                # Parse the formatted timestamp
+                start_time = datetime.strptime(start_time_str, '%Y-%m-%d %H:%M:%S UTC').replace(tzinfo=timezone.utc)
+            except ValueError:
+                # Fallback for different timestamp formats
+                start_time = datetime.fromtimestamp(pump_result.get("start_timestamp", 0), tz=timezone.utc)
+            
+            # Calculate volume spike for compatibility
+            volume_spike = 1.0  # Default value, could be enhanced later
+            
+            pump_event = PumpEvent(
+                symbol=symbol,
+                start_time=start_time,
+                price_before=pump_result["start_price"],
+                price_peak=pump_result["end_price"],
+                price_increase_pct=pump_result["growth"],
+                duration_minutes=pump_result["window_min"],
+                volume_spike=volume_spike
+            )
+            
+            pumps.append(pump_event)
+            
+            # Log the enhanced pump detection details
+            logger.info(f"🎯 Enhanced pump detected: {symbol} - {pump_result['growth']}% ({pump_result['type']}) in {pump_result['window_hours']}h")
         
-        # Rolling window analysis for pump detection
-        window_size = self.detection_window_minutes // 15  # 15-min candles
-        processed_periods = set()  # Track processed time periods to avoid duplicates
-        
-        i = window_size
-        while i < len(df):
-            window_start = i - window_size
-            window_data = df.iloc[window_start:i+1]
-            
-            # Create unique period identifier
-            period_key = (window_data.iloc[0]['start_time'], window_data.iloc[-1]['start_time'])
-            
-            # Skip if this period was already processed
-            if period_key in processed_periods:
-                i += 1
-                continue
-            
-            price_start = window_data.iloc[0]['close']
-            price_peak = window_data['high'].max()
-            
-            increase_pct = ((price_peak - price_start) / price_start) * 100
-            
-            if increase_pct >= self.min_increase_pct:
-                # Calculate additional metrics
-                volume_before = df.iloc[max(0, window_start-6):window_start]['volume'].mean()
-                volume_during = window_data['volume'].mean()
-                volume_spike = volume_during / volume_before if volume_before > 0 else 1
-                
-                pump_event = PumpEvent(
-                    symbol=symbol,
-                    start_time=window_data.iloc[0]['datetime'],
-                    price_before=price_start,
-                    price_peak=price_peak,
-                    price_increase_pct=increase_pct,
-                    duration_minutes=self.detection_window_minutes,
-                    volume_spike=volume_spike
-                )
-                
-                pumps.append(pump_event)
-                processed_periods.add(period_key)
-                
-                # Skip ahead to avoid overlapping pumps
-                i += window_size
-            else:
-                i += 1
-                
-        # Additional deduplication - merge pumps that are too close in time
-        if len(pumps) > 1:
-            pumps = self._deduplicate_pumps(pumps)
-                
         return pumps
     
     def _deduplicate_pumps(self, pumps: List[PumpEvent]) -> List[PumpEvent]:
