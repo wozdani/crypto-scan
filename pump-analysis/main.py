@@ -1039,7 +1039,7 @@ class PumpAnalysisSystem:
                 
                 kline_data = self.bybit.get_kline_data(
                     symbol=symbol,
-                    interval="5",
+                    interval="15",
                     start_time=start_time,
                     limit=1000
                 )

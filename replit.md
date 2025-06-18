@@ -98,6 +98,15 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 18, 2025 - 15-Minute Candlestick Interval Update - PRODUCTION READY
+- **Complete interval migration**: Changed all candlestick intervals from 5-minute to 15-minute timeframes across entire pump analysis system
+- **Pump detection optimization**: Updated window size calculations - 30-minute detection window now uses 2x 15-minute candles instead of 6x 5-minute
+- **Pre-pump analysis adjustment**: 60-minute pre-pump analysis now uses 4x 15-minute candles with proper timestamp calculations
+- **API call updates**: All Bybit API requests now use interval="15" for consistent data collection
+- **Test data harmonization**: Updated synthetic test data generation to use 15-minute intervals (900-second timestamps)
+- **Detector function compatibility**: Modified generated detector functions to work with 15-minute candlestick data structure
+- **Enhanced signal detection**: Larger timeframe provides better signal clarity and reduces market noise for more accurate pump identification
+
 ### June 18, 2025 - Advanced GPT Function History Context + Enhanced Pattern Recognition - PRODUCTION READY
 - **GPT Function History Context System implemented**: Revolutionary AI enhancement enabling GPT-4o to learn from previous detection patterns
 - **Historical context awareness**: GPT now receives 3-5 previous detector functions as context, enabling pattern comparison and logic evolution
