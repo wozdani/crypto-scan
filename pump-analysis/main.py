@@ -821,6 +821,47 @@ CANDLE PATTERNS:
                 body_pct = ((close_price - open_price) / open_price * 100) if open_price > 0 else 0
                 candle_info += f"• Candle {i}: {body_pct:+.2f}% body, Volume: {volume:.0f}, RSI: {rsi}\n"
 
+        # Add heatmap analysis for strategic context
+        heatmap_info = ""
+        try:
+            from modules.heatmap_integration import get_heatmap_manager
+            heatmap_manager = get_heatmap_manager()
+            heatmap_data = heatmap_manager.get_heatmap_for_gpt(pump_event.symbol)
+            
+            if heatmap_data and heatmap_data.get('heatmap_analysis'):
+                analysis = heatmap_data['heatmap_analysis']
+                
+                wall_status = "TAK" if analysis.get('wall_disappeared', False) else "NIE"
+                if analysis.get('wall_disappeared', False):
+                    wall_side = analysis.get('wall_disappeared_side', 'nieznana')
+                    wall_size = analysis.get('wall_disappeared_size', 0) * 100
+                    wall_status = f"TAK ({wall_side} side, -{wall_size:.1f}%)"
+                
+                pinning_status = "TAK" if analysis.get('liquidity_pinning', False) else "NIE"
+                void_status = "TAK" if analysis.get('liquidity_void_reaction', False) else "NIE"
+                cluster_tilt = analysis.get('volume_cluster_tilt', 'neutral')
+                
+                heatmap_info = f"""
+HEATMAP ORDERBOOKU (60 min przed pumpem):
+• Zniknięcie ścian podaży: {wall_status}
+• Pinning ceny do płynności: {pinning_status}  
+• Reakcja ceny na pustkę (void): {void_status}
+• Nachylenie klastrów wolumenu: {cluster_tilt}
+• Kontekst: {heatmap_data.get('heatmap_summary', 'Strukturalne sygnały orderbooku dostępne')}
+"""
+            else:
+                heatmap_info = f"""
+HEATMAP ORDERBOOKU:
+• Status: Brak danych orderbooku dla {pump_event.symbol}
+• Analiza: Oparta na sygnałach cenowych i wolumenowych
+"""
+        except Exception as e:
+            heatmap_info = f"""
+HEATMAP ORDERBOOKU:
+• Status: System heatmapy niedostępny
+• Uwaga: Analiza skupiona na tradycyjnych wskaźnikach
+"""
+
         # Combine all information
         formatted_data = f"""
 {pump_info}
@@ -828,12 +869,14 @@ CANDLE PATTERNS:
 {rejects_info}
 {volume_info}
 {liquidity_info}
+{heatmap_info}
 {candle_info}
 
 ANALYSIS REQUEST:
 Przeanalizuj powyższe dane z 60-minutowego okna przed pumpem {pump_event.symbol} (+{pump_event.price_increase_pct:.1f}%).
 Zidentyfikuj unikalne wzorce i sygnały, które mogły przewidzieć ten pump.
 Skup się na sekwencji zdarzeń, timing'u sygnałów i unikalnych cechach tego przypadku.
+Uwzględnij sygnały heatmapy jako dodatkowy kontekst strukturalny, nie jako główne warunki.
 """
         
         return formatted_data
@@ -895,25 +938,69 @@ ANALIZA PRE-PUMP - {data['symbol']}
             for gap in data['liquidity_gaps']:
                 prompt += f"  - {gap['type']}: {gap['size_pct']:.2f}% ({gap['time_minutes_before_pump']} min przed)\n"
 
-        # Add heatmap analysis section
-        heatmap_manager = get_heatmap_manager()
-        heatmap_data = heatmap_manager.get_heatmap_for_gpt(data['symbol'])
-        
-        if heatmap_data and heatmap_data.get('heatmap_summary', '') != "No orderbook data available for heatmap analysis":
-            prompt += f"""
+        # Add heatmap analysis section for descriptive context
+        try:
+            from modules.heatmap_integration import get_heatmap_manager
+            heatmap_manager = get_heatmap_manager()
+            
+            # Try to get heatmap data for the symbol
+            heatmap_data = heatmap_manager.get_heatmap_for_gpt(data['symbol'])
+            
+            if heatmap_data and heatmap_data.get('heatmap_analysis'):
+                analysis = heatmap_data['heatmap_analysis']
+                
+                # Create descriptive heatmap context
+                wall_desc = "TAK" if analysis.get('wall_disappeared', False) else "NIE"
+                if analysis.get('wall_disappeared', False):
+                    wall_side = analysis.get('wall_disappeared_side', 'nieznana')
+                    wall_size = analysis.get('wall_disappeared_size', 0) * 100
+                    wall_desc = f"TAK (strona: {wall_side}, redukcja: {wall_size:.1f}%)"
+                
+                pinning_desc = "TAK" if analysis.get('liquidity_pinning', False) else "NIE"
+                if analysis.get('liquidity_pinning', False) and analysis.get('pinning_level'):
+                    pinning_desc = f"TAK (poziom: {analysis['pinning_level']:.6f})"
+                
+                void_desc = "TAK" if analysis.get('liquidity_void_reaction', False) else "NIE"
+                if analysis.get('liquidity_void_reaction', False):
+                    void_size = analysis.get('void_size_percent', 0) * 100
+                    void_desc = f"TAK (ruch: {void_size:.1f}%)"
+                
+                cluster_tilt = analysis.get('volume_cluster_tilt', 'neutral')
+                if cluster_tilt != 'neutral':
+                    tilt_strength = analysis.get('cluster_tilt_strength', 0) * 100
+                    cluster_desc = f"{cluster_tilt} (siła: {tilt_strength:.1f}%)"
+                else:
+                    cluster_desc = cluster_tilt
+                
+                prompt += f"""
 === ANALIZA HEATMAPY ORDERBOOKU ===
-• Status analizy: Dane dostępne
-• Zniknięcie ścian: {'TAK' if heatmap_data['heatmap_analysis']['wall_disappeared'] else 'NIE'}
-• Pinning płynności: {'TAK' if heatmap_data['heatmap_analysis']['liquidity_pinning'] else 'NIE'}
-• Reakcja na void: {'TAK' if heatmap_data['heatmap_analysis']['liquidity_void_reaction'] else 'NIE'}
-• Nachylenie klastrów: {heatmap_data['heatmap_analysis']['volume_cluster_tilt']}
-• Szczegóły: {heatmap_data['heatmap_summary']}
+• Zniknięcie ścian podaży: {wall_desc}
+• Pinning ceny do płynności: {pinning_desc}
+• Reakcja ceny na pustkę (void): {void_desc}
+• Nachylenie klastrów wolumenu: {cluster_desc}
+• Kontekst strukturalny: {heatmap_data.get('heatmap_summary', 'Analiza struktury orderbooku dostępna')}
+
+UWAGA: Powyższe sygnały heatmapy traktuj jako dodatkowy kontekst strukturalny, 
+nie jako decydujące warunki. Użyj ich do wzbogacenia analizy pre-pump.
 """
-        else:
+            else:
+                # Generate synthetic heatmap context if no real data available
+                prompt += f"""
+=== ANALIZA HEATMAPY ORDERBOOKU ===
+• Status: Brak danych orderbooku w czasie rzeczywistym
+• Analiza: Oparta na lokalnym modelowaniu z danych cenowych i wolumenowych
+• Kontekst: GPT powinien skupić się na sygnałach cenowych, wolumenowych i on-chain
+
+UWAGA: Brak danych heatmapy - analiza oparta na tradycyjnych wskaźnikach technicznych.
+"""
+        except Exception as e:
+            # Fallback if heatmap system is not available
             prompt += f"""
 === ANALIZA HEATMAPY ORDERBOOKU ===
-• Status analizy: Brak danych orderbooku
-• Uwaga: Analiza oparta tylko na danych cenowych i wolumenowych
+• Status: System heatmapy niedostępny
+• Analiza: Skupiona na sygnałach cenowych, wolumenowych i blockchain
+• Uwaga: GPT generuje detect_preconditions bez sygnałów orderbooku
+
 """
 
         # Add on-chain insights section
