@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from openai import OpenAI
 import logging
 from learning_system import LearningSystem
+from onchain_insights import OnChainAnalyzer
 
 # Configure logging with DEBUG level for detailed pump analysis debugging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -1174,6 +1175,10 @@ class PumpAnalysisSystem:
         from crypto_scan_integration import CryptoScanIntegration
         self.crypto_scan_integration = CryptoScanIntegration()
         logger.info("🔗 Crypto-Scan Integration initialized")
+        
+        # Initialize OnChain Analyzer
+        self.onchain_analyzer = OnChainAnalyzer()
+        logger.info("⛓️ OnChain Analyzer initialized")
         
         # Create data directory
         os.makedirs('pump_data', exist_ok=True)
