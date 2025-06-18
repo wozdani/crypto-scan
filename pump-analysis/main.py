@@ -1059,6 +1059,11 @@ class PumpAnalysisSystem:
         self.gpt_memory = GPTMemoryEngine()
         logger.info("🧠 GPT Memory Engine initialized")
         
+        # Initialize Crypto-Scan Integration
+        from crypto_scan_integration import CryptoScanIntegration
+        self.crypto_scan_integration = CryptoScanIntegration()
+        logger.info("🔗 Crypto-Scan Integration initialized")
+        
         # Create data directory
         os.makedirs('pump_data', exist_ok=True)
     
@@ -1233,8 +1238,20 @@ class PumpAnalysisSystem:
                                 # 🧠 GPT MEMORY ENGINE INTEGRATION - Register detector with full context
                                 logger.info(f"🧠 Registering detector in GPT Memory Engine...")
                                 try:
-                                    # Get crypto-scan signals if available
-                                    crypto_scan_signals = self.gpt_memory.get_crypto_scan_integration_data()
+                                    # Check if crypto-scan detected this pump beforehand
+                                    crypto_scan_pre_pump_signal = self.crypto_scan_integration.check_symbol_pre_pump_detected(
+                                        pump.symbol, 
+                                        pump.start_time, 
+                                        window_hours=2
+                                    )
+                                    
+                                    # Get additional crypto-scan context
+                                    crypto_scan_signals = {
+                                        'pre_pump_detected': crypto_scan_pre_pump_signal is not None,
+                                        'pre_pump_signal': crypto_scan_pre_pump_signal,
+                                        'recent_performance': self.crypto_scan_integration.get_ppwcs_performance_stats(),
+                                        'symbol_history': self.crypto_scan_integration.get_symbol_signal_history(pump.symbol, days=7)
+                                    }
                                     
                                     # Register detector function
                                     function_filename = self.gpt_memory.register_detector_function(
@@ -1250,6 +1267,12 @@ class PumpAnalysisSystem:
                                         pre_pump_analysis,
                                         crypto_scan_signals
                                     )
+                                    
+                                    if crypto_scan_pre_pump_signal:
+                                        logger.info(f"✅ Crypto-scan successfully detected this pump beforehand! PPWCS: {crypto_scan_pre_pump_signal.get('ppwcs_score', 0)}")
+                                    else:
+                                        logger.info(f"⚠️ Crypto-scan missed this pump - opportunity for improvement")
+                                    
                                     logger.info(f"✅ Detector registered in GPT Memory Engine: {function_filename}")
                                 except Exception as e:
                                     logger.error(f"❌ Failed to register detector in GPT Memory Engine: {e}")
