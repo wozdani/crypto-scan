@@ -21,6 +21,8 @@ from onchain_insights import OnChainAnalyzer
 from functions_history import FunctionHistoryManager, PerformanceTracker, GPTLearningEngine
 from functions_history.function_manager import FunctionMetadata
 from modules import get_heatmap_manager, initialize_heatmap_system
+from modules.extended_orderbook_analysis import get_extended_orderbook_analyzer
+from modules.heatmap_detectors import get_simplified_heatmap_detector
 
 # Configure logging with DEBUG level for detailed pump analysis debugging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -1036,69 +1038,39 @@ ANALIZA PRE-PUMP - {data['symbol']}
             for gap in data['liquidity_gaps']:
                 prompt += f"  - {gap['type']}: {gap['size_pct']:.2f}% ({gap['time_minutes_before_pump']} min przed)\n"
 
-        # Add heatmap analysis section for descriptive context
+        # Add extended orderbook heatmap analysis with simplified fallback
         try:
-            from modules.heatmap_integration import get_heatmap_manager
-            heatmap_manager = get_heatmap_manager()
+            extended_analyzer = get_extended_orderbook_analyzer()
+            orderbook_analysis = extended_analyzer.analyze_symbol_extended(data['symbol'])
             
-            # Try to get heatmap data for the symbol
-            heatmap_data = heatmap_manager.get_heatmap_for_gpt(data['symbol'])
-            
-            if heatmap_data and heatmap_data.get('heatmap_analysis'):
-                analysis = heatmap_data['heatmap_analysis']
-                
-                # Create descriptive heatmap context
-                wall_desc = "TAK" if analysis.get('wall_disappeared', False) else "NIE"
-                if analysis.get('wall_disappeared', False):
-                    wall_side = analysis.get('wall_disappeared_side', 'nieznana')
-                    wall_size = analysis.get('wall_disappeared_size', 0) * 100
-                    wall_desc = f"TAK (strona: {wall_side}, redukcja: {wall_size:.1f}%)"
-                
-                pinning_desc = "TAK" if analysis.get('liquidity_pinning', False) else "NIE"
-                if analysis.get('liquidity_pinning', False) and analysis.get('pinning_level'):
-                    pinning_desc = f"TAK (poziom: {analysis['pinning_level']:.6f})"
-                
-                void_desc = "TAK" if analysis.get('liquidity_void_reaction', False) else "NIE"
-                if analysis.get('liquidity_void_reaction', False):
-                    void_size = analysis.get('void_size_percent', 0) * 100
-                    void_desc = f"TAK (ruch: {void_size:.1f}%)"
-                
-                cluster_tilt = analysis.get('volume_cluster_tilt', 'neutral')
-                if cluster_tilt != 'neutral':
-                    tilt_strength = analysis.get('cluster_tilt_strength', 0) * 100
-                    cluster_desc = f"{cluster_tilt} (siła: {tilt_strength:.1f}%)"
-                else:
-                    cluster_desc = cluster_tilt
-                
-                prompt += f"""
-=== ANALIZA HEATMAPY ORDERBOOKU ===
-• Zniknięcie ścian podaży: {wall_desc}
-• Pinning ceny do płynności: {pinning_desc}
-• Reakcja ceny na pustkę (void): {void_desc}
-• Nachylenie klastrów wolumenu: {cluster_desc}
-• Kontekst strukturalny: {heatmap_data.get('heatmap_summary', 'Analiza struktury orderbooku dostępna')}
-
-UWAGA: Powyższe sygnały heatmapy traktuj jako dodatkowy kontekst strukturalny, 
-nie jako decydujące warunki. Użyj ich do wzbogacenia analizy pre-pump.
-"""
+            if orderbook_analysis and orderbook_analysis.get('detectors'):
+                # Format extended analysis for GPT context
+                formatted_context = extended_analyzer.format_for_gpt_context(orderbook_analysis)
+                prompt += f"\n{formatted_context}\n"
             else:
-                # Generate synthetic heatmap context if no real data available
-                prompt += f"""
+                # Fallback to simplified heatmap detectors
+                try:
+                    simplified_detector = get_simplified_heatmap_detector()
+                    simplified_analysis = simplified_detector.format_for_gpt_prompt(data['symbol'])
+                    prompt += f"\n{simplified_analysis}\n"
+                except Exception as fallback_error:
+                    prompt += f"""
 === ANALIZA HEATMAPY ORDERBOOKU ===
-• Status: Brak danych orderbooku w czasie rzeczywistym
-• Analiza: Oparta na lokalnym modelowaniu z danych cenowych i wolumenowych
+• Status: Brak dostępu do danych orderbooku dla {data['symbol']}
+• Uwaga: Analiza skupiona na tradycyjnych wskaźnikach technicznych
 • Kontekst: GPT powinien skupić się na sygnałach cenowych, wolumenowych i on-chain
-
-UWAGA: Brak danych heatmapy - analiza oparta na tradycyjnych wskaźnikach technicznych.
 """
         except Exception as e:
-            # Fallback if heatmap system is not available
-            prompt += f"""
+            # Try simplified detectors as final fallback
+            try:
+                simplified_detector = get_simplified_heatmap_detector()
+                simplified_analysis = simplified_detector.format_for_gpt_prompt(data['symbol'])
+                prompt += f"\n{simplified_analysis}\n"
+            except Exception as final_error:
+                prompt += f"""
 === ANALIZA HEATMAPY ORDERBOOKU ===
-• Status: System heatmapy niedostępny
-• Analiza: Skupiona na sygnałach cenowych, wolumenowych i blockchain
-• Uwaga: GPT generuje detect_preconditions bez sygnałów orderbooku
-
+• Status: System analizy orderbooku niedostępny
+• Uwaga: GPT generuje analizę bez kontekstu orderbooku
 """
 
         # Add on-chain insights section
