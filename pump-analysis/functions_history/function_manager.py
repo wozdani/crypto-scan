@@ -130,8 +130,9 @@ class FunctionHistoryManager:
             Function file path
         """
         
-        # Generate filename
-        filename = f"{metadata.function_name}_v{metadata.version}.py"
+        # Generate filename - handle None function_name
+        function_name = metadata.function_name or f"{metadata.symbol}_{metadata.date}"
+        filename = f"{function_name}_v{metadata.version}.py"
         filepath = os.path.join(self.functions_dir, filename)
         
         # Save function code

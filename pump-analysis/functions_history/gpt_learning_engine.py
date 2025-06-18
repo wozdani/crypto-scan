@@ -464,6 +464,121 @@ Return the complete improved function with:
             patterns.append("Uses complex boolean logic")
         
         return patterns
+
+    def generate_detector_function(self, pre_pump_data: Dict, pump_event: 'PumpEvent') -> str:
+        """Generate detector function based on pre-pump analysis (interface compatibility)"""
+        return self.generate_detector_function_with_history(pre_pump_data, pump_event, None)
+
+    def create_improved_version(self, function_id: str, original_function: str, performance_score: float, feedback: List[str]) -> str:
+        """Create improved version of existing function"""
+        try:
+            # Analyze performance issues
+            improvement_context = self._analyze_performance_issues(performance_score, feedback)
+            
+            # Generate improved version with GPT
+            prompt = self._create_improvement_prompt(original_function, improvement_context)
+            
+            response = self.openai.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": "You are an expert at improving detector functions based on performance feedback. Focus on accuracy and reliability."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=1000,
+                temperature=0.5
+            )
+            
+            improved_code = response.choices[0].message.content.strip()
+            improved_code = self._clean_function_code(improved_code)
+            
+            # Log improvement
+            self._log_function_improvement(function_id, improved_code, performance_score)
+            
+            return improved_code
+            
+        except Exception as e:
+            logger.error(f"Error creating improved function: {e}")
+            return original_function
+
+    def _analyze_performance_issues(self, score: float, feedback: List[str]) -> str:
+        """Analyze performance issues for improvement"""
+        issues = []
+        if score < 0.5:
+            issues.append("Low accuracy - detector may be too sensitive or missing key patterns")
+        if 'false_positive' in str(feedback):
+            issues.append("High false positive rate - tighten detection criteria")
+        if 'false_negative' in str(feedback):
+            issues.append("Missing valid signals - broaden detection scope")
+        
+        return "; ".join(issues) if issues else "General optimization needed"
+
+    def _create_improvement_prompt(self, original_function: str, improvement_context: str) -> str:
+        """Create prompt for function improvement"""
+        return f"""
+Improve this detector function based on performance feedback:
+
+Original Function:
+{original_function}
+
+Performance Issues:
+{improvement_context}
+
+Create an improved version that:
+1. Addresses the identified issues
+2. Maintains the same function signature
+3. Improves accuracy and reduces false positives
+4. Uses more robust detection logic
+
+Return only the improved Python function code.
+"""
+
+    def _clean_function_code(self, code: str) -> str:
+        """Clean and validate function code"""
+        # Remove markdown formatting
+        if "```python" in code:
+            start = code.find("```python") + 9
+            end = code.find("```", start)
+            if end != -1:
+                code = code[start:end].strip()
+        elif "```" in code:
+            start = code.find("```") + 3
+            end = code.find("```", start)
+            if end != -1:
+                code = code[start:end].strip()
+        
+        # Validate syntax
+        try:
+            compile(code, '<string>', 'exec')
+            return code
+        except SyntaxError as e:
+            logger.warning(f"Syntax error in generated code: {e}")
+            # Return basic fallback
+            return """
+def detector_function(df):
+    if len(df) < 10:
+        return False, 0.0, ['insufficient_data']
+    return False, 0.0, ['syntax_error']
+"""
+
+    def _log_function_improvement(self, function_id: str, improved_code: str, score: float):
+        """Log function improvement"""
+        try:
+            improvement_data = {
+                'original_id': function_id,
+                'improved_code': improved_code,
+                'score': score,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            # Add to improvements log
+            if not hasattr(self, 'improvements'):
+                self.improvements = []
+            self.improvements.append(improvement_data)
+            
+            logger.info(f"Function improvement logged for {function_id}")
+            
+        except Exception as e:
+            logger.error(f"Error logging improvement: {e}")
     
     def _generate_fallback_function(self, pre_pump_data: Dict, pump_event: Any) -> str:
         """Generate basic fallback function if GPT fails"""
