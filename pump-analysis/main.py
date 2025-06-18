@@ -1264,6 +1264,81 @@ class PumpAnalysisSystem:
         
         return result
     
+    def _clean_detector_function_code(self, code: str) -> str:
+        """Clean detector function code to prevent syntax errors"""
+        import re
+        
+        # Remove markdown code blocks if present
+        code = re.sub(r'```python\s*\n?', '', code)
+        code = re.sub(r'```\s*$', '', code)
+        
+        # Fix common decimal literal issues
+        # Replace numbers like .5 with 0.5
+        code = re.sub(r'(?<!\d)\.(\d+)', r'0.\1', code)
+        
+        # Fix scientific notation issues (e.g., 1.5e-3)
+        code = re.sub(r'(\d+\.?\d*)e([+-]?\d+)', r'\1e\2', code)
+        
+        # Remove any non-ASCII characters that might cause issues
+        code = ''.join(char for char in code if ord(char) < 128)
+        
+        # Fix common formatting issues
+        lines = code.split('\n')
+        cleaned_lines = []
+        for line in lines:
+            # Remove any trailing whitespace
+            line = line.rstrip()
+            
+            # Skip empty lines at the beginning
+            if not cleaned_lines and not line.strip():
+                continue
+                
+            # Fix indentation issues
+            if line.strip() and not line.startswith(' ') and not line.startswith('\t') and line.strip().startswith('def '):
+                # Function definition should start at column 0
+                pass
+            elif line.strip() and not line.startswith(' ') and not line.startswith('\t') and not line.strip().startswith('#'):
+                # Other lines should be indented if they're inside a function
+                if cleaned_lines and any('def ' in prev_line for prev_line in cleaned_lines):
+                    line = '    ' + line.strip()
+            
+            cleaned_lines.append(line)
+        
+        # Ensure proper function structure
+        result = '\n'.join(cleaned_lines)
+        
+        # Validate basic Python syntax
+        try:
+            compile(result, '<string>', 'exec')
+            return result
+        except SyntaxError as e:
+            # If there's still a syntax error, try to fix common issues
+            logger.warning(f"Syntax error in generated function, attempting to fix: {e}")
+            
+            # Try to fix the specific error mentioned by user (line 62 decimal literal)
+            lines = result.split('\n')
+            for i, line in enumerate(lines):
+                # Look for problematic decimal literals
+                if re.search(r'\d+\.\d*[a-zA-Z]', line):
+                    # Remove any letters after decimal numbers
+                    lines[i] = re.sub(r'(\d+\.\d*)[a-zA-Z]+', r'\1', line)
+                    logger.info(f"Fixed decimal literal in line {i+1}: {line} -> {lines[i]}")
+            
+            result = '\n'.join(lines)
+            
+            # Try to compile again
+            try:
+                compile(result, '<string>', 'exec')
+                return result
+            except SyntaxError:
+                # If still failing, return a simple fallback function
+                logger.error("Failed to fix generated function, using fallback")
+                return """
+def fallback_detector(df):
+    \"\"\"Fallback detector function\"\"\"
+    return False
+"""
+    
     def _save_detector_function(self, pump: PumpEvent, detector_function: str):
         """Save generated detector function to Python file"""
         
@@ -1375,8 +1450,11 @@ import numpy as np
                 'all': all
             }
             
+            # Clean and validate the detector function code before execution
+            cleaned_function = self._clean_detector_function_code(detector_function)
+            
             # Execute the detector function
-            exec(detector_function, namespace)
+            exec(cleaned_function, namespace)
             
             # Create test DataFrame from pre-pump data
             if 'kline_data' in pre_pump_data:
