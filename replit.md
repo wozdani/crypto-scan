@@ -98,6 +98,15 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 18, 2025 - Enhanced Pump Detection Module + Silent Accumulation v1 Complete - PRODUCTION READY
+- **Advanced 15-minute pump detection implemented**: Revolutionary multi-timeframe analysis detecting biggest price movements across 1h, 2h, 4h, 6h, 12h windows with intelligent pump categorization
+- **4-tier pump classification system**: pump-impulse (>20% in ≤1h), trend-breakout (>30% in ≤4h), trend-mode (>50% in >4h), micro-move (15-20% movements)
+- **Complete integration with existing system**: Enhanced PumpDetector class now uses detect_biggest_pump_15m algorithm for superior accuracy and comprehensive timeframe coverage
+- **Comprehensive test validation**: 6/6 tests passed including pump-impulse, trend-breakout, trend-mode, micro-move, batch processing, and main system integration
+- **Production-ready module architecture**: Independent detect_pumps.py module with batch processing, statistics generation, and GPT analysis integration capabilities
+- **Enhanced accuracy and precision**: Replaces old rolling window detection with advanced multi-timeframe analysis for identifying the most significant price movements
+- **Backward compatibility maintained**: Seamless integration preserves existing PumpEvent structure while dramatically improving detection capabilities
+
 ### June 18, 2025 - Silent Accumulation Detector v1 Integration Complete - PRODUCTION READY
 - **Silent Accumulation v1 detector fully integrated**: Complete integration into main crypto-scan detection flow with comprehensive pattern validation and enhanced RSI volatility checking
 - **Advanced pattern recognition**: Detects flat RSI (45-55 range with ≤7 point volatility), small candle bodies (<30% of price range), and minimal wicks (<10% of price) over 8-candle periods
