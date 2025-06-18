@@ -23,6 +23,7 @@ from functions_history.function_manager import FunctionMetadata
 from modules import get_heatmap_manager, initialize_heatmap_system
 from modules.extended_orderbook_analysis import get_extended_orderbook_analyzer
 from modules.heatmap_detectors import get_simplified_heatmap_detector
+from modules.gpt_feedback_integration import GPTFeedbackIntegration
 from detect_pumps import detect_biggest_pump_15m, categorize_pump_15m, get_pump_statistics, filter_pumps_by_type
 
 # Configure logging with DEBUG level for detailed pump analysis debugging
@@ -1112,6 +1113,26 @@ Wykryte sygnały z blockchain'a w okresie przed pumpem:
             for insight in data['onchain_insights']:
                 prompt += f"• {insight}\n"
         
+        # Add recent GPT feedback from crypto-scan (last 2 hours)
+        symbol_clean = data['symbol'].replace('USDT', '').upper()
+        recent_feedback = self.gpt_feedback.get_recent_gpt_feedback(symbol_clean, hours=2)
+        
+        if recent_feedback:
+            formatted_feedback = self.gpt_feedback.format_feedback_for_pump_analysis(recent_feedback)
+            prompt += f"""
+=== RECENT GPT FEEDBACK Z CRYPTO-SCAN ===
+{formatted_feedback}
+
+KONTEKST: Powyższy feedback został wygenerowany przez system crypto-scan w ostatnich 2 godzinach dla tego samego tokena. 
+Użyj tych informacji jako dodatkowy kontekst przy analizie wzorców pre-pump.
+"""
+        else:
+            prompt += f"""
+=== RECENT GPT FEEDBACK Z CRYPTO-SCAN ===
+• Brak najnowszego feedback GPT dla {symbol_clean} w ostatnich 2 godzinach
+• Analiza oparta wyłącznie na danych historycznych pump
+"""
+        
         prompt += """
 
 === ZADANIE ANALIZY ===
@@ -1413,6 +1434,10 @@ class PumpAnalysisSystem:
         # Initialize OnChain Analyzer
         self.onchain_analyzer = OnChainAnalyzer()
         logger.info("⛓️ OnChain Analyzer initialized")
+        
+        # Initialize GPT Feedback Integration
+        self.gpt_feedback = GPTFeedbackIntegration()
+        logger.info("🤖 GPT Feedback Integration initialized")
         
         # Create data directory
         os.makedirs('pump_data', exist_ok=True)
@@ -1717,6 +1742,31 @@ class PumpAnalysisSystem:
         # Clean GPT analysis text to prevent HTML parsing errors
         clean_gpt_analysis = self._clean_text_for_telegram(gpt_analysis)
         
+        # Get recent GPT feedback from crypto-scan for context
+        symbol_clean = pump.symbol.replace('USDT', '').upper()
+        recent_feedback = self.gpt_feedback.get_recent_gpt_feedback(symbol_clean, hours=2)
+        
+        # Format recent feedback section
+        feedback_section = ""
+        if recent_feedback:
+            age_hours = recent_feedback.get('age_hours', 0)
+            age_str = f"{int(age_hours * 60)} min" if age_hours < 1 else f"{age_hours:.1f}h"
+            score = recent_feedback.get('score', 0)
+            score_text = f" (Score: {score})" if score > 0 else ""
+            
+            feedback_text = recent_feedback.get('gpt_text', 'Brak tekstu analizy')
+            clean_feedback = self._clean_text_for_telegram(feedback_text)
+            
+            feedback_section = f"""
+<b>🤖 CRYPTO-SCAN FEEDBACK ({age_str} temu{score_text}):</b>
+{clean_feedback[:500]}{'...' if len(clean_feedback) > 500 else ''}
+"""
+        else:
+            feedback_section = f"""
+<b>🤖 CRYPTO-SCAN FEEDBACK:</b>
+Brak najnowszego feedback dla {symbol_clean} w ostatnich 2h
+"""
+        
         message = f"""
 🎯 <b>WYKRYTY PUMP - ANALIZA PRE-PUMP</b>
 
@@ -1726,7 +1776,7 @@ class PumpAnalysisSystem:
 💵 <b>Cena przed:</b> ${pump.price_before:.6f}
 🚀 <b>Cena szczyt:</b> ${pump.price_peak:.6f}
 📊 <b>Volume spike:</b> {pump.volume_spike:.1f}x
-
+{feedback_section}
 <b>📝 ANALIZA GPT (60 min przed pumpem):</b>
 
 {clean_gpt_analysis}
