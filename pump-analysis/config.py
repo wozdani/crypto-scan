@@ -24,7 +24,7 @@ class Config:
         self.min_pump_increase_pct = float(os.getenv('MIN_PUMP_INCREASE_PCT', '15.0'))
         self.detection_window_minutes = int(os.getenv('DETECTION_WINDOW_MINUTES', '30'))
         self.analysis_days_back = int(os.getenv('ANALYSIS_DAYS_BACK', '7'))
-        self.max_symbols_to_analyze = int(os.getenv('MAX_SYMBOLS_TO_ANALYZE', '30'))
+        self.max_symbols_to_analyze = int(os.getenv('MAX_SYMBOLS_TO_ANALYZE', '999999'))
         
         # System settings
         self.data_directory = 'pump_data'
