@@ -743,19 +743,20 @@ class GPTAnalyzer:
         
         return context
         
-    def generate_pump_analysis(self, pre_pump_data: Dict) -> str:
+    def generate_pump_analysis(self, pre_pump_data: Dict, gpt_feedback_system=None) -> str:
         """
         Generate GPT analysis of pre-pump conditions
         
         Args:
             pre_pump_data: Dictionary with pre-pump analysis data
+            gpt_feedback_system: Optional GPT feedback integration system
             
         Returns:
             GPT analysis text
         """
         
         # Format data for GPT prompt
-        prompt = self._format_analysis_prompt(pre_pump_data)
+        prompt = self._format_analysis_prompt(pre_pump_data, gpt_feedback_system)
         
         try:
             response = self.client.chat.completions.create(
@@ -1012,7 +1013,7 @@ Uwzględnij sygnały heatmapy jako dodatkowy kontekst strukturalny, nie jako gł
         
         return formatted_data
     
-    def _format_analysis_prompt(self, data: Dict) -> str:
+    def _format_analysis_prompt(self, data: Dict, gpt_feedback_system=None) -> str:
         """Format pre-pump data into GPT prompt"""
         
         prompt = f"""
@@ -1113,26 +1114,29 @@ Wykryte sygnały z blockchain'a w okresie przed pumpem:
             for insight in data['onchain_insights']:
                 prompt += f"• {insight}\n"
         
-        # Add recent GPT feedback from crypto-scan (last 2 hours)
-        symbol_clean = data['symbol'].replace('USDT', '').upper()
-        recent_feedback = self.gpt_feedback.get_recent_gpt_feedback(symbol_clean, hours=2)
+
         
-        if recent_feedback:
-            formatted_feedback = self.gpt_feedback.format_feedback_for_pump_analysis(recent_feedback)
-            prompt += f"""
+        # Add recent GPT feedback from crypto-scan (last 2 hours) if available
+        if gpt_feedback_system:
+            symbol_clean = data['symbol'].replace('USDT', '').upper()
+            recent_feedback = gpt_feedback_system.get_recent_gpt_feedback(symbol_clean, hours=2)
+            
+            if recent_feedback:
+                formatted_feedback = gpt_feedback_system.format_feedback_for_pump_analysis(recent_feedback)
+                prompt += f"""
 === RECENT GPT FEEDBACK Z CRYPTO-SCAN ===
 {formatted_feedback}
 
 KONTEKST: Powyższy feedback został wygenerowany przez system crypto-scan w ostatnich 2 godzinach dla tego samego tokena. 
 Użyj tych informacji jako dodatkowy kontekst przy analizie wzorców pre-pump.
 """
-        else:
-            prompt += f"""
+            else:
+                prompt += f"""
 === RECENT GPT FEEDBACK Z CRYPTO-SCAN ===
 • Brak najnowszego feedback GPT dla {symbol_clean} w ostatnich 2 godzinach
 • Analiza oparta wyłącznie na danych historycznych pump
 """
-        
+
         prompt += """
 
 === ZADANIE ANALIZY ===
