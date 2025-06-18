@@ -16,6 +16,7 @@ import os
 import requests
 import traceback
 import logging
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -955,7 +956,8 @@ def detect_stage_minus2_1(symbol, price_usd=None):
             heatmap_exhaustion,
             spoofing_suspected,
             vwap_pinned,
-            volume_slope_up
+            volume_slope_up,
+            silent_accumulation_active
         ])
         
         print(f"[DEBUG] {symbol} stage2_pass result: {stage2_pass}")
@@ -987,6 +989,7 @@ def detect_silent_accumulation(symbol, market_data, rsi_series):
 
         # Sprawdź RSI płaskie (45-55) przez 8 świec
         flat_rsi = all(45 <= r <= 55 for r in last_rsi if r is not None)
+        print(f"[SILENT_ACC] {symbol} RSI check: {flat_rsi}, values: {last_rsi}")
         
         # Sprawdź małe ciała świec (body/range < 0.3)
         small_bodies = True
@@ -1003,12 +1006,16 @@ def detect_silent_accumulation(symbol, market_data, rsi_series):
                 if total_range > 0:
                     body_ratio = body_size / total_range
                     if body_ratio >= 0.3:  # Jeśli ciało > 30% całości
+                        print(f"[SILENT_ACC] {symbol} Large body detected: ratio={body_ratio:.3f}")
                         small_bodies = False
                         break
                         
-            except (ValueError, TypeError, KeyError):
+            except (ValueError, TypeError, KeyError) as e:
+                print(f"[SILENT_ACC] {symbol} Error in body check: {e}")
                 small_bodies = False
                 break
+        
+        print(f"[SILENT_ACC] {symbol} Small bodies check: {small_bodies}")
         
         # Sprawdź brak wyraźnych knotów (upper/lower wick < 10% high/low)
         no_wicks = True
@@ -1027,15 +1034,21 @@ def detect_silent_accumulation(symbol, market_data, rsi_series):
                 
                 # Sprawdź czy knoty są minimalne
                 if high_price > 0 and (upper_wick > 0.1 * high_price):
+                    print(f"[SILENT_ACC] {symbol} Large upper wick: {upper_wick:.3f} > {0.1 * high_price:.3f}")
                     no_wicks = False
                     break
                 if low_price > 0 and (lower_wick > 0.1 * low_price):
+                    print(f"[SILENT_ACC] {symbol} Large lower wick: {lower_wick:.3f} > {0.1 * low_price:.3f}")
                     no_wicks = False
                     break
                     
-            except (ValueError, TypeError, KeyError):
+            except (ValueError, TypeError, KeyError) as e:
+                print(f"[SILENT_ACC] {symbol} Error in wick check: {e}")
                 no_wicks = False
                 break
+        
+        print(f"[SILENT_ACC] {symbol} No wicks check: {no_wicks}")
+        print(f"[SILENT_ACC] {symbol} Final result: flat_rsi={flat_rsi}, small_bodies={small_bodies}, no_wicks={no_wicks}")
 
         # Jeśli wszystkie warunki spełnione - wykryto silent accumulation
         if flat_rsi and small_bodies and no_wicks:
