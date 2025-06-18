@@ -7,6 +7,7 @@ Analyzes historical pump data and generates GPT insights for learning purposes
 import os
 import time
 import json
+import re
 import requests
 import pandas as pd
 import numpy as np
@@ -287,6 +288,7 @@ class PrePumpAnalyzer:
             'pump_start_time': pump_event.start_time.isoformat(),
             'pump_increase_pct': pump_event.price_increase_pct,
             'pre_pump_period': '60_minutes_before',
+            'kline_data': df.to_dict('records'),  # Add raw kline data for testing
             
             # Price analysis
             'price_volatility': df['close'].std(),
@@ -852,8 +854,12 @@ class PumpAnalysisSystem:
                                 # Save detector function to file
                                 self._save_detector_function(pump, detector_function)
                                 
-                                # Format message for Telegram
-                                telegram_message = self._format_telegram_message(pump, gpt_analysis)
+                                # Test the generated detector function
+                                logger.info(f"🧪 Testing generated detector function for {symbol}...")
+                                test_result = self._test_detector_function(pump, pre_pump_analysis, detector_function)
+                                
+                                # Format message for Telegram (including test result)
+                                telegram_message = self._format_telegram_message(pump, gpt_analysis, test_result if test_result else {})
                                 
                                 # Send to Telegram
                                 logger.info(f"📤 Sending Telegram message for {symbol}...")
@@ -902,7 +908,7 @@ class PumpAnalysisSystem:
         
         self.telegram.send_message(summary_message)
     
-    def _format_telegram_message(self, pump: PumpEvent, gpt_analysis: str) -> str:
+    def _format_telegram_message(self, pump: PumpEvent, gpt_analysis: str, test_result: dict = None) -> str:
         """Format message for Telegram"""
         
         message = f"""
@@ -918,6 +924,9 @@ class PumpAnalysisSystem:
 <b>📝 ANALIZA GPT (60 min przed pumpem):</b>
 
 {gpt_analysis}
+
+<b>🧪 TEST WYGENEROWANEJ FUNKCJI:</b>
+{self._format_test_result(test_result) if test_result else "❌ Test nie został wykonany"}
 
 ---
 🤖 <i>Automatyczna analiza pump_analysis system</i>
@@ -1005,6 +1014,92 @@ import numpy as np
             logger.info(f"💾 Analysis saved to {filename}")
         except Exception as e:
             logger.error(f"❌ Error saving analysis to file: {e}")
+    
+    def _test_detector_function(self, pump: PumpEvent, pre_pump_data: Dict, detector_function: str) -> dict:
+        """Test the generated detector function on pre-pump data"""
+        
+        try:
+            # Extract function name from the detector code
+            import re
+            function_match = re.search(r'def\s+(\w+)\s*\(', detector_function)
+            if not function_match:
+                return {
+                    'success': False,
+                    'error': 'Nie znaleziono nazwy funkcji w kodzie',
+                    'detected': False
+                }
+            
+            function_name = function_match.group(1)
+            
+            # Create a safe execution environment
+            namespace = {
+                'pd': pd,
+                'np': np,
+                '__builtins__': {},
+                'len': len,
+                'min': min,
+                'max': max,
+                'abs': abs,
+                'sum': sum,
+                'any': any,
+                'all': all
+            }
+            
+            # Execute the detector function
+            exec(detector_function, namespace)
+            
+            # Create test DataFrame from pre-pump data
+            if 'kline_data' in pre_pump_data:
+                test_df = pd.DataFrame(pre_pump_data['kline_data'])
+            else:
+                # Create minimal test data based on available metrics
+                test_data = []
+                for i in range(12):  # 12 x 5min = 60 minutes
+                    test_data.append({
+                        'open': 1.0,
+                        'high': 1.02,
+                        'low': 0.98,
+                        'close': 1.01,
+                        'volume': 1000,
+                        'timestamp': int(time.time()) - (12-i)*300
+                    })
+                test_df = pd.DataFrame(test_data)
+            
+            # Test the function
+            detector_func = namespace[function_name]
+            result = detector_func(test_df)
+            
+            # Determine if detection was successful
+            detected = bool(result) if isinstance(result, (bool, int, float)) else bool(result.get('detected', False)) if isinstance(result, dict) else False
+            
+            return {
+                'success': True,
+                'detected': detected,
+                'function_name': function_name,
+                'result': result
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e),
+                'detected': False
+            }
+    
+    def _format_test_result(self, test_result: dict) -> str:
+        """Format test result for display"""
+        
+        if not test_result or not test_result.get('success', False):
+            error = test_result.get('error', 'Nieznany błąd') if test_result else 'Brak wyniku testu'
+            return f"❌ <b>BŁĄD TESTU:</b> {error}"
+        
+        detected = test_result.get('detected', False)
+        function_name = test_result.get('function_name', 'unknown')
+        
+        if detected:
+            return f"✅ <b>SUKCES:</b> Funkcja <code>{function_name}()</code> wykryła pre-pump warunki!"
+        else:
+            return f"⚠️ <b>UWAGA:</b> Funkcja <code>{function_name}()</code> NIE wykryła pre-pump warunków"
 
 def main():
     """Main function to run pump analysis"""
