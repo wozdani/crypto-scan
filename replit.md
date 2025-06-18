@@ -98,6 +98,13 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 18, 2025 - Duplicate Alert System Fix + Function Testing Enhancement - PRODUCTION READY
+- **Duplicate Telegram alerts eliminated**: Fixed system sending 2 different alerts for same token by removing alert logic duplication in crypto_scan_service.py
+- **Single comprehensive alert system**: Consolidated send_alert() and process_alert() into one unified system with all features (checklist, TP forecast, GPT analysis)
+- **Enhanced function testing logic**: Fixed detector function testing to handle multiple return formats (boolean, dict, tuple) with proper signal_detected interpretation
+- **GPT function compatibility improved**: System now correctly processes detector functions returning complex dictionary structures with confidence scores
+- **Production spam reduction**: Eliminated redundant GPT queries and duplicate notifications for cleaner user experience
+
 ### June 18, 2025 - GPT Memory Engine Initialization Fix + Complete Integration - PRODUCTION READY
 - **Critical initialization bug fixed**: Resolved `'PumpAnalysisSystem' object has no attribute 'gpt_memory'` error by adding proper GPTMemoryEngine initialization
 - **Complete integration restored**: Added missing CryptoScanIntegration initialization for full cross-system functionality

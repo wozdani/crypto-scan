@@ -370,24 +370,14 @@ def scan_cycle():
             if allow_alert and alert_tier:
                 print(f"✅ Alert triggered: {symbol} - {alert_tier} (Score: {final_score}, Quality: {ppwcs_quality})")
                 
-                # Use enhanced send_alert function with checklist integration
-                from utils.alert_system import send_alert
-                alert_success = send_alert(
-                    symbol=symbol,
-                    ppwcs=final_score,
-                    checklist_score=checklist_score,
-                    checklist_summary=checklist_summary,
-                    signals=signals
-                )
+                # Use comprehensive alert system with all features (checklist, TP forecast, GPT)
+                from utils.alert_system import process_alert
+                alert_success = process_alert(symbol, final_score, signals, gpt_feedback)
                 
                 if alert_success:
-                    print(f"📢 Enhanced alert sent for {symbol} with checklist integration")
+                    print(f"📢 Comprehensive alert sent for {symbol} with all features")
                 else:
-                    print(f"❌ Failed to send enhanced alert for {symbol}")
-                
-                # Fallback to legacy system for additional features (TP forecast, GPT)
-                from utils.alert_system import process_alert
-                process_alert(symbol, final_score, signals, gpt_feedback)
+                    print(f"❌ Failed to send comprehensive alert for {symbol}")
 
             # === TREND MODE v1.0 INTEGRATION ===
             # Independent trend continuation analysis (separate from pre-pump)
