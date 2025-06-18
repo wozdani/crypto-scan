@@ -122,7 +122,7 @@ class BybitDataFetcher:
             logger.warning(f"⚠️ Symbol validation failed for {symbol}: {e}")
             return False
 
-    def get_kline_data(self, symbol: str, interval: str = "15", start_time: int = None, limit: int = 200) -> List[Dict]:
+    def get_kline_data(self, symbol: str, interval: str = "15", start_time: int = None, limit: int = 1000) -> List[Dict]:
         """
         Fetch kline data from Bybit with symbol validation
         
@@ -1414,6 +1414,17 @@ class PumpAnalysisSystem:
                     logger.info(f"🎯 Found {len(pumps)} pump(s) in {symbol}")
                     total_pumps_found += len(pumps)
                     
+                    # 🔥 DODAJ SYMBOL DO HEATMAPY TYLKO DLA WYKRYTYCH PUMPÓW
+                    logger.info(f"📊 Adding {symbol} to heatmap analysis (pump detected)")
+                    try:
+                        from modules.heatmap_integration import get_heatmap_manager
+                        heatmap_manager = get_heatmap_manager()
+                        if heatmap_manager:
+                            heatmap_manager.add_symbol_for_analysis(symbol)
+                            logger.info(f"✅ {symbol} added to heatmap collection for pump analysis")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Failed to add {symbol} to heatmap: {e}")
+                    
                     # Analyze each pump
                     for pump_idx, pump in enumerate(pumps):
                         logger.info(f"🔍 Processing pump {pump_idx+1}/{len(pumps)} for {symbol}: +{pump.price_increase_pct:.1f}% at {pump.start_time}")
@@ -1939,9 +1950,9 @@ import numpy as np
             
             kline_data = self.bybit.get_kline_data(
                 symbol=pump.symbol,
-                interval="5",
+                interval="15",
                 start_time=start_time,
-                limit=200
+                limit=1000
             )
             
             if not kline_data:
