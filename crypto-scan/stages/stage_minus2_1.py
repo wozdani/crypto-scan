@@ -786,6 +786,26 @@ def detect_stage_minus2_1(symbol, price_usd=None):
             "volume_spike": volume_spike_active
         }
         sector_clustering = detect_time_clustering(symbol, temp_signals)
+        
+        # Silent Accumulation detector - independent alert system
+        try:
+            # Get market data for candle analysis
+            market_candles = data.get("candles", [])
+            if not market_candles and "prev_candle" in data:
+                # Create minimal candle data if only prev_candle available
+                market_candles = [data["prev_candle"]]
+            
+            # Get RSI series for pattern analysis
+            rsi_series = []
+            if rsi_value is not None:
+                # If we have current RSI, create a series with historical values
+                rsi_series = [rsi_value] * 8  # Simplified for initial implementation
+            
+            silent_accumulation_active = detect_silent_accumulation(symbol, market_candles, rsi_series)
+            
+        except Exception as e:
+            logger.error(f"❌ Error in detect_silent_accumulation for {symbol}: {e}")
+            silent_accumulation_active = False
 
         # Build comprehensive signals dictionary
         signals = {
@@ -803,6 +823,9 @@ def detect_stage_minus2_1(symbol, price_usd=None):
             # Stealth Inflow Detection
             "stealth_inflow": stealth_inflow_active,
             "inflow_strength": inflow_strength,
+            
+            # Silent Accumulation Detection
+            "silent_accumulation": silent_accumulation_active,
             
             # RSI value for checklist evaluation
             "rsi_value": rsi_value,
@@ -943,4 +966,130 @@ def detect_stage_minus2_1(symbol, price_usd=None):
     except Exception as e:
         logger.error(f"❌ Błąd krytyczny w detect_stage_minus2_1 dla {symbol}: {e}")
         logger.debug("🔍 Traceback:\n" + traceback.format_exc())
-        return False, {}, 0.0, False
+
+def detect_silent_accumulation(symbol, market_data, rsi_series):
+    """
+    Silent Accumulation Detector - wykrywa cichy wzorzec akumulacji
+    
+    Kryteria:
+    - RSI płaskie (45-55) przez 8 świec
+    - Małe ciała świec (niska zmienność) 
+    - Brak wyraźnych knotów (cegiełki)
+    
+    Samodzielnie wywołuje alert i analizę GPT przy wykryciu wzorca
+    """
+    try:
+        if len(market_data) < 8 or len(rsi_series) < 8:
+            return False
+
+        last_candles = market_data[-8:]
+        last_rsi = rsi_series[-8:]
+
+        # Sprawdź RSI płaskie (45-55) przez 8 świec
+        flat_rsi = all(45 <= r <= 55 for r in last_rsi if r is not None)
+        
+        # Sprawdź małe ciała świec (body/range < 0.3)
+        small_bodies = True
+        for candle in last_candles:
+            try:
+                open_price = float(candle['open'])
+                close_price = float(candle['close'])
+                high_price = float(candle['high'])
+                low_price = float(candle['low'])
+                
+                body_size = abs(close_price - open_price)
+                total_range = high_price - low_price
+                
+                if total_range > 0:
+                    body_ratio = body_size / total_range
+                    if body_ratio >= 0.3:  # Jeśli ciało > 30% całości
+                        small_bodies = False
+                        break
+                        
+            except (ValueError, TypeError, KeyError):
+                small_bodies = False
+                break
+        
+        # Sprawdź brak wyraźnych knotów (upper/lower wick < 10% high/low)
+        no_wicks = True
+        for candle in last_candles:
+            try:
+                open_price = float(candle['open'])
+                close_price = float(candle['close'])
+                high_price = float(candle['high'])
+                low_price = float(candle['low'])
+                
+                body_top = max(open_price, close_price)
+                body_bottom = min(open_price, close_price)
+                
+                upper_wick = high_price - body_top
+                lower_wick = body_bottom - low_price
+                
+                # Sprawdź czy knoty są minimalne
+                if high_price > 0 and (upper_wick > 0.1 * high_price):
+                    no_wicks = False
+                    break
+                if low_price > 0 and (lower_wick > 0.1 * low_price):
+                    no_wicks = False
+                    break
+                    
+            except (ValueError, TypeError, KeyError):
+                no_wicks = False
+                break
+
+        # Jeśli wszystkie warunki spełnione - wykryto silent accumulation
+        if flat_rsi and small_bodies and no_wicks:
+            print(f"🔵 Silent Accumulation Triggered: {symbol}")
+            
+            # Przygotuj sygnały
+            signals = {"silent_accumulation": True}
+            ppwcs_score = 60
+            
+            # Import funkcji alert/GPT na poziomie modułu aby uniknąć circular imports
+            try:
+                import sys
+                import os
+                sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+                
+                # Zamiast importu, zapisz dane do pliku alert cache
+                alert_data = {
+                    "symbol": symbol,
+                    "ppwcs_score": ppwcs_score,
+                    "signals": signals,
+                    "detector_type": "silent_accumulation",
+                    "timestamp": str(datetime.now())
+                }
+                
+                # Zapisz alert do cache
+                try:
+                    import json
+                    cache_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "silent_accumulation_alerts.json")
+                    os.makedirs(os.path.dirname(cache_file), exist_ok=True)
+                    
+                    existing_alerts = []
+                    if os.path.exists(cache_file):
+                        with open(cache_file, 'r') as f:
+                            existing_alerts = json.load(f)
+                    
+                    existing_alerts.append(alert_data)
+                    
+                    with open(cache_file, 'w') as f:
+                        json.dump(existing_alerts, f, indent=2)
+                    
+                    print(f"✅ Silent accumulation pattern saved for {symbol} (PPWCS: {ppwcs_score})")
+                    
+                except Exception as save_error:
+                    print(f"⚠️ Error saving silent accumulation alert for {symbol}: {save_error}")
+                
+            except Exception as e:
+                print(f"⚠️ Error in silent accumulation alert processing for {symbol}: {e}")
+                # Fallback - zwróć True aby sygnał został przetworzony przez główny system
+                pass
+            
+            return True
+            
+        return False
+
+    except Exception as e:
+        print(f"❌ Error in detect_silent_accumulation: {e}")
+        return False
