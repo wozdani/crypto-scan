@@ -307,6 +307,10 @@ class PrePumpAnalyzer:
         first_half = prices[:len(prices)//2].mean()
         second_half = prices[len(prices)//2:].mean()
         
+        # Prevent division by zero
+        if first_half == 0:
+            return "neutral"
+        
         change_pct = ((second_half - first_half) / first_half) * 100
         
         if change_pct > 1:
@@ -539,10 +543,12 @@ ANALIZA PRE-PUMP - {data['symbol']}
                 prompt += f"  - {fr['time_minutes_before_pump']} min przed: wick {fr['wick_size_pct']:.1f}%, recovery {fr['recovery_strength']:.1f}%\n"
 
         if data['support_resistance']['key_support'] or data['support_resistance']['key_resistance']:
+            support_text = f"{data['support_resistance']['key_support']:.6f}" if data['support_resistance']['key_support'] else 'brak'
+            resistance_text = f"{data['support_resistance']['key_resistance']:.6f}" if data['support_resistance']['key_resistance'] else 'brak'
             prompt += f"""
 • Kluczowe poziomy:
-  - Wsparcie: {data['support_resistance']['key_support']:.6f if data['support_resistance']['key_support'] else 'brak'}
-  - Opór: {data['support_resistance']['key_resistance']:.6f if data['support_resistance']['key_resistance'] else 'brak'}
+  - Wsparcie: {support_text}
+  - Opór: {resistance_text}
 """
 
         if data['liquidity_gaps']:
