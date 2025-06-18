@@ -580,10 +580,15 @@ class GPTAnalyzer:
                     }
                 ],
                 max_tokens=1500,
-                temperature=0.7
+                temperature=0.7,
+                timeout=45  # 45 second timeout to prevent hanging
             )
             
-            return response.choices[0].message.content
+            if response and response.choices and len(response.choices) > 0:
+                return response.choices[0].message.content
+            else:
+                logger.warning("GPT response was empty or malformed")
+                return "Analiza GPT: Otrzymano pustą odpowiedź z OpenAI API"
             
         except Exception as e:
             logger.error(f"GPT analysis error: {e}")
@@ -628,10 +633,15 @@ class GPTAnalyzer:
                     }
                 ],
                 max_tokens=2000,
-                temperature=0.3  # Lower temperature for more consistent code generation
+                temperature=0.3,  # Lower temperature for more consistent code generation
+                timeout=45  # 45 second timeout to prevent hanging
             )
             
-            return response.choices[0].message.content
+            if response and response.choices and len(response.choices) > 0:
+                return response.choices[0].message.content
+            else:
+                logger.warning("GPT detector function response was empty or malformed")
+                return "# Error: Otrzymano pustą odpowiedź z OpenAI API podczas generowania funkcji detektora"
             
         except Exception as e:
             logger.error(f"GPT detector function generation error: {e}")
