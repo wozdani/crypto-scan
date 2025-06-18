@@ -98,6 +98,14 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 18, 2025 - Unlimited Futures Perpetual Symbol Scanning + Bug Fixes - PRODUCTION READY
+- **Futures perpetual integration**: System now fetches unlimited USDT symbols from Bybit futures perpetual (linear category) instead of spot
+- **Unlimited symbol scanning**: Removed all limits, system fetches as many symbols as Bybit API returns (typically 300-500+ futures pairs)
+- **Same logic as crypto-scan**: Implemented identical symbol fetching logic using linear category with cursor pagination
+- **Fixed formatting errors**: Resolved f-string formatting issues in support/resistance analysis and division by zero errors
+- **Enhanced error handling**: Added proper None checks and NaN validation for price trend calculations
+- **Category consistency**: Both symbol fetching and kline data use 'linear' category for futures perpetual compatibility
+
 ### June 18, 2025 - Complete Automated Detector Testing System - PRODUCTION READY
 - **Automated GPT detector function generation**: System automatically creates Python detection functions for each analyzed pump case
 - **Real-world pattern recognition**: Each pump analysis generates detect_<symbol>_<date>_preconditions() function based on actual pre-pump conditions

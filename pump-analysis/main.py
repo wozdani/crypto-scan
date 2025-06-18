@@ -62,7 +62,7 @@ class BybitDataFetcher:
         endpoint = f"{self.base_url}/v5/market/kline"
         
         params = {
-            'category': 'spot',
+            'category': 'linear',
             'symbol': symbol,
             'interval': interval,
             'limit': limit
@@ -319,7 +319,7 @@ class PrePumpAnalyzer:
         second_half = prices[len(prices)//2:].mean()
         
         # Prevent division by zero
-        if first_half == 0:
+        if first_half == 0 or pd.isna(first_half) or pd.isna(second_half):
             return "neutral"
         
         change_pct = ((second_half - first_half) / first_half) * 100
@@ -602,8 +602,8 @@ ANALIZA PRE-PUMP - {data['symbol']}
                 prompt += f"  - {fr['time_minutes_before_pump']} min przed: wick {fr['wick_size_pct']:.1f}%, recovery {fr['recovery_strength']:.1f}%\n"
 
         if data['support_resistance']['key_support'] or data['support_resistance']['key_resistance']:
-            support_text = f"{data['support_resistance']['key_support']:.6f}" if data['support_resistance']['key_support'] else 'brak'
-            resistance_text = f"{data['support_resistance']['key_resistance']:.6f}" if data['support_resistance']['key_resistance'] else 'brak'
+            support_text = f"{data['support_resistance']['key_support']:.6f}" if data['support_resistance']['key_support'] is not None else 'brak'
+            resistance_text = f"{data['support_resistance']['key_resistance']:.6f}" if data['support_resistance']['key_resistance'] is not None else 'brak'
             prompt += f"""
 • Kluczowe poziomy:
   - Wsparcie: {support_text}
