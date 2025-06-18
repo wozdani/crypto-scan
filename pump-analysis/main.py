@@ -20,6 +20,7 @@ from learning_system import LearningSystem
 from onchain_insights import OnChainAnalyzer
 from functions_history import FunctionHistoryManager, PerformanceTracker, GPTLearningEngine
 from functions_history.function_manager import FunctionMetadata
+from modules import get_heatmap_manager, initialize_heatmap_system
 
 # Configure logging with DEBUG level for detailed pump analysis debugging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -893,6 +894,27 @@ ANALIZA PRE-PUMP - {data['symbol']}
             prompt += f"\n• Luki płynnościowe: {len(data['liquidity_gaps'])}\n"
             for gap in data['liquidity_gaps']:
                 prompt += f"  - {gap['type']}: {gap['size_pct']:.2f}% ({gap['time_minutes_before_pump']} min przed)\n"
+
+        # Add heatmap analysis section
+        heatmap_manager = get_heatmap_manager()
+        heatmap_data = heatmap_manager.get_heatmap_for_gpt(data['symbol'])
+        
+        if heatmap_data and heatmap_data.get('heatmap_summary', '') != "No orderbook data available for heatmap analysis":
+            prompt += f"""
+=== ANALIZA HEATMAPY ORDERBOOKU ===
+• Status analizy: Dane dostępne
+• Zniknięcie ścian: {'TAK' if heatmap_data['heatmap_analysis']['wall_disappeared'] else 'NIE'}
+• Pinning płynności: {'TAK' if heatmap_data['heatmap_analysis']['liquidity_pinning'] else 'NIE'}
+• Reakcja na void: {'TAK' if heatmap_data['heatmap_analysis']['liquidity_void_reaction'] else 'NIE'}
+• Nachylenie klastrów: {heatmap_data['heatmap_analysis']['volume_cluster_tilt']}
+• Szczegóły: {heatmap_data['heatmap_summary']}
+"""
+        else:
+            prompt += f"""
+=== ANALIZA HEATMAPY ORDERBOOKU ===
+• Status analizy: Brak danych orderbooku
+• Uwaga: Analiza oparta tylko na danych cenowych i wolumenowych
+"""
 
         # Add on-chain insights section
         if 'onchain_insights' in data and data['onchain_insights']:
