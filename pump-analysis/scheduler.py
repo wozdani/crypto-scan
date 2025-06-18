@@ -47,7 +47,8 @@ class PumpAnalysisScheduler:
     
     def run_periodic_analysis(self):
         """Run periodic analysis (12 hours of data)"""
-        logger.info("🚀 Starting periodic pump analysis (12 hours)")
+        start_time = datetime.now()
+        logger.info(f"🚀 Starting periodic pump analysis (12 hours) at {start_time}")
         
         if not self.analysis_system:
             if not self.initialize_analysis_system():
@@ -57,12 +58,19 @@ class PumpAnalysisScheduler:
         try:
             # Run analysis for last 12 hours (0.5 days) with unlimited symbols
             self.analysis_system.run_analysis(days_back=0.5, max_symbols=999999)
-            logger.info("✅ Periodic analysis completed successfully")
+            
+            end_time = datetime.now()
+            duration = end_time - start_time
+            logger.info(f"✅ Periodic analysis completed successfully in {duration}")
+            logger.info(f"📅 Next analysis scheduled for: {datetime.now() + timedelta(hours=12)}")
             
         except Exception as e:
             logger.error(f"❌ Error during periodic analysis: {e}")
+            logger.error(f"🔧 Reinitializing analysis system...")
             # Reinitialize system on error
             self.analysis_system = None
+            # Try to reinitialize immediately
+            self.initialize_analysis_system()
     
     def run_startup_analysis(self, days_back=7):
         """Run comprehensive startup analysis"""
@@ -107,12 +115,22 @@ class PumpAnalysisScheduler:
                 schedule.run_pending()
                 time.sleep(60)  # Check every minute
                 
+                # Log heartbeat every hour to show scheduler is alive
+                if int(time.time()) % 3600 < 60:  # Every hour
+                    next_run = schedule.next_run()
+                    logger.info(f"💓 Scheduler heartbeat - next analysis: {next_run}")
+                
         except KeyboardInterrupt:
             logger.info("⏹️ Scheduler stopped by user")
             self.running = False
         except Exception as e:
             logger.error(f"❌ Scheduler error: {e}")
-            self.running = False
+            logger.info("🔄 Attempting to restart scheduler...")
+            # Don't exit - try to continue
+            time.sleep(300)  # Wait 5 minutes before retrying
+            if self.running:
+                logger.info("🔄 Restarting scheduler loop...")
+                self.start_scheduler(run_startup=False)  # Continue without startup
     
     def stop_scheduler(self):
         """Stop the scheduler"""
@@ -120,8 +138,8 @@ class PumpAnalysisScheduler:
         self.running = False
 
 def main():
-    """Main function"""
-    scheduler = PumpAnalysisScheduler()
+    """Main function with error recovery"""
+    logger.info("🚀 Pump Analysis Scheduler starting...")
     
     # Check for startup options from environment
     run_startup = os.getenv('PUMP_ANALYSIS_STARTUP', 'true').lower() == 'true'
@@ -131,9 +149,21 @@ def main():
     logger.info(f"   - Run startup analysis: {run_startup}")
     logger.info(f"   - Startup analysis days: {startup_days}")
     logger.info(f"   - Periodic analysis: every 12 hours")
+    logger.info(f"   - Server mode: continuous operation")
     
-    # Start the scheduler
-    scheduler.start_scheduler(run_startup=run_startup, startup_days=startup_days)
+    # Main loop with error recovery for server deployment
+    while True:
+        try:
+            scheduler = PumpAnalysisScheduler()
+            # Start the scheduler
+            scheduler.start_scheduler(run_startup=run_startup, startup_days=startup_days)
+            
+        except Exception as e:
+            logger.error(f"❌ Scheduler crashed: {e}")
+            logger.info("🔄 Restarting scheduler in 5 minutes...")
+            time.sleep(300)  # Wait 5 minutes before restart
+            run_startup = False  # Don't run startup analysis on restart
+            logger.info("🔄 Attempting scheduler restart...")
 
 if __name__ == "__main__":
     main()
