@@ -506,6 +506,54 @@ class GPTAnalyzer:
         except Exception as e:
             logger.error(f"GPT analysis error: {e}")
             return f"Błąd podczas generowania analizy GPT: {e}"
+
+    def generate_detector_function(self, pre_pump_data: Dict, pump_event: 'PumpEvent') -> str:
+        """
+        Generate Python detector function based on pre-pump analysis
+        
+        Args:
+            pre_pump_data: Dictionary with pre-pump analysis data
+            pump_event: PumpEvent with pump details
+            
+        Returns:
+            Python function code as string
+        """
+        
+        # Create prompt for function generation
+        prompt = self._format_detector_prompt(pre_pump_data, pump_event)
+        
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+                messages=[
+                    {
+                        "role": "system",
+                        "content": """Jesteś ekspertem programowania w Pythonie i analizy technicznej.
+                        Tworzysz funkcje detektorów pre-pump na podstawie rzeczywistych przypadków pump'ów.
+                        
+                        WYMAGANIA:
+                        1. Używaj pandas DataFrame z kolumnami: ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'vwap', 'rsi']
+                        2. Zwracaj True jeśli setup został spełniony, False w przeciwnym razie
+                        3. Nie używaj zewnętrznych bibliotek poza pandas i numpy
+                        4. Nazwa funkcji: detect_{symbol}_{date}_preconditions()
+                        5. Dodaj docstring z opisem wzorca
+                        6. Implementuj konkretną logikę na podstawie dostarczonych danych
+                        7. Używaj realistic thresholds bazujących na danych wejściowych"""
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                max_tokens=2000,
+                temperature=0.3  # Lower temperature for more consistent code generation
+            )
+            
+            return response.choices[0].message.content
+            
+        except Exception as e:
+            logger.error(f"GPT detector function generation error: {e}")
+            return f"# Error generating detector function: {e}"
     
     def _format_analysis_prompt(self, data: Dict) -> str:
         """Format pre-pump data into GPT prompt"""
@@ -576,6 +624,71 @@ Na podstawie powyższych danych z 60 minut przed pumpem, przeanalizuj:
 5. Co można było zauważyć wcześniej, żeby przewidzieć pump?
 
 Podaj konkretną, praktyczną analizę z naciskiem na aplikowalność w przyszłych sytuacjach.
+"""
+
+        return prompt
+
+    def _format_detector_prompt(self, data: Dict, pump_event: 'PumpEvent') -> str:
+        """Format data into prompt for detector function generation"""
+        
+        # Extract date from pump event
+        pump_date = pump_event.start_time.strftime("%Y%m%d")
+        symbol = pump_event.symbol
+        
+        prompt = f"""
+GENEROWANIE FUNKCJI DETEKTORA PRE-PUMP
+
+=== DANE PRZYPADKU ===
+• Symbol: {symbol}
+• Data pumpu: {pump_date}
+• Wzrost ceny: +{pump_event.price_increase_pct:.1f}%
+• Czas trwania: {pump_event.duration_minutes} minut
+
+=== KLUCZOWE CHARAKTERYSTYKI PRE-PUMP ===
+• Kompresja cenowa: {data['price_compression']['compression_ratio_pct']:.2f}% (skompresowana: {data['price_compression']['is_compressed']})
+• Trend cenowy: {data['price_trend']}
+• RSI: {data['rsi']:.1f}
+• Pozycja vs VWAP: {data['vwap']['price_vs_vwap_pct']:.2f}% ({'powyżej' if data['vwap']['above_vwap'] else 'poniżej'})
+• Średni wolumen: {data['avg_volume']:.0f}
+• Trend wolumenu: {data['volume_trend']}
+• Liczba volume spike'ów: {len(data['volume_spikes'])}
+• Liczba fake reject'ów: {len(data['fake_rejects'])}
+• Kluczowe wsparcie: {data['support_resistance']['key_support'] or 'brak'}
+• Kluczowy opór: {data['support_resistance']['key_resistance'] or 'brak'}
+"""
+
+        if data['volume_spikes']:
+            prompt += "\n=== SZCZEGÓŁY VOLUME SPIKE'ÓW ===\n"
+            for spike in data['volume_spikes'][:3]:  # Top 3 spikes
+                prompt += f"• {spike['time_minutes_before_pump']} min przed: {spike['volume_multiplier']:.1f}x średniego\n"
+
+        if data['fake_rejects']:
+            prompt += "\n=== SZCZEGÓŁY FAKE REJECT'ÓW ===\n"
+            for fr in data['fake_rejects'][:2]:  # Top 2 fake rejects
+                prompt += f"• {fr['time_minutes_before_pump']} min przed: wick {fr['wick_size_pct']:.1f}%, recovery {fr['recovery_strength']:.1f}%\n"
+
+        prompt += f"""
+
+=== ZADANIE ===
+Wygeneruj funkcję w języku Python, która potrafiłaby wykryć taki przypadek pre-pump.
+
+WYMAGANIA FUNKCJI:
+1. Nazwa: detect_{symbol}_{pump_date}_preconditions(df)
+2. Parameter: pandas DataFrame z kolumnami ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'vwap', 'rsi']
+3. Zwraca: True jeśli setup został spełniony, False w przeciwnym razie
+4. Używaj tylko pandas i numpy (bez zewnętrznych bibliotek)
+5. Implementuj konkretną logikę bazującą na dostarczonych parametrach
+6. Dodaj docstring opisujący wzorzec
+
+PODEJŚCIE DO IMPLEMENTACJI:
+• Sprawdź kompresję cenową (zakres high-low vs średnia)
+• Zweryfikuj pozycję vs VWAP
+• Wykryj volume spike'y (porównaj z moving average)
+• Sprawdź fake reject'y (długie wicki + recovery)
+• Uwzględnij trend RSI i ceny
+• Użyj realistic thresholds bazujących na podanych wartościach
+
+Wygeneruj kompletną, działającą funkcję Python gotową do zapisania w pliku.
 """
 
         return prompt
@@ -729,6 +842,13 @@ class PumpAnalysisSystem:
                                 logger.info(f"🤖 Generating GPT analysis for {symbol}...")
                                 gpt_analysis = self.gpt_analyzer.generate_pump_analysis(pre_pump_analysis)
                                 
+                                # Generate Python detector function
+                                logger.info(f"🐍 Generating Python detector function for {symbol}...")
+                                detector_function = self.gpt_analyzer.generate_detector_function(pre_pump_analysis, pump)
+                                
+                                # Save detector function to file
+                                self._save_detector_function(pump, detector_function)
+                                
                                 # Format message for Telegram
                                 telegram_message = self._format_telegram_message(pump, gpt_analysis)
                                 
@@ -802,6 +922,59 @@ class PumpAnalysisSystem:
         
         return message
     
+    def _save_detector_function(self, pump: PumpEvent, detector_function: str):
+        """Save generated detector function to Python file"""
+        
+        # Extract date from pump event  
+        pump_date = pump.start_time.strftime("%Y%m%d")
+        symbol = pump.symbol
+        
+        # Create filename: SYMBOL_YYYYMMDD.py
+        filename = f"generated_detectors/{symbol}_{pump_date}.py"
+        
+        # Clean up function code (remove markdown if present)
+        function_code = detector_function
+        if "```python" in function_code:
+            # Extract code between ```python and ```
+            start = function_code.find("```python") + 9
+            end = function_code.find("```", start)
+            if end != -1:
+                function_code = function_code[start:end].strip()
+        elif "```" in function_code:
+            # Extract code between ``` and ```
+            start = function_code.find("```") + 3
+            end = function_code.find("```", start)
+            if end != -1:
+                function_code = function_code[start:end].strip()
+        
+        # Add header comment
+        header = f'''"""
+Generated Detector Function - {symbol} {pump_date}
+Auto-generated by Pump Analysis System based on real pump data
+
+Pump details:
+- Symbol: {symbol}
+- Date: {pump.start_time.strftime("%Y-%m-%d %H:%M:%S")}
+- Price increase: +{pump.price_increase_pct:.1f}%
+- Duration: {pump.duration_minutes} minutes
+
+This function detects pre-pump conditions that preceded the actual pump event.
+"""
+
+import pandas as pd
+import numpy as np
+
+'''
+        
+        full_content = header + function_code
+        
+        try:
+            with open(filename, 'w', encoding='utf-8') as f:
+                f.write(full_content)
+            logger.info(f"🐍 Detector function saved to {filename}")
+        except Exception as e:
+            logger.error(f"❌ Error saving detector function: {e}")
+
     def _save_analysis_to_file(self, pump: PumpEvent, pre_pump_data: Dict, gpt_analysis: str):
         """Save analysis to JSON file"""
         
