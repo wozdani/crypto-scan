@@ -231,18 +231,52 @@ class BybitDataFetcher:
             logger.info(f"🔝 First 10: {symbol_list[:10]}")
             return symbol_list
         
-        # Fallback only if API completely fails - validated active symbols only
-        fallback_symbols = [
-            'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT',
-            'XRPUSDT', 'DOTUSDT', 'LINKUSDT', 'LTCUSDT', 'BCHUSDT',
-            'XLMUSDT', 'UNIUSDT', 'FILUSDT', 'TRXUSDT', 'ETCUSDT',
-            'NEARUSDT', 'ATOMUSDT', 'ALGOUSDT', 'VETUSDT', 'ICPUSDT',
-            'THETAUSDT', 'HBARUSDT', 'EGLDUSDT', 'AAVEUSDT', 'EOSUSDT',
-            'AXSUSDT', 'SANDUSDT', 'MANAUSDT', 'GALAUSDT', 'CHZUSDT',
-            'ALICEUSDT', 'DEGOUSDT', 'GMTUSDT', 'APTUSDT', 'OPUSDT'
+        # Try to use crypto-scan's symbol data if available
+        try:
+            crypto_scan_symbols_path = "../crypto-scan/utils/data/cache/bybit_symbols.json"
+            if os.path.exists(crypto_scan_symbols_path):
+                with open(crypto_scan_symbols_path, 'r') as f:
+                    cached_symbols = json.load(f)
+                    if cached_symbols and len(cached_symbols) > 100:
+                        logger.info(f"✅ Using crypto-scan cached symbols: {len(cached_symbols)} symbols")
+                        return [s for s in cached_symbols if s.endswith('USDT')]
+        except Exception as e:
+            logger.debug(f"Failed to load crypto-scan symbols: {e}")
+        
+        # Enhanced fallback with comprehensive symbol list for production use
+        enhanced_fallback = [
+            'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT', 'XRPUSDT', 'DOTUSDT', 'LINKUSDT', 'LTCUSDT', 'BCHUSDT',
+            'XLMUSDT', 'UNIUSDT', 'FILUSDT', 'TRXUSDT', 'ETCUSDT', 'NEARUSDT', 'ATOMUSDT', 'ALGOUSDT', 'VETUSDT', 'ICPUSDT',
+            'THETAUSDT', 'HBARUSDT', 'EGLDUSDT', 'AAVEUSDT', 'EOSUSDT', 'AXSUSDT', 'SANDUSDT', 'MANAUSDT', 'GALAUSDT', 'CHZUSDT',
+            'ALICEUSDT', 'DEGOUSDT', 'GMTUSDT', 'APTUSDT', 'OPUSDT', 'AVAXUSDT', 'SHIBUSDT', 'MATICUSDT', 'DOGEUSDT', 'LUNAUSDT',
+            'FTMUSDT', 'CRVUSDT', 'COMPUSDT', 'YFIUSDT', 'MKRUSDT', 'SNXUSDT', 'BANDUSDT', 'KSMUSDT', 'RUNEUSDT', 'OCEANUSDT',
+            'RSRUSDT', 'KAVAUSDT', 'INJUSDT', 'ONEUSDT', 'ZILUSDT', 'ZENUSDT', 'RVNUSDT', 'SCUSDT', 'DGBUSDT', 'BTTUSDT',
+            'HOTUSDT', 'WINUSDT', 'TLMUSDT', 'DUSKUSDT', 'ANKRUSDT', 'CELRUSDT', 'MTLUSDT', 'OGNUSDT', 'NKNUSDT', 'REQUSDT',
+            'AUDIOUSDT', 'CTKUSDT', 'AKROUSDT', 'AXSUSDT', 'HARDUSDT', 'DNTUSDT', 'STRAXUSDT', 'UNFIUSDT', 'ROSEUSDT', 'AVAUSDT',
+            'XEMUSDT', 'SKLUSDT', 'GRTUSDT', 'JUVUSDT', 'PSGUSDT', 'CITYUSDT', 'ASRUSDT', 'BARUSDT', 'ATMUSDT', 'ALPACAUSDT',
+            'DEXEUSDT', 'FORUSDT', 'EASYUSDT', 'AUTOUSDT', 'TKOUSDT', 'PUNDIXUSDT', 'BAKEUSDT', 'BURGERUSDT', 'SLPUSDT', 'BONDUSDT',
+            'MLNUSDT', 'QUICKUSDT', 'C98USDT', 'CLOPUSDT', 'ADXUSDT', 'CFXUSDT', 'QIUSDT', 'IDUSDT', 'BIGTIMEUSDT', 'TRADEJOEUSDT',
+            'IMXUSDT', 'GALAUSDT', 'FLMUSDT', 'STGUSDT', 'GMXUSDT', 'NEBULAUSDT', 'BICOUSDT', 'FLOKIUSDT', 'PEPEUSDT', 'SUIUSDT',
+            'SEIUSDT', 'CYBERUSDT', 'ARKMUSDT', 'ARKUSDT', 'TIAUSDT', 'BEAMXUSDT', 'PIVXUSDT', 'VICUSDT', 'STXUSDT', 'AGLDUSDT',
+            'RAYDIUMUSDT', 'MOVRUSDT', 'NFTUSDT', 'HIGHUSDT', 'CVXUSDT', 'PEOPLEUSDT', 'OOKIUSDT', 'SPELLUSDT', 'USTUSDT', 'JASMYUSDT',
+            'DARUSDT', 'OPUSDT', 'REIUSDT', 'STEEMUSDT', 'FISUSDT', 'COWUSDT', 'SPEEDUSDT', 'METAMASKUSDT', 'LSKUSDT', 'ELFUSDT',
+            'DYDXUSDT', 'AMBUSDT', 'PHBUSDT', 'BALUSDT', 'NCTUSDT', 'OXTUSDT', 'OBSUSDT', 'SNTUSDT', 'DENTUSDT', 'CKBUSDT',
+            'REQUSDT', 'VIBUSDT', 'BTGUSDT', 'REPUSDT', 'ARDRUSDT', 'MDTUSDT', 'STORMXUSDT', 'RIFUSDT', 'PONDUSDT', 'DEGOUSDT',
+            'ALICEUSDT', 'LINAUSDT', 'PERPUSDT', 'RAMPUSDT', 'SUPERUSDT', 'CFXUSDT', 'EPSUSDT', 'AUTOUSDT', 'GHSTUSDT', 'ALPINEUSDT',
+            'TUSDT', 'ASTRUSDT', 'NBTUSDT', 'GMTUSDT', 'KDAUSDT', 'APEUSDT', 'BSWUSDT', 'MULTIUSDT', 'STEEMUSDT', 'MOBUSDT',
+            'NEXOUSDT', 'REIUSDT', 'GALUSDT', 'LDOUSDT', 'EPXUSDT', 'USTCUSDT', 'LOOMUSDT', 'OMGUSDT', 'MASKUSDT', 'LRCUSDT',
+            'MAVIAUSDT', 'EDUUSDT', 'SUIUSDT', 'PEPEUSDT', 'FLOKIUSDT', 'COMBOUSDT', 'MAVUSDT', 'PENDLEUSDT', 'ARKMUSDT', 'WLDUSDT',
+            'YGGUSDT', 'DODOXUSDT', 'OPENSUSDT', 'POWRUSDT', 'SLERFUSDT', 'AGIUSDT', 'XAIUSDT', 'MANTAUSDT', 'ONDOUSDT', 'LSKUSDT',
+            'ALTUSDT', 'JUPUSDT', 'ZETAUSDT', 'RONINUSDT', 'DYMUSDT', 'OMUSDT', 'PIXELUSDT', 'STRKUSDT', 'PORTALUSDT', 'PDAUSDT',
+            'AEVOUSDT', 'VANRYUSDT', 'BOMEUSDT', 'ETHFIUSDT', 'ENAUSDT', 'WUSDT', 'TNSRUSDT', 'SAGAUSDT', 'TAOUSDT', 'OMNIUSDT',
+            'REZUSDT', 'BBUSDT', 'NOTUSDT', 'TURBOUSDT', 'IOUSDT', 'ZKUSDT', 'MEWUSDT', 'LISTAUSDT', 'ZROUSDT', 'GUSDT',
+            'BANUSDT', 'RENDERUSDT', 'TONUSDT', 'DOGUSDT', 'KASUSDT', 'CATIUSDT', 'POPCATUSDT', 'MOODENGUUSDT', 'SUNUSDT', 'RAYUSDT',
+            'EIGENUSDT', 'ALPACAUSDT', 'LUMAUSDT', 'NEIROUSDT', 'ACTUSDT', 'PNUTUSDT', 'CHEEMSUSDT', 'SCRUSDT', 'HIPPOUSDT', 'CETUS',
+            'MOVEUSDT', 'MEUSDT', 'TRBUSDT', 'ORDIUSDT', 'ETHUSDT', 'RATSUSDT', '1000SATSUSDT', 'BONKUSDT', 'PYTHUSDT', 'WIFUSDT'
         ]
-        logger.warning("⚠️ Using fallback symbol list due to API failure")
-        return fallback_symbols
+        
+        logger.warning(f"⚠️ Using enhanced fallback symbol list: {len(enhanced_fallback)} symbols")
+        return enhanced_fallback
 
 class PumpDetector:
     """Detects pump events in price data"""
