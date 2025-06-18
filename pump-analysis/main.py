@@ -118,7 +118,7 @@ class BybitDataFetcher:
             logger.warning(f"⚠️ Symbol validation failed for {symbol}: {e}")
             return False
 
-    def get_kline_data(self, symbol: str, interval: str = "5", start_time: int = None, limit: int = 200) -> List[Dict]:
+    def get_kline_data(self, symbol: str, interval: str = "15", start_time: int = None, limit: int = 200) -> List[Dict]:
         """
         Fetch kline data from Bybit with symbol validation
         
@@ -258,7 +258,7 @@ class PumpDetector:
         Returns:
             List of detected pump events
         """
-        if len(kline_data) < 12:  # Need at least 1 hour of 5-min data
+        if len(kline_data) < 4:  # Need at least 1 hour of 15-min data
             return []
             
         pumps = []
@@ -281,7 +281,7 @@ class PumpDetector:
         df = df.sort_values('datetime')
         
         # Rolling window analysis for pump detection
-        window_size = self.detection_window_minutes // 5  # 5-min candles
+        window_size = self.detection_window_minutes // 15  # 15-min candles
         
         for i in range(window_size, len(df)):
             window_start = i - window_size
@@ -335,13 +335,13 @@ class PrePumpAnalyzer:
         pre_pump_start = pump_event.start_time - timedelta(minutes=60)
         start_timestamp = int(pre_pump_start.timestamp() * 1000)
         
-        # Get 1-hour of data before pump (12 x 5-min candles)
+        # Get 1-hour of data before pump (4 x 15-min candles)
         logger.info(f"📊 Fetching pre-pump data for {pump_event.symbol}: 60min before {pump_event.start_time}")
         pre_pump_data = self.bybit.get_kline_data(
             symbol=pump_event.symbol,
-            interval="5",
+            interval="15",
             start_time=start_timestamp,
-            limit=12
+            limit=4
         )
         
         if not pre_pump_data:
@@ -1327,14 +1327,14 @@ import numpy as np
             else:
                 # Create minimal test data based on available metrics
                 test_data = []
-                for i in range(12):  # 12 x 5min = 60 minutes
+                for i in range(4):  # 4 x 15min = 60 minutes
                     test_data.append({
                         'open': 1.0,
                         'high': 1.02,
                         'low': 0.98,
                         'close': 1.01,
                         'volume': 1000,
-                        'timestamp': int(time.time()) - (12-i)*300
+                        'timestamp': int(time.time()) - (4-i)*900
                     })
                 test_df = pd.DataFrame(test_data)
             
