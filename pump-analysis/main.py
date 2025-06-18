@@ -1199,6 +1199,14 @@ class PumpAnalysisSystem:
         self.learning_system = LearningSystem()
         logger.info("🧠 Learning system initialized")
         
+        # Initialize heatmap system for orderbook analysis
+        try:
+            self.heatmap_manager = initialize_heatmap_system()
+            logger.info("📊 Heatmap integration system initialized")
+        except Exception as e:
+            logger.warning(f"Heatmap system initialization failed: {e}")
+            self.heatmap_manager = None
+        
         # Initialize function history system
         self.function_manager = FunctionHistoryManager()
         self.performance_tracker = PerformanceTracker()

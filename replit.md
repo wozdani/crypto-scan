@@ -98,6 +98,18 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 18, 2025 - Local Orderbook Heatmap Simulation System + Enhanced GPT Analysis - PRODUCTION READY
+- **Local orderbook heatmap simulation implemented**: Complete 4-module system analyzing Bybit orderbook data to detect wall disappearance, liquidity pinning, void reactions, and volume cluster tilts
+- **Orderbook pattern detection**: Analyzes top 20 bid/ask levels detecting >30% depth disappearance in 5-minute windows, price pinning to high liquidity levels, and liquidity void reactions
+- **Volume cluster tilt analysis**: Monitors bid/ask depth ratio changes over time to identify bullish/bearish orderbook shifts (threshold: 20% change)
+- **GPT integration enhanced**: Heatmap features automatically added to GPT prompts alongside RSI, VWAP, and DEX inflow data for comprehensive pre-pump analysis
+- **Independent Bybit API integration**: Complete orderbook fetcher with authentication, rate limiting, and error handling for real-time data collection
+- **Background data collection**: Automated orderbook snapshot collection every 30 seconds with 2-hour historical data retention
+- **Comprehensive testing framework**: Full test suite (test_orderbook_heatmap.py) validating wall disappearance, liquidity pinning, void reactions, cluster tilts, data persistence, and system integration
+- **JSON data storage**: Heatmap features saved as heatmap_features.json with boolean flags and tilt directions in heatmap_data/ folder
+- **Production-ready architecture**: HeatmapIntegrationManager with global instance management, automatic initialization, and graceful error handling
+- **Enhanced pre-pump analysis**: GPT prompts now include orderbook insights section showing detected patterns and their significance for pump prediction
+
 ### June 18, 2025 - Complete Function History System + GPT-4o Self-Learning Integration - PRODUCTION READY
 - **Complete function history system implemented**: Full FunctionHistoryManager, PerformanceTracker, and GPTLearningEngine with persistent storage and automatic learning
 - **Automatic detector function generation**: Every pump analysis now generates and stores detector functions with complete metadata including active signals and pre-pump analysis
