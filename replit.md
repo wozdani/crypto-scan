@@ -4,6 +4,20 @@
 
 This is a sophisticated cryptocurrency market scanner that detects pre-pump signals using advanced multi-stage analysis. The system monitors cryptocurrency markets in real-time, analyzes various indicators to identify potential pre-pump conditions, and sends alerts via Telegram with AI-powered analysis.
 
+## Project Structure
+
+### crypto-scan/ - Pre-Pump Scanner & Trend Mode
+- **Main Scanner**: Advanced PPWCS v2.8+ scoring with trend mode detection
+- **Dashboard**: Flask web interface for real-time monitoring (port 5000)
+- **Service**: Background scanning service with multi-stage analysis
+- **Features**: Pre-pump detection, trend mode v1.0, PPWCS-T 2.0 boost
+
+### pump-analysis/ - Historical Pump Analysis
+- **GPT Analysis**: AI-powered analysis of historical pump events
+- **Detector Generation**: Automatic Python function generation from pump patterns
+- **Testing Framework**: Comprehensive validation system for generated detectors
+- **Machine Learning**: Pattern recognition and classification capabilities
+
 ## System Architecture
 
 ### Backend Architecture
