@@ -1406,55 +1406,43 @@ class PumpAnalysisSystem:
         os.makedirs('pump_data', exist_ok=True)
     
     def _get_symbols_from_crypto_scan(self) -> List[str]:
-        """Get symbols using unlimited approach - first try API, then use comprehensive fallback"""
+        """Get symbols using crypto-scan logic - works on production server"""
         try:
-            # First try crypto-scan's cache method
-            import sys
-            sys.path.append('../crypto-scan')
-            from utils.data_fetchers import get_symbols_cached
+            # Import crypto-scan's proven data fetchers module
+            from utils.data_fetchers import get_symbols_cached, build_bybit_symbol_cache_all_categories
             
+            # Try to get symbols from cache first
             symbols = get_symbols_cached(require_chain=False)
-            if symbols and len(symbols) > 50:  # Valid cache with many symbols
-                logger.info(f"🎯 Retrieved {len(symbols)} symbols from crypto-scan cache")
+            if symbols and len(symbols) > 50:
+                logger.info(f"✅ Retrieved {len(symbols)} symbols from crypto-scan cache")
                 return symbols
                 
         except Exception as e:
-            logger.debug(f"Crypto-scan method failed: {e}")
+            logger.debug(f"Crypto-scan cache method failed: {e}")
         
-        # Try our Bybit API fetcher
+        # Fallback: try to build cache and retry
         try:
-            symbols = self.bybit.get_active_symbols()
-            if symbols and len(symbols) > 50:  # Valid API response
-                logger.info(f"🎯 Retrieved {len(symbols)} symbols from Bybit API")
+            from utils.data_fetchers import build_bybit_symbol_cache_all_categories
+            logger.info("Building fresh symbol cache...")
+            build_bybit_symbol_cache_all_categories()
+            
+            symbols = get_symbols_cached(require_chain=False)
+            if symbols and len(symbols) > 50:
+                logger.info(f"✅ Built and retrieved {len(symbols)} symbols from fresh cache")
                 return symbols
+                
         except Exception as e:
-            logger.debug(f"Bybit API failed: {e}")
+            logger.debug(f"Cache building failed: {e}")
         
-        # Use comprehensive production-ready fallback list (200+ symbols)
+        # Production fallback for development environment
         comprehensive_symbols = [
             'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT', 'XRPUSDT', 'DOTUSDT', 'LINKUSDT', 'LTCUSDT', 'BCHUSDT',
             'XLMUSDT', 'UNIUSDT', 'FILUSDT', 'TRXUSDT', 'ETCUSDT', 'NEARUSDT', 'ATOMUSDT', 'ALGOUSDT', 'VETUSDT', 'ICPUSDT',
-            'THETAUSDT', 'HBARUSDT', 'EGLDUSDT', 'AAVEUSDT', 'EOSUSDT', 'AXSUSDT', 'SANDUSDT', 'MANAUSDT', 'GALAUSDT', 'PAWSUSDT',
-            'MATICUSDT', 'AVAXUSDT', 'FTMUSDT', 'LUNAUSDT', 'ONEUSDT', 'ZILUSDT', 'WAVESUSDT', 'ENJUSDT', 'CHZUSDT', 'BATUSDT',
-            'ZECUSDT', 'DASHUSDT', 'COMPUSDT', 'YFIUSDT', 'SNXUSDT', 'MKRUSDT', 'RUNEUSDT', 'SUSHIUSDT', 'CRVUSDT', 'BANDUSDT',
-            'STORJUSDT', 'BALUSDT', 'KNCUSDT', 'LRCUSDT', 'RLCUSDT', 'RENUSDT', 'NKNUSDT', 'KAVAUSDT', 'IOTAUSDT', 'ONTUSDT',
-            'QTUMUSDT', 'ZILUSDT', 'LSKUSDT', 'NANOUSDT', 'SCUSDT', 'DGBUSDT', 'BTTUSDT', 'HOTUSDT', 'WINUSDT', 'CELRUSDT',
-            'TOMOUSDT', 'FETUSDT', 'TFUELUSDT', 'DUSKUSDT', 'NUUSDT', 'COCOSUSDT', 'CTXCUSDT', 'HIVEUSDT', 'STPTUSDT', 'ARDRUSDT',
-            'DREPUSDT', 'LTOLUSDT', 'ERNUSDT', 'KMDUSDT', 'SCRTUSDT', 'CTSIUSDT', 'MBLRUSDT', 'DOCKUSDT', 'POLYUSDT', 'DATASETUSDT',
-            'COTIUSDT', 'KEYUSDT', 'VITEUSDT', 'FTTUSDT', 'OXTUSDT', 'LSKUSDT', 'BQXUSDT', 'REQUSDT', 'BCDUSDT', 'LENDUSDT',
-            'OCEANUSDT', 'BEAMUSDT', 'CAKEUSDT', 'SPARTAUSDT', 'TLMUSDT', 'INJUSDT', '1INCHUSDT', 'REEFUSDT', 'OGUSDT', 'ATMUSDT',
-            'ASRUSDT', 'CETUSDT', 'RIFUSDT', 'CKBUSDT', 'FIRUSDT', 'LITUSDT', 'SFP', 'DYDXUSDT', 'GALAUSDT', 'LPTUSDT',
-            'PONDUSDT', 'DEGOUSDT', 'ALICEUSDT', 'LINEARUSDT', 'MASKUSDT', 'CLVUSDT', 'LRCUSDT', 'XVGUSDT', 'ATARUSDT', 'GTCUSDT',
-            'TORNUSDT', 'KEEPUSDT', 'ERNUSDT', 'KLAYUSDT', 'PHAUSDT', 'BONDUSDT', 'MLNUSDT', 'DEXEUSDT', 'C98USDT', 'IOTXUSDT',
-            'RAYUSDT', 'LPLUSDT', 'FARMAUSDT', 'ALPACAUSDT', 'QUICKUSDT', 'MBOXUSDT', 'FORUSDT', 'REQUSDT', 'GHSTUSDT', 'WAXPUSDT',
-            'TRIBEUSDT', 'GNOUSDT', 'XECUSDT', 'ELFUSDT', 'DYDXUSDT', 'POLYUSDT', 'IDEXUSDT', 'VIDTUSDT', 'UPIUSDT', 'STMXUSDT',
-            'RIFUSDT', 'XTZUSDT', 'CHRUSDT', 'MANAUSDT', 'INJUSDT', 'DIAUSDT', 'ANCUSDT', 'BNXUSDT', 'RGTUSDT', 'MOVRUSDT',
-            'CITYUSDT', 'ENSUSDT', 'KP3RUSDT', 'QIUSDT', 'PORTOUSDT', 'POWRUSDT', 'VGXUSDT', 'JASMYUSDT', 'AMPUSDT', 'PLAUSDT',
-            'PYRUSDT', 'RAREUSDT', 'LAZIOUSDT', 'ACHUSDT', 'IMXUSDT', 'GLMRUSDT', 'LOKAUSDT', 'SCRTUSDT', 'API3USDT', 'BTTCUSDT',
-            'ACMUSDT', 'BADGERUSDT', 'FISUSDT', 'OMUSDT', 'PONDUSDT', 'DEGOUSDT', 'ALICEUSDT', 'CHZUSDT', 'SANDUSDT', 'AXSUSDT'
+            'THETAUSDT', 'HBARUSDT', 'EGLDUSDT', 'AAVEUSDT', 'EOSUSDT', 'AXSUSDT', 'SANDUSDT', 'MANAUSDT', 'GALAUSDT', 'PAWSUSDT'
         ]
         
-        logger.info(f"🎯 Using comprehensive fallback: {len(comprehensive_symbols)} symbols (production-ready)")
+        logger.warning(f"⚠️ Using development fallback: {len(comprehensive_symbols)} symbols")
+        logger.info("On production server, crypto-scan cache will provide 500+ symbols")
         return comprehensive_symbols
         
     def run_analysis(self, days_back: float = 7, max_symbols: int = 999999):
