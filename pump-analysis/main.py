@@ -16,6 +16,7 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from openai import OpenAI
 import logging
+from learning_system import LearningSystem
 
 # Configure logging with DEBUG level for detailed pump analysis debugging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -817,6 +818,10 @@ class PumpAnalysisSystem:
         self.gpt_analyzer = GPTAnalyzer(self.openai_api_key)
         self.telegram = TelegramNotifier(self.telegram_bot_token, self.telegram_chat_id)
         
+        # Initialize learning system
+        self.learning_system = LearningSystem()
+        logger.info("🧠 Learning system initialized")
+        
         # Create data directory
         os.makedirs('pump_data', exist_ok=True)
     
@@ -939,6 +944,26 @@ class PumpAnalysisSystem:
                             if pre_pump_analysis:
                                 logger.info(f"✅ Pre-pump analysis successful for {symbol}")
                                 
+                                # 🧠 LEARNING SYSTEM INTEGRATION - Test existing functions on new pump
+                                logger.info(f"🧪 Testing existing functions on new pump {symbol}...")
+                                learning_test_results = {}
+                                try:
+                                    # Get pre-pump candle data for testing
+                                    pre_pump_candles = self._get_pre_pump_candles_for_testing(pump)
+                                    if pre_pump_candles is not None:
+                                        learning_test_results = self.learning_system.test_functions_on_new_pump(
+                                            {
+                                                'symbol': pump.symbol,
+                                                'start_time': pump.start_time.isoformat(),
+                                                'price_increase_pct': pump.price_increase_pct,
+                                                'duration_minutes': pump.duration_minutes
+                                            },
+                                            pre_pump_candles
+                                        )
+                                        logger.info(f"📊 Learning test complete: {learning_test_results['functions_tested']} functions tested, {len(learning_test_results['successful_detections'])} detected")
+                                except Exception as e:
+                                    logger.warning(f"⚠️ Learning system test failed: {e}")
+                                
                                 # Generate GPT analysis
                                 logger.info(f"🤖 Generating GPT analysis for {symbol}...")
                                 gpt_analysis = self.gpt_analyzer.generate_pump_analysis(pre_pump_analysis)
@@ -947,15 +972,33 @@ class PumpAnalysisSystem:
                                 logger.info(f"🐍 Generating Python detector function for {symbol}...")
                                 detector_function = self.gpt_analyzer.generate_detector_function(pre_pump_analysis, pump)
                                 
-                                # Save detector function to file
-                                self._save_detector_function(pump, detector_function)
+                                # 🧠 LEARNING SYSTEM INTEGRATION - Save GPT function with metadata
+                                logger.info(f"💾 Saving function to learning system...")
+                                active_signals = self._extract_active_signals(pre_pump_analysis)
+                                try:
+                                    function_path = self.learning_system.save_gpt_function(
+                                        detector_function,
+                                        pump.symbol,
+                                        pump.start_time.strftime('%Y%m%d'),
+                                        active_signals,
+                                        {
+                                            'pump_event': {
+                                                'price_increase_pct': pump.price_increase_pct,
+                                                'duration_minutes': pump.duration_minutes
+                                            },
+                                            'analysis': pre_pump_analysis
+                                        }
+                                    )
+                                    logger.info(f"✅ Function saved to learning system: {function_path}")
+                                except Exception as e:
+                                    logger.error(f"❌ Failed to save function to learning system: {e}")
                                 
                                 # Test the generated detector function
                                 logger.info(f"🧪 Testing generated detector function for {symbol}...")
                                 test_result = self._test_detector_function(pump, pre_pump_analysis, detector_function)
                                 
-                                # Format message for Telegram (including test result)
-                                telegram_message = self._format_telegram_message(pump, gpt_analysis, test_result if test_result else {})
+                                # Format message for Telegram (including test result and learning results)
+                                telegram_message = self._format_telegram_message(pump, gpt_analysis, test_result if test_result else {}, learning_test_results)
                                 
                                 # Send to Telegram
                                 logger.info(f"📤 Sending Telegram message for {symbol}...")
@@ -1004,7 +1047,7 @@ class PumpAnalysisSystem:
         
         self.telegram.send_message(summary_message)
     
-    def _format_telegram_message(self, pump: PumpEvent, gpt_analysis: str, test_result: dict = None) -> str:
+    def _format_telegram_message(self, pump: PumpEvent, gpt_analysis: str, test_result: dict = None, learning_results: dict = None) -> str:
         """Format message for Telegram"""
         
         message = f"""
