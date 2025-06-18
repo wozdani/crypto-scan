@@ -4,3 +4,7 @@ python-dotenv
 openai
 telethon
 numpy
+flask
+flask-sqlalchemy
+matplotlib
+pandas

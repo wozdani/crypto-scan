@@ -36,6 +36,18 @@ class BybitDataFetcher:
     
     def __init__(self):
         self.base_url = "https://api.bybit.com"
+        self.api_key = os.getenv('BYBIT_API_KEY', '')
+        self.api_secret = os.getenv('BYBIT_SECRET_KEY', '')
+        
+        # Headers for all requests
+        self.headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        }
+        
+        if self.api_key:
+            self.headers['X-BAPI-API-KEY'] = self.api_key
         
     def get_kline_data(self, symbol: str, interval: str = "5", start_time: int = None, limit: int = 200) -> List[Dict]:
         """
@@ -76,36 +88,72 @@ class BybitDataFetcher:
     
     def get_active_symbols(self, limit: int = 50) -> List[str]:
         """Get list of active trading symbols sorted by volume"""
-        endpoint = f"{self.base_url}/v5/market/tickers"
+        # Try multiple endpoints for better reliability
+        endpoints = [
+            f"{self.base_url}/v5/market/tickers",
+            f"{self.base_url}/v2/public/tickers"
+        ]
         
-        params = {
-            'category': 'spot'
-        }
+        # Fallback list of popular symbols if API fails
+        fallback_symbols = [
+            'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT',
+            'XRPUSDT', 'DOTUSDT', 'LINKUSDT', 'LTCUSDT', 'BCHUSDT',
+            'XLMUSDT', 'UNIUSDT', 'FILUSDT', 'TRXUSDT', 'ETCUSDT',
+            'NEARUSDT', 'ATOMUSDT', 'ALGOUSDT', 'VETUSDT', 'ICPUSDT',
+            'THETAUSDT', 'XLMUSDT', 'HBARUSDT', 'EGLDUSDT', 'AAVEUSDT',
+            'EOSUSDT', 'AXSUSDT', 'SANDUSDT', 'MANAUSDT', 'GALAUSDT'
+        ]
         
-        try:
-            response = requests.get(endpoint, params=params)
-            response.raise_for_status()
-            data = response.json()
-            
-            if data['retCode'] == 0:
-                tickers = data['result']['list']
-                # Filter USDT pairs and sort by volume
-                usdt_pairs = [
-                    ticker for ticker in tickers 
-                    if ticker['symbol'].endswith('USDT') and float(ticker['volume24h']) > 100000
-                ]
+        for endpoint in endpoints:
+            try:
+                if 'v5' in endpoint:
+                    params = {'category': 'spot'}
+                else:
+                    params = {}
                 
-                # Sort by 24h volume descending
-                usdt_pairs.sort(key=lambda x: float(x['volume24h']), reverse=True)
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    'Accept': 'application/json'
+                }
                 
-                return [ticker['symbol'] for ticker in usdt_pairs[:limit]]
-            else:
-                logger.error(f"Error getting symbols: {data['retMsg']}")
-                return []
+                response = requests.get(endpoint, params=params, headers=headers, timeout=10)
                 
-        except Exception as e:
-            logger.error(f"Error fetching symbols: {e}")
-            return []
+                if response.status_code == 200:
+                    data = response.json()
+                    
+                    # Handle v5 API response
+                    if 'result' in data and data.get('retCode') == 0:
+                        tickers = data['result']['list']
+                        usdt_pairs = [
+                            ticker for ticker in tickers 
+                            if ticker['symbol'].endswith('USDT') and float(ticker.get('volume24h', 0)) > 100000
+                        ]
+                        usdt_pairs.sort(key=lambda x: float(x.get('volume24h', 0)), reverse=True)
+                        symbols = [ticker['symbol'] for ticker in usdt_pairs[:limit]]
+                        if symbols:
+                            logger.info(f"Retrieved {len(symbols)} symbols from Bybit v5 API")
+                            return symbols
+                    
+                    # Handle v2 API response
+                    elif 'result' in data and isinstance(data['result'], list):
+                        tickers = data['result']
+                        usdt_pairs = [
+                            ticker for ticker in tickers 
+                            if ticker['symbol'].endswith('USDT') and float(ticker.get('volume_24h', 0)) > 100000
+                        ]
+                        usdt_pairs.sort(key=lambda x: float(x.get('volume_24h', 0)), reverse=True)
+                        symbols = [ticker['symbol'] for ticker in usdt_pairs[:limit]]
+                        if symbols:
+                            logger.info(f"Retrieved {len(symbols)} symbols from Bybit v2 API")
+                            return symbols
+                            
+            except Exception as e:
+                logger.warning(f"Endpoint {endpoint} failed: {e}")
+                continue
+        
+        # If all API calls fail, return fallback symbols
+        logger.warning("All Bybit API endpoints failed, using fallback symbol list")
+        return fallback_symbols[:limit]
 
 class PumpDetector:
     """Detects pump events in price data"""

@@ -2,7 +2,7 @@ modules = ["python-3.11"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["unzip"]
+packages = ["cairo", "ffmpeg-full", "freetype", "ghostscript", "glibcLocales", "gobject-introspection", "gtk3", "openssl", "pkg-config", "qhull", "tcl", "tk", "unzip"]
 
 [workflows]
 runButton = "Project"
