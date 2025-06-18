@@ -30,7 +30,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "uv run python app.py"
+args = "cd crypto-scan && uv run python app.py"
 waitForPort = 5000
 
 [[workflows.workflow]]
@@ -39,7 +39,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python crypto_scan_service.py"
+args = "cd crypto-scan && python crypto_scan_service.py"
 
 [[workflows.workflow]]
 name = "Pump Analysis"
@@ -47,7 +47,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd pump_analysis && python main.py"
+args = "cd pump-analysis && python main.py"
 
 [deployment]
 run = ["sh", "-c", "uv run python app.py"]
