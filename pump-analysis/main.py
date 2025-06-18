@@ -386,10 +386,20 @@ class PumpDetector:
         
         # Rolling window analysis for pump detection
         window_size = self.detection_window_minutes // 15  # 15-min candles
+        processed_periods = set()  # Track processed time periods to avoid duplicates
         
-        for i in range(window_size, len(df)):
+        i = window_size
+        while i < len(df):
             window_start = i - window_size
             window_data = df.iloc[window_start:i+1]
+            
+            # Create unique period identifier
+            period_key = (window_data.iloc[0]['start_time'], window_data.iloc[-1]['start_time'])
+            
+            # Skip if this period was already processed
+            if period_key in processed_periods:
+                i += 1
+                continue
             
             price_start = window_data.iloc[0]['close']
             price_peak = window_data['high'].max()
@@ -413,11 +423,54 @@ class PumpDetector:
                 )
                 
                 pumps.append(pump_event)
+                processed_periods.add(period_key)
                 
-                # Skip overlapping windows
+                # Skip ahead to avoid overlapping pumps
                 i += window_size
+            else:
+                i += 1
+                
+        # Additional deduplication - merge pumps that are too close in time
+        if len(pumps) > 1:
+            pumps = self._deduplicate_pumps(pumps)
                 
         return pumps
+    
+    def _deduplicate_pumps(self, pumps: List[PumpEvent]) -> List[PumpEvent]:
+        """
+        Remove duplicate pumps that are too close in time (within 15 minutes)
+        Keep the pump with highest price increase
+        """
+        if len(pumps) <= 1:
+            return pumps
+            
+        # Sort pumps by start time
+        pumps.sort(key=lambda p: p.start_time)
+        
+        deduplicated = []
+        
+        for current_pump in pumps:
+            # Check if this pump is too close to any existing pump
+            is_duplicate = False
+            
+            for existing_pump in deduplicated:
+                time_diff = abs((current_pump.start_time - existing_pump.start_time).total_seconds() / 60)
+                
+                # If pumps are within 15 minutes, they're duplicates
+                if time_diff <= 15:
+                    is_duplicate = True
+                    # Keep the one with higher price increase
+                    if current_pump.price_increase_pct > existing_pump.price_increase_pct:
+                        # Replace existing with current
+                        deduplicated.remove(existing_pump)
+                        deduplicated.append(current_pump)
+                    break
+            
+            if not is_duplicate:
+                deduplicated.append(current_pump)
+        
+        logger.info(f"🔄 Deduplication: {len(pumps)} → {len(deduplicated)} pumps")
+        return deduplicated
 
 class PrePumpAnalyzer:
     """Analyzes pre-pump conditions"""

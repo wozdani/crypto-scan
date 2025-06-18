@@ -107,12 +107,12 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Production-ready architecture**: Authenticated Bybit API integration, global instance management, comprehensive test suites (7/8 and 9/9 tests passed)
 - **Complete documentation**: Two comprehensive test modules validating all components and integration workflows
 
-### June 18, 2025 - Duplicate Alert System Fix + Function Testing Enhancement - PRODUCTION READY
-- **Duplicate Telegram alerts eliminated**: Fixed system sending 2 different alerts for same token by removing alert logic duplication in crypto_scan_service.py
-- **Single comprehensive alert system**: Consolidated send_alert() and process_alert() into one unified system with all features (checklist, TP forecast, GPT analysis)
-- **Enhanced function testing logic**: Fixed detector function testing to handle multiple return formats (boolean, dict, tuple) with proper signal_detected interpretation
-- **GPT function compatibility improved**: System now correctly processes detector functions returning complex dictionary structures with confidence scores
-- **Production spam reduction**: Eliminated redundant GPT queries and duplicate notifications for cleaner user experience
+### June 18, 2025 - Pump Analysis Duplicate Alert Fix + Enhanced Deduplication - PRODUCTION READY
+- **Pump analysis duplicate alerts eliminated**: Fixed overlapping pump detection causing duplicate messages for same symbol with different timestamps
+- **Advanced pump deduplication system**: Implemented period tracking, proper loop control, and 15-minute window deduplication in pump detection
+- **Intelligent duplicate removal**: System keeps pump with highest price increase when multiple pumps detected within 15-minute window
+- **Enhanced detection logic**: Replaced problematic for-loop with while-loop and period tracking to prevent overlapping window processing
+- **Production spam reduction**: Eliminated duplicate pump analyses and redundant Telegram notifications for cleaner user experience
 
 ### June 18, 2025 - GPT Memory Engine Initialization Fix + Complete Integration - PRODUCTION READY
 - **Critical initialization bug fixed**: Resolved `'PumpAnalysisSystem' object has no attribute 'gpt_memory'` error by adding proper GPTMemoryEngine initialization
