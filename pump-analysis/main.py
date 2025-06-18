@@ -795,7 +795,7 @@ class GPTAnalyzer:
             logger.error(f"GPT analysis error: {e}")
             return f"Błąd podczas generowania analizy GPT: {e}"
 
-    def generate_strategic_analysis(self, pre_pump_data: Dict, pump_event: 'PumpEvent', candle_data: List = None) -> str:
+    def generate_strategic_analysis(self, pre_pump_data: Dict, pump_event: 'PumpEvent', candle_data: List = None, gpt_feedback_system=None) -> str:
         """
         Generate strategic pre-pump analysis based on real pump case
         
@@ -809,7 +809,7 @@ class GPTAnalyzer:
         """
         
         # Format 60-minute pre-pump window data for GPT
-        formatted_data = self._format_pre_pump_window_data(pre_pump_data, pump_event, candle_data)
+        formatted_data = self._format_pre_pump_window_data(pre_pump_data, pump_event, candle_data, gpt_feedback_system)
         
         try:
             response = self.client.chat.completions.create(
@@ -858,7 +858,7 @@ class GPTAnalyzer:
             logger.error(f"GPT strategic analysis error: {e}")
             return f"Błąd podczas generowania analizy strategicznej GPT: {e}"
 
-    def _format_pre_pump_window_data(self, pre_pump_data: Dict, pump_event: 'PumpEvent', candle_data: List = None) -> str:
+    def _format_pre_pump_window_data(self, pre_pump_data: Dict, pump_event: 'PumpEvent', candle_data: List = None, gpt_feedback_system=None) -> str:
         """
         Format 60-minute pre-pump window data for GPT analysis
         
@@ -1009,6 +1009,29 @@ Przeanalizuj powyższe dane z 60-minutowego okna przed pumpem {pump_event.symbol
 Zidentyfikuj unikalne wzorce i sygnały, które mogły przewidzieć ten pump.
 Skup się na sekwencji zdarzeń, timing'u sygnałów i unikalnych cechach tego przypadku.
 Uwzględnij sygnały heatmapy jako dodatkowy kontekst strukturalny, nie jako główne warunki.
+"""
+
+        # Add recent GPT feedback from crypto-scan (last 2 hours) if available
+        if gpt_feedback_system:
+            symbol_clean = pump_event.symbol.replace('USDT', '').upper()
+            recent_feedback = gpt_feedback_system.get_recent_gpt_feedback(symbol_clean, hours=2)
+            
+            if recent_feedback:
+                formatted_feedback = gpt_feedback_system.format_feedback_for_pump_analysis(recent_feedback)
+                formatted_data += f"""
+
+=== RECENT GPT FEEDBACK Z CRYPTO-SCAN ===
+{formatted_feedback}
+
+KONTEKST: Powyższy feedback został wygenerowany przez system crypto-scan w ostatnich 2 godzinach dla tego samego tokena. 
+Użyj tych informacji jako dodatkowy kontekst przy analizie wzorców pre-pump.
+"""
+            else:
+                formatted_data += f"""
+
+=== RECENT GPT FEEDBACK Z CRYPTO-SCAN ===
+• Brak najnowszego feedback GPT dla {symbol_clean} w ostatnich 2 godzinach
+• Analiza oparta wyłącznie na danych historycznych pump
 """
         
         return formatted_data
@@ -1610,8 +1633,8 @@ class PumpAnalysisSystem:
                                 # Add on-chain insights to pre-pump analysis
                                 pre_pump_analysis['onchain_insights'] = onchain_messages
                                 
-                                # Generate strategic analysis using new dynamic approach with on-chain data
-                                gpt_analysis = self.gpt_analyzer.generate_strategic_analysis(pre_pump_analysis, pump, pre_pump_candles)
+                                # Generate strategic analysis using new dynamic approach with on-chain data and GPT feedback
+                                gpt_analysis = self.gpt_analyzer.generate_strategic_analysis(pre_pump_analysis, pump, pre_pump_candles, self.gpt_feedback)
                                 
                                 # Generate and store detector function for learning system
                                 logger.info(f"🔧 Generating detector function for {symbol}...")
