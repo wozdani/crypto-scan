@@ -659,24 +659,21 @@ class GPTAnalyzer:
             logger.error(f"GPT analysis error: {e}")
             return f"Błąd podczas generowania analizy GPT: {e}"
 
-    def generate_detector_function(self, pre_pump_data: Dict, pump_event: 'PumpEvent') -> str:
+    def generate_strategic_analysis(self, pre_pump_data: Dict, pump_event: 'PumpEvent', candle_data: List = None) -> str:
         """
-        Generate Python detector function based on pre-pump analysis
+        Generate strategic pre-pump analysis based on real pump case
         
         Args:
             pre_pump_data: Dictionary with pre-pump analysis data
             pump_event: PumpEvent with pump details
+            candle_data: Raw candle data from 60 minutes before pump
             
         Returns:
-            Python function code as string
+            Strategic analysis with pattern identification
         """
         
-        # Create prompt for function generation with history context
-        history_context = self._format_function_history_context()
-        prompt = self._format_detector_prompt(pre_pump_data, pump_event)
-        
-        # Combine history context with new prompt
-        full_prompt = history_context + prompt
+        # Format 60-minute pre-pump window data for GPT
+        formatted_data = self._format_pre_pump_window_data(pre_pump_data, pump_event, candle_data)
         
         try:
             response = self.client.chat.completions.create(
@@ -684,44 +681,158 @@ class GPTAnalyzer:
                 messages=[
                     {
                         "role": "system",
-                        "content": """Jesteś ekspertem programowania w Pythonie i analizy technicznej.
-                        Tworzysz funkcje detektorów pre-pump na podstawie rzeczywistych przypadków pump'ów.
+                        "content": """Jesteś analitykiem strategii crypto, specjalizującym się w identyfikacji unikalnych wzorców pre-pump.
                         
-                        WYMAGANIA:
-                        1. Używaj pandas DataFrame z kolumnami: ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'vwap', 'rsi']
-                        2. Zwracaj True jeśli setup został spełniony, False w przeciwnym razie
-                        3. Nie używaj zewnętrznych bibliotek poza pandas i numpy
-                        4. Nazwa funkcji: detect_{symbol}_{date}_preconditions()
-                        5. Dodaj docstring z opisem wzorca
-                        6. Implementuj konkretną logikę na podstawie dostarczonych danych
-                        7. Używaj realistic thresholds bazujących na danych wejściowych
+                        ZADANIE:
+                        Analizuj 60-minutowe okno przed pumpem i zidentyfikuj unikalne cechy sygnału.
                         
-                        KONTEKST HISTORII FUNKCJI:
-                        - Masz dostęp do wcześniejszych funkcji detekcyjnych
-                        - Porównuj nowy przypadek z poprzednimi wzorcami
-                        - Unikaj powielania identycznej logiki
-                        - Wykorzystuj najlepsze elementy z poprzednich funkcji
-                        - Jeśli wzorzec jest podobny, ulepsz istniejącą logikę"""
+                        PODEJŚCIE:
+                        - Działaj jak analityk strategii, nie programista
+                        - Identyfikuj unikalne cechy tego konkretnego przypadku
+                        - Unikaj sztywnych warunków typu "RSI == 50.0"
+                        - Szukaj wzorców: kompresja, akumulacja, VWAP pinning, volume breakout
+                        - Opisuj logikę i kontekst każdego sygnału
+                        
+                        FORMAT ODPOWIEDZI:
+                        1. **Identyfikacja wzorca** - jaki unikalny wzorzec pre-pump wykryłeś
+                        2. **Kluczowe sygnały** - które wskaźniki były najważniejsze
+                        3. **Timing i sekwencja** - jak sygnały się rozwijały w czasie
+                        4. **Przykładowa detekcja** - jak można wykryć podobne przypadki
+                        5. **Komentarze strategiczne** - dlaczego ten wzorzec działał
+                        
+                        Odpowiadaj w języku polskim, ton ekspercki i praktyczny."""
                     },
                     {
                         "role": "user",
-                        "content": full_prompt
+                        "content": formatted_data
                     }
                 ],
                 max_tokens=2000,
-                temperature=0.3,  # Lower temperature for more consistent code generation
+                temperature=0.4,  # Slightly higher for more creative analysis
                 timeout=45  # 45 second timeout to prevent hanging
             )
             
             if response and response.choices and len(response.choices) > 0:
                 return response.choices[0].message.content
             else:
-                logger.warning("GPT detector function response was empty or malformed")
-                return "# Error: Otrzymano pustą odpowiedź z OpenAI API podczas generowania funkcji detektora"
+                logger.warning("GPT strategic analysis response was empty or malformed")
+                return "Analiza strategiczna: Otrzymano pustą odpowiedź z OpenAI API"
             
         except Exception as e:
-            logger.error(f"GPT detector function generation error: {e}")
-            return f"# Error generating detector function: {e}"
+            logger.error(f"GPT strategic analysis error: {e}")
+            return f"Błąd podczas generowania analizy strategicznej GPT: {e}"
+
+    def _format_pre_pump_window_data(self, pre_pump_data: Dict, pump_event: 'PumpEvent', candle_data: List = None) -> str:
+        """
+        Format 60-minute pre-pump window data for GPT analysis
+        
+        Args:
+            pre_pump_data: Pre-pump analysis dictionary
+            pump_event: PumpEvent with pump details
+            candle_data: Raw candle data (if available)
+            
+        Returns:
+            Formatted data string for GPT
+        """
+        
+        # Format pump event details
+        pump_info = f"""
+PUMP EVENT DETAILS:
+• Symbol: {pump_event.symbol}
+• Start Time: {pump_event.start_time.strftime('%Y-%m-%d %H:%M:%S UTC')}
+• Price Increase: {pump_event.price_increase_pct:.1f}%
+• Duration: {pump_event.duration_minutes} minutes
+• Volume Spike: {pump_event.volume_spike:.1f}x
+• Price Before: ${pump_event.price_before:.4f}
+• Price Peak: ${pump_event.price_peak:.4f}
+"""
+
+        # Format 60-minute pre-pump analysis
+        analysis_summary = f"""
+PRE-PUMP ANALYSIS (60 minutes before):
+• RSI (14): {pre_pump_data.get('rsi_14', 'N/A')}
+• Price Trend: {pre_pump_data.get('price_trend', 'N/A')}
+• Volume Spike Detected: {'Yes' if pre_pump_data.get('volume_spike', False) else 'No'}
+• Compression Detected: {'Yes' if pre_pump_data.get('compression_detected', False) else 'No'}
+• VWAP Analysis: {pre_pump_data.get('vwap_analysis', {}).get('price_vs_vwap', 'N/A')} vs VWAP
+• Support Level: ${pre_pump_data.get('support_resistance', {}).get('support', 'N/A')}
+• Resistance Level: ${pre_pump_data.get('support_resistance', {}).get('resistance', 'N/A')}
+"""
+
+        # Format fake rejects if present
+        fake_rejects = pre_pump_data.get('fake_rejects', [])
+        if fake_rejects:
+            rejects_info = f"\nFAKE REJECTS DETECTED:\n"
+            for i, reject in enumerate(fake_rejects[:3], 1):  # Limit to 3 most recent
+                rejects_info += f"• Reject {i}: {reject.get('severity', 'unknown')} severity\n"
+        else:
+            rejects_info = "\nFAKE REJECTS: None detected\n"
+
+        # Format volume spikes if present
+        volume_spikes = pre_pump_data.get('volume_spikes', [])
+        if volume_spikes:
+            volume_info = f"\nVOLUME SPIKES:\n"
+            for i, spike in enumerate(volume_spikes[:3], 1):  # Limit to 3 most significant
+                volume_info += f"• Spike {i}: {spike.get('multiplier', 'N/A')}x volume increase\n"
+        else:
+            volume_info = "\nVOLUME SPIKES: Standard volume patterns\n"
+
+        # Format liquidity gaps if present
+        liquidity_gaps = pre_pump_data.get('liquidity_gaps', [])
+        if liquidity_gaps:
+            liquidity_info = f"\nLIQUIDITY GAPS:\n"
+            for i, gap in enumerate(liquidity_gaps[:2], 1):  # Limit to 2 most significant
+                liquidity_info += f"• Gap {i}: {gap.get('size_pct', 'N/A')}% gap detected\n"
+        else:
+            liquidity_info = "\nLIQUIDITY GAPS: None detected\n"
+
+        # Add candle data summary if available
+        candle_info = ""
+        if candle_data and len(candle_data) > 0:
+            # Analyze last 4 candles (60 minutes = 4x 15-minute candles)
+            recent_candles = candle_data[-4:] if len(candle_data) >= 4 else candle_data
+            
+            candle_info = f"""
+CANDLE DATA SUMMARY (Last 60 minutes):
+• Number of Candles: {len(recent_candles)}
+• Timeframe: 15-minute intervals
+• Data Format: [timestamp, open, high, low, close, volume, vwap, rsi]
+
+CANDLE PATTERNS:
+"""
+            for i, candle in enumerate(recent_candles, 1):
+                if isinstance(candle, dict):
+                    # Handle dict format
+                    open_price = candle.get('open', 0)
+                    close_price = candle.get('close', 0)
+                    volume = candle.get('volume', 0)
+                    rsi = candle.get('rsi', 0)
+                else:
+                    # Handle list format [timestamp, open, high, low, close, volume]
+                    open_price = candle[1] if len(candle) > 1 else 0
+                    close_price = candle[4] if len(candle) > 4 else 0
+                    volume = candle[5] if len(candle) > 5 else 0
+                    rsi = candle[7] if len(candle) > 7 else "N/A"
+                
+                body_pct = ((close_price - open_price) / open_price * 100) if open_price > 0 else 0
+                candle_info += f"• Candle {i}: {body_pct:+.2f}% body, Volume: {volume:.0f}, RSI: {rsi}\n"
+
+        # Combine all information
+        formatted_data = f"""
+{pump_info}
+{analysis_summary}
+{rejects_info}
+{volume_info}
+{liquidity_info}
+{candle_info}
+
+ANALYSIS REQUEST:
+Przeanalizuj powyższe dane z 60-minutowego okna przed pumpem {pump_event.symbol} (+{pump_event.price_increase_pct:.1f}%).
+Zidentyfikuj unikalne wzorce i sygnały, które mogły przewidzieć ten pump.
+Skup się na sekwencji zdarzeń, timing'u sygnałów i unikalnych cechach tego przypadku.
+"""
+        
+        return formatted_data
     
     def _format_analysis_prompt(self, data: Dict) -> str:
         """Format pre-pump data into GPT prompt"""
@@ -1217,23 +1328,16 @@ class PumpAnalysisSystem:
                                     'volume_spike': pump.volume_spike
                                 })
                                 
-                                # Generate GPT analysis with enhanced context
-                                gpt_analysis = self.gpt_analyzer.generate_pump_analysis_with_context(pre_pump_analysis, memory_context)
+                                # Generate strategic analysis with enhanced context and 60-minute window data
+                                logger.info(f"🔍 Generating strategic analysis for {symbol} with 60-minute pre-pump window...")
                                 
-                                # Generate Python detector function with memory context
-                                logger.info(f"🐍 Generating Python detector function for {symbol} with pattern recognition...")
-                                detector_function = self.gpt_analyzer.generate_detector_function_with_context(pre_pump_analysis, pump, memory_context)
+                                # Get 60-minute pre-pump candle data for enhanced GPT analysis
+                                pre_pump_candles = self._get_pre_pump_candles_for_testing(pump)
                                 
-                                # 📚 ADD TO FUNCTION HISTORY - For future GPT context
-                                try:
-                                    self.gpt_analyzer._add_to_function_history(
-                                        pump.symbol,
-                                        pump.start_time.strftime('%Y%m%d'),
-                                        detector_function,
-                                        pump.price_increase_pct
-                                    )
-                                except Exception as e:
-                                    logger.warning(f"⚠️ Failed to add function to history: {e}")
+                                # Generate strategic analysis using new dynamic approach
+                                gpt_analysis = self.gpt_analyzer.generate_strategic_analysis(pre_pump_analysis, pump, pre_pump_candles)
+                                
+                                # No longer generating rigid detector functions - using strategic analysis instead
                                 
                                 # 🧠 GPT MEMORY ENGINE INTEGRATION - Register detector with full context
                                 logger.info(f"🧠 Registering detector in GPT Memory Engine...")
@@ -1253,11 +1357,11 @@ class PumpAnalysisSystem:
                                         'symbol_history': self.crypto_scan_integration.get_symbol_signal_history(pump.symbol, days=7)
                                     }
                                     
-                                    # Register detector function
-                                    function_filename = self.gpt_memory.register_detector_function(
+                                    # Register strategic analysis instead of rigid function
+                                    analysis_id = self.gpt_memory.register_strategic_analysis(
                                         pump.symbol,
                                         pump.start_time.strftime('%Y%m%d'),
-                                        detector_function,
+                                        gpt_analysis,
                                         {
                                             'symbol': pump.symbol,
                                             'price_increase_pct': pump.price_increase_pct,
@@ -1265,7 +1369,8 @@ class PumpAnalysisSystem:
                                             'volume_spike': pump.volume_spike
                                         },
                                         pre_pump_analysis,
-                                        crypto_scan_signals
+                                        crypto_scan_signals,
+                                        pre_pump_candles
                                     )
                                     
                                     if crypto_scan_pre_pump_signal:
