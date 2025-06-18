@@ -1133,11 +1133,15 @@ def detect_silent_accumulation_v1(symbol, market_data, rsi_series, orderbook=Non
         explanations = []
         buying_pressure_detected = False
 
-        # RSI ~50 (45-55 przez 8 świec)
+        # RSI ~50 (45-55 przez 8 świec) - sprawdź także zmienność
         last_rsi = rsi_series[-8:]
         if all(45 <= r <= 55 for r in last_rsi if r is not None):
-            score += 1
-            explanations.append("RSI flat")
+            # Dodatkowo sprawdź czy RSI nie jest zbyt zmienne (max różnica < 8)
+            if last_rsi:
+                rsi_range = max(last_rsi) - min(last_rsi)
+                if rsi_range < 8:  # RSI musi być stabilne, nie chaotyczne
+                    score += 1
+                    explanations.append("RSI flat")
 
         # Świece z małym ciałem (body/range < 0.3)
         last_candles = market_data[-8:]
@@ -1252,9 +1256,8 @@ def detect_silent_accumulation_v1(symbol, market_data, rsi_series, orderbook=Non
                 
                 # Użyj istniejących funkcji z głównego modułu
                 try:
-                    from utils.telegram_bot import send_alert, format_alert
+                    from utils.telegram_bot import send_alert
                     from crypto_scan_service import send_report_to_gpt
-                    from utils.reports import save_conditional_reports
                     
                     # Przygotuj dane w formacie oczekiwanym przez funkcje
                     data = {
@@ -1276,7 +1279,7 @@ def detect_silent_accumulation_v1(symbol, market_data, rsi_series, orderbook=Non
                         "TrailingTP": 35.0
                     }
                     
-                    # Formatuj wiadomość alertu
+                    # Formatuj wiadomość alertu (plain text without markdown)
                     alert_message = f"🔵 SILENT ACCUMULATION v1 DETECTED\n\n"
                     alert_message += f"📊 Symbol: {symbol}\n"
                     alert_message += f"🎯 PPWCS Score: {ppwcs_score}\n"
@@ -1289,9 +1292,6 @@ def detect_silent_accumulation_v1(symbol, market_data, rsi_series, orderbook=Non
                     
                     # Wyślij do GPT
                     send_report_to_gpt(symbol, data, tp_forecast, "Silent Accumulation v1")
-                    
-                    # Zapisz raport
-                    save_conditional_reports(symbol, signals=signals, ppwcs_score=ppwcs_score)
                     
                     print(f"✅ Silent Accumulation v1 alert sent for {symbol} (PPWCS: {ppwcs_score})")
                     
