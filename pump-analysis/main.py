@@ -819,6 +819,24 @@ class PumpAnalysisSystem:
         
         # Create data directory
         os.makedirs('pump_data', exist_ok=True)
+    
+    def _get_symbols_from_crypto_scan(self) -> List[str]:
+        """Get symbols using the proven crypto-scan method that fetches unlimited symbols"""
+        try:
+            # Import crypto-scan's working symbol fetcher
+            import sys
+            sys.path.append('../crypto-scan')
+            from utils.data_fetchers import get_symbols_cached
+            
+            # Use crypto-scan's proven method (no chain requirement for pump analysis)
+            symbols = get_symbols_cached(require_chain=False)
+            logger.info(f"🎯 Retrieved {len(symbols)} symbols from crypto-scan method")
+            return symbols
+            
+        except Exception as e:
+            logger.error(f"Failed to use crypto-scan method: {e}")
+            # Fallback to our Bybit fetcher
+            return self.bybit.get_active_symbols()
         
     def run_analysis(self, days_back: float = 7, max_symbols: int = 999999):
         """
@@ -832,14 +850,19 @@ class PumpAnalysisSystem:
         logger.info("🚀 Starting Pump Analysis System")
         logger.info(f"📊 Analyzing {days_back} days of data for up to {max_symbols} symbols")
         
-        # Get active symbols (unlimited)
-        symbols = self.bybit.get_active_symbols()
+        # Get active symbols using proven crypto-scan method (unlimited)
+        symbols = self._get_symbols_from_crypto_scan()
         
         if not symbols:
             logger.error("❌ No symbols retrieved from Bybit")
             return
             
-        logger.info(f"📈 Retrieved {len(symbols)} symbols: {symbols[:10]}...")
+        # Limit symbols if max_symbols is specified
+        if max_symbols and max_symbols < len(symbols):
+            symbols = symbols[:max_symbols]
+            logger.info(f"📈 Limited to {len(symbols)} symbols for analysis: {symbols[:10]}...")
+        else:
+            logger.info(f"📈 Processing all {len(symbols)} symbols: {symbols[:10]}...")
         
         total_pumps_found = 0
         total_analyses_sent = 0
@@ -1151,8 +1174,8 @@ def main():
         # Initialize and run analysis system
         system = PumpAnalysisSystem()
         
-        # Run analysis for last 7 days, maximum 30 symbols
-        system.run_analysis(days_back=7, max_symbols=30)
+        # Run analysis for last 7 days, unlimited symbols
+        system.run_analysis(days_back=7)
         
     except Exception as e:
         logger.error(f"❌ System error: {e}")
