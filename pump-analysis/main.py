@@ -18,6 +18,8 @@ from openai import OpenAI
 import logging
 from learning_system import LearningSystem
 from onchain_insights import OnChainAnalyzer
+from functions_history import FunctionHistoryManager, PerformanceTracker, GPTLearningEngine
+from functions_history.function_manager import FunctionMetadata
 
 # Configure logging with DEBUG level for detailed pump analysis debugging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -1058,7 +1060,7 @@ Wygeneruj kompletną, działającą funkcję Python gotową do zapisania w pliku
             return f"""
 def detect_{pump_event.symbol.lower()}_{pump_event.start_time.strftime('%Y%m%d')}_preconditions(df):
     \"\"\"Fallback detector function due to GPT error: {str(e)}\"\"\"
-    return False
+    return False, 0.0, ['error']
 """
 
 class TelegramNotifier:
