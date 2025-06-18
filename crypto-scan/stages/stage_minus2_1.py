@@ -768,6 +768,164 @@ def detect_shadow_sync_v2(symbol, data, price_usd=None, whale_activity=False, de
         traceback.print_exc()
         return False, 0, {}
 
+def detect_liquidity_behavior(symbol, data, price_usd=None):
+    """
+    Liquidity Behavior Detector – Strategic Liquidity Analysis
+    Wykrywa nietypowe zachowanie płynności (akumulacja przez whales, ukryta presja bidów)
+    
+    Args:
+        symbol: symbol tokena
+        data: dane rynkowe z get_market_data
+        price_usd: aktualna cena USD
+    
+    Returns:
+        tuple: (liquidity_behavior_active, behavior_score, detection_details)
+    """
+    print(f"[DEBUG] 💧 Liquidity Behavior analysis start: {symbol}")
+    
+    try:
+        # Inicjalizacja wyników
+        behavior_score = 0
+        detection_details = {
+            "bid_layering": False,
+            "vwap_pinned_bid": False,
+            "void_reaction": False,
+            "fractal_pullback": False
+        }
+        
+        current_price = price_usd if price_usd else data.get("price", 100.0)
+        
+        # 1. Warstwowanie bidów (3+ poziomy w zasięgu 0.5% od ceny)
+        try:
+            # Symulacja analizy orderbook depth
+            # W rzeczywistości pobierane przez /v5/market/orderbook
+            recent_volumes = data.get("recent_volumes", [])
+            if len(recent_volumes) >= 3:
+                # Sprawdź czy są oznaki warstwowania (rosnące volume na kolejnych poziomach)
+                volume_gradient = []
+                for i in range(1, min(4, len(recent_volumes))):
+                    if recent_volumes[-i] > 0:
+                        gradient = recent_volumes[-i] / recent_volumes[-1] if recent_volumes[-1] > 0 else 1
+                        volume_gradient.append(gradient)
+                
+                # Warstwowanie: kolejne poziomy mają podobne lub rosnące volume
+                if len(volume_gradient) >= 2:
+                    layered_levels = sum(1 for g in volume_gradient if 0.8 <= g <= 1.5)
+                    
+                    if layered_levels >= 2:  # 3+ poziomy (includeindo base)
+                        detection_details["bid_layering"] = True
+                        behavior_score += 3
+                        print(f"[LIQUIDITY] ✅ Bid layering detected: {layered_levels+1} levels")
+        except Exception as e:
+            print(f"[LIQUIDITY] ❌ Bid layering check error: {e}")
+        
+        # 2. Utrzymujące się zlecenia bid przez ≥3 świeczki (VWAP pinned bid)
+        try:
+            recent_prices = data.get("recent_prices", [])
+            if len(recent_prices) >= 4:
+                # Sprawdź stabilność ceny względem VWAP przez ostatnie świece
+                price_stability_count = 0
+                avg_price = sum(recent_prices[-4:]) / 4
+                
+                for price in recent_prices[-3:]:
+                    price_deviation = abs(price - avg_price) / avg_price
+                    if price_deviation < 0.003:  # <0.3% odchylenie
+                        price_stability_count += 1
+                
+                if price_stability_count >= 2:  # 2+ z 3 świec stabilne
+                    detection_details["vwap_pinned_bid"] = True
+                    behavior_score += 2
+                    print(f"[LIQUIDITY] ✅ VWAP pinned bid detected: {price_stability_count}/3 stable candles")
+        except Exception as e:
+            print(f"[LIQUIDITY] ❌ VWAP pinned bid check error: {e}")
+        
+        # 3. Reakcja na void – znika ask wall, ale cena nie wybija
+        try:
+            recent_volumes = data.get("recent_volumes", [])
+            recent_prices = data.get("recent_prices", [])
+            
+            if len(recent_volumes) >= 3 and len(recent_prices) >= 3:
+                # Sprawdź czy był spike volume bez odpowiadającego ruchu ceny
+                volume_spike = False
+                price_stagnation = False
+                
+                # Volume spike detection
+                if recent_volumes[-2] > 0:
+                    volume_ratio = recent_volumes[-1] / recent_volumes[-2]
+                    if volume_ratio > 1.5:  # 50% wzrost volume
+                        volume_spike = True
+                
+                # Price stagnation despite volume
+                if len(recent_prices) >= 2:
+                    price_change = abs(recent_prices[-1] - recent_prices[-2]) / recent_prices[-2]
+                    if price_change < 0.005:  # <0.5% zmiana ceny
+                        price_stagnation = True
+                
+                if volume_spike and price_stagnation:
+                    detection_details["void_reaction"] = True
+                    behavior_score += 2
+                    print(f"[LIQUIDITY] ✅ Void reaction detected: volume spike without price breakout")
+        except Exception as e:
+            print(f"[LIQUIDITY] ❌ Void reaction check error: {e}")
+        
+        # 4. Fraktal pullback & fill – cena cofa się, a bidy są uzupełniane
+        try:
+            recent_prices = data.get("recent_prices", [])
+            recent_volumes = data.get("recent_volumes", [])
+            
+            if len(recent_prices) >= 5 and len(recent_volumes) >= 5:
+                # Sprawdź pattern: wzrost -> pullback -> stabilizacja
+                pullback_pattern = False
+                fill_pattern = False
+                
+                # Detect pullback (cena spadła z lokalnego szczytu)
+                if recent_prices[-5] < recent_prices[-3] > recent_prices[-1]:
+                    pullback_range = (recent_prices[-3] - recent_prices[-1]) / recent_prices[-3]
+                    if 0.01 < pullback_range < 0.05:  # 1-5% pullback
+                        pullback_pattern = True
+                
+                # Detect fill (zwiększone volume podczas pullback)
+                if pullback_pattern and len(recent_volumes) >= 3:
+                    pullback_volume = sum(recent_volumes[-2:])
+                    baseline_volume = sum(recent_volumes[-5:-2])
+                    
+                    if baseline_volume > 0:
+                        volume_ratio = pullback_volume / baseline_volume
+                        if volume_ratio > 1.2:  # 20% więcej volume podczas pullback
+                            fill_pattern = True
+                
+                if pullback_pattern and fill_pattern:
+                    detection_details["fractal_pullback"] = True
+                    behavior_score += 2
+                    print(f"[LIQUIDITY] ✅ Fractal pullback & fill detected")
+        except Exception as e:
+            print(f"[LIQUIDITY] ❌ Fractal pullback check error: {e}")
+        
+        # Warunki aktywacji Liquidity Behavior
+        # ≥2 z 4 cech musi być wykrytych
+        active_features = sum([
+            detection_details["bid_layering"],
+            detection_details["vwap_pinned_bid"],
+            detection_details["void_reaction"],
+            detection_details["fractal_pullback"]
+        ])
+        
+        liquidity_behavior_active = (active_features >= 2)
+        
+        if liquidity_behavior_active:
+            print(f"💧 [LIQUIDITY BEHAVIOR ACTIVE] {symbol} - Score: {behavior_score}, Features: {active_features}/4")
+            print(f"[LIQUIDITY BEHAVIOR] Details: {detection_details}")
+        else:
+            print(f"[LIQUIDITY BEHAVIOR] {symbol} - Not activated. Score: {behavior_score}, Features: {active_features}/4 (need 2+)")
+        
+        return liquidity_behavior_active, behavior_score, detection_details
+        
+    except Exception as e:
+        print(f"❌ [LIQUIDITY BEHAVIOR] Error analyzing {symbol}: {e}")
+        import traceback
+        traceback.print_exc()
+        return False, 0, {}
+
 def detect_stage_minus2_1(symbol, price_usd=None):
     print(f"[DEBUG] === STAGE -2.1 ANALYSIS START: {symbol} ===")
     print(f"[DEBUG] Input price_usd: {price_usd}")
@@ -980,6 +1138,17 @@ def detect_stage_minus2_1(symbol, price_usd=None):
             stealth_score = 0
             shadow_sync_details = {}
 
+        # Liquidity Behavior Detector – Strategic Liquidity Analysis
+        try:
+            liquidity_behavior_active, behavior_score, liquidity_behavior_details = detect_liquidity_behavior(
+                symbol, data, price_usd
+            )
+        except Exception as e:
+            logger.error(f"❌ Error in detect_liquidity_behavior for {symbol}: {e}")
+            liquidity_behavior_active = False
+            behavior_score = 0
+            liquidity_behavior_details = {}
+
         # Build comprehensive signals dictionary
         signals = {
             # Stage -2.1 Core Detectors (PPWCS 2.6)
@@ -1004,6 +1173,11 @@ def detect_stage_minus2_1(symbol, price_usd=None):
             "shadow_sync_v2": shadow_sync_active,
             "stealth_score": stealth_score,
             "shadow_sync_details": shadow_sync_details,
+            
+            # Liquidity Behavior Detector – Strategic Liquidity Analysis
+            "liquidity_behavior": liquidity_behavior_active,
+            "behavior_score": behavior_score,
+            "liquidity_behavior_details": liquidity_behavior_details,
             
             # RSI value for checklist evaluation
             "rsi_value": rsi_value,

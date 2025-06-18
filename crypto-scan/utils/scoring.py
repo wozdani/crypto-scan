@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int]:
     """
-    PPWCS Pre-Pump 2.0: CORE Hard Detectors Only (0-65 points max)
+    PPWCS Pre-Pump 2.0: CORE Hard Detectors Only (0-97 points max)
     Only core structural signals affect PPWCS scoring
     
     CORE Detectors (Hard):
@@ -48,7 +48,8 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int
             "compressed": 10,         # Stage -1 compression
             "stage1g_active": 10,     # Stage 1G breakout active
             "event_tag": 10,          # Listing/partnership events
-            "shadow_sync_v2": 25      # Shadow Sync V2 – Stealth Protocol (Premium)
+            "liquidity_behavior": 7, # Strategic liquidity analysis
+            "shadow_sync_v2": 25     # Shadow Sync Detector v2 – Stealth Protocol (Premium)
         }
         
         for detector, points in core_detectors.items():
