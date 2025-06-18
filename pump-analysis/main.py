@@ -1384,6 +1384,16 @@ class PumpAnalysisSystem:
         self.learning_system = LearningSystem()
         logger.info("🧠 Learning system initialized")
         
+        # Initialize GPT Memory Engine
+        from gpt_memory_engine import GPTMemoryEngine
+        self.gpt_memory = GPTMemoryEngine()
+        logger.info("🧠 GPT Memory Engine initialized")
+        
+        # Initialize crypto-scan integration
+        from crypto_scan_integration import CryptoScanIntegration
+        self.crypto_scan_integration = CryptoScanIntegration()
+        logger.info("🔗 Crypto-scan integration initialized")
+        
         # Initialize heatmap system for orderbook analysis
         try:
             self.heatmap_manager = initialize_heatmap_system()
