@@ -1139,7 +1139,7 @@ def detect_silent_accumulation_v1(symbol, market_data, rsi_series, orderbook=Non
             # Dodatkowo sprawdź czy RSI nie jest zbyt zmienne (max różnica < 8)
             if last_rsi:
                 rsi_range = max(last_rsi) - min(last_rsi)
-                if rsi_range < 8:  # RSI musi być stabilne, nie chaotyczne
+                if rsi_range <= 7:  # RSI musi być stabilne, nie chaotyczne
                     score += 1
                     explanations.append("RSI flat")
 
