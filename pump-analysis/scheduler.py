@@ -9,7 +9,12 @@ import time
 import logging
 import schedule
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
 from main import PumpAnalysisSystem
+
+# Load environment variables from multiple locations
+load_dotenv()  # Load from current directory
+load_dotenv('../.env')  # Load from parent directory
 
 # Configure logging
 logging.basicConfig(

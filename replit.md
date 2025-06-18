@@ -98,6 +98,15 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 18, 2025 - Automated Pump Analysis Scheduler + 12h Monitoring - PRODUCTION READY
+- **Automated scheduler implemented**: System runs 7-day analysis on startup, then monitors every 12 hours analyzing recent 12h data
+- **Schedule library integration**: Professional task scheduling with error recovery and system reinitialization
+- **Environment variable fixes**: Proper .env loading from both pump-analysis and main project directories
+- **Startup/periodic analysis separation**: Comprehensive 7-day scan (100 symbols) vs efficient 12h scan (50 symbols)
+- **Telegram automation**: All pump discoveries automatically sent with GPT analysis and detector function test results
+- **Production scheduler**: Runs continuously with proper logging, error handling, and automatic recovery mechanisms
+- **Configuration options**: PUMP_ANALYSIS_STARTUP and PUMP_ANALYSIS_STARTUP_DAYS environment variables for customization
+
 ### June 18, 2025 - Unlimited Futures Perpetual Symbol Scanning + Bug Fixes - PRODUCTION READY
 - **Futures perpetual integration**: System now fetches unlimited USDT symbols from Bybit futures perpetual (linear category) instead of spot
 - **Unlimited symbol scanning**: Removed all limits, system fetches as many symbols as Bybit API returns (typically 300-500+ futures pairs)
