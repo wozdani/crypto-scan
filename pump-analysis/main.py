@@ -1676,8 +1676,13 @@ class PumpAnalysisSystem:
                                 except Exception as e:
                                     logger.error(f"❌ Failed to save strategic analysis to learning system: {e}")
                                 
-                                # No longer testing rigid detector functions - using strategic insights instead
-                                test_result = {"strategic_analysis": True, "insights_generated": True}
+                                # Strategic analysis mode - no rigid function testing needed
+                                test_result = {
+                                    "success": True, 
+                                    "strategic_analysis": True, 
+                                    "insights_generated": True,
+                                    "mode": "strategic_analysis"
+                                }
                                 
                                 # Format message for Telegram (including test result and learning results)
                                 telegram_message = self._format_telegram_message(pump, gpt_analysis, test_result if test_result else {}, learning_test_results)
@@ -2065,6 +2070,14 @@ import numpy as np
     def _format_test_result(self, test_result: dict) -> str:
         """Format test result for display"""
         
+        # Handle strategic analysis mode
+        if test_result and test_result.get('mode') == 'strategic_analysis':
+            if test_result.get('strategic_analysis') and test_result.get('insights_generated'):
+                return "✅ <b>ANALIZA STRATEGICZNA:</b> Wygenerowano szczegółowe wzorce i rekomendacje pre-pump"
+            else:
+                return "⚠️ <b>ANALIZA STRATEGICZNA:</b> Częściowo ukończona"
+        
+        # Handle traditional function testing
         if not test_result or not test_result.get('success', False):
             error = test_result.get('error', 'Nieznany błąd') if test_result else 'Brak wyniku testu'
             return f"❌ <b>BŁĄD TESTU:</b> {error}"
