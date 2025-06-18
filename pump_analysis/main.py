@@ -16,8 +16,8 @@ from dataclasses import dataclass
 from openai import OpenAI
 import logging
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Configure logging with DEBUG level for detailed pump analysis debugging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 @dataclass
@@ -72,12 +72,15 @@ class BybitDataFetcher:
             params['start'] = start_time
             
         try:
+            logger.debug(f"📡 Bybit API request: {endpoint} with params: {params}")
             response = requests.get(endpoint, params=params)
             response.raise_for_status()
             data = response.json()
             
             if data['retCode'] == 0:
-                return data['result']['list']
+                result_data = data['result']['list']
+                logger.debug(f"✅ Bybit API success for {symbol}: {len(result_data)} candles retrieved")
+                return result_data
             else:
                 logger.error(f"Bybit API error for {symbol}: {data['retMsg']}")
                 return []
@@ -251,6 +254,7 @@ class PrePumpAnalyzer:
         start_timestamp = int(pre_pump_start.timestamp() * 1000)
         
         # Get 1-hour of data before pump (12 x 5-min candles)
+        logger.info(f"📊 Fetching pre-pump data for {pump_event.symbol}: 60min before {pump_event.start_time}")
         pre_pump_data = self.bybit.get_kline_data(
             symbol=pump_event.symbol,
             interval="5",
@@ -259,7 +263,10 @@ class PrePumpAnalyzer:
         )
         
         if not pre_pump_data:
-            return {}
+            logger.warning(f"⚠️ No pre-pump data available for {pump_event.symbol} at timestamp {start_timestamp}")
+            return None
+        
+        logger.info(f"✅ Retrieved {len(pre_pump_data)} candles for {pump_event.symbol} pre-pump analysis")
             
         # Convert to DataFrame
         df = pd.DataFrame(pre_pump_data, columns=[
@@ -706,19 +713,26 @@ class PumpAnalysisSystem:
                     total_pumps_found += len(pumps)
                     
                     # Analyze each pump
-                    for pump in pumps:
+                    for pump_idx, pump in enumerate(pumps):
+                        logger.info(f"🔍 Processing pump {pump_idx+1}/{len(pumps)} for {symbol}: +{pump.price_increase_pct:.1f}% at {pump.start_time}")
+                        
                         try:
                             # Get pre-pump analysis
+                            logger.info(f"📊 Analyzing pre-pump conditions for {symbol} pump...")
                             pre_pump_analysis = self.pre_pump_analyzer.analyze_pre_pump_conditions(pump)
                             
                             if pre_pump_analysis:
+                                logger.info(f"✅ Pre-pump analysis successful for {symbol}")
+                                
                                 # Generate GPT analysis
+                                logger.info(f"🤖 Generating GPT analysis for {symbol}...")
                                 gpt_analysis = self.gpt_analyzer.generate_pump_analysis(pre_pump_analysis)
                                 
                                 # Format message for Telegram
                                 telegram_message = self._format_telegram_message(pump, gpt_analysis)
                                 
                                 # Send to Telegram
+                                logger.info(f"📤 Sending Telegram message for {symbol}...")
                                 if self.telegram.send_message(telegram_message):
                                     total_analyses_sent += 1
                                     logger.info(f"✅ Analysis sent for {symbol} pump at {pump.start_time}")
@@ -726,13 +740,17 @@ class PumpAnalysisSystem:
                                     # Save analysis to file
                                     self._save_analysis_to_file(pump, pre_pump_analysis, gpt_analysis)
                                 else:
-                                    logger.error(f"❌ Failed to send analysis for {symbol}")
+                                    logger.error(f"❌ Failed to send analysis for {symbol} - Telegram error")
                                 
                                 # Small delay to avoid overwhelming Telegram
                                 time.sleep(2)
+                            else:
+                                logger.warning(f"⚠️ PUMP SKIPPED: Pre-pump analysis returned None for {symbol} pump +{pump.price_increase_pct:.1f}%")
+                                logger.warning(f"   Pump details: start={pump.start_time}, price_before={pump.price_before:.6f}, price_peak={pump.price_peak:.6f}")
                                 
                         except Exception as e:
                             logger.error(f"❌ Error analyzing pump for {symbol}: {e}")
+                            logger.error(f"   Pump details: +{pump.price_increase_pct:.1f}% at {pump.start_time}")
                             continue
                 
                 # Small delay between symbols

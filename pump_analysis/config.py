@@ -16,6 +16,10 @@ class Config:
         self.telegram_bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
         self.telegram_chat_id = os.getenv('TELEGRAM_CHAT_ID')
         
+        # Bybit API credentials (required for data fetching)
+        self.bybit_api_key = os.getenv('BYBIT_API_KEY')
+        self.bybit_secret_key = os.getenv('BYBIT_SECRET_KEY')
+        
         # Analysis parameters with defaults
         self.min_pump_increase_pct = float(os.getenv('MIN_PUMP_INCREASE_PCT', '15.0'))
         self.detection_window_minutes = int(os.getenv('DETECTION_WINDOW_MINUTES', '30'))
@@ -37,6 +41,10 @@ class Config:
         
         if not self.openai_api_key:
             missing_keys.append('OPENAI_API_KEY')
+        if not self.bybit_api_key:
+            missing_keys.append('BYBIT_API_KEY')
+        if not self.bybit_secret_key:
+            missing_keys.append('BYBIT_SECRET_KEY')
         if not self.telegram_bot_token:
             missing_keys.append('TELEGRAM_BOT_TOKEN')
         if not self.telegram_chat_id:
