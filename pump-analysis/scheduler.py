@@ -55,8 +55,8 @@ class PumpAnalysisScheduler:
                 return
         
         try:
-            # Run analysis for last 12 hours (0.5 days) with limited symbols for performance
-            self.analysis_system.run_analysis(days_back=0.5, max_symbols=50)
+            # Run analysis for last 12 hours (0.5 days) with unlimited symbols
+            self.analysis_system.run_analysis(days_back=0.5, max_symbols=999999)
             logger.info("✅ Periodic analysis completed successfully")
             
         except Exception as e:
@@ -74,8 +74,8 @@ class PumpAnalysisScheduler:
                 return
         
         try:
-            # Run comprehensive analysis for startup
-            self.analysis_system.run_analysis(days_back=days_back, max_symbols=100)
+            # Run comprehensive analysis for startup with unlimited symbols
+            self.analysis_system.run_analysis(days_back=days_back, max_symbols=999999)
             logger.info("✅ Startup analysis completed successfully")
             
         except Exception as e:

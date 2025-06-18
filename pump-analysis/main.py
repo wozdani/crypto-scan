@@ -124,26 +124,35 @@ class BybitDataFetcher:
                 response.raise_for_status()
                 data = response.json()
                 
+                logger.debug(f"📊 API Response: retCode={data.get('retCode')}, symbols_count={len(data.get('result', {}).get('list', []))}")
+                
                 if data.get('retCode') == 0:
                     page_symbols = data.get('result', {}).get('list', [])
                     
+                    usdt_count = 0
                     for item in page_symbols:
                         symbol = item.get('symbol', '')
                         status = item.get('status', '')
                         if symbol and symbol.endswith('USDT') and status == 'Trading':
                             symbols.add(symbol)
+                            usdt_count += 1
                     
                     cursor = data.get('result', {}).get('nextPageCursor')
+                    logger.info(f"📄 Page processed: {usdt_count} USDT symbols added (total: {len(symbols)}), next_cursor: {bool(cursor)}")
+                    
                     if not cursor:
+                        logger.info(f"✅ Symbol fetching complete - no more pages")
                         break
                         
                     time.sleep(0.1)  # Rate limiting
                 else:
                     logger.error(f"Bybit API error: {data.get('retMsg', 'Unknown error')}")
+                    logger.debug(f"Full API response: {data}")
                     break
                     
         except Exception as e:
             logger.error(f"Error fetching symbols from Bybit: {e}")
+            logger.debug(f"Exception details: {type(e).__name__}: {str(e)}")
         
         if symbols:
             symbol_list = sorted(list(symbols))
