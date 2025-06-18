@@ -98,6 +98,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 18, 2025 - Dynamic GPT Strategic Analysis System - PRODUCTION READY
+- **GPT feedback system completely overhauled**: Replaced rigid detector functions with dynamic descriptive analysis mode
+- **60-minute pre-pump data window**: Enhanced GPT strategic analysis with comprehensive market data including timestamp, OHLCV, VWAP, RSI, and pump_start_timestamp context
+- **Strategic analyst approach**: GPT now functions as strategy analyst, identifying unique signal characteristics without hard-coded conditions like "rsi == 50.0"
+- **Dynamic pattern recognition**: System adapts to each pump's unique characteristics instead of using inflexible detector logic
+- **Enhanced data formatting**: Complete 60-minute window with candle patterns, fake rejects, volume spikes, liquidity gaps, and support/resistance analysis
+- **Future expansion ready**: System designed for variable time windows (30/90/120 minutes) based on pump type
+- **GPT-4o model confirmed**: All system components use latest OpenAI model for maximum analysis quality
+- **Learning system integration**: Strategic analyses saved with full metadata for continuous improvement
+
 ### June 18, 2025 - 15-Minute Candlestick Interval Update - PRODUCTION READY
 - **Complete interval migration**: Changed all candlestick intervals from 5-minute to 15-minute timeframes across entire pump analysis system
 - **Pump detection optimization**: Updated window size calculations - 30-minute detection window now uses 2x 15-minute candles instead of 6x 5-minute

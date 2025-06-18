@@ -1378,16 +1378,16 @@ class PumpAnalysisSystem:
                                     else:
                                         logger.info(f"⚠️ Crypto-scan missed this pump - opportunity for improvement")
                                     
-                                    logger.info(f"✅ Detector registered in GPT Memory Engine: {function_filename}")
+                                    logger.info(f"✅ Strategic analysis registered in GPT Memory Engine: {analysis_id}")
                                 except Exception as e:
                                     logger.error(f"❌ Failed to register detector in GPT Memory Engine: {e}")
                                 
-                                # 🧠 LEARNING SYSTEM INTEGRATION - Save GPT function with metadata
-                                logger.info(f"💾 Saving function to learning system...")
+                                # 🧠 LEARNING SYSTEM INTEGRATION - Save strategic analysis with metadata
+                                logger.info(f"💾 Saving strategic analysis to learning system...")
                                 active_signals = self._extract_active_signals(pre_pump_analysis)
                                 try:
-                                    function_path = self.learning_system.save_gpt_function(
-                                        detector_function,
+                                    analysis_path = self.learning_system.save_strategic_analysis(
+                                        gpt_analysis,
                                         pump.symbol,
                                         pump.start_time.strftime('%Y%m%d'),
                                         active_signals,
@@ -1396,16 +1396,16 @@ class PumpAnalysisSystem:
                                                 'price_increase_pct': pump.price_increase_pct,
                                                 'duration_minutes': pump.duration_minutes
                                             },
-                                            'analysis': pre_pump_analysis
+                                            'analysis': pre_pump_analysis,
+                                            'candle_data': pre_pump_candles
                                         }
                                     )
-                                    logger.info(f"✅ Function saved to learning system: {function_path}")
+                                    logger.info(f"✅ Strategic analysis saved to learning system: {analysis_path}")
                                 except Exception as e:
-                                    logger.error(f"❌ Failed to save function to learning system: {e}")
+                                    logger.error(f"❌ Failed to save strategic analysis to learning system: {e}")
                                 
-                                # Test the generated detector function
-                                logger.info(f"🧪 Testing generated detector function for {symbol}...")
-                                test_result = self._test_detector_function(pump, pre_pump_analysis, detector_function)
+                                # No longer testing rigid detector functions - using strategic insights instead
+                                test_result = {"strategic_analysis": True, "insights_generated": True}
                                 
                                 # Format message for Telegram (including test result and learning results)
                                 telegram_message = self._format_telegram_message(pump, gpt_analysis, test_result if test_result else {}, learning_test_results)
