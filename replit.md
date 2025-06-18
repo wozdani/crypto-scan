@@ -84,6 +84,22 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 18, 2025 - PPWCS-T 2.0 Trend Mode Implementation + Pump Analysis Project - PRODUCTION READY
+- **PPWCS-T 2.0 scoring system implemented**: New trend mode wzmacniacz logic for stable growth without breakouts (0-20 points)
+- **4 advanced trend detectors**: RSI trendowa akumulacja (50-60), VWAP pinning detection, Volume slope up (bez pumpy), Liquidity box + higher lows
+- **Breakout exclusion filter**: Prevents trend mode activation during large price movements (>2.5x ATR)
+- **Independent activation logic**: PPWCS-T 2.0 can override legacy trend activation when boost ≥10 points and no breakout detected
+- **Enhanced trend scoring**: Maximum score increased to 77 points (57 legacy + 20 PPWCS-T boost)
+- **Complete test suite**: All 5 PPWCS-T 2.0 tests passed including RSI accumulation, VWAP pinning, volume slope, breakout exclusion, and full integration
+- **Pump Analysis project created**: Independent system for analyzing historical pump events with GPT-4o insights
+- **Complete project structure**: Separate pump_analysis folder with main.py, config.py, requirements.txt, comprehensive documentation
+- **Multi-stage pump detection**: Identifies ≥15% price increases in 30-minute windows across 7-day historical data
+- **Pre-pump analysis engine**: Analyzes 60 minutes before pump events with technical indicators, fake rejects, support/resistance levels
+- **GPT-4o integration**: Automatic generation of Polish analysis reports with practical insights for future application
+- **Telegram notifications**: Formatted alerts with pump details and AI-generated analysis
+- **Bybit API integration**: Enhanced data fetching with fallback symbol lists and error handling for API restrictions
+- **Production-ready deployment**: Both systems independently configured with workflow automation
+
 ### June 17, 2025 - Trend Mode Reporting Integration + CMC Category Cache Builder + Import Fix - PRODUCTION READY
 - **Import fix for known_dex_addresses**: Fixed module import error in stages/stage_minus2_1.py by adding proper path resolution
 - **DEX inflow detection restored**: Enhanced DEX inflow detection now works correctly with known DEX addresses across all chains

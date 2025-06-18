@@ -124,9 +124,179 @@ def detect_social_burst(symbol):
         return False
 
 
+def compute_ppwcs_t_trend_boost(data, symbol=None):
+    """
+    PPWCS-T 2.0 - Trend mode wzmacniacz przy stabilnym wzroście bez breakoutów
+    
+    Args:
+        data: OHLCV candle data (list of [timestamp, open, high, low, close, volume])
+        symbol: token symbol for additional analysis
+    
+    Returns:
+        dict: {
+            "trend_boost": int (0-20),
+            "trend_mode_active": bool,
+            "boost_details": list of reasons for boost
+        }
+    """
+    if len(data) < 20:
+        return {"trend_boost": 0, "trend_mode_active": False, "boost_details": []}
+    
+    trend_boost = 0
+    boost_details = []
+    
+    # Calculate required metrics
+    rsi_last = calculate_rsi(data)
+    vwap = calculate_vwap(data)
+    
+    last_candle = data[-1]
+    last_3_candles = data[-3:]
+    last_5_candles = data[-5:]
+    
+    # 1. RSI w zakresie "trendowej akumulacji" (50-60)
+    if 50 < rsi_last < 60:
+        trend_boost += 5
+        boost_details.append(f"RSI trendowa akumulacja ({rsi_last:.1f})")
+        print(f"[PPWCS-T 2.0] ✅ RSI trendowa akumulacja: +5 (RSI={rsi_last:.1f})")
+    
+    # 2. VWAP pinning - cena nie odkleja się od VWAP
+    vwap_pinning = detect_vwap_pinning(data, vwap)
+    if vwap_pinning:
+        trend_boost += 5
+        boost_details.append("VWAP pinning")
+        print(f"[PPWCS-T 2.0] ✅ VWAP pinning: +5")
+    
+    # 3. Volume slope up - narastająca aktywność bez pumpy
+    volume_slope_up = detect_volume_slope_up(data)
+    if volume_slope_up:
+        trend_boost += 5
+        boost_details.append("Volume slope up")
+        print(f"[PPWCS-T 2.0] ✅ Volume slope up: +5")
+    
+    # 4. Liquidity box + higher lows - stabilna konsolidacja w strukturze wzrostowej
+    liquidity_box = detect_liquidity_box_trend(data)
+    higher_lows = detect_higher_lows(data)
+    
+    if liquidity_box and higher_lows:
+        trend_boost += 5
+        boost_details.append("Stabilna konsolidacja wzrostowa")
+        print(f"[PPWCS-T 2.0] ✅ Liquidity box + higher lows: +5")
+    
+    # 5. Sprawdź czy nie ma breakoutu (wykluczenie dużych ruchów)
+    breakout_detected = detect_breakout_exclusion(data)
+    
+    # Aktywacja trend mode jeśli boost >= 10 i brak breakoutu
+    if trend_boost >= 10 and not breakout_detected:
+        trend_mode_active = True
+        print(f"[PPWCS-T 2.0] ✅ Trend mode aktywny: {trend_boost} punktów (bez breakoutu)")
+    else:
+        trend_mode_active = False
+        if breakout_detected:
+            print(f"[PPWCS-T 2.0] ❌ Trend mode nieaktywny: wykryto breakout")
+        else:
+            print(f"[PPWCS-T 2.0] ❌ Trend mode nieaktywny: boost {trend_boost} < 10")
+    
+    return {
+        "trend_boost": trend_boost,
+        "trend_mode_active": trend_mode_active,
+        "boost_details": boost_details
+    }
+
+
+def detect_vwap_pinning(data, vwap):
+    """Detect if price stays close to VWAP (not detaching)"""
+    if len(data) < 5 or vwap == 0:
+        return False
+    
+    last_5_closes = [candle[4] for candle in data[-5:]]
+    
+    # Check if all closes are within 2% of VWAP
+    vwap_distances = [abs(close - vwap) / vwap for close in last_5_closes]
+    
+    # All prices within 2% of VWAP = pinning
+    return all(distance < 0.02 for distance in vwap_distances)
+
+
+def detect_volume_slope_up(data):
+    """Detect gradually increasing volume without pump spikes"""
+    if len(data) < 10:
+        return False
+    
+    last_10_volumes = [candle[5] for candle in data[-10:]]
+    
+    # Calculate linear regression slope for volume
+    x = np.arange(len(last_10_volumes))
+    slope = np.polyfit(x, last_10_volumes, 1)[0]
+    
+    # Check if slope is positive but not too steep (no pump)
+    avg_volume = np.mean(last_10_volumes)
+    max_volume = max(last_10_volumes)
+    
+    # Volume increasing but no single candle > 3x average
+    return slope > 0 and max_volume < (avg_volume * 3)
+
+
+def detect_liquidity_box_trend(data):
+    """Detect sideways consolidation with tight range"""
+    if len(data) < 10:
+        return False
+    
+    last_10_candles = data[-10:]
+    highs = [candle[2] for candle in last_10_candles]
+    lows = [candle[3] for candle in last_10_candles]
+    
+    price_range = max(highs) - min(lows)
+    avg_price = (max(highs) + min(lows)) / 2
+    
+    # Range < 3% of average price = liquidity box
+    return (price_range / avg_price) < 0.03
+
+
+def detect_higher_lows(data):
+    """Detect pattern of higher lows over last 15 candles"""
+    if len(data) < 15:
+        return False
+    
+    last_15_lows = [candle[3] for candle in data[-15:]]
+    
+    # Find local minima (lows)
+    local_mins = []
+    for i in range(1, len(last_15_lows) - 1):
+        if last_15_lows[i] < last_15_lows[i-1] and last_15_lows[i] < last_15_lows[i+1]:
+            local_mins.append(last_15_lows[i])
+    
+    # Need at least 2 lows to compare
+    if len(local_mins) < 2:
+        return False
+    
+    # Check if latest low is higher than previous
+    return local_mins[-1] > local_mins[-2]
+
+
+def detect_breakout_exclusion(data):
+    """Detect if there was a significant breakout in last 5 candles"""
+    if len(data) < 10:
+        return False
+    
+    atr = calculate_atr(data)
+    if atr == 0:
+        return False
+    
+    last_5_candles = data[-5:]
+    
+    for candle in last_5_candles:
+        candle_range = candle[2] - candle[3]  # high - low
+        
+        # If any candle > 2.5x ATR = breakout detected
+        if candle_range > (2.5 * atr):
+            return True
+    
+    return False
+
+
 def compute_trend_score(data, symbol=None, enable_extensions=True):
     """
-    Trend Mode v1.0 - Professional trend continuation scoring with extensions
+    Trend Mode v1.0 + PPWCS-T 2.0 - Professional trend continuation scoring with extensions
     
     Args:
         data: OHLCV candle data (list of [timestamp, open, high, low, close, volume])
@@ -135,33 +305,48 @@ def compute_trend_score(data, symbol=None, enable_extensions=True):
     
     Returns:
         dict: {
-            "trend_score": int (0-57),
+            "trend_score": int (0-77),
             "trend_mode_active": bool,
             "trend_summary": list of active signals,
             "activation_details": str,
-            "extensions": dict (if enabled)
+            "extensions": dict (if enabled),
+            "ppwcs_t_boost": dict (PPWCS-T 2.0 results)
         }
     """
-    print(f"[TREND MODE v1.0] Analyzing trend for {symbol}")
+    print(f"[TREND MODE v1.0 + PPWCS-T 2.0] Analyzing trend for {symbol}")
     
-    # Step 1: Check mandatory activation conditions
+    # Step 1: PPWCS-T 2.0 Trend Boost Analysis (independent of legacy activation)
+    ppwcs_t_result = compute_ppwcs_t_trend_boost(data, symbol)
+    ppwcs_t_boost = ppwcs_t_result["trend_boost"]
+    ppwcs_t_active = ppwcs_t_result["trend_mode_active"]
+    
+    print(f"[PPWCS-T 2.0] Boost: {ppwcs_t_boost} points, Active: {ppwcs_t_active}")
+    
+    # Step 2: Check mandatory activation conditions (legacy system)
     trend_active, activation_details = check_trend_activation(data)
     
-    if not trend_active:
-        print(f"[TREND MODE] ❌ Activation failed: {activation_details}")
+    # PPWCS-T 2.0 can override legacy activation if strong enough
+    final_trend_active = trend_active or ppwcs_t_active
+    
+    if not final_trend_active:
+        print(f"[TREND MODE] ❌ Both systems failed - Legacy: {activation_details}, PPWCS-T: {ppwcs_t_boost} boost")
         return {
-            "trend_score": 0,
+            "trend_score": ppwcs_t_boost,  # Still return PPWCS-T boost even if not fully active
             "trend_mode_active": False,
-            "trend_summary": [],
-            "activation_details": activation_details,
-            "extensions": {}
+            "trend_summary": ppwcs_t_result["boost_details"],
+            "activation_details": f"Legacy: {activation_details}, PPWCS-T: {ppwcs_t_boost}/10 boost",
+            "extensions": {},
+            "ppwcs_t_boost": ppwcs_t_result
         }
     
-    print(f"[TREND MODE] ✅ Activation confirmed: {activation_details}")
+    if trend_active:
+        print(f"[TREND MODE] ✅ Legacy activation confirmed: {activation_details}")
+    else:
+        print(f"[TREND MODE] ⚠️ Legacy activation failed, but PPWCS-T 2.0 override active")
     
-    # Step 2: Calculate basic trend continuation score (max 50 points)
-    score = 0
-    summary = []
+    # Step 3: Calculate basic trend continuation score (max 50 points)
+    score = ppwcs_t_boost  # Start with PPWCS-T 2.0 boost
+    summary = ppwcs_t_result["boost_details"].copy()  # Include PPWCS-T details
     
     # Calculate required metrics
     rsi = calculate_rsi(data)
@@ -308,15 +493,19 @@ def compute_trend_score(data, symbol=None, enable_extensions=True):
             print(f"[TREND EXTENSIONS] Error in extensions: {e}")
             extensions["error"] = str(e)
     
-    print(f"[TREND MODE] Final score: {score}/50 points (base: {base_score})")
+    print(f"[TREND MODE] Final score: {score}/77 points (base: {base_score}, PPWCS-T: {ppwcs_t_boost})")
     print(f"[TREND MODE] Active signals: {len(summary)}")
+    
+    # Final activation decision
+    final_activation = score >= 35 or ppwcs_t_active  # 35 points threshold or PPWCS-T override
     
     return {
         "trend_score": score,
-        "trend_mode_active": True,
+        "trend_mode_active": final_activation,
         "trend_summary": summary,
-        "activation_details": activation_details,
-        "extensions": extensions
+        "activation_details": f"Legacy: {activation_details}, PPWCS-T: {ppwcs_t_boost} boost",
+        "extensions": extensions,
+        "ppwcs_t_boost": ppwcs_t_result
     }
 
 
