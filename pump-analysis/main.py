@@ -899,6 +899,9 @@ class TelegramNotifier:
         """Send single message to Telegram"""
         url = f"{self.base_url}/sendMessage"
         
+        # Escape HTML characters that might cause 400 Bad Request
+        message = self._escape_html(message)
+        
         payload = {
             'chat_id': self.chat_id,
             'text': message,
@@ -907,6 +910,14 @@ class TelegramNotifier:
         
         try:
             response = requests.post(url, json=payload, timeout=30)
+            
+            if response.status_code == 400:
+                # If HTML parsing fails, try without parse_mode
+                logger.warning("HTML parse error, retrying without formatting")
+                payload['parse_mode'] = None
+                payload['text'] = message.replace('<b>', '').replace('</b>', '').replace('<i>', '').replace('</i>', '')
+                response = requests.post(url, json=payload, timeout=30)
+            
             response.raise_for_status()
             
             result = response.json()
@@ -919,7 +930,26 @@ class TelegramNotifier:
                 
         except Exception as e:
             logger.error(f"Error sending Telegram message: {e}")
+            if hasattr(e, 'response') and e.response:
+                try:
+                    error_detail = e.response.json()
+                    logger.error(f"Telegram error details: {error_detail}")
+                except:
+                    logger.error(f"Raw response: {e.response.text}")
             return False
+    
+    def _escape_html(self, text: str) -> str:
+        """Escape HTML characters for Telegram"""
+        # Replace problematic characters that cause 400 Bad Request
+        text = text.replace('&', '&amp;')
+        text = text.replace('<', '&lt;').replace('>', '&gt;')
+        
+        # Re-add allowed HTML tags
+        text = text.replace('&lt;b&gt;', '<b>').replace('&lt;/b&gt;', '</b>')
+        text = text.replace('&lt;i&gt;', '<i>').replace('&lt;/i&gt;', '</i>')
+        text = text.replace('&lt;code&gt;', '<code>').replace('&lt;/code&gt;', '</code>')
+        
+        return text
 
 class PumpAnalysisSystem:
     """Main pump analysis system orchestrator"""
@@ -1184,6 +1214,9 @@ class PumpAnalysisSystem:
     def _format_telegram_message(self, pump: PumpEvent, gpt_analysis: str, test_result: dict = None, learning_results: dict = None) -> str:
         """Format message for Telegram"""
         
+        # Clean GPT analysis text to prevent HTML parsing errors
+        clean_gpt_analysis = self._clean_text_for_telegram(gpt_analysis)
+        
         message = f"""
 🎯 <b>WYKRYTY PUMP - ANALIZA PRE-PUMP</b>
 
@@ -1196,7 +1229,7 @@ class PumpAnalysisSystem:
 
 <b>📝 ANALIZA GPT (60 min przed pumpem):</b>
 
-{gpt_analysis}
+{clean_gpt_analysis}
 
 <b>🧪 TEST WYGENEROWANEJ FUNKCJI:</b>
 {self._format_test_result(test_result) if test_result else "❌ Test nie został wykonany"}
@@ -1206,6 +1239,30 @@ class PumpAnalysisSystem:
         """
         
         return message
+    
+    def _clean_text_for_telegram(self, text: str) -> str:
+        """Clean text to prevent Telegram HTML parsing errors"""
+        if not text:
+            return ""
+        
+        # Remove or escape problematic characters
+        text = text.replace('&', '&amp;')
+        text = text.replace('<', '&lt;').replace('>', '&gt;')
+        
+        # Remove excessive whitespace and normalize
+        lines = text.split('\n')
+        cleaned_lines = []
+        for line in lines:
+            cleaned_line = line.strip()
+            if cleaned_line:
+                cleaned_lines.append(cleaned_line)
+        
+        # Limit length to prevent message too long error
+        result = '\n'.join(cleaned_lines)
+        if len(result) > 3000:
+            result = result[:3000] + "...\n[TEKST SKRÓCONY]"
+        
+        return result
     
     def _save_detector_function(self, pump: PumpEvent, detector_function: str):
         """Save generated detector function to Python file"""
