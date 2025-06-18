@@ -2006,8 +2006,22 @@ import numpy as np
             detector_func = namespace[function_name]
             result = detector_func(test_df)
             
-            # Determine if detection was successful
-            detected = bool(result) if isinstance(result, (bool, int, float)) else bool(result.get('detected', False)) if isinstance(result, dict) else False
+            # Determine if detection was successful - handle multiple return formats
+            if isinstance(result, bool):
+                detected = result
+            elif isinstance(result, (int, float)):
+                detected = bool(result)
+            elif isinstance(result, dict):
+                # Check multiple possible keys for detection status
+                detected = (result.get('signal_detected', False) or 
+                           result.get('detected', False) or 
+                           result.get('pump_detected', False) or
+                           bool(result.get('confidence', 0) > 0.5))
+            elif isinstance(result, (list, tuple)) and len(result) >= 1:
+                # Handle tuple returns like (detected, confidence, signals)
+                detected = bool(result[0])
+            else:
+                detected = bool(result)
             
             return {
                 'success': True,
