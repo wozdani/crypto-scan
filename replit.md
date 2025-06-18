@@ -98,6 +98,15 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 18, 2025 - Performance Optimization: API Limits + Efficient Heatmap Usage - PRODUCTION READY
+- **API limit optimization**: Increased Bybit API limit from 200 to 1000 candles for comprehensive historical data analysis
+- **Efficient heatmap usage**: Heatmap queries now triggered only for detected pumps instead of all analyzed symbols
+- **Performance improvement**: System analyzes full symbol range (200+ symbols) with selective heatmap activation
+- **Resource optimization**: Orderbook collection occurs only when pumps are detected, reducing unnecessary API calls
+- **Enhanced pump detection**: Larger data windows (1000 vs 200 candles) provide better signal accuracy and pattern recognition
+- **Smart resource management**: Heatmap features integrated into GPT analysis only for relevant pump cases
+- **Production validation**: Confirmed working with logs showing "Analyzing DOTUSDT (7/200)" and "Collected orderbooks for 0/0 symbols"
+
 ### June 18, 2025 - Local Orderbook Heatmap Simulation System + Enhanced GPT Analysis - PRODUCTION READY
 - **Local orderbook heatmap simulation implemented**: Complete 4-module system analyzing Bybit orderbook data to detect wall disappearance, liquidity pinning, void reactions, and volume cluster tilts
 - **Orderbook pattern detection**: Analyzes top 20 bid/ask levels detecting >30% depth disappearance in 5-minute windows, price pinning to high liquidity levels, and liquidity void reactions
