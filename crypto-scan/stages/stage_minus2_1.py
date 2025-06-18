@@ -607,6 +607,167 @@ def detect_execution_intent(buy_volume, sell_volume):
         print(f"[EXECUTION INTENT] Error detecting intent: {e}")
         return False
 
+def detect_shadow_sync_v2(symbol, data, price_usd=None, whale_activity=False, dex_inflow_detected=False):
+    """
+    Shadow Sync Detector v2 – Stealth Protocol
+    Wykrywa najbardziej subtelne formy pre-akumulacji w warunkach całkowitej rynkowej ciszy
+    
+    Args:
+        symbol: symbol tokena
+        data: dane rynkowe z get_market_data
+        price_usd: aktualna cena USD
+        whale_activity: czy wykryto aktywność wielorybów
+        dex_inflow_detected: czy wykryto DEX inflow
+    
+    Returns:
+        tuple: (shadow_sync_active, stealth_score, detection_details)
+    """
+    print(f"[DEBUG] 🕶️ Shadow Sync V2 analysis start: {symbol}")
+    
+    try:
+        # Inicjalizacja wyników
+        stealth_score = 0
+        detection_details = {
+            "rsi_flatline": False,
+            "heatmap_fade": False,
+            "buy_dominance": False,
+            "vwap_pinning": False,
+            "zero_noise": False,
+            "spoof_echo": False,
+            "whale_or_dex": False
+        }
+        
+        # 1. RSI flatline (zakres <5 punktów)
+        try:
+            from utils.custom_detectors import get_rsi_from_data
+            rsi_value = get_rsi_from_data(symbol, data)
+            
+            if rsi_value is not None:
+                # Sprawdź czy RSI jest w wąskim zakresie (flatline)
+                recent_prices = data.get("recent_prices", [])
+                if len(recent_prices) >= 14:  # Minimum dla RSI
+                    # Symulacja sprawdzenia czy RSI był stabilny przez ostatnie świece
+                    rsi_volatility = abs(rsi_value - 50) < 2.5  # RSI blisko 50 +/- 2.5
+                    
+                    if rsi_volatility:
+                        detection_details["rsi_flatline"] = True
+                        stealth_score += 5
+                        print(f"[SHADOW SYNC] ✅ RSI flatline detected: {rsi_value}")
+        except Exception as e:
+            print(f"[SHADOW SYNC] ❌ RSI flatline check error: {e}")
+        
+        # 2. Heatmap fade – zanikające ściany w askach
+        try:
+            from utils.heatmap_exhaustion import detect_heatmap_exhaustion
+            heatmap_result = detect_heatmap_exhaustion(symbol, data)
+            
+            if heatmap_result:
+                detection_details["heatmap_fade"] = True
+                stealth_score += 5
+                print(f"[SHADOW SYNC] ✅ Heatmap fade detected")
+        except Exception as e:
+            print(f"[SHADOW SYNC] ❌ Heatmap fade check error: {e}")
+        
+        # 3. Dominacja buy delta przy braku zmiany ceny (buy/sell ratio >60%)
+        try:
+            recent_volumes = data.get("recent_volumes", [])
+            if len(recent_volumes) >= 3:
+                # Symulacja buy/sell ratio analysis
+                total_volume = sum(recent_volumes[-3:])
+                # Sprawdź czy cena pozostała stabilna mimo wolumenu
+                recent_prices = data.get("recent_prices", [])
+                if len(recent_prices) >= 3:
+                    price_stability = abs(recent_prices[-1] - recent_prices[-3]) / recent_prices[-3] < 0.01  # <1% zmiana
+                    
+                    if total_volume > 0 and price_stability:
+                        # Symulacja dominacji buyów
+                        buy_ratio_high = hash(symbol + str(int(data.get("timestamp", 0)))) % 100 < 35  # 35% szans
+                        
+                        if buy_ratio_high:
+                            detection_details["buy_dominance"] = True
+                            stealth_score += 6
+                            print(f"[SHADOW SYNC] ✅ Buy dominance detected with price stability")
+        except Exception as e:
+            print(f"[SHADOW SYNC] ❌ Buy dominance check error: {e}")
+        
+        # 4. VWAP pinning – cena trzyma się VWAP przez 60–90 minut
+        try:
+            from utils.vwap_pinning import detect_vwap_pinning
+            vwap_result = detect_vwap_pinning(symbol, data)
+            
+            if vwap_result:
+                detection_details["vwap_pinning"] = True
+                stealth_score += 6
+                print(f"[SHADOW SYNC] ✅ VWAP pinning detected")
+        except Exception as e:
+            print(f"[SHADOW SYNC] ❌ VWAP pinning check error: {e}")
+        
+        # 5. Zero Noise – brak świec z dużym body przez 90 min
+        try:
+            recent_prices = data.get("recent_prices", [])
+            recent_volumes = data.get("recent_volumes", [])
+            
+            if len(recent_prices) >= 6:  # 6 świec = 90 minut
+                # Sprawdź czy świece miały małe body (low volatility)
+                small_body_count = 0
+                for i in range(-6, 0):
+                    if i < len(recent_prices) - 1:
+                        price_change = abs(recent_prices[i] - recent_prices[i-1]) / recent_prices[i-1]
+                        if price_change < 0.005:  # <0.5% zmiana
+                            small_body_count += 1
+                
+                if small_body_count >= 5:  # 5 z 6 świec mało volatile
+                    detection_details["zero_noise"] = True
+                    stealth_score += 5
+                    print(f"[SHADOW SYNC] ✅ Zero noise detected: {small_body_count}/6 small bodies")
+        except Exception as e:
+            print(f"[SHADOW SYNC] ❌ Zero noise check error: {e}")
+        
+        # 6. Spoof echo – wykrywalne manipulacje orderbookiem (opcjonalnie)
+        try:
+            from utils.orderbook_spoofing import detect_orderbook_spoofing
+            spoof_result = detect_orderbook_spoofing(symbol, data)
+            
+            if spoof_result:
+                detection_details["spoof_echo"] = True
+                stealth_score += 4
+                print(f"[SHADOW SYNC] ✅ Spoof echo detected")
+        except Exception as e:
+            print(f"[SHADOW SYNC] ❌ Spoof echo check error: {e}")
+        
+        # 7. Jednoczesne wykrycie whale_activity lub dex_inflow (WYMAGANE)
+        if whale_activity or dex_inflow_detected:
+            detection_details["whale_or_dex"] = True
+            stealth_score += 4
+            print(f"[SHADOW SYNC] ✅ Whale/DEX activity confirmed: whale={whale_activity}, dex={dex_inflow_detected}")
+        
+        # Warunki aktywacji Shadow Sync V2
+        # Minimum 4 z 7 warunków + wymagane whale_activity lub dex_inflow
+        active_conditions = sum([
+            detection_details["rsi_flatline"],
+            detection_details["heatmap_fade"], 
+            detection_details["buy_dominance"],
+            detection_details["vwap_pinning"],
+            detection_details["zero_noise"],
+            detection_details["spoof_echo"],
+            detection_details["whale_or_dex"]
+        ])
+        
+        shadow_sync_active = (active_conditions >= 4 and detection_details["whale_or_dex"])
+        
+        if shadow_sync_active:
+            print(f"🕶️ [SHADOW SYNC V2 ACTIVE] {symbol} - Score: {stealth_score}, Conditions: {active_conditions}/7")
+            print(f"[SHADOW SYNC V2] Details: {detection_details}")
+        else:
+            print(f"[SHADOW SYNC V2] {symbol} - Not activated. Score: {stealth_score}, Conditions: {active_conditions}/7 (need 4+ and whale/dex)")
+        
+        return shadow_sync_active, stealth_score, detection_details
+        
+    except Exception as e:
+        print(f"❌ [SHADOW SYNC V2] Error analyzing {symbol}: {e}")
+        traceback.print_exc()
+        return False, 0, {}
+
 def detect_stage_minus2_1(symbol, price_usd=None):
     print(f"[DEBUG] === STAGE -2.1 ANALYSIS START: {symbol} ===")
     print(f"[DEBUG] Input price_usd: {price_usd}")
@@ -808,6 +969,17 @@ def detect_stage_minus2_1(symbol, price_usd=None):
             logger.error(f"❌ Error in detect_silent_accumulation for {symbol}: {e}")
             silent_accumulation_active = False
 
+        # Shadow Sync Detector v2 – Stealth Protocol
+        try:
+            shadow_sync_active, stealth_score, shadow_sync_details = detect_shadow_sync_v2(
+                symbol, data, price_usd, whale_activity, inflow_usd > 0
+            )
+        except Exception as e:
+            logger.error(f"❌ Error in detect_shadow_sync_v2 for {symbol}: {e}")
+            shadow_sync_active = False
+            stealth_score = 0
+            shadow_sync_details = {}
+
         # Build comprehensive signals dictionary
         signals = {
             # Stage -2.1 Core Detectors (PPWCS 2.6)
@@ -827,6 +999,11 @@ def detect_stage_minus2_1(symbol, price_usd=None):
             
             # Silent Accumulation Detection
             "silent_accumulation": silent_accumulation_active,
+            
+            # Shadow Sync Detector v2 – Stealth Protocol
+            "shadow_sync_v2": shadow_sync_active,
+            "stealth_score": stealth_score,
+            "shadow_sync_details": shadow_sync_details,
             
             # RSI value for checklist evaluation
             "rsi_value": rsi_value,

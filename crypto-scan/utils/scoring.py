@@ -46,7 +46,9 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int
             "dex_inflow": 10,         # DEX inflow anomaly 
             "stealth_inflow": 5,      # Stealth accumulation pattern
             "compressed": 10,         # Stage -1 compression
-            "stage1g_active": 10      # Stage 1G breakout active
+            "stage1g_active": 10,     # Stage 1G breakout active
+            "event_tag": 10,          # Listing/partnership events
+            "shadow_sync_v2": 25      # Shadow Sync V2 – Stealth Protocol (Premium)
         }
         
         for detector, points in core_detectors.items():
