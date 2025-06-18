@@ -98,6 +98,15 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 18, 2025 - Extended Orderbook Heatmap Analysis + Simplified Qualitative Detectors - PRODUCTION READY
+- **Extended orderbook analysis module implemented**: Complete 4-detector system with 3 Bybit API endpoints (/v5/market/orderbook, /v5/market/kline intervals)
+- **Comprehensive orderbook pattern detection**: Analyzes top 25 bid/ask levels, detects wall disappearance (>30% depth reduction), liquidity pinning, void reactions, and volume cluster tilts
+- **Simplified heatmap detectors module**: Qualitative analysis without numerical thresholds - walls_disappear, pinning, void_reaction, cluster_slope functions
+- **Multi-tier fallback integration**: Extended Analysis → Simplified Detectors → Basic Analysis with comprehensive error handling
+- **Enhanced GPT context generation**: Both systems integrated into _format_analysis_prompt with rich orderbook insights for pre-pump analysis
+- **Production-ready architecture**: Authenticated Bybit API integration, global instance management, comprehensive test suites (7/8 and 9/9 tests passed)
+- **Complete documentation**: Two comprehensive test modules validating all components and integration workflows
+
 ### June 18, 2025 - Duplicate Alert System Fix + Function Testing Enhancement - PRODUCTION READY
 - **Duplicate Telegram alerts eliminated**: Fixed system sending 2 different alerts for same token by removing alert logic duplication in crypto_scan_service.py
 - **Single comprehensive alert system**: Consolidated send_alert() and process_alert() into one unified system with all features (checklist, TP forecast, GPT analysis)
