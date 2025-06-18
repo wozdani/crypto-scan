@@ -1177,15 +1177,11 @@ class PumpAnalysisSystem:
         self.learning_system = LearningSystem()
         logger.info("🧠 Learning system initialized")
         
-        # Initialize GPT Memory Engine
-        from gpt_memory_engine import GPTMemoryEngine
-        self.gpt_memory = GPTMemoryEngine()
-        logger.info("🧠 GPT Memory Engine initialized")
-        
-        # Initialize Crypto-Scan Integration
-        from crypto_scan_integration import CryptoScanIntegration
-        self.crypto_scan_integration = CryptoScanIntegration()
-        logger.info("🔗 Crypto-Scan Integration initialized")
+        # Initialize function history system
+        self.function_manager = FunctionHistoryManager()
+        self.performance_tracker = PerformanceTracker()
+        self.gpt_learning_engine = GPTLearningEngine(self.openai_api_key)
+        logger.info("📚 Function history system initialized")
         
         # Initialize OnChain Analyzer
         self.onchain_analyzer = OnChainAnalyzer()
@@ -1362,7 +1358,9 @@ class PumpAnalysisSystem:
                                 # Generate strategic analysis using new dynamic approach with on-chain data
                                 gpt_analysis = self.gpt_analyzer.generate_strategic_analysis(pre_pump_analysis, pump, pre_pump_candles)
                                 
-                                # No longer generating rigid detector functions - using strategic analysis instead
+                                # Generate and store detector function for learning system
+                                logger.info(f"🔧 Generating detector function for {symbol}...")
+                                detector_function = self.generate_and_store_detector_function(pump, pre_pump_analysis)
                                 
                                 # 🧠 GPT MEMORY ENGINE INTEGRATION - Register detector with full context
                                 logger.info(f"🧠 Registering detector in GPT Memory Engine...")
@@ -1691,6 +1689,42 @@ import numpy as np
         except Exception as e:
             logger.error(f"❌ Error saving analysis to file: {e}")
     
+    def generate_and_store_detector_function(self, pump_event: PumpEvent, pre_pump_data: Dict) -> str:
+        """Generate and store detector function using function history system"""
+        try:
+            # Generate detector function using GPT Learning Engine
+            detector_function = self.gpt_learning_engine.generate_detector_function(
+                pre_pump_data, pump_event
+            )
+            
+            # Create function metadata
+            metadata = FunctionMetadata(
+                symbol=pump_event.symbol,
+                date=pump_event.start_time.strftime('%Y%m%d'),
+                pump_increase=pump_event.price_increase_pct,
+                generation_time=datetime.now(),
+                active_signals=self._extract_active_signals(pre_pump_data),
+                pre_pump_analysis=pre_pump_data
+            )
+            
+            # Store function in function manager
+            function_id = self.function_manager.store_function(
+                detector_function, metadata
+            )
+            
+            # Log generation in performance tracker
+            self.performance_tracker.log_generation(
+                function_id, pump_event.symbol, pump_event.start_time.strftime('%Y%m%d'), 
+                detector_function, pump_event.price_increase_pct
+            )
+            
+            logger.info(f"✅ Generated and stored detector function: {function_id}")
+            return detector_function
+            
+        except Exception as e:
+            logger.error(f"❌ Error generating detector function: {e}")
+            return f"def detect_{pump_event.symbol.lower()}_{pump_event.start_time.strftime('%Y%m%d')}_preconditions(df): return False, 0.0, ['error']"
+
     def _test_detector_function(self, pump: PumpEvent, pre_pump_data: Dict, detector_function: str) -> dict:
         """Test the generated detector function on pre-pump data"""
         
