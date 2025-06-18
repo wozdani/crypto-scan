@@ -1239,6 +1239,102 @@ import numpy as np
             return f"✅ <b>SUKCES:</b> Funkcja <code>{function_name}()</code> wykryła pre-pump warunki!"
         else:
             return f"⚠️ <b>UWAGA:</b> Funkcja <code>{function_name}()</code> NIE wykryła pre-pump warunków"
+    
+    def _get_pre_pump_candles_for_testing(self, pump: PumpEvent) -> Optional[pd.DataFrame]:
+        """Get pre-pump candle data for testing existing functions"""
+        try:
+            # Get data 2 hours before pump for comprehensive testing
+            start_time = int((pump.start_time - timedelta(hours=2)).timestamp() * 1000)
+            
+            kline_data = self.bybit.get_kline_data(
+                symbol=pump.symbol,
+                interval="5",
+                start_time=start_time,
+                limit=200
+            )
+            
+            if not kline_data:
+                return None
+                
+            # Convert to DataFrame for function testing
+            df_data = []
+            for kline in kline_data:
+                if isinstance(kline, dict):
+                    timestamp = int(kline['0'])  # timestamp
+                    open_price = float(kline['1'])  # open
+                    high_price = float(kline['2'])  # high
+                    low_price = float(kline['3'])   # low
+                    close_price = float(kline['4']) # close
+                    volume = float(kline['5'])      # volume
+                    
+                    df_data.append({
+                        'timestamp': pd.to_datetime(timestamp, unit='ms'),
+                        'open': open_price,
+                        'high': high_price,
+                        'low': low_price,
+                        'close': close_price,
+                        'volume': volume
+                    })
+            
+            if df_data:
+                df = pd.DataFrame(df_data)
+                df.set_index('timestamp', inplace=True)
+                df.sort_index(inplace=True)
+                return df
+                
+        except Exception as e:
+            logger.warning(f"Failed to get pre-pump candles for {pump.symbol}: {e}")
+            
+        return None
+    
+    def _extract_active_signals(self, pre_pump_analysis: Dict) -> List[str]:
+        """Extract active signals from pre-pump analysis for metadata"""
+        signals = []
+        
+        try:
+            # Extract signals from different analysis sections
+            if 'volume_spikes' in pre_pump_analysis and pre_pump_analysis['volume_spikes']:
+                signals.append('volume_spike')
+                
+            if 'compression' in pre_pump_analysis:
+                compression = pre_pump_analysis['compression']
+                if compression.get('detected', False):
+                    signals.append('compression')
+                    
+            if 'fake_rejects' in pre_pump_analysis and pre_pump_analysis['fake_rejects']:
+                signals.append('fake_reject')
+                
+            if 'support_resistance' in pre_pump_analysis:
+                sr = pre_pump_analysis['support_resistance']
+                if sr.get('key_support') or sr.get('key_resistance'):
+                    signals.append('support_resistance')
+                    
+            if 'trend' in pre_pump_analysis:
+                signals.append(f"trend_{pre_pump_analysis['trend']}")
+                
+            if 'vwap_analysis' in pre_pump_analysis:
+                vwap = pre_pump_analysis['vwap_analysis']
+                if vwap.get('position') == 'above':
+                    signals.append('above_vwap')
+                elif vwap.get('position') == 'below':
+                    signals.append('below_vwap')
+                    
+            if 'rsi' in pre_pump_analysis:
+                rsi = pre_pump_analysis['rsi']
+                if rsi < 30:
+                    signals.append('rsi_oversold')
+                elif rsi > 70:
+                    signals.append('rsi_overbought')
+                elif 45 <= rsi <= 55:
+                    signals.append('rsi_neutral')
+                    
+            if 'liquidity_gaps' in pre_pump_analysis and pre_pump_analysis['liquidity_gaps']:
+                signals.append('liquidity_gaps')
+                
+        except Exception as e:
+            logger.warning(f"Error extracting signals: {e}")
+            
+        return signals if signals else ['unknown']
 
 def main():
     """Main function to run pump analysis"""

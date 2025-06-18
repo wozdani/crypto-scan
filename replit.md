@@ -107,6 +107,18 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Robust error handling**: Graceful fallback system ensures operation even when API access is restricted in development environments
 - **Expanded market coverage**: Dramatically improved pump detection capability across broader cryptocurrency market for comprehensive surveillance
 
+### June 18, 2025 - Advanced GPT Learning System + Self-Improving Detector Functions - PRODUCTION READY
+- **Complete GPT Learning System implemented**: Zaawansowany mechanizm uczenia się i samodoskonalenia GPT dla funkcji detektora pre-pump
+- **Automatic function saving**: Każda wygenerowana funkcja GPT automatycznie zapisywana w generated_functions/ z pełnymi metadanymi
+- **Comprehensive logging system**: function_logs.json śledzący skuteczność, wersje, ewolucję i statystyki wydajności funkcji
+- **Automatic testing on new pumps**: System testuje wszystkie istniejące funkcje na każdym nowym wykrytym pumpie
+- **Function evolution mechanism**: Automatyczne tworzenie ulepszonych wersji funkcji (_v2, _v3) na podstawie wyników testów
+- **Retrospective test suite**: Testy na ostatnich 20 pumpach co 12h dla okresowej oceny skuteczności
+- **Intelligent recommendations**: GPT generuje rekomendacje dotyczące promowania, ewolucji lub deprecated funkcji
+- **Production-ready structure**: Kompletna struktura folderów, deprecation system, performance tracking
+- **Telegram integration**: Wyniki systemu uczenia się automatycznie włączone do powiadomień Telegram
+- **Comprehensive documentation**: README_LEARNING_SYSTEM.md z pełną dokumentacją użycia i architektury
+
 ### June 18, 2025 - Server-Ready Scheduler + Continuous Operation + Error Recovery - PRODUCTION READY
 - **Continuous server operation**: Implemented infinite loop with automatic error recovery for reliable server deployment
 - **Enhanced scheduler resilience**: System automatically restarts after crashes with 5-minute cooldown periods
