@@ -800,7 +800,7 @@ FUNCTION_METADATA = {{
         best_functions.sort(key=lambda x: x["accuracy"], reverse=True)
         
         return {
-            "total_functions": total_functions,
+            "total_functions_created": total_functions,
             "active_functions": active_functions,
             "deprecated_functions": deprecated_functions,
             "avg_accuracy": logs["performance_stats"]["avg_accuracy"],
