@@ -49,6 +49,41 @@ class BybitDataFetcher:
         
         if self.api_key:
             self.headers['X-BAPI-API-KEY'] = self.api_key
+    
+    def _get_authenticated_headers(self, params=None):
+        """Generate authenticated headers for Bybit API using same logic as crypto-scan"""
+        if not self.api_key or not self.api_secret:
+            return {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'application/json'
+            }
+        
+        import hmac
+        import hashlib
+        
+        timestamp = str(int(time.time() * 1000))
+        recv_window = "5000"
+        
+        if params:
+            param_str = "&".join([f"{k}={v}" for k, v in sorted(params.items())])
+            raw_str = timestamp + self.api_key + recv_window + param_str
+        else:
+            raw_str = timestamp + self.api_key + recv_window
+        
+        signature = hmac.new(
+            self.api_secret.encode('utf-8'),
+            raw_str.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+        
+        return {
+            "X-BAPI-API-KEY": self.api_key,
+            "X-BAPI-SIGN": signature,
+            "X-BAPI-SIGN-TYPE": "2",
+            "X-BAPI-TIMESTAMP": timestamp,
+            "X-BAPI-RECV-WINDOW": recv_window,
+            "Content-Type": "application/json"
+        }
         
     def get_kline_data(self, symbol: str, interval: str = "5", start_time: int = None, limit: int = 200) -> List[Dict]:
         """
@@ -74,7 +109,8 @@ class BybitDataFetcher:
             
         try:
             logger.debug(f"📡 Bybit API request: {endpoint} with params: {params}")
-            response = requests.get(endpoint, params=params)
+            headers = self._get_authenticated_headers(params)
+            response = requests.get(endpoint, params=params, headers=headers)
             response.raise_for_status()
             data = response.json()
             
@@ -111,13 +147,7 @@ class BybitDataFetcher:
                 if cursor:
                     params["cursor"] = cursor
                 
-                headers = {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                    'Accept': 'application/json'
-                }
-                
-                if self.api_key:
-                    headers['X-BAPI-API-KEY'] = self.api_key
+                headers = self._get_authenticated_headers(params)
                 
                 logger.debug(f"🔗 Fetching symbols with cursor: {cursor}")
                 response = requests.get(endpoint, params=params, headers=headers, timeout=20)
@@ -790,7 +820,7 @@ class PumpAnalysisSystem:
         # Create data directory
         os.makedirs('pump_data', exist_ok=True)
         
-    def run_analysis(self, days_back: float = 7, max_symbols: int = 30):
+    def run_analysis(self, days_back: float = 7, max_symbols: int = 999999):
         """
         Run complete pump analysis
         
