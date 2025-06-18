@@ -91,7 +91,7 @@ def get_symbols_cached(require_chain=False):
                     valid_symbols.append(symbol)
             
             logger.info(f"Loaded {len(valid_symbols)} USDT symbols from cache")
-            return valid_symbols[:200]  # Return first 200 for compatibility
+            return valid_symbols  # Return all symbols - no limit
         
     except Exception as e:
         logger.error(f"Error loading symbols cache: {e}")
