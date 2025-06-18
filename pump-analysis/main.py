@@ -170,66 +170,21 @@ class BybitDataFetcher:
     def get_active_symbols(self, limit: int = None) -> List[str]:
         """
         Get active trading symbols from Bybit futures perpetual (linear category)
-        Uses same logic as crypto-scan main scanner
+        Uses proven crypto-scan logic with enhanced fallback support
         """
         logger.info(f"📊 Fetching USDT perpetual futures symbols from Bybit...")
         
-        symbols = set()
-        cursor = ""
+        # First try public API without authentication (like crypto-scan)
+        symbols = self._fetch_symbols_public()
+        if symbols and len(symbols) > 100:
+            logger.info(f"✅ Retrieved {len(symbols)} symbols via public API")
+            return symbols
         
-        try:
-            while True:
-                # Use linear category for futures perpetual (same as crypto-scan)
-                endpoint = f"{self.base_url}/v5/market/tickers"
-                params = {
-                    "category": "linear",
-                    "limit": 1000
-                }
-                if cursor:
-                    params["cursor"] = cursor
-                
-                headers = self._get_authenticated_headers(params)
-                
-                logger.debug(f"🔗 Fetching symbols with cursor: {cursor}")
-                response = requests.get(endpoint, params=params, headers=headers, timeout=20)
-                response.raise_for_status()
-                data = response.json()
-                
-                logger.debug(f"📊 API Response: retCode={data.get('retCode')}, symbols_count={len(data.get('result', {}).get('list', []))}")
-                
-                if data.get('retCode') == 0:
-                    page_symbols = data.get('result', {}).get('list', [])
-                    
-                    usdt_count = 0
-                    for item in page_symbols:
-                        symbol = item.get('symbol', '')
-                        status = item.get('status', '')
-                        if symbol and symbol.endswith('USDT') and status == 'Trading':
-                            symbols.add(symbol)
-                            usdt_count += 1
-                    
-                    cursor = data.get('result', {}).get('nextPageCursor')
-                    logger.info(f"📄 Page processed: {usdt_count} USDT symbols added (total: {len(symbols)}), next_cursor: {bool(cursor)}")
-                    
-                    if not cursor:
-                        logger.info(f"✅ Symbol fetching complete - no more pages")
-                        break
-                        
-                    time.sleep(0.1)  # Rate limiting
-                else:
-                    logger.error(f"Bybit API error: {data.get('retMsg', 'Unknown error')}")
-                    logger.debug(f"Full API response: {data}")
-                    break
-                    
-        except Exception as e:
-            logger.error(f"Error fetching symbols from Bybit: {e}")
-            logger.debug(f"Exception details: {type(e).__name__}: {str(e)}")
-        
-        if symbols:
-            symbol_list = sorted(list(symbols))
-            logger.info(f"✅ Retrieved {len(symbol_list)} USDT perpetual futures symbols")
-            logger.info(f"🔝 First 10: {symbol_list[:10]}")
-            return symbol_list
+        # Fallback to authenticated API
+        symbols = self._fetch_symbols_authenticated()
+        if symbols and len(symbols) > 100:
+            logger.info(f"✅ Retrieved {len(symbols)} symbols via authenticated API")
+            return symbols
         
         # Try to use crypto-scan's symbol data if available
         try:
@@ -277,6 +232,115 @@ class BybitDataFetcher:
         
         logger.warning(f"⚠️ Using enhanced fallback symbol list: {len(enhanced_fallback)} symbols")
         return enhanced_fallback
+    
+    def _fetch_symbols_public(self) -> List[str]:
+        """Fetch symbols using public API without authentication (crypto-scan approach)"""
+        symbols = set()
+        cursor = ""
+        
+        try:
+            while True:
+                url = "https://api.bybit.com/v5/market/tickers"
+                params = {
+                    "category": "linear",
+                    "limit": 1000
+                }
+                if cursor:
+                    params["cursor"] = cursor
+                
+                # Public API call without authentication
+                response = requests.get(url, params=params, timeout=20)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    
+                    if data.get('retCode') == 0:
+                        page_symbols = data.get('result', {}).get('list', [])
+                        
+                        for item in page_symbols:
+                            symbol = item.get('symbol', '')
+                            status = item.get('status', '')
+                            if symbol and symbol.endswith('USDT') and status == 'Trading':
+                                symbols.add(symbol)
+                        
+                        cursor = data.get('result', {}).get('nextPageCursor')
+                        logger.debug(f"📄 Public API: {len(page_symbols)} symbols processed, cursor: {bool(cursor)}")
+                        
+                        if not cursor:
+                            break
+                        time.sleep(0.1)
+                    else:
+                        logger.warning(f"Public API error: {data.get('retMsg', 'Unknown error')}")
+                        break
+                else:
+                    logger.warning(f"Public API HTTP error: {response.status_code}")
+                    break
+                    
+        except Exception as e:
+            logger.debug(f"Public API fetch failed: {e}")
+            return []
+        
+        if symbols:
+            symbol_list = sorted(list(symbols))
+            logger.info(f"📊 Public API retrieved {len(symbol_list)} symbols")
+            return symbol_list
+        
+        return []
+    
+    def _fetch_symbols_authenticated(self) -> List[str]:
+        """Fetch symbols using authenticated API (original approach)"""
+        symbols = set()
+        cursor = ""
+        
+        try:
+            while True:
+                endpoint = f"{self.base_url}/v5/market/tickers"
+                params = {
+                    "category": "linear",
+                    "limit": 1000
+                }
+                if cursor:
+                    params["cursor"] = cursor
+                
+                headers = self._get_authenticated_headers(params)
+                
+                response = requests.get(endpoint, params=params, headers=headers, timeout=20)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    
+                    if data.get('retCode') == 0:
+                        page_symbols = data.get('result', {}).get('list', [])
+                        
+                        for item in page_symbols:
+                            symbol = item.get('symbol', '')
+                            status = item.get('status', '')
+                            if symbol and symbol.endswith('USDT') and status == 'Trading':
+                                symbols.add(symbol)
+                        
+                        cursor = data.get('result', {}).get('nextPageCursor')
+                        logger.debug(f"📄 Auth API: {len(page_symbols)} symbols processed, cursor: {bool(cursor)}")
+                        
+                        if not cursor:
+                            break
+                        time.sleep(0.1)
+                    else:
+                        logger.warning(f"Auth API error: {data.get('retMsg', 'Unknown error')}")
+                        break
+                else:
+                    logger.warning(f"Auth API HTTP error: {response.status_code}")
+                    break
+                    
+        except Exception as e:
+            logger.debug(f"Auth API fetch failed: {e}")
+            return []
+        
+        if symbols:
+            symbol_list = sorted(list(symbols))
+            logger.info(f"📊 Auth API retrieved {len(symbol_list)} symbols")
+            return symbol_list
+        
+        return []
 
 class PumpDetector:
     """Detects pump events in price data"""
