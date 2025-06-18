@@ -86,9 +86,41 @@ class BybitDataFetcher:
             "Content-Type": "application/json"
         }
         
+    def validate_symbol(self, symbol: str) -> bool:
+        """
+        Validate if symbol exists on Bybit futures perpetual
+        
+        Args:
+            symbol: Trading symbol to validate
+            
+        Returns:
+            True if symbol is valid, False otherwise
+        """
+        endpoint = f"{self.base_url}/v5/market/tickers"
+        params = {
+            'category': 'linear',
+            'symbol': symbol
+        }
+        
+        try:
+            headers = self._get_authenticated_headers(params)
+            response = requests.get(endpoint, params=params, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            
+            if data['retCode'] == 0 and data['result']['list']:
+                return True
+            else:
+                logger.warning(f"⚠️ Symbol {symbol} is invalid or not available")
+                return False
+                
+        except Exception as e:
+            logger.warning(f"⚠️ Symbol validation failed for {symbol}: {e}")
+            return False
+
     def get_kline_data(self, symbol: str, interval: str = "5", start_time: int = None, limit: int = 200) -> List[Dict]:
         """
-        Fetch kline data from Bybit
+        Fetch kline data from Bybit with symbol validation
         
         Args:
             symbol: Trading symbol (e.g., 'BTCUSDT')
@@ -120,7 +152,11 @@ class BybitDataFetcher:
                 logger.debug(f"✅ Bybit API success for {symbol}: {len(result_data)} candles retrieved")
                 return result_data
             else:
-                logger.error(f"Bybit API error for {symbol}: {data['retMsg']}")
+                # Check for invalid symbol error specifically
+                if "Symbol Is Invalid" in data.get('retMsg', ''):
+                    logger.warning(f"⚠️ Invalid symbol {symbol} - skipping analysis")
+                else:
+                    logger.error(f"Bybit API error for {symbol}: {data['retMsg']}")
                 return []
                 
         except Exception as e:
@@ -191,14 +227,15 @@ class BybitDataFetcher:
             logger.info(f"🔝 First 10: {symbol_list[:10]}")
             return symbol_list
         
-        # Fallback only if API completely fails
+        # Fallback only if API completely fails - validated active symbols only
         fallback_symbols = [
             'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT',
             'XRPUSDT', 'DOTUSDT', 'LINKUSDT', 'LTCUSDT', 'BCHUSDT',
             'XLMUSDT', 'UNIUSDT', 'FILUSDT', 'TRXUSDT', 'ETCUSDT',
             'NEARUSDT', 'ATOMUSDT', 'ALGOUSDT', 'VETUSDT', 'ICPUSDT',
             'THETAUSDT', 'HBARUSDT', 'EGLDUSDT', 'AAVEUSDT', 'EOSUSDT',
-            'AXSUSDT', 'SANDUSDT', 'MANAUSDT', 'GALAUSDT', 'PAWSUSDT'
+            'AXSUSDT', 'SANDUSDT', 'MANAUSDT', 'GALAUSDT', 'CHZUSDT',
+            'ALICEUSDT', 'DEGOUSDT', 'GMTUSDT', 'APTUSDT', 'OPUSDT'
         ]
         logger.warning("⚠️ Using fallback symbol list due to API failure")
         return fallback_symbols
