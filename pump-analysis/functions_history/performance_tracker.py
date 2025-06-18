@@ -78,6 +78,98 @@ class PerformanceTracker:
         except Exception as e:
             logger.error(f"Error saving results history: {e}")
     
+    def log_generation(self, function_id: str, symbol: str, date: str, function_code: str, pump_increase: float):
+        """Log function generation for tracking"""
+        try:
+            generation_data = {
+                'function_id': function_id,
+                'symbol': symbol,
+                'date': date,
+                'generation_time': datetime.now().isoformat(),
+                'pump_increase': pump_increase,
+                'function_code_length': len(function_code)
+            }
+            
+            if function_id not in self.performance_data:
+                self.performance_data[function_id] = {
+                    'generation_info': generation_data,
+                    'executions': [],
+                    'total_executions': 0,
+                    'successful_executions': 0,
+                    'average_confidence': 0.0
+                }
+            
+            self._save_performance_data()
+            logger.info(f"Generation logged for {function_id}")
+            
+        except Exception as e:
+            logger.error(f"Error logging generation: {e}")
+
+    def log_execution(self, function_id: str, success: bool, confidence: float, signals: List[str]):
+        """Log function execution result"""
+        try:
+            execution_data = {
+                'timestamp': datetime.now().isoformat(),
+                'success': success,
+                'confidence': confidence,
+                'signals': signals
+            }
+            
+            if function_id not in self.performance_data:
+                self.performance_data[function_id] = {
+                    'executions': [],
+                    'total_executions': 0,
+                    'successful_executions': 0,
+                    'average_confidence': 0.0
+                }
+            
+            # Add execution record
+            self.performance_data[function_id]['executions'].append(execution_data)
+            self.performance_data[function_id]['total_executions'] += 1
+            
+            if success:
+                self.performance_data[function_id]['successful_executions'] += 1
+            
+            # Update average confidence
+            executions = self.performance_data[function_id]['executions']
+            total_confidence = sum(exec_data['confidence'] for exec_data in executions)
+            self.performance_data[function_id]['average_confidence'] = total_confidence / len(executions)
+            
+            self._save_performance_data()
+            
+        except Exception as e:
+            logger.error(f"Error logging execution: {e}")
+
+    def get_performance_stats(self, function_id: str) -> Dict:
+        """Get performance statistics for a function"""
+        if function_id not in self.performance_data:
+            return {'total_executions': 0, 'successful_executions': 0, 'success_rate': 0.0, 'average_confidence': 0.0}
+        
+        data = self.performance_data[function_id]
+        total = data.get('total_executions', 0)
+        successful = data.get('successful_executions', 0)
+        
+        return {
+            'function_id': function_id,
+            'total_executions': total,
+            'successful_executions': successful,
+            'success_rate': successful / max(total, 1),
+            'average_confidence': data.get('average_confidence', 0.0),
+            'generation_info': data.get('generation_info', {})
+        }
+
+    def get_function_ranking(self) -> List[Dict]:
+        """Get functions ranked by performance"""
+        ranking = []
+        
+        for function_id in self.performance_data.keys():
+            stats = self.get_performance_stats(function_id)
+            ranking.append(stats)
+        
+        # Sort by success rate, then by total executions
+        ranking.sort(key=lambda x: (x['success_rate'], x['total_executions']), reverse=True)
+        return ranking
+    
     def record_test_result(self, result: PerformanceResult):
         """Record a test result for a function"""
         

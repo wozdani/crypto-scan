@@ -16,13 +16,18 @@ logger = logging.getLogger(__name__)
 @dataclass
 class FunctionMetadata:
     """Metadata for a detector function"""
-    function_name: str
     symbol: str
-    pump_date: str
-    generation_date: str
-    pump_increase_pct: float
-    pump_duration_minutes: int
-    version: int
+    date: str
+    pump_increase: float
+    generation_time: datetime
+    active_signals: List[str]
+    pre_pump_analysis: Dict[str, Any]
+    function_name: Optional[str] = None
+    pump_date: Optional[str] = None
+    generation_date: Optional[str] = None
+    pump_increase_pct: Optional[float] = None
+    pump_duration_minutes: Optional[int] = None
+    version: int = 1
     feedback_score: Optional[float] = None
     performance_tests: List[Dict] = None
     improvement_notes: str = ""
@@ -84,6 +89,35 @@ class FunctionHistoryManager:
         except Exception as e:
             logger.error(f"Error saving performance history: {e}")
     
+    def store_function(self, function_code: str, metadata: FunctionMetadata) -> str:
+        """Store a function with its metadata"""
+        return self.save_function(function_code, metadata)
+    
+    def get_function(self, function_id: str) -> tuple:
+        """Get function code and metadata by ID"""
+        try:
+            function_file = os.path.join(self.functions_dir, f"{function_id}.py")
+            
+            if not os.path.exists(function_file):
+                return None, None
+            
+            # Load function code
+            with open(function_file, 'r', encoding='utf-8') as f:
+                function_code = f.read()
+            
+            # Get metadata
+            metadata = self.metadata.get(function_id)
+            
+            return function_code, metadata
+            
+        except Exception as e:
+            logger.error(f"Error getting function {function_id}: {e}")
+            return None, None
+
+    def list_functions(self) -> List[str]:
+        """List all stored function IDs"""
+        return list(self.metadata.keys())
+
     def save_function(self, function_code: str, metadata: FunctionMetadata) -> str:
         """
         Save a detector function with its metadata
