@@ -1095,3 +1095,240 @@ def detect_silent_accumulation(symbol, market_data, rsi_series):
     except Exception as e:
         print(f"❌ Error in detect_silent_accumulation: {e}")
         return False
+
+def inflow_avg(symbol):
+    """Get average inflow for symbol from cache or return default"""
+    try:
+        import json
+        import os
+        cache_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "past_inflow_cache.json")
+        if os.path.exists(cache_file):
+            with open(cache_file, 'r') as f:
+                cache = json.load(f)
+                if symbol in cache:
+                    inflows = cache[symbol][-10:]  # Last 10 values
+                    return sum(inflows) / len(inflows) if inflows else 1000.0
+        return 1000.0  # Default average
+    except Exception:
+        return 1000.0
+
+def detect_silent_accumulation_v1(symbol, market_data, rsi_series, orderbook=None, vwap_data=None, volume_profile=None, inflow=0, whale_txs=None, social_score=0):
+    """
+    Enhanced Silent Accumulation Detector v1 - wykrywa ukrytą akumulację
+    
+    Analizuje spokojne tokeny z subtelną presją zakupową:
+    - RSI ≈ 50 przez kilka świec
+    - Niskie korpusy i knoty  
+    - Kurs blisko VWAP
+    - Brak hype w socialu
+    - ALE subtelne presje zakupowe: inflow, pinning, heatmapa, slope, whale micro-TX
+    
+    Wymagane: min. 5 aktywacji + min. 1 z kategorii presji zakupowej
+    """
+    try:
+        if len(market_data) < 8 or len(rsi_series) < 8:
+            return False
+            
+        score = 0
+        explanations = []
+        buying_pressure_detected = False
+
+        # RSI ~50 (45-55 przez 8 świec)
+        last_rsi = rsi_series[-8:]
+        if all(45 <= r <= 55 for r in last_rsi if r is not None):
+            score += 1
+            explanations.append("RSI flat")
+
+        # Świece z małym ciałem (body/range < 0.3)
+        last_candles = market_data[-8:]
+        bodies = []
+        for candle in last_candles:
+            try:
+                open_price = float(candle["open"])
+                close_price = float(candle["close"])
+                high_price = float(candle["high"])
+                low_price = float(candle["low"])
+                
+                body_size = abs(close_price - open_price)
+                total_range = high_price - low_price
+                
+                if total_range > 0:
+                    body_ratio = body_size / total_range
+                    bodies.append(body_ratio)
+            except (ValueError, TypeError, KeyError):
+                bodies.append(1.0)  # Safe fallback
+                
+        if bodies and all(b < 0.3 for b in bodies):
+            score += 1
+            explanations.append("Low body candles")
+
+        # Minimalne knoty (upper/lower wick < 10% of total range, not price)
+        minimal_wicks = True
+        for candle in last_candles:
+            try:
+                open_price = float(candle["open"])
+                close_price = float(candle["close"])
+                high_price = float(candle["high"])
+                low_price = float(candle["low"])
+                
+                total_range = high_price - low_price
+                if total_range <= 0:
+                    continue
+                    
+                body_top = max(open_price, close_price)
+                body_bottom = min(open_price, close_price)
+                
+                upper_wick = high_price - body_top
+                lower_wick = body_bottom - low_price
+                
+                # Check if wicks are more than 10% of total range
+                if (upper_wick > 0.1 * total_range) or (lower_wick > 0.1 * total_range):
+                    minimal_wicks = False
+                    break
+                    
+            except (ValueError, TypeError, KeyError):
+                minimal_wicks = False
+                break
+                
+        if minimal_wicks:
+            score += 1
+            explanations.append("Minimal wicks")
+
+        # VWAP pinning (presja zakupowa)
+        if vwap_data and vwap_data.get("pinning_count", 0) >= 6:
+            score += 2
+            explanations.append("VWAP pinning")
+            buying_pressure_detected = True
+
+        # Volume cluster (presja zakupowa)
+        if volume_profile and volume_profile.get("bullish_cluster"):
+            score += 2
+            explanations.append("Bullish volume cluster")
+            buying_pressure_detected = True
+
+        # Heatmapa – znika podaż (presja zakupowa)
+        if orderbook and orderbook.get("supply_vanish") == True:
+            score += 2
+            explanations.append("Supply wall vanish (heatmap)")
+            buying_pressure_detected = True
+
+        # DEX inflow anomaly (presja zakupowa)
+        avg_inflow = inflow_avg(symbol)
+        if inflow > 2 * avg_inflow:
+            score += 2
+            explanations.append("DEX inflow anomaly")
+            buying_pressure_detected = True
+
+        # Whale TX (małe transakcje 2-4 poniżej $10k)
+        whale_txs = whale_txs or []
+        micro_whale_count = len([tx for tx in whale_txs if isinstance(tx, dict) and tx.get("usd", 0) < 10000])
+        if 2 <= micro_whale_count <= 4:
+            score += 1
+            explanations.append("Micro whale activity")
+
+        # Brak hype w socialu (niska aktywność)
+        if social_score < 5:  # Niska aktywność social media
+            score += 1
+            explanations.append("Low social activity")
+
+        # Sprawdź czy warunki są spełnione
+        if score >= 5 and buying_pressure_detected:
+            print(f"🔵 Silent Accumulation v1 detected on {symbol}: {score} pts ({', '.join(explanations)})")
+            
+            # Przygotuj sygnały
+            signals = {
+                "silent_accumulation_v1": True,
+                "score": score,
+                "explanations": explanations,
+                "buying_pressure": buying_pressure_detected
+            }
+            ppwcs_score = 65
+            
+            # Import funkcji alert/GPT na poziomie wykonywania
+            try:
+                import sys
+                import os
+                sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+                
+                # Użyj istniejących funkcji z głównego modułu
+                try:
+                    from utils.telegram_bot import send_alert, format_alert
+                    from crypto_scan_service import send_report_to_gpt
+                    from utils.reports import save_conditional_reports
+                    
+                    # Przygotuj dane w formacie oczekiwanym przez funkcje
+                    data = {
+                        "ppwcs_score": ppwcs_score,
+                        "whale_activity": "Micro whale activity" in explanations,
+                        "dex_inflow": inflow if inflow > 2 * inflow_avg(symbol) else 0,
+                        "compressed": False,
+                        "stage1g_active": False,
+                        "pure_accumulation": False,
+                        "silent_accumulation_v1": True,
+                        "explanations": explanations
+                    }
+                    
+                    # Dummy TP forecast for GPT function
+                    tp_forecast = {
+                        "TP1": 5.0,
+                        "TP2": 12.0,
+                        "TP3": 25.0,
+                        "TrailingTP": 35.0
+                    }
+                    
+                    # Formatuj wiadomość alertu
+                    alert_message = f"🔵 SILENT ACCUMULATION v1 DETECTED\n\n"
+                    alert_message += f"📊 Symbol: {symbol}\n"
+                    alert_message += f"🎯 PPWCS Score: {ppwcs_score}\n"
+                    alert_message += f"✅ Signals ({score} pts): {', '.join(explanations)}\n"
+                    alert_message += f"⚡ Buying Pressure: {'Yes' if buying_pressure_detected else 'No'}\n"
+                    alert_message += f"🕒 Time: {datetime.now().strftime('%H:%M UTC')}"
+                    
+                    # Wyślij alert
+                    send_alert(alert_message)
+                    
+                    # Wyślij do GPT
+                    send_report_to_gpt(symbol, data, tp_forecast, "Silent Accumulation v1")
+                    
+                    # Zapisz raport
+                    save_conditional_reports(symbol, signals=signals, ppwcs_score=ppwcs_score)
+                    
+                    print(f"✅ Silent Accumulation v1 alert sent for {symbol} (PPWCS: {ppwcs_score})")
+                    
+                except ImportError:
+                    # Fallback - zapisz do cache jak poprzednio
+                    alert_data = {
+                        "symbol": symbol,
+                        "ppwcs_score": ppwcs_score,
+                        "signals": signals,
+                        "detector_type": "silent_accumulation_v1",
+                        "timestamp": str(datetime.now()),
+                        "explanations": explanations
+                    }
+                    
+                    import json
+                    cache_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "silent_accumulation_v1_alerts.json")
+                    os.makedirs(os.path.dirname(cache_file), exist_ok=True)
+                    
+                    existing_alerts = []
+                    if os.path.exists(cache_file):
+                        with open(cache_file, 'r') as f:
+                            existing_alerts = json.load(f)
+                    
+                    existing_alerts.append(alert_data)
+                    
+                    with open(cache_file, 'w') as f:
+                        json.dump(existing_alerts, f, indent=2)
+                    
+                    print(f"✅ Silent Accumulation v1 pattern saved for {symbol} (PPWCS: {ppwcs_score})")
+                
+            except Exception as e:
+                print(f"⚠️ Error in Silent Accumulation v1 alert processing for {symbol}: {e}")
+            
+            return True
+            
+        return False
+
+    except Exception as e:
+        print(f"❌ Silent Accumulation v1 detection failed for {symbol}: {e}")
+        return False
