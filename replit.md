@@ -98,6 +98,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 18, 2025 - Silent Accumulation Detector Integration Complete - PRODUCTION READY
+- **Silent Accumulation detector fully integrated**: Complete integration into main crypto-scan detection flow with comprehensive pattern validation
+- **Advanced pattern recognition**: Detects flat RSI (45-55 range), small candle bodies (<30% of price range), and minimal wicks (<10% of price) over 8-candle periods
+- **Production-ready alert system**: Automatic alert generation with 60 PPWCS score and JSON cache storage for detected patterns
+- **Comprehensive test suite validation**: 5/5 tests passed including perfect pattern detection, RSI validation, body size filtering, wick analysis, and integration testing
+- **Stage 2.1 integration**: Added to stage2_pass logic alongside existing detectors (whale activity, orderbook anomaly, volume spike, DEX inflow, etc.)
+- **Enhanced detection criteria**: Identifies stealth whale accumulation patterns with flat technical indicators, small-body candles (cegiełki), and minimal market noise
+- **Alert cache system**: Automatic saving to data/silent_accumulation_alerts.json with full metadata including symbol, PPWCS score, signals, and timestamps
+- **Production logging**: Clean production code with debug logging removed, maintaining only essential pattern detection alerts
+
 ### June 18, 2025 - Extended Orderbook Heatmap Analysis + Simplified Qualitative Detectors - PRODUCTION READY
 - **Extended orderbook analysis module implemented**: Complete 4-detector system with 3 Bybit API endpoints (/v5/market/orderbook, /v5/market/kline intervals)
 - **Comprehensive orderbook pattern detection**: Analyzes top 25 bid/ask levels, detects wall disappearance (>30% depth reduction), liquidity pinning, void reactions, and volume cluster tilts
