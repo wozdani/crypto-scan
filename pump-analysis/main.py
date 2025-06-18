@@ -860,6 +860,85 @@ Wygeneruj kompletną, działającą funkcję Python gotową do zapisania w pliku
 """
 
         return prompt
+    
+    def generate_pump_analysis_with_context(self, data: Dict, memory_context: str) -> str:
+        """
+        Generate GPT analysis of pre-pump conditions with memory context
+        
+        Args:
+            data: Dictionary with pre-pump analysis data
+            memory_context: Enhanced context from GPT Memory Engine
+            
+        Returns:
+            GPT analysis text
+        """
+        
+        prompt = memory_context + "\n\n" + self._format_analysis_prompt(data)
+        
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": """Jesteś ekspertem analizy rynku kryptowalut specjalizującym się w wykrywaniu wzorców pre-pump.
+                        Wykorzystaj kontekst z poprzednich analiz aby wygenerować precyzyjną analizę. 
+                        Porównaj obecny przypadek z podobnymi wzorcami z przeszłości.
+                        Skup się na praktycznych wskazówkach bazujących na historycznych danych."""
+                    },
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=1500,
+                timeout=45
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            logger.error(f"Error generating GPT analysis with context: {e}")
+            return f"Błąd analizy GPT: {str(e)}"
+    
+    def generate_detector_function_with_context(self, data: Dict, pump_event: 'PumpEvent', memory_context: str) -> str:
+        """
+        Generate Python detector function with memory context and pattern recognition
+        
+        Args:
+            data: Dictionary with pre-pump analysis data
+            pump_event: PumpEvent with pump details
+            memory_context: Enhanced context from GPT Memory Engine
+            
+        Returns:
+            Python function code as string
+        """
+        
+        prompt = memory_context + "\n\n" + self._format_detector_prompt(data, pump_event)
+        
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {
+                        "role": "system", 
+                        "content": """Jesteś ekspertem programowania funkcji detekcyjnych pre-pump.
+                        Wykorzystaj kontekst poprzednich funkcji aby stworzyć ulepszony detektor.
+                        - Unikaj duplikowania logiki z poprzednich funkcji
+                        - Kombinuj najlepsze elementy z udanych detektorów
+                        - Dostosuj progi na podstawie historycznych danych
+                        - Twórz unikalne wzorce dla tego konkretnego przypadku
+                        - Użyj tylko pandas i numpy, bez zewnętrznych bibliotek"""
+                    },
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=2000,
+                timeout=45
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            logger.error(f"Error generating detector function with context: {e}")
+            # Return a basic fallback function
+            return f"""
+def detect_{pump_event.symbol.lower()}_{pump_event.start_time.strftime('%Y%m%d')}_preconditions(df):
+    \"\"\"Fallback detector function due to GPT error: {str(e)}\"\"\"
+    return False
+"""
 
 class TelegramNotifier:
     """Handles Telegram notifications"""
@@ -974,6 +1053,11 @@ class PumpAnalysisSystem:
         # Initialize learning system
         self.learning_system = LearningSystem()
         logger.info("🧠 Learning system initialized")
+        
+        # Initialize GPT Memory Engine
+        from gpt_memory_engine import GPTMemoryEngine
+        self.gpt_memory = GPTMemoryEngine()
+        logger.info("🧠 GPT Memory Engine initialized")
         
         # Create data directory
         os.makedirs('pump_data', exist_ok=True)
@@ -1117,13 +1201,23 @@ class PumpAnalysisSystem:
                                 except Exception as e:
                                     logger.warning(f"⚠️ Learning system test failed: {e}")
                                 
-                                # Generate GPT analysis
-                                logger.info(f"🤖 Generating GPT analysis for {symbol}...")
-                                gpt_analysis = self.gpt_analyzer.generate_pump_analysis(pre_pump_analysis)
+                                # Generate enhanced GPT analysis with memory context
+                                logger.info(f"🤖 Generating GPT analysis for {symbol} with memory context...")
                                 
-                                # Generate Python detector function
-                                logger.info(f"🐍 Generating Python detector function for {symbol}...")
-                                detector_function = self.gpt_analyzer.generate_detector_function(pre_pump_analysis, pump)
+                                # Get context from GPT Memory Engine
+                                memory_context = self.gpt_memory.generate_context_for_gpt(pre_pump_analysis, {
+                                    'symbol': pump.symbol,
+                                    'price_increase_pct': pump.price_increase_pct,
+                                    'duration_minutes': pump.duration_minutes,
+                                    'volume_spike': pump.volume_spike
+                                })
+                                
+                                # Generate GPT analysis with enhanced context
+                                gpt_analysis = self.gpt_analyzer.generate_pump_analysis_with_context(pre_pump_analysis, memory_context)
+                                
+                                # Generate Python detector function with memory context
+                                logger.info(f"🐍 Generating Python detector function for {symbol} with pattern recognition...")
+                                detector_function = self.gpt_analyzer.generate_detector_function_with_context(pre_pump_analysis, pump, memory_context)
                                 
                                 # 📚 ADD TO FUNCTION HISTORY - For future GPT context
                                 try:
@@ -1135,6 +1229,30 @@ class PumpAnalysisSystem:
                                     )
                                 except Exception as e:
                                     logger.warning(f"⚠️ Failed to add function to history: {e}")
+                                
+                                # 🧠 GPT MEMORY ENGINE INTEGRATION - Register detector with full context
+                                logger.info(f"🧠 Registering detector in GPT Memory Engine...")
+                                try:
+                                    # Get crypto-scan signals if available
+                                    crypto_scan_signals = self.gpt_memory.get_crypto_scan_integration_data()
+                                    
+                                    # Register detector function
+                                    function_filename = self.gpt_memory.register_detector_function(
+                                        pump.symbol,
+                                        pump.start_time.strftime('%Y%m%d'),
+                                        detector_function,
+                                        {
+                                            'symbol': pump.symbol,
+                                            'price_increase_pct': pump.price_increase_pct,
+                                            'duration_minutes': pump.duration_minutes,
+                                            'volume_spike': pump.volume_spike
+                                        },
+                                        pre_pump_analysis,
+                                        crypto_scan_signals
+                                    )
+                                    logger.info(f"✅ Detector registered in GPT Memory Engine: {function_filename}")
+                                except Exception as e:
+                                    logger.error(f"❌ Failed to register detector in GPT Memory Engine: {e}")
                                 
                                 # 🧠 LEARNING SYSTEM INTEGRATION - Save GPT function with metadata
                                 logger.info(f"💾 Saving function to learning system...")
