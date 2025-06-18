@@ -538,10 +538,75 @@ class PrePumpAnalyzer:
         return gaps
 
 class GPTAnalyzer:
-    """Handles GPT analysis of pre-pump conditions"""
+    """Handles GPT analysis of pre-pump conditions with function history context"""
     
     def __init__(self, api_key: str):
         self.client = OpenAI(api_key=api_key)
+        self.function_history_file = "function_history.json"
+        self.max_history_size = 5  # Przechowujemy 5 ostatnich funkcji dla kontekstu
+        self.function_history = self._load_function_history()
+    
+    def _load_function_history(self) -> List[Dict]:
+        """Load function history from JSON file"""
+        try:
+            if os.path.exists(self.function_history_file):
+                with open(self.function_history_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            return []
+        except Exception as e:
+            logger.warning(f"Error loading function history: {e}")
+            return []
+    
+    def _save_function_history(self):
+        """Save function history to JSON file"""
+        try:
+            with open(self.function_history_file, 'w', encoding='utf-8') as f:
+                json.dump(self.function_history, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Error saving function history: {e}")
+    
+    def _add_to_function_history(self, symbol: str, date: str, function_code: str, pump_increase: float):
+        """Add new function to history and maintain max size"""
+        function_entry = {
+            'symbol': symbol,
+            'date': date,
+            'function_code': function_code,
+            'pump_increase': pump_increase,
+            'created_at': datetime.now().isoformat()
+        }
+        
+        # Dodaj na początek listy
+        self.function_history.insert(0, function_entry)
+        
+        # Utrzymuj maksymalny rozmiar historii
+        if len(self.function_history) > self.max_history_size:
+            self.function_history = self.function_history[:self.max_history_size]
+        
+        # Zapisz do pliku
+        self._save_function_history()
+        logger.info(f"📚 Added function to history: detect_{symbol}_{date}_preconditions (pump: +{pump_increase:.1f}%)")
+    
+    def _format_function_history_context(self) -> str:
+        """Format function history for GPT context"""
+        if not self.function_history:
+            return ""
+        
+        context = "\n=== WCZEŚNIEJSZE FUNKCJE DETEKCJI ===\n"
+        context += "Poniżej znajdują się ostatnie wygenerowane funkcje detekcyjne z podobnych przypadków pump'ów:\n\n"
+        
+        for i, entry in enumerate(self.function_history, 1):
+            context += f"# Funkcja {i}: {entry['symbol']} (+{entry['pump_increase']:.1f}%) - {entry['date']}\n"
+            context += entry['function_code'] + "\n\n"
+        
+        context += "=== KONIEC HISTORII FUNKCJI ===\n\n"
+        context += "UWAGI DO NOWEJ FUNKCJI:\n"
+        context += "- Porównaj nowy przypadek z powyższymi wzorcami\n"
+        context += "- Unikaj powielania identycznej logiki\n"
+        context += "- Wykorzystaj najlepsze elementy z poprzednich funkcji\n"
+        context += "- Dostosuj thresholdy do specyfiki nowego przypadku\n"
+        context += "- Jeśli wzorzec jest podobny, ulepsz istniejącą logikę\n\n"
+        
+        return context
         
     def generate_pump_analysis(self, pre_pump_data: Dict) -> str:
         """
@@ -606,8 +671,12 @@ class GPTAnalyzer:
             Python function code as string
         """
         
-        # Create prompt for function generation
+        # Create prompt for function generation with history context
+        history_context = self._format_function_history_context()
         prompt = self._format_detector_prompt(pre_pump_data, pump_event)
+        
+        # Combine history context with new prompt
+        full_prompt = history_context + prompt
         
         try:
             response = self.client.chat.completions.create(
@@ -625,11 +694,18 @@ class GPTAnalyzer:
                         4. Nazwa funkcji: detect_{symbol}_{date}_preconditions()
                         5. Dodaj docstring z opisem wzorca
                         6. Implementuj konkretną logikę na podstawie dostarczonych danych
-                        7. Używaj realistic thresholds bazujących na danych wejściowych"""
+                        7. Używaj realistic thresholds bazujących na danych wejściowych
+                        
+                        KONTEKST HISTORII FUNKCJI:
+                        - Masz dostęp do wcześniejszych funkcji detekcyjnych
+                        - Porównuj nowy przypadek z poprzednimi wzorcami
+                        - Unikaj powielania identycznej logiki
+                        - Wykorzystuj najlepsze elementy z poprzednich funkcji
+                        - Jeśli wzorzec jest podobny, ulepsz istniejącą logikę"""
                     },
                     {
                         "role": "user",
-                        "content": prompt
+                        "content": full_prompt
                     }
                 ],
                 max_tokens=2000,
@@ -1018,6 +1094,17 @@ class PumpAnalysisSystem:
                                 # Generate Python detector function
                                 logger.info(f"🐍 Generating Python detector function for {symbol}...")
                                 detector_function = self.gpt_analyzer.generate_detector_function(pre_pump_analysis, pump)
+                                
+                                # 📚 ADD TO FUNCTION HISTORY - For future GPT context
+                                try:
+                                    self.gpt_analyzer._add_to_function_history(
+                                        pump.symbol,
+                                        pump.start_time.strftime('%Y%m%d'),
+                                        detector_function,
+                                        pump.price_increase_pct
+                                    )
+                                except Exception as e:
+                                    logger.warning(f"⚠️ Failed to add function to history: {e}")
                                 
                                 # 🧠 LEARNING SYSTEM INTEGRATION - Save GPT function with metadata
                                 logger.info(f"💾 Saving function to learning system...")
