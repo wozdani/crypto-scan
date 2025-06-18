@@ -98,6 +98,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 18, 2025 - OnChain Insights Module + Descriptive Analysis Integration - PRODUCTION READY
+- **OnChain Insights module implemented**: Complete on-chain analysis module providing descriptive text insights instead of rigid boolean conditions
+- **Descriptive on-chain messaging**: System generates natural language descriptions like "Detected whale transfer of over $40,000 to exchange" replacing "whale_tx": true
+- **Multi-chain blockchain integration**: Supports Ethereum, BSC, Polygon, Arbitrum, Optimism with real-time transaction analysis via scanner APIs
+- **Comprehensive on-chain detection**: Whale transactions, DEX inflows/outflows, bridge activity, new wallet interactions, approval transactions
+- **GPT-friendly data format**: On-chain insights formatted as descriptive text array under "onchain_insights" key for flexible GPT interpretation
+- **Contract mapping integration**: Leverages crypto-scan contract cache and CoinGecko data for accurate token-to-contract resolution
+- **Enhanced strategic analysis**: GPT now receives both technical indicators and descriptive on-chain activity for comprehensive pre-pump analysis
+- **Confidence-based insights**: All on-chain insights include confidence scores and source attribution for quality assessment
+- **Production testing suite**: Complete test module (test_onchain_insights.py) for validation and development
+
 ### June 18, 2025 - Dynamic GPT Strategic Analysis System - PRODUCTION READY
 - **GPT feedback system completely overhauled**: Replaced rigid detector functions with dynamic descriptive analysis mode
 - **60-minute pre-pump data window**: Enhanced GPT strategic analysis with comprehensive market data including timestamp, OHLCV, VWAP, RSI, and pump_start_timestamp context

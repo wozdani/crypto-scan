@@ -892,10 +892,19 @@ ANALIZA PRE-PUMP - {data['symbol']}
             for gap in data['liquidity_gaps']:
                 prompt += f"  - {gap['type']}: {gap['size_pct']:.2f}% ({gap['time_minutes_before_pump']} min przed)\n"
 
+        # Add on-chain insights section
+        if 'onchain_insights' in data and data['onchain_insights']:
+            prompt += f"""
+=== AKTYWNOŚĆ ON-CHAIN ===
+Wykryte sygnały z blockchain'a w okresie przed pumpem:
+"""
+            for insight in data['onchain_insights']:
+                prompt += f"• {insight}\n"
+        
         prompt += """
 
 === ZADANIE ANALIZY ===
-Na podstawie powyższych danych z 60 minut przed pumpem, przeanalizuj:
+Na podstawie powyższych danych z 60 minut przed pumpem oraz sygnałów on-chain, przeanalizuj:
 
 1. Jakie były najważniejsze sygnały ostrzegawcze?
 2. Czy struktura rynku wskazywała na przygotowania do ruchu?
@@ -1339,7 +1348,16 @@ class PumpAnalysisSystem:
                                 # Get 60-minute pre-pump candle data for enhanced GPT analysis
                                 pre_pump_candles = self._get_pre_pump_candles_for_testing(pump)
                                 
-                                # Generate strategic analysis using new dynamic approach
+                                # Analyze on-chain activity for descriptive insights
+                                logger.info(f"⛓️ Analyzing on-chain activity for {symbol}...")
+                                onchain_insights = self.onchain_analyzer.analyze_onchain_activity(symbol, timeframe_hours=1)
+                                onchain_messages = self.onchain_analyzer.format_insights_for_gpt(onchain_insights)
+                                logger.info(f"⛓️ Generated {len(onchain_messages)} on-chain insights for {symbol}")
+                                
+                                # Add on-chain insights to pre-pump analysis
+                                pre_pump_analysis['onchain_insights'] = onchain_messages
+                                
+                                # Generate strategic analysis using new dynamic approach with on-chain data
                                 gpt_analysis = self.gpt_analyzer.generate_strategic_analysis(pre_pump_analysis, pump, pre_pump_candles)
                                 
                                 # No longer generating rigid detector functions - using strategic analysis instead
