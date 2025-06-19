@@ -28,6 +28,10 @@ args = "Pump Analysis"
 task = "workflow.run"
 args = "Pump Analysis Scheduler"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Pump Analysis Simple"
+
 [[workflows.workflow]]
 name = "Crypto Scanner"
 author = "agent"
@@ -60,6 +64,14 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd pump-analysis && python scheduler.py"
+
+[[workflows.workflow]]
+name = "Pump Analysis Simple"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd pump-analysis && python main_simple.py"
 
 [deployment]
 run = ["sh", "-c", "uv run python app.py"]
