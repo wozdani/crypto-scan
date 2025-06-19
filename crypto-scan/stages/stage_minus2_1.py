@@ -10,7 +10,6 @@ from stages.stage_minus2_2 import detect_stage_minus2_2
 from stages.stage_1g import detect_stage_1g
 from stages.stage_minus1 import detect_stage_minus1_compression
 from utils.custom_detectors import detect_stealth_acc, detect_rsi_flatline, get_rsi_from_data
-import numpy as np
 import json
 import os
 import requests
@@ -100,8 +99,11 @@ def detect_volume_spike(symbol, data):
 
         # Dla testow uzywamy tylko jednej wczesniejszej swiecy (w przyszlosci 4)
         volumes = [prev_volume, current_volume]
-        mean_volume = np.mean(volumes)
-        std_volume = np.std(volumes)
+        mean_volume = sum(volumes) / len(volumes)
+        
+        # Oblicz odchylenie standardowe bez numpy
+        variance = sum((v - mean_volume) ** 2 for v in volumes) / len(volumes)
+        std_volume = variance ** 0.5
 
         z_score = (current_volume -
                    mean_volume) / std_volume if std_volume > 0 else 0

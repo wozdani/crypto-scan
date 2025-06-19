@@ -1,4 +1,3 @@
-import numpy as np
 from utils.data_fetchers import get_all_data
 
 def detect_vwap_pinning(symbol, data):
