@@ -998,6 +998,37 @@ def detect_stage_minus2_1(symbol, price_usd=None):
 
         # DEX INFLOW 2.0 - Enhanced detection with DexScreener API + multi-wallet logic
         dex_inflow_detected, dex_inflow_data, multi_wallet_data = detect_dex_inflow_anomaly(symbol, price_usd=price_usd)
+        
+        # Liquidity Behavior Detector - Stage -2.1 nowy detektor
+        liquidity_behavior_detected = False
+        liquidity_behavior_details = {}
+        
+        try:
+            from utils.liquidity_behavior import detect_liquidity_behavior, liquidity_analyzer
+            from utils.orderbook_collector import orderbook_collector
+            
+            # Pobierz i zapisz snapshot orderbooku
+            snapshot_success = orderbook_collector.collect_and_store_snapshot(symbol)
+            
+            if snapshot_success:
+                # Uruchom detekcję zachowań płynności
+                liquidity_behavior_detected, liquidity_behavior_details = detect_liquidity_behavior(symbol)
+                
+                if liquidity_behavior_detected:
+                    print(f"💧 [LIQUIDITY BEHAVIOR] {symbol}: Detected {liquidity_behavior_details.get('active_behaviors_count', 0)}/4 behaviors")
+                    print(f"   - Layered bids: {liquidity_behavior_details.get('layered_bids', {}).get('detected', False)}")
+                    print(f"   - Pinned orders: {liquidity_behavior_details.get('pinned_orders', {}).get('detected', False)}")
+                    print(f"   - Void reaction: {liquidity_behavior_details.get('void_reaction', {}).get('detected', False)}")
+                    print(f"   - Fractal pullback: {liquidity_behavior_details.get('fractal_pullback', {}).get('detected', False)}")
+                else:
+                    print(f"💧 [LIQUIDITY BEHAVIOR] {symbol}: No significant patterns detected ({liquidity_behavior_details.get('active_behaviors_count', 0)}/4)")
+            else:
+                print(f"⚠️ [LIQUIDITY BEHAVIOR] {symbol}: Failed to collect orderbook snapshot")
+                
+        except Exception as e:
+            print(f"❌ [LIQUIDITY BEHAVIOR] Error for {symbol}: {e}")
+            liquidity_behavior_detected = False
+            liquidity_behavior_details = {"error": str(e)}
         inflow_usd = dex_inflow_data.get("dex_inflow_score", 0)  # Use score instead of USD value
         
         # Store DEX INFLOW 2.0 detailed data for logging
@@ -1026,7 +1057,7 @@ def detect_stage_minus2_1(symbol, price_usd=None):
         # Stage 1g – tylko jeśli spełnione warunki wstępne
         stage1g_active, stage1g_trigger_type = detect_stage_1g(symbol, data, event_tag)
 
-        # Przygotuj sygnały Stage -2.1 dla PPWCS 2.6 z DEX INFLOW 2.0
+        # Przygotuj sygnały Stage -2.1 dla PPWCS 2.6 z DEX INFLOW 2.0 + Liquidity Behavior
         stage_minus2_1_signals = {
             "whale_activity": whale_activity,
             "dex_inflow": dex_inflow_detected,
@@ -1036,7 +1067,8 @@ def detect_stage_minus2_1(symbol, price_usd=None):
             "spoofing": spoofing_suspected,
             "cluster_slope": volume_slope_up,
             "heatmap_exhaustion": heatmap_exhaustion,
-            "social_spike": social_spike_active
+            "social_spike": social_spike_active,
+            "liquidity_behavior": liquidity_behavior_detected
         }
 
         # Stage -1: Compression Filter (PPWCS 2.6)

@@ -48,7 +48,7 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int
             "compressed": 10,         # Stage -1 compression
             "stage1g_active": 10,     # Stage 1G breakout active
             "event_tag": 10,          # Listing/partnership events
-            "liquidity_behavior": 7, # Strategic liquidity analysis
+            "liquidity_behavior": 7,  # Liquidity Behavior Detector
             "shadow_sync_v2": 25     # Shadow Sync Detector v2 – Stealth Protocol (Premium)
         }
         
@@ -82,7 +82,7 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int
                     ppwcs_score = 0
         
         final_score = max(0, ppwcs_score)
-        print(f"[PPWCS Pre-Pump 2.0] Final CORE score: {final_score}/65 (Active: {len(active_core_detectors)}/6)")
+        print(f"[PPWCS Pre-Pump 2.0] Final CORE score: {final_score}/97 (Active: {len(active_core_detectors)}/7)")
         
         # Log soft detectors for context (not scored)
         soft_detectors = ["rsi_flatline", "gas_pressure", "dominant_accumulation", "spoofing", 
