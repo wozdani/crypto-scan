@@ -216,6 +216,79 @@ function createPerformerItem(performer) {
     `;
 }
 
+// Whale Priority Functions
+async function refreshWhalePriority() {
+    const container = document.getElementById('whale-priority-list');
+    if (!container) return;
+    
+    try {
+        showLoading(container);
+        
+        const response = await fetch('/api/whale-priority');
+        const data = await response.json();
+        
+        if (data.error) {
+            showError(container, data.error);
+            return;
+        }
+        
+        if (!data.priority_tokens || data.priority_tokens.length === 0) {
+            showNoData(container, 'No whale priority tokens detected');
+            return;
+        }
+        
+        container.innerHTML = data.priority_tokens.slice(0, 8).map(token => createWhalePriorityItem(token)).join('');
+        
+    } catch (error) {
+        console.error('Error fetching whale priority:', error);
+        showError(container, 'Failed to load whale priority data');
+    }
+}
+
+function createWhalePriorityItem(token) {
+    const priorityClass = getPriorityClass(token.priority_score);
+    const patternIcon = getWhalePatternIcon(token.whale_pattern);
+    const underWatchBadge = token.under_watch ? '<span class="badge bg-warning ms-2">WATCH</span>' : '';
+    
+    return `
+        <div class="whale-priority-item mb-2 p-2 border rounded">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="symbol-link fw-bold" onclick="showSymbolDetails('${token.symbol}')">
+                        ${patternIcon} ${token.symbol}
+                    </span>
+                    ${underWatchBadge}
+                    <div class="small text-muted">
+                        ${token.whale_count} whale TX, ${token.minutes_ago}min ago
+                    </div>
+                </div>
+                <div class="text-end">
+                    <span class="priority-score ${priorityClass}">
+                        ${token.priority_score}
+                    </span>
+                    ${token.whale_score_boost > 0 ? `<div class="small text-success">+${token.whale_score_boost} boost</div>` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function getPriorityClass(score) {
+    if (score >= 80) return 'text-danger fw-bold';
+    if (score >= 60) return 'text-warning fw-bold';
+    if (score >= 40) return 'text-info';
+    return 'text-muted';
+}
+
+function getWhalePatternIcon(pattern) {
+    switch (pattern) {
+        case 'repeat_cluster': return '🔄';
+        case 'double_whale': return '🐋🐋';
+        case 'repeat_address_cluster': return '📍';
+        default: return '🐋';
+    }
+}
+
 // Recent Alerts Functions
 async function refreshRecentAlerts() {
     const container = document.getElementById('recent-alerts-list');
@@ -529,6 +602,7 @@ function refreshAll() {
         refreshSystemStatus(),
         refreshMarketOverview(),
         refreshTopPerformers(),
+        refreshWhalePriority(),
         refreshRecentAlerts(),
         refreshGptAnalyses()
     ]).finally(() => {
