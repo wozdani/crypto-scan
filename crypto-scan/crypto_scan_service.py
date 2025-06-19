@@ -281,9 +281,9 @@ def scan_cycle():
             try:
                 # Pobierz dane świec dla Stage -1 rhythm analysis
                 success, market_data, price_usd, is_valid = get_market_data(symbol)
-                if success and market_data and 'candles' in market_data:
-                    candles_data = market_data['candles']
-                    if len(candles_data) >= 6:
+                if success and market_data and isinstance(market_data, dict) and 'candles' in market_data:
+                    candles_data = market_data.get('candles')
+                    if candles_data and isinstance(candles_data, list) and len(candles_data) >= 6:
                         stage_minus1_detected, stage_minus1_description = detect_stage_minus1(candles_data)
                         if stage_minus1_detected:
                             print(f"🎵 {symbol}: Stage -1 DETECTED - {stage_minus1_description}")
