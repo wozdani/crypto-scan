@@ -6,6 +6,7 @@ from utils.heatmap_exhaustion import detect_heatmap_exhaustion, analyze_orderboo
 from utils.orderbook_spoofing import detect_orderbook_spoofing, analyze_orderbook_walls
 from utils.vwap_pinning import detect_vwap_pinning, analyze_vwap_control, get_recent_market_data
 from utils.volume_cluster_slope import detect_volume_cluster_slope, get_recent_candle_data, analyze_volume_price_dynamics
+from utils.dexscreener_inflow import get_dexscreener_inflow_score, detect_repeat_value_multi_wallets
 from stages.stage_minus2_2 import detect_stage_minus2_2
 from stages.stage_1g import detect_stage_1g
 from stages.stage_minus1 import detect_stage_minus1_compression
@@ -246,101 +247,61 @@ def is_chain_supported(chain: str) -> bool:
 
 def detect_dex_inflow_anomaly(symbol, price_usd=None):
     """
-    Enhanced DEX inflow detection with dynamic thresholds and known DEX addresses
-    Returns: True/False based on inflow analysis
+    DEX INFLOW 2.0 - Enhanced detection with DexScreener API + multi-wallet logic
+    Returns: (dex_inflow_detected, dex_inflow_data, multi_wallet_data)
     """
     try:
-        import sys
-        import os
-        sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-        from data.known_dex_addresses import DEX_ADDRESSES
+        print(f"🔍 DEX INFLOW 2.0 analysis for {symbol}...")
         
         # Get contract information
         contract_info = get_contract(symbol)
         if not contract_info or not isinstance(contract_info, dict):
             print(f"⚠️ Brak kontraktu dla {symbol}")
-            return False
+            return False, {}, {}
 
         address = contract_info.get("address")
         chain = contract_info.get("chain", "").lower()
         
         if not address or not chain:
             print(f"⚠️ Niepełne dane kontraktu dla {symbol}")
-            return False
+            return False, {}, {}
 
-        # Check if chain is supported
-        if not is_chain_supported(chain):
-            print(f"⚠️ Chain {chain} nieobsługiwany dla {symbol}")
-            return False
-
-        # Get DEX addresses for this chain
-        dex_addresses = DEX_ADDRESSES.get(chain, [])
-        if not dex_addresses:
-            print(f"⚠️ Brak adresów DEX dla chain {chain}")
-            return False
-
-        # Convert DEX addresses to lowercase for comparison
-        dex_addresses_lower = [addr.lower() for addr in dex_addresses]
-
-        # 1. Get token transactions
-        txs = get_token_transfers(address, chain)
-        if not txs:
-            return False
-
-        # 2. Calculate dynamic threshold: max(market_cap * 0.0005, 3000 USD)
-        if price_usd and price_usd > 0:
-            # Estimate market cap (simplified calculation)
-            estimated_market_cap = price_usd * 1000000000  # Assume 1B token supply
-            base_threshold = estimated_market_cap * 0.0005  # 0.05% market cap
-        else:
-            base_threshold = 0
+        # 1. DexScreener API Analysis
+        print(f"📊 Analyzing DexScreener data for {symbol}...")
+        dex_data = get_dexscreener_inflow_score(address, chain)
         
-        min_usd = 3000
-        threshold = max(base_threshold, min_usd)
-
-        # 3. Process transactions and calculate inflow
-        inflow_total = 0
-        inflow_tx_count = 0
-
-        for tx in txs[:50]:  # Analyze last 50 transactions
-            try:
-                to_addr = tx.get("to", "").lower()
-                
-                # Check if transaction is to a known DEX address
-                if to_addr in dex_addresses_lower:
-                    # Calculate USD value
-                    decimals = int(tx.get("decimals", 18))
-                    amount = float(tx.get("value", 0)) / (10 ** decimals)
-                    
-                    if price_usd and price_usd > 0:
-                        usd_value = amount * price_usd
-                        
-                        # Filter microscopic transactions below $50
-                        if usd_value >= 50:
-                            inflow_total += usd_value
-                            inflow_tx_count += 1
-                            
-            except (ValueError, TypeError) as e:
-                print(f"⚠️ Error processing transaction for {symbol}: {e}")
-                continue
-
-        # 4. Determine inflow status
-        if inflow_total >= threshold:
-            print(f"✅ DEX inflow wykryty dla {symbol}: {inflow_total:.2f} USD > próg {threshold:.2f}")
-            print(f"   Transakcji DEX: {inflow_tx_count}, Chain: {chain}")
-            return True
-
-        elif inflow_tx_count >= 3 and inflow_total >= threshold * 0.5:
-            print(f"🟡 Umiarkowany inflow dla {symbol}: {inflow_total:.2f} USD ({inflow_tx_count} txs)")
-            return True
-
+        # 2. Multi-wallet detection via blockchain transactions
+        print(f"🔄 Analyzing multi-wallet patterns for {symbol}...")
+        
+        # Get recent token transfers
+        txs = get_token_transfers(address, chain)
+        multi_wallet_data = detect_repeat_value_multi_wallets(txs, address)
+        
+        # 3. Combined scoring logic
+        total_dex_score = dex_data.get("dex_inflow_score", 0)
+        
+        # Multi-wallet boost
+        if multi_wallet_data.get("multi_wallet_repeat", False):
+            multi_wallet_boost = 5
+            total_dex_score += multi_wallet_boost
+            print(f"🔄 Multi-wallet boost: +{multi_wallet_boost} points for {symbol}")
+        
+        # 4. Final detection decision
+        dex_inflow_detected = total_dex_score >= 5  # Minimum threshold
+        
+        if dex_inflow_detected:
+            print(f"✅ DEX INFLOW 2.0 detected for {symbol}: score={total_dex_score}")
+            print(f"   DexScreener: {dex_data.get('volume_1h_usd', 0):,.0f} USD, {dex_data.get('dex_name', 'unknown')}")
+            if multi_wallet_data.get("multi_wallet_repeat"):
+                print(f"   Multi-wallet: {multi_wallet_data.get('multi_wallet_unique_wallets', 0)} wallets, avg ${multi_wallet_data.get('multi_wallet_avg_usd', 0):,.0f}")
         else:
-            print(f"❌ Brak istotnego inflow dla {symbol}: {inflow_total:.2f} USD ({inflow_tx_count} txs)")
-            return False
+            print(f"❌ DEX INFLOW 2.0 not detected for {symbol}: score={total_dex_score} < 5")
+        
+        return dex_inflow_detected, dex_data, multi_wallet_data
 
     except Exception as e:
-        print(f"❌ Błąd w detect_dex_inflow dla {symbol}: {e}")
-        return False
+        print(f"❌ Error in DEX INFLOW 2.0 for {symbol}: {e}")
+        return False, {}, {}
 
 def get_token_transfers(address, chain):
     """
@@ -1035,9 +996,21 @@ def detect_stage_minus2_1(symbol, price_usd=None):
         else:
             print(f"⚠️ Brak ceny USD dla {symbol} (price_usd={price_usd}) – pomijam whale tx.")
 
-        # DEX inflow
-        inflow_usd = detect_dex_inflow_anomaly(symbol, price_usd=price_usd)
-        dex_inflow_detected = inflow_usd > 0
+        # DEX INFLOW 2.0 - Enhanced detection with DexScreener API + multi-wallet logic
+        dex_inflow_detected, dex_inflow_data, multi_wallet_data = detect_dex_inflow_anomaly(symbol, price_usd=price_usd)
+        inflow_usd = dex_inflow_data.get("dex_inflow_score", 0)  # Use score instead of USD value
+        
+        # Store DEX INFLOW 2.0 detailed data for logging
+        dex_inflow_details = {
+            "dex_tags": dex_inflow_data.get("dex_tags", []),
+            "volume_1h_usd": dex_inflow_data.get("volume_1h_usd", 0),
+            "volume_change_h1": dex_inflow_data.get("volume_change_h1", 0),
+            "dex_name": dex_inflow_data.get("dex_name", "unknown"),
+            "last_trade_ago_min": dex_inflow_data.get("last_trade_ago_min", 999),
+            "multi_wallet_repeat": multi_wallet_data.get("multi_wallet_repeat", False),
+            "multi_wallet_avg_usd": multi_wallet_data.get("multi_wallet_avg_usd", 0),
+            "multi_wallet_tx_count": multi_wallet_data.get("multi_wallet_tx_count", 0)
+        }
         
         # Stealth inflow detection
         stealth_inflow_active, inflow_strength = detect_stealth_inflow(
@@ -1155,7 +1128,9 @@ def detect_stage_minus2_1(symbol, price_usd=None):
         signals = {
             # Stage -2.1 Core Detectors (PPWCS 2.6)
             "whale_activity": whale_activity,
-            "dex_inflow": inflow_usd > 0,
+            "dex_inflow": dex_inflow_detected,
+            "dex_inflow_score": inflow_usd,
+            "dex_inflow_details": dex_inflow_details,
             "orderbook_anomaly": orderbook_anomaly,
             "volume_spike": volume_spike_active,
             "spoofing": spoofing_suspected,
