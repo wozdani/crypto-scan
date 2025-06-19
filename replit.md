@@ -100,12 +100,13 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ### June 19, 2025 - Complete Trend Mode Pipeline Implementation - PRODUCTION READY
 - **Revolutionary trend mode pipeline implemented**: Complete integration of Stage -1 rhythm detection with orderbook sentiment analysis without classical technical indicators
+- **Main pipeline function**: `detect_trend_mode(symbol, data, get_orderbook_func)` combining behavioral Stage -1 analysis with orderbook sentiment detection
 - **Two-module architecture**: detect_stage_minus1 (market tension/rhythm) + detect_orderbook_sentiment (bid/ask pressure analysis) working in perfect harmony
 - **Advanced orderbook sentiment detection**: Analyzes bid dominance, spread tightness, and bid reloading patterns to confirm market readiness for trend continuation
 - **Comprehensive Bybit integration**: Full orderbook data fetching with authentication, fallback mechanisms, and mock data for development environments
 - **Complete pipeline testing**: 7/7 comprehensive tests passed including Stage -1 detection, orderbook analysis, full integration, negative cases, and performance validation
 - **Enhanced API endpoints**: New `/api/trend-mode-alerts` endpoint for pipeline alerts alongside existing `/api/stage-minus1-alerts` for rhythm-only detection
-- **Production-ready integration**: Full integration with main scan cycle including trend mode confidence scoring, alert generation, and JSON persistence
+- **Production-ready integration**: Full integration with main scan cycle using `detect_trend_mode_extended()` for compatibility with existing alert systems
 - **Intelligent fallback system**: Uses mock orderbook data in development while maintaining production-ready Bybit API integration with proper authentication
 - **Complete documentation and statistics**: Comprehensive logging, statistics tracking, and performance monitoring for trend mode pipeline operations
 
