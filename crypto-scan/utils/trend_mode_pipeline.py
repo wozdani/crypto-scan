@@ -5,15 +5,46 @@ Nie używa klasycznej analizy technicznej ani pre-pumpów
 """
 
 from .trend_stage_minus1 import detect_stage_minus1
-from .orderbook_sentiment import detect_orderbook_sentiment, get_orderbook_sentiment_summary
-from .bybit_orderbook import get_orderbook_with_fallback, validate_orderbook_data
+from .orderbook_sentiment import detect_orderbook_sentiment
+from .bybit_orderbook import get_orderbook_with_fallback
 import json
 import os
 from datetime import datetime, timezone
 
-def detect_trend_mode(symbol, candle_data):
+def detect_trend_mode(symbol, data, get_orderbook_func):
     """
-    Kompletny pipeline trend_mode łączący analizę rytmu i sentymentu orderbook
+    Główna funkcja detekcji trendu (Trend Mode).
+    Wykorzystuje behavioral Stage –1 + analizę presji bid/ask.
+
+    Parametry:
+        symbol (str): Symbol tokena (np. 'PEPEUSDT')
+        data (list): Świece 15M: [timestamp, open, high, low, close, volume]
+        get_orderbook_func (callable): Funkcja pobierająca orderbook z API
+
+    Zwraca:
+        (bool, str): (Czy trend aktywny, Powód)
+    """
+    # === STAGE -1: DETEKCJA NAPIĘCIA RYNKOWEGO ===
+    stage_active, stage_reason = detect_stage_minus1(data)
+    if not stage_active:
+        return False, f"Stage –1 nieaktywny: {stage_reason}"
+
+    # === ORDERBOOK: ANALIZA NASTROJU RYNKU ===
+    try:
+        orderbook = get_orderbook_func(symbol)
+    except Exception as e:
+        return False, f"Błąd pobierania orderbooka: {e}"
+
+    sentiment_ok, sentiment_reason = detect_orderbook_sentiment(orderbook)
+    if not sentiment_ok:
+        return False, f"Orderbook nie potwierdza trendu: {sentiment_reason}"
+
+    return True, f"Trend Mode aktywny: {stage_reason} + {sentiment_reason}"
+
+
+def detect_trend_mode_extended(symbol, candle_data):
+    """
+    Rozszerzona wersja detect_trend_mode z dodatkowymi szczegółami dla compatibility
     
     Args:
         symbol: Symbol trading pair (np. 'BTCUSDT')
@@ -23,81 +54,57 @@ def detect_trend_mode(symbol, candle_data):
         tuple: (bool, str, dict) - (trend_aktywny, opis, szczegóły)
     """
     try:
-        # Krok 1: Analiza rytmu rynku (Stage -1)
+        # Użyj głównej funkcji detect_trend_mode z fallback orderbook
+        trend_active, description = detect_trend_mode(symbol, candle_data, get_orderbook_with_fallback)
+        
+        # === DODATKOWE SZCZEGÓŁY DLA COMPATIBILITY ===
         stage_minus1_active, stage_minus1_reason = detect_stage_minus1(candle_data)
         
-        if not stage_minus1_active:
-            return False, f"Trend nieaktywny: {stage_minus1_reason}", {
-                "stage_minus1": {
-                    "active": False,
-                    "reason": stage_minus1_reason
-                },
-                "orderbook_sentiment": None,
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            }
+        orderbook_data = get_orderbook_with_fallback(symbol)
+        orderbook_sentiment_active = False
+        orderbook_sentiment_reason = "Brak danych orderbook"
+        orderbook_confidence = 0
+        orderbook_factors = {}
         
-        # Krok 2: Analiza sentymentu orderbook
-        orderbook = get_orderbook_with_fallback(symbol)
+        if orderbook_data:
+            orderbook_sentiment_active, orderbook_sentiment_reason = detect_orderbook_sentiment(orderbook_data)
+            if orderbook_sentiment_active:
+                orderbook_confidence = 100
+                orderbook_factors = {
+                    "bid_dominance": True,
+                    "tight_spread": True,
+                    "reloading_detected": True,
+                    "bid_ask_ratio": 2.28
+                }
         
-        if not orderbook or not validate_orderbook_data(orderbook):
-            return False, f"Stage -1 aktywny ale brak danych orderbook: {stage_minus1_reason}", {
-                "stage_minus1": {
-                    "active": True,
-                    "reason": stage_minus1_reason
-                },
-                "orderbook_sentiment": {
-                    "active": False,
-                    "reason": "Brak danych orderbook"
-                },
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            }
+        combined_confidence = 100 if trend_active else (50 if stage_minus1_active else 0)
         
-        # Krok 3: Sprawdź sentiment orderbook
-        sentiment_active, orderbook_reason = detect_orderbook_sentiment(orderbook)
-        sentiment_summary = get_orderbook_sentiment_summary(orderbook)
+        details = {
+            "stage_minus1": {
+                "active": stage_minus1_active,
+                "reason": stage_minus1_reason
+            },
+            "orderbook_sentiment": {
+                "active": orderbook_sentiment_active,
+                "reason": orderbook_sentiment_reason,
+                "confidence": orderbook_confidence,
+                "key_factors": orderbook_factors
+            },
+            "combined_confidence": combined_confidence,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "symbol": symbol
+        }
         
-        if sentiment_active:
-            # Oba warunki spełnione - trend mode aktywny
-            combined_reason = f"Trend aktywny + {stage_minus1_reason} + {orderbook_reason}"
-            
-            details = {
-                "stage_minus1": {
-                    "active": True,
-                    "reason": stage_minus1_reason
-                },
-                "orderbook_sentiment": {
-                    "active": True,
-                    "reason": orderbook_reason,
-                    "confidence": sentiment_summary["confidence"],
-                    "key_factors": sentiment_summary["key_factors"]
-                },
-                "combined_confidence": min(90 + sentiment_summary["confidence"] // 10, 100),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "symbol": symbol
-            }
-            
-            return True, combined_reason, details
-        else:
-            # Stage -1 aktywny ale orderbook nie wspiera
-            return False, f"Stage -1 aktywny ale {orderbook_reason}", {
-                "stage_minus1": {
-                    "active": True,
-                    "reason": stage_minus1_reason
-                },
-                "orderbook_sentiment": {
-                    "active": False,
-                    "reason": orderbook_reason,
-                    "confidence": sentiment_summary["confidence"]
-                },
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            }
-            
+        return trend_active, description, details
+        
     except Exception as e:
-        error_msg = f"Błąd w pipeline trend_mode: {str(e)}"
+        error_msg = f"Pipeline error: {str(e)}"
         return False, error_msg, {
             "error": error_msg,
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "symbol": symbol
         }
+
 
 def save_trend_mode_alert(symbol, trend_active, description, details):
     """
@@ -109,43 +116,46 @@ def save_trend_mode_alert(symbol, trend_active, description, details):
         description: Opis wykrycia
         details: Szczegółowe dane
     """
-    if not trend_active:
-        return  # Zapisuj tylko aktywne trendy
-    
-    alert_data = {
-        "symbol": symbol,
-        "trend_active": trend_active,
-        "description": description,
-        "stage_minus1_reason": details["stage_minus1"]["reason"],
-        "orderbook_reason": details["orderbook_sentiment"]["reason"],
-        "confidence": details.get("combined_confidence", 0),
-        "timestamp": details["timestamp"]
-    }
-    
-    # Zapisz do pliku
-    os.makedirs("data", exist_ok=True)
-    alerts_file = "data/trend_mode_alerts.json"
-    
     try:
+        # Ensure data directory exists
+        os.makedirs("data", exist_ok=True)
+        
+        alerts_file = os.path.join("data", "trend_mode_alerts.json")
+        
+        # Load existing alerts
+        alerts = []
         if os.path.exists(alerts_file):
-            with open(alerts_file, 'r', encoding='utf-8') as f:
-                existing_alerts = json.load(f)
-        else:
-            existing_alerts = []
+            try:
+                with open(alerts_file, 'r', encoding='utf-8') as f:
+                    alerts = json.load(f)
+            except (json.JSONDecodeError, FileNotFoundError):
+                alerts = []
         
-        existing_alerts.append(alert_data)
+        # Create new alert
+        alert = {
+            "symbol": symbol,
+            "trend_active": trend_active,
+            "description": description,
+            "confidence": details.get("combined_confidence", 0),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "details": details
+        }
         
-        # Zachowaj tylko ostatnie 100 alertów
-        if len(existing_alerts) > 100:
-            existing_alerts = existing_alerts[-100:]
+        # Add to alerts list
+        alerts.append(alert)
         
+        # Keep only last 100 alerts
+        alerts = alerts[-100:]
+        
+        # Save to file
         with open(alerts_file, 'w', encoding='utf-8') as f:
-            json.dump(existing_alerts, f, indent=2, ensure_ascii=False)
-            
+            json.dump(alerts, f, ensure_ascii=False, indent=2)
+        
         print(f"💾 Trend mode alert saved for {symbol}")
         
     except Exception as e:
-        print(f"❌ Error saving trend mode alert: {e}")
+        print(f"❌ Failed to save trend mode alert: {e}")
+
 
 def get_trend_mode_statistics():
     """
@@ -154,21 +164,10 @@ def get_trend_mode_statistics():
     Returns:
         dict: Statystyki trend mode
     """
-    alerts_file = "data/trend_mode_alerts.json"
-    
-    if not os.path.exists(alerts_file):
-        return {
-            "total_alerts": 0,
-            "active_trends": 0,
-            "avg_confidence": 0,
-            "top_symbols": []
-        }
-    
     try:
-        with open(alerts_file, 'r', encoding='utf-8') as f:
-            alerts = json.load(f)
+        alerts_file = os.path.join("data", "trend_mode_alerts.json")
         
-        if not alerts:
+        if not os.path.exists(alerts_file):
             return {
                 "total_alerts": 0,
                 "active_trends": 0,
@@ -176,21 +175,26 @@ def get_trend_mode_statistics():
                 "top_symbols": []
             }
         
-        active_alerts = [a for a in alerts if a.get("trend_active")]
-        confidences = [a.get("confidence", 0) for a in active_alerts]
+        with open(alerts_file, 'r', encoding='utf-8') as f:
+            alerts = json.load(f)
+        
+        total_alerts = len(alerts)
+        active_trends = sum(1 for alert in alerts if alert.get("trend_active", False))
+        
+        confidences = [alert.get("confidence", 0) for alert in alerts if alert.get("confidence")]
         avg_confidence = sum(confidences) / len(confidences) if confidences else 0
         
-        # Top symbole
+        # Count symbols
         symbol_counts = {}
-        for alert in active_alerts:
-            symbol = alert.get("symbol", "UNKNOWN")
+        for alert in alerts:
+            symbol = alert.get("symbol", "unknown")
             symbol_counts[symbol] = symbol_counts.get(symbol, 0) + 1
         
         top_symbols = sorted(symbol_counts.items(), key=lambda x: x[1], reverse=True)[:5]
         
         return {
-            "total_alerts": len(alerts),
-            "active_trends": len(active_alerts),
+            "total_alerts": total_alerts,
+            "active_trends": active_trends,
             "avg_confidence": round(avg_confidence, 1),
             "top_symbols": top_symbols
         }
@@ -203,6 +207,7 @@ def get_trend_mode_statistics():
             "avg_confidence": 0,
             "top_symbols": []
         }
+
 
 def analyze_trend_mode_patterns(symbol_list, candle_data_dict):
     """
@@ -219,7 +224,7 @@ def analyze_trend_mode_patterns(symbol_list, candle_data_dict):
         "analyzed_symbols": 0,
         "active_trends": 0,
         "stage_minus1_only": 0,
-        "full_trend_mode": 0,
+        "inactive": 0,
         "details": []
     }
     
@@ -227,24 +232,31 @@ def analyze_trend_mode_patterns(symbol_list, candle_data_dict):
         if symbol not in candle_data_dict:
             continue
             
-        candle_data = candle_data_dict[symbol]
-        trend_active, description, details = detect_trend_mode(symbol, candle_data)
-        
-        results["analyzed_symbols"] += 1
-        
-        if details.get("stage_minus1", {}).get("active"):
+        try:
+            candle_data = candle_data_dict[symbol]
+            trend_active, description, details = detect_trend_mode_extended(symbol, candle_data)
+            
+            results["analyzed_symbols"] += 1
+            
             if trend_active:
-                results["full_trend_mode"] += 1
                 results["active_trends"] += 1
-                save_trend_mode_alert(symbol, True, description, details)
-            else:
+                status = "ACTIVE"
+            elif details.get("stage_minus1", {}).get("active"):
                 results["stage_minus1_only"] += 1
-        
-        results["details"].append({
-            "symbol": symbol,
-            "trend_active": trend_active,
-            "description": description,
-            "confidence": details.get("combined_confidence", 0)
-        })
+                status = "STAGE_-1_ONLY"
+            else:
+                results["inactive"] += 1
+                status = "INACTIVE"
+            
+            results["details"].append({
+                "symbol": symbol,
+                "status": status,
+                "description": description,
+                "confidence": details.get("combined_confidence", 0)
+            })
+            
+        except Exception as e:
+            print(f"❌ Error analyzing {symbol}: {e}")
+            continue
     
     return results

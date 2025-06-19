@@ -448,14 +448,16 @@ def scan_cycle():
             trend_mode_confidence = 0
             
             try:
-                from utils.trend_mode_pipeline import detect_trend_mode, save_trend_mode_alert
+                from utils.trend_mode_pipeline import detect_trend_mode, detect_trend_mode_extended, save_trend_mode_alert
+                from utils.bybit_orderbook import get_orderbook_with_fallback
                 
                 # Pobierz dane świec dla trend mode pipeline
                 success_tm, market_data_tm, price_usd_tm, is_valid_tm = get_market_data(symbol)
                 if success_tm and market_data_tm and isinstance(market_data_tm, dict) and 'candles' in market_data_tm:
                     candles_data_tm = market_data_tm.get('candles')
                     if candles_data_tm and isinstance(candles_data_tm, list) and len(candles_data_tm) >= 6:
-                        trend_mode_active, trend_mode_description, trend_mode_details = detect_trend_mode(symbol, candles_data_tm)
+                        # Użyj rozszerzonej wersji dla pełnych szczegółów
+                        trend_mode_active, trend_mode_description, trend_mode_details = detect_trend_mode_extended(symbol, candles_data_tm)
                         
                         if trend_mode_active:
                             trend_mode_confidence = trend_mode_details.get("combined_confidence", 0)
