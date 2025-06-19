@@ -42,12 +42,18 @@ def calculate_advanced_slope(data_points):
         return 0.0
         
     try:
-        # Używamy indeksów jako x, wartości jako y
-        x = np.arange(len(data_points))
-        y = np.array(data_points)
+        # Simple linear regression without numpy
+        n = len(data_points)
+        x_vals = list(range(n))  # 0, 1, 2, ... n-1
+        y_vals = data_points
         
-        # Regresja liniowa: y = mx + b
-        slope, _ = np.polyfit(x, y, 1)
+        # Calculate slope using least squares formula
+        sum_x = sum(x_vals)
+        sum_y = sum(y_vals)
+        sum_xy = sum(x * y for x, y in zip(x_vals, y_vals))
+        sum_x2 = sum(x * x for x in x_vals)
+        
+        slope = (n * sum_xy - sum_x * sum_y) / (n * sum_x2 - sum_x * sum_x)
         return slope
     except Exception as e:
         print(f"❌ Error calculating slope: {e}")
@@ -81,11 +87,27 @@ def detect_advanced_volume_slope(data):
     volume_slope = calculate_advanced_slope(volumes)
     price_slope = calculate_advanced_slope(closes)
     
-    # Oblicz korelację między wolumenem a ceną
+    # Oblicz korelację między wolumenem a ceną bez numpy
     try:
-        correlation = np.corrcoef(volumes, closes)[0, 1]
-        if np.isnan(correlation):
+        # Calculate Pearson correlation coefficient manually
+        n = len(volumes)
+        if n < 2:
             correlation = 0.0
+        else:
+            sum_vol = sum(volumes)
+            sum_price = sum(closes)
+            sum_vol_sq = sum(v * v for v in volumes)
+            sum_price_sq = sum(p * p for p in closes)
+            sum_vol_price = sum(v * p for v, p in zip(volumes, closes))
+            
+            numerator = n * sum_vol_price - sum_vol * sum_price
+            denominator = ((n * sum_vol_sq - sum_vol ** 2) * (n * sum_price_sq - sum_price ** 2)) ** 0.5
+            
+            correlation = numerator / denominator if denominator != 0 else 0.0
+            
+            # Handle NaN case
+            if correlation != correlation:  # NaN check
+                correlation = 0.0
     except:
         correlation = 0.0
     

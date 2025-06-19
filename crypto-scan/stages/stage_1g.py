@@ -1,4 +1,3 @@
-import numpy as np
 import logging
 from utils.data_fetchers import get_all_data
 

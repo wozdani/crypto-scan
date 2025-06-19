@@ -642,7 +642,7 @@ def detect_shadow_sync_v2(symbol, data, price_usd=None, whale_activity=False, de
         # 1. RSI flatline (zakres <5 punktów)
         try:
             from utils.custom_detectors import get_rsi_from_data
-            rsi_value = get_rsi_from_data(symbol, data)
+            rsi_value = get_rsi_from_data(data)
             
             if rsi_value is not None:
                 # Sprawdź czy RSI jest w wąskim zakresie (flatline)
