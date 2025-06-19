@@ -319,6 +319,50 @@ def get_data_file_stats():
     except Exception as e:
         return {'error': str(e)}
 
+@app.route('/api/whale-priority')
+def get_whale_priority_api():
+    """Get whale priority information"""
+    try:
+        priority_file = "data/priority/whale_priority_current.json"
+        
+        if not os.path.exists(priority_file):
+            return jsonify({
+                'priority_tokens': [],
+                'total_count': 0,
+                'last_update': None,
+                'status': 'no_data'
+            })
+        
+        with open(priority_file, 'r', encoding='utf-8') as f:
+            priority_data = json.load(f)
+        
+        # Format tokens for display
+        priority_tokens = []
+        for symbol, info in priority_data.get('tokens', {}).items():
+            priority_tokens.append({
+                'symbol': symbol,
+                'priority_score': info['priority_score'],
+                'whale_count': info['whale_count'],
+                'minutes_ago': info['minutes_ago'],
+                'under_watch': info.get('under_watch', False),
+                'whale_pattern': info.get('whale_pattern'),
+                'whale_score_boost': info.get('whale_score_boost', 0),
+                'last_whale': info['last_whale']
+            })
+        
+        # Sort by priority score
+        priority_tokens.sort(key=lambda x: x['priority_score'], reverse=True)
+        
+        return jsonify({
+            'priority_tokens': priority_tokens,
+            'total_count': len(priority_tokens),
+            'last_update': priority_data.get('timestamp'),
+            'status': 'active' if priority_tokens else 'no_priority'
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     # Ensure data directories exist
     os.makedirs("data/cache", exist_ok=True)

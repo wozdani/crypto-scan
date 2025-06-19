@@ -208,7 +208,15 @@ def scan_cycle():
 
     symbols = get_symbols_cached()
     symbols_bybit = symbols  # Używaj tych samych symboli
-        
+    
+    # 🐋 WHALE PRIORITY SYSTEM - Priorytetowanie na podstawie wcześniejszej aktywności whale
+    from utils.whale_priority import prioritize_whale_tokens, save_priority_report, get_whale_boost_for_symbol
+    
+    symbols, priority_symbols, priority_info = prioritize_whale_tokens(symbols)
+    
+    # Zapisz raport priorytetowania
+    if priority_info:
+        save_priority_report(priority_info)
         
     scan_results = []
 
@@ -270,6 +278,12 @@ def scan_cycle():
             previous_score = get_previous_score(symbol)
             final_score, ppwcs_structure, ppwcs_quality = compute_ppwcs(signals, previous_score)
             
+            # 🐋 WHALE BOOST SCORING - Dodaj punkty za priorytet whale
+            whale_boost = get_whale_boost_for_symbol(symbol, priority_info)
+            if whale_boost > 0:
+                final_score += whale_boost
+                print(f"🔥 {symbol}: Whale boost +{whale_boost} points (total: {final_score})")
+            
             # Integrate checklist scoring with scan cycle
             from utils.scoring import compute_checklist_score
             checklist_score, checklist_summary = compute_checklist_score(signals)
@@ -277,6 +291,8 @@ def scan_cycle():
             # Add checklist data to signals for downstream processing
             signals["checklist_score"] = checklist_score
             signals["checklist_summary"] = checklist_summary
+            signals["whale_boost"] = whale_boost
+            signals["whale_priority"] = symbol in priority_symbols
             
             save_score(symbol, final_score)
             log_ppwcs_score(symbol, final_score, signals)
