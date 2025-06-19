@@ -168,15 +168,15 @@ def get_reports_api():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/trend-alerts')
-def get_trend_alerts_api():
-    """Get recent Trend Mode v1.0 alerts"""
+@app.route('/api/stage-minus1-alerts')
+def get_stage_minus1_alerts_api():
+    """Get recent Stage -1 (Trend Mode) alerts"""
     try:
         hours = int(request.args.get('hours', 24))
         limit = int(request.args.get('limit', 10))
         
-        alerts_file = os.path.join("data", "trend_alerts.json")
-        trend_alerts = []
+        alerts_file = os.path.join("data", "stage_minus1_alerts.json")
+        stage_minus1_alerts = []
         
         if os.path.exists(alerts_file):
             with open(alerts_file, 'r') as f:
@@ -189,24 +189,24 @@ def get_trend_alerts_api():
                 try:
                     alert_time = datetime.fromisoformat(alert['timestamp'].replace('Z', '+00:00'))
                     if alert_time >= cutoff_time:
-                        trend_alerts.append({
+                        stage_minus1_alerts.append({
                             'symbol': alert['symbol'],
-                            'trend_score': alert['trend_score'],
-                            'trend_summary': alert['trend_summary'],
+                            'market_tension': alert.get('market_tension', 'NIEZNANE'),
+                            'rhythm_description': alert.get('rhythm_description', ''),
                             'timestamp': alert['timestamp'],
-                            'alert_type': 'trend_mode',
-                            'strength': 'SILNY' if alert['trend_score'] >= 45 else 'MOCNY' if alert['trend_score'] >= 40 else 'TREND'
+                            'alert_type': 'stage_minus1',
+                            'tension_level': alert.get('tension_level', 'STANDARD')
                         })
                 except (KeyError, ValueError):
                     continue
             
             # Sort by timestamp (newest first) and limit results
-            trend_alerts.sort(key=lambda x: x['timestamp'], reverse=True)
-            trend_alerts = trend_alerts[:limit]
+            stage_minus1_alerts.sort(key=lambda x: x['timestamp'], reverse=True)
+            stage_minus1_alerts = stage_minus1_alerts[:limit]
         
         return jsonify({
-            'trend_alerts': trend_alerts,
-            'total_count': len(trend_alerts),
+            'stage_minus1_alerts': stage_minus1_alerts,
+            'total_count': len(stage_minus1_alerts),
             'period_hours': hours
         })
         

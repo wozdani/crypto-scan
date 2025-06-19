@@ -37,7 +37,7 @@ if is_bybit_cache_expired():
     build_bybit_symbol_cache()
 
 from stages.stage_minus2_1 import detect_stage_minus2_1
-from utils.stage_detectors import detect_stage_minus1
+from utils.trend_stage_minus1 import detect_stage_minus1
 from utils.scoring import compute_ppwcs, should_alert, log_ppwcs_score, get_previous_score, save_score
 from utils.gpt_feedback import send_report_to_chatgpt, score_gpt_feedback, categorize_feedback_score
 from utils.alert_system import process_alert
@@ -274,7 +274,56 @@ def scan_cycle():
     for future in as_completed(futures):
         symbol, (stage2_pass, signals, inflow, stage1g_active) = future.result()
         try:
-            compressed = detect_stage_minus1(signals) if signals else False
+            # === STAGE -1 (TREND MODE) - NEW RHYTHM DETECTION ===
+            stage_minus1_detected = False
+            stage_minus1_description = "Brak detekcji"
+            
+            try:
+                # Pobierz dane świec dla Stage -1 rhythm analysis
+                success, market_data, price_usd, is_valid = get_market_data(symbol)
+                if success and market_data and 'candles' in market_data:
+                    candles_data = market_data['candles']
+                    if len(candles_data) >= 6:
+                        stage_minus1_detected, stage_minus1_description = detect_stage_minus1(candles_data)
+                        if stage_minus1_detected:
+                            print(f"🎵 {symbol}: Stage -1 DETECTED - {stage_minus1_description}")
+                            # Zapisz alert Stage -1
+                            stage_minus1_alert = {
+                                'symbol': symbol,
+                                'market_tension': 'WYKRYTE',
+                                'rhythm_description': stage_minus1_description,
+                                'tension_level': 'WYSOKIE' if 'napięcie' in stage_minus1_description.lower() else 'STANDARD',
+                                'timestamp': datetime.now(timezone.utc).isoformat()
+                            }
+                            
+                            # Zapisz do pliku alerts
+                            os.makedirs("data", exist_ok=True)
+                            alerts_file = "data/stage_minus1_alerts.json"
+                            
+                            if os.path.exists(alerts_file):
+                                with open(alerts_file, 'r') as f:
+                                    existing_alerts = json.load(f)
+                            else:
+                                existing_alerts = []
+                            
+                            existing_alerts.append(stage_minus1_alert)
+                            
+                            # Zachowaj tylko ostatnie 50 alertów
+                            if len(existing_alerts) > 50:
+                                existing_alerts = existing_alerts[-50:]
+                            
+                            with open(alerts_file, 'w') as f:
+                                json.dump(existing_alerts, f, indent=2)
+            except Exception as stage_minus1_error:
+                print(f"⚠️ Stage -1 analysis failed for {symbol}: {stage_minus1_error}")
+            
+            # Update signals with Stage -1 results
+            signals["stage_minus1_detected"] = stage_minus1_detected
+            signals["stage_minus1_description"] = stage_minus1_description
+            
+            # Legacy compressed detection (keeping for compatibility)
+            compressed = stage_minus1_detected
+            
             previous_score = get_previous_score(symbol)
             final_score, ppwcs_structure, ppwcs_quality = compute_ppwcs(signals, previous_score)
             
