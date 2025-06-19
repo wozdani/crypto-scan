@@ -1147,9 +1147,9 @@ def detect_stage_minus2_1(symbol, price_usd=None):
 
         # Liquidity Behavior Detector – Strategic Liquidity Analysis
         try:
-            liquidity_behavior_active, behavior_score, liquidity_behavior_details = detect_liquidity_behavior(
-                symbol, data, price_usd
-            )
+            from utils.liquidity_behavior import detect_liquidity_behavior
+            liquidity_behavior_active, liquidity_behavior_details = detect_liquidity_behavior(symbol)
+            behavior_score = 7 if liquidity_behavior_active else 0
         except Exception as e:
             logger.error(f"❌ Error in detect_liquidity_behavior for {symbol}: {e}")
             liquidity_behavior_active = False

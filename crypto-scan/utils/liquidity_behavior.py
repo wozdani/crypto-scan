@@ -319,7 +319,7 @@ def detect_fractal_pullback(snapshots: List[Dict]) -> Tuple[bool, Dict]:
         print(f"❌ Błąd w detect_fractal_pullback: {e}")
         return False, {}
 
-def detect_liquidity_behavior(symbol: str, snapshots: List[Dict] = None) -> Tuple[bool, Dict]:
+def detect_liquidity_behavior(symbol: str, snapshots: Optional[List[Dict]] = None) -> Tuple[bool, Dict]:
     """
     Główna funkcja wykrywania zachowań płynności
     
