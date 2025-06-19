@@ -239,6 +239,44 @@ def save_priority_report(priority_info):
     
     print(f"📊 Priority report saved: {len(priority_info)} tokens prioritized")
 
+def save_whale_priority_data(priority_tokens):
+    """
+    Save whale priority data to JSON file for dashboard API
+    
+    Args:
+        priority_tokens: Dictionary of priority tokens with their info
+    """
+    os.makedirs("data/priority", exist_ok=True)
+    
+    # Convert to list format for API
+    priority_list = []
+    for symbol, info in priority_tokens.items():
+        priority_list.append({
+            "symbol": symbol,
+            "priority_score": info["priority_score"],
+            "whale_count": info["whale_count"],
+            "minutes_ago": info["minutes_ago"],
+            "whale_pattern": info.get("whale_pattern", "single_whale"),
+            "whale_score_boost": info.get("whale_score_boost", 0),
+            "under_watch": info["minutes_ago"] > 120  # Over 2 hours = under watch
+        })
+    
+    # Sort by priority score descending
+    priority_list.sort(key=lambda x: x["priority_score"], reverse=True)
+    
+    priority_data = {
+        "last_update": datetime.now(timezone.utc).isoformat(),
+        "total_count": len(priority_list),
+        "priority_tokens": priority_list,
+        "status": "active" if priority_list else "no_data"
+    }
+    
+    # Save to priority data file
+    with open("data/priority/whale_priority_current.json", 'w', encoding='utf-8') as f:
+        json.dump(priority_data, f, indent=2, ensure_ascii=False)
+    
+    print(f"💾 Saved {len(priority_list)} priority tokens to whale_priority_current.json")
+
 def get_whale_boost_for_symbol(symbol, priority_info):
     """
     Zwraca whale boost score dla konkretnego symbolu

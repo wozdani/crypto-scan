@@ -336,22 +336,27 @@ def get_whale_priority_api():
         with open(priority_file, 'r', encoding='utf-8') as f:
             priority_data = json.load(f)
         
-        # Format tokens for display
-        priority_tokens = []
-        for symbol, info in priority_data.get('tokens', {}).items():
-            priority_tokens.append({
-                'symbol': symbol,
-                'priority_score': info['priority_score'],
-                'whale_count': info['whale_count'],
-                'minutes_ago': info['minutes_ago'],
-                'under_watch': info.get('under_watch', False),
-                'whale_pattern': info.get('whale_pattern'),
-                'whale_score_boost': info.get('whale_score_boost', 0),
-                'last_whale': info['last_whale']
-            })
-        
-        # Sort by priority score
-        priority_tokens.sort(key=lambda x: x['priority_score'], reverse=True)
+        # Get priority tokens from the data (handle both old and new formats)
+        if 'priority_tokens' in priority_data:
+            # New format with priority_tokens array
+            priority_tokens = priority_data['priority_tokens']
+        else:
+            # Old format with tokens object
+            priority_tokens = []
+            for symbol, info in priority_data.get('tokens', {}).items():
+                priority_tokens.append({
+                    'symbol': symbol,
+                    'priority_score': info['priority_score'],
+                    'whale_count': info['whale_count'],
+                    'minutes_ago': info['minutes_ago'],
+                    'under_watch': info.get('under_watch', False),
+                    'whale_pattern': info.get('whale_pattern'),
+                    'whale_score_boost': info.get('whale_score_boost', 0),
+                    'last_whale': info.get('last_whale')
+                })
+            
+            # Sort by priority score
+            priority_tokens.sort(key=lambda x: x['priority_score'], reverse=True)
         
         return jsonify({
             'priority_tokens': priority_tokens,
