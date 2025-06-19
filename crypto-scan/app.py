@@ -168,6 +168,51 @@ def get_reports_api():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/trend-mode-alerts')
+def get_trend_mode_alerts_api():
+    """Get recent Trend Mode Pipeline alerts"""
+    try:
+        hours = int(request.args.get('hours', 24))
+        limit = int(request.args.get('limit', 10))
+        
+        alerts_file = os.path.join("data", "trend_mode_alerts.json")
+        trend_mode_alerts = []
+        
+        if os.path.exists(alerts_file):
+            with open(alerts_file, 'r', encoding='utf-8') as f:
+                all_alerts = json.load(f)
+            
+            # Filter by time period
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
+            
+            for alert in all_alerts:
+                try:
+                    alert_time = datetime.fromisoformat(alert['timestamp'].replace('Z', '+00:00'))
+                    if alert_time >= cutoff_time:
+                        trend_mode_alerts.append({
+                            'symbol': alert['symbol'],
+                            'trend_active': alert['trend_active'],
+                            'description': alert['description'],
+                            'confidence': alert.get('confidence', 0),
+                            'timestamp': alert['timestamp'],
+                            'alert_type': 'trend_mode_pipeline'
+                        })
+                except (KeyError, ValueError):
+                    continue
+            
+            # Sort by timestamp (newest first) and limit results
+            trend_mode_alerts.sort(key=lambda x: x['timestamp'], reverse=True)
+            trend_mode_alerts = trend_mode_alerts[:limit]
+        
+        return jsonify({
+            'trend_mode_alerts': trend_mode_alerts,
+            'total_count': len(trend_mode_alerts),
+            'period_hours': hours
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/stage-minus1-alerts')
 def get_stage_minus1_alerts_api():
     """Get recent Stage -1 (Trend Mode) alerts"""

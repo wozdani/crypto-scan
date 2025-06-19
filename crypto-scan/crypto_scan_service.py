@@ -441,10 +441,40 @@ def scan_cycle():
                 else:
                     print(f"❌ Failed to send comprehensive alert for {symbol}")
 
-            # === TREND MODE v1.0 INTEGRATION ===
-            # Trend Mode disabled in Pre-Pump 2.0 refactoring
+            # === TREND MODE PIPELINE INTEGRATION ===
+            # New trend mode pipeline: Stage -1 + Orderbook Sentiment
+            trend_mode_active = False
+            trend_mode_description = "Nieaktywny"
+            trend_mode_confidence = 0
+            
+            try:
+                from utils.trend_mode_pipeline import detect_trend_mode, save_trend_mode_alert
+                
+                # Pobierz dane świec dla trend mode pipeline
+                success_tm, market_data_tm, price_usd_tm, is_valid_tm = get_market_data(symbol)
+                if success_tm and market_data_tm and isinstance(market_data_tm, dict) and 'candles' in market_data_tm:
+                    candles_data_tm = market_data_tm.get('candles')
+                    if candles_data_tm and isinstance(candles_data_tm, list) and len(candles_data_tm) >= 6:
+                        trend_mode_active, trend_mode_description, trend_mode_details = detect_trend_mode(symbol, candles_data_tm)
+                        
+                        if trend_mode_active:
+                            trend_mode_confidence = trend_mode_details.get("combined_confidence", 0)
+                            print(f"📈 {symbol}: Trend Mode ACTIVE - {trend_mode_description} (Confidence: {trend_mode_confidence}%)")
+                            
+                            # Zapisz alert trend mode
+                            save_trend_mode_alert(symbol, trend_mode_active, trend_mode_description, trend_mode_details)
+                        else:
+                            print(f"📉 {symbol}: Trend Mode inactive - {trend_mode_description}")
+                            
+            except Exception as trend_mode_error:
+                print(f"⚠️ Trend Mode pipeline failed for {symbol}: {trend_mode_error}")
+            
+            # Update signals with Trend Mode results
+            signals["trend_mode_active"] = trend_mode_active
+            signals["trend_mode_description"] = trend_mode_description
+            signals["trend_mode_confidence"] = trend_mode_confidence
 
-            # Save complete stage signal data (trend mode disabled in Pre-Pump 2.0)
+            # Save complete stage signal data 
             save_stage_signal(symbol, final_score, stage2_pass, compressed, stage1g_active, 
                             checklist_score, checklist_summary)
 
