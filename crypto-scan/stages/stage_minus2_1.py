@@ -1026,10 +1026,10 @@ def detect_stage_minus2_1(symbol, price_usd=None):
         # Stage 1g – tylko jeśli spełnione warunki wstępne
         stage1g_active, stage1g_trigger_type = detect_stage_1g(symbol, data, event_tag)
 
-        # Przygotuj sygnały Stage -2.1 dla PPWCS 2.6
+        # Przygotuj sygnały Stage -2.1 dla PPWCS 2.6 z DEX INFLOW 2.0
         stage_minus2_1_signals = {
             "whale_activity": whale_activity,
-            "dex_inflow": inflow_usd > 0,
+            "dex_inflow": dex_inflow_detected,
             "orderbook_anomaly": orderbook_anomaly,
             "volume_spike": volume_spike_active,
             "vwap_pinning": vwap_pinned,
@@ -1059,7 +1059,7 @@ def detect_stage_minus2_1(symbol, price_usd=None):
         
         # Build initial signals for whale execution pattern
         initial_signals = {
-            "dex_inflow": inflow_usd > 0,
+            "dex_inflow": dex_inflow_detected,
             "whale_activity": whale_activity,
             "orderbook_anomaly": orderbook_anomaly
         }
