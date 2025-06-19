@@ -661,7 +661,7 @@ def detect_shadow_sync_v2(symbol, data, price_usd=None, whale_activity=False, de
         # 2. Heatmap fade – zanikające ściany w askach
         try:
             from utils.heatmap_exhaustion import detect_heatmap_exhaustion
-            heatmap_result = detect_heatmap_exhaustion(symbol, data)
+            heatmap_result = detect_heatmap_exhaustion(symbol)
             
             if heatmap_result:
                 detection_details["heatmap_fade"] = True
@@ -728,7 +728,7 @@ def detect_shadow_sync_v2(symbol, data, price_usd=None, whale_activity=False, de
         # 6. Spoof echo – wykrywalne manipulacje orderbookiem (opcjonalnie)
         try:
             from utils.orderbook_spoofing import detect_orderbook_spoofing
-            spoof_result = detect_orderbook_spoofing(symbol, data)
+            spoof_result = detect_orderbook_spoofing(symbol)
             
             if spoof_result:
                 detection_details["spoof_echo"] = True

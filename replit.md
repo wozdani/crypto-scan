@@ -98,6 +98,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 19, 2025 - Pre-Pump 2.0 Strategic Refactoring Complete - PRODUCTION READY
+- **Complete elimination of classical technical indicators**: Removed all numpy dependencies, RSI, EMA, MACD, and breakout patterns from core detection system
+- **Strategic focus shift to pre-accumulation patterns**: System now exclusively targets edge pre-impulse accumulation detection and micro-anomalies before any price movement
+- **Legacy file migration**: Moved classical signal files (trend_mode.py, ema_alignment_detector.py, scoring_old.py, checklist_scoring.py, breakout_cluster_scoring.py) to legacy/ folder
+- **Dependency cleanup**: Removed numpy, pandas, matplotlib from requirements.txt and replaced mathematical calculations with pure Python implementations
+- **Function signature fixes**: Corrected all function calls to match simplified detector signatures without external dependencies
+- **Enhanced pre-accumulation detection**: Shadow Sync v2 (+25 points), Liquidity Behavior (+7 points), stealth accumulation patterns, and whale micro-anomaly detection
+- **Production-ready architecture**: System runs successfully without classical indicators, focusing solely on predictive pre-pump pattern recognition
+- **Core detector preservation**: Maintained stealth_acc, liquidity box, VWAP pinning, fake reject, whale_detector, and volume_cluster_slope as pure pre-accumulation tools
+
 ### June 18, 2025 - Liquidity Behavior Detector + Enhanced PPWCS Scoring Complete - PRODUCTION READY
 - **Complete Liquidity Behavior Detector implemented**: Revolutionary strategic liquidity analysis system with 4 sophisticated detection sublogics for identifying hidden whale accumulation patterns
 - **4-tier liquidity analysis system**: Bid layering detection (3+ levels within 0.5% price range), VWAP pinned bid analysis (≥3 stable candles), void reaction patterns (volume spike without price movement), fractal pullback & fill detection
