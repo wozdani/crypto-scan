@@ -98,17 +98,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 20, 2025 - One-Sided Pressure Detector + 7-Layer Flow Analysis Complete - PRODUCTION READY
-- **One-Sided Pressure Detector implemented**: Revolutionary bid dominance analysis detecting when buying pressure overwhelms selling pressure in orderbook structure, identifying trend continuation scenarios with institutional accumulation
-- **Advanced orderbook pressure analysis**: Analyzes top 5 bid/ask levels requiring >1.5x bid/ask volume ratio with depth analysis, detects strong bid dominance (>2.0x), moderate dominance (1.5-2.0x), and selling pressure scenarios
-- **7-layer flow analysis system**: Complete integration of directional flow + consistency index + pulse delay + orderbook freeze + heatmap vacuum + VWAP pinning + one-sided pressure detection for comprehensive trend quality assessment
-- **Enhanced confidence range**: Trend mode pipeline now supports 0-215 points total (base 100 + directional + consistency + pulse delay + orderbook freeze + heatmap vacuum + VWAP pinning + pressure adjustments)
-- **Bid dominance behavioral analysis**: Identifies when institutional buyers control orderbook structure with deep bid support and weak ask resistance, indicating professional accumulation phases before trend continuation
-- **Comprehensive scoring system**: One-sided pressure contributes up to +20 points based on pressure intensity (extreme >3.0x = 20pts, strong >2.0x = 15pts, moderate >1.5x = 12pts) with depth ratio bonuses
-- **Complete test validation**: All scenarios tested including extreme bid dominance (34.5x ratio, 20 points), real-world scenarios (3.1x ratio, 20 points), balanced rejection, and comprehensive integration testing
-- **Production-ready 7-layer integration**: Full integration with trend_mode_pipeline.py providing one-sided pressure analysis alongside all existing flow detection layers for maximum market behavior comprehension
-- **Professional market manipulation detection**: System identifies coordinated bid support patterns typical of institutional trend continuation phases where smart money maintains buying pressure dominance
-- **Enhanced trend confirmation**: 7-layer analysis provides superior trend quality assessment through comprehensive market behavior analysis identifying professional bid control vs organic retail activity
+### June 20, 2025 - Complete 8-Layer Flow Analysis System + Micro-Timeframe Echo Detection - PRODUCTION READY
+- **Revolutionary 8-layer flow analysis system completed**: Ultimate market behavior analysis integrating directional flow + consistency index + pulse delay + orderbook freeze + heatmap vacuum + VWAP pinning + one-sided pressure + micro-timeframe echo detection
+- **Micro-Timeframe Echo Detector implemented**: Advanced fractal pattern recognition analyzing 1-minute intervals for bullish micro impulses, detecting 3+ consecutive micro-impulses with >0.1% strength over 45-minute windows
+- **Sophisticated micro impulse analysis**: Identifies rhythmic bullish patterns in 1m timeframes including impulse frequency calculation, echo strength classification (weak/moderate/strong/very_strong), and fractal trend confirmation
+- **Enhanced confidence range**: System now supports 0-225 points total (base 100 + all 8-layer flow adjustments) providing maximum precision for trend quality assessment
+- **Complete pattern recognition**: Micro echo contributes up to +10 points based on impulse count (6+ impulses = 10pts, 4-5 impulses = 8pts, 3 impulses = 6pts) with echo frequency and strength multipliers
+- **Advanced fractal structure detection**: Analyzes micro-timeframe patterns for trend confirmation, overall momentum calculation, price volatility assessment, and impulse consistency scoring
+- **Comprehensive test validation**: All 8 layers tested with scenarios including very strong echo (6+ impulses, 10 points), strong echo (4 impulses, 8 points), insufficient data handling, and complete integration testing
+- **Production-ready 8-layer integration**: Full integration with trend_mode_pipeline.py providing micro-timeframe analysis alongside all existing flow detection layers for maximum market behavior comprehension
+- **Professional micro-pattern recognition**: System identifies sophisticated micro-accumulation patterns typical of pre-breakout phases where smart money creates rhythmic buying pressure through coordinated micro-impulses
+- **Ultimate trend confirmation**: 8-layer analysis provides supreme trend quality assessment through comprehensive multi-timeframe market behavior analysis from macro orderbook patterns to micro-impulse fractals
 
 ### June 19, 2025 - Liquidity Behavior Detector + Enhanced PPWCS Scoring Complete - PRODUCTION READY
 - **Complete Liquidity Behavior Detector implemented**: Revolutionary strategic liquidity analysis system with 4 sophisticated detection sublogics for identifying hidden whale accumulation patterns
