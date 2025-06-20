@@ -10,7 +10,8 @@ from .bybit_orderbook import get_orderbook_with_fallback
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from detectors.directional_flow_detector import detect_directional_flow, get_price_series_bybit, calculate_directional_score
+from detectors.directional_flow_detector import detect_directional_flow, calculate_directional_score
+from detectors.flow_consistency import compute_flow_consistency, calculate_flow_consistency_score, get_price_series_bybit
 import json
 from datetime import datetime, timezone
 
@@ -80,34 +81,47 @@ def detect_trend_mode_extended(symbol, candle_data):
                     "bid_ask_ratio": 2.28
                 }
         
-        # === DIRECTIONAL FLOW DETECTION (Naturalny Kierunkowy Ruch) ===
+        # === FLOW ANALYSIS (Directional + Consistency) ===
         directional_flow_detected = False
         directional_flow_score = 0
         directional_flow_details = {}
+        flow_consistency = 0.0
+        flow_consistency_score = 0
+        flow_consistency_desc = ""
         
         try:
             # Pobierz serię cen z ostatnich 3h (dane 5-minutowe)
             prices = get_price_series_bybit(symbol)
             if prices:
+                # Directional Flow Detection
                 flow_result = detect_directional_flow(prices)
                 directional_flow_detected, flow_description, directional_flow_details = flow_result
                 directional_flow_score = calculate_directional_score(flow_result)
+                
+                # Flow Consistency Index
+                flow_consistency = compute_flow_consistency(prices)
+                flow_consistency_score, flow_consistency_desc = calculate_flow_consistency_score(flow_consistency)
                 
                 if directional_flow_detected:
                     print(f"📈 {symbol}: Natural flow detected - {flow_description} (+{directional_flow_score} points)")
                 else:
                     print(f"📉 {symbol}: Chaotic flow - {flow_description} ({directional_flow_score} points)")
+                
+                print(f"📊 {symbol}: Flow consistency {round(flow_consistency*100)}% ({flow_consistency_score:+d} points)")
             else:
-                print(f"⚠️ {symbol}: No price data for directional flow analysis")
+                print(f"⚠️ {symbol}: No price data for flow analysis")
         except Exception as e:
-            print(f"❌ {symbol}: Directional flow analysis failed: {e}")
+            print(f"❌ {symbol}: Flow analysis failed: {e}")
         
         # === ENHANCED COMBINED CONFIDENCE CALCULATION ===
         base_confidence = 100 if trend_active else (50 if stage_minus1_active else 0)
         
-        # Dodaj bonus/karę za directional flow (+25 do -10 punktów)
-        flow_adjustment = directional_flow_score if directional_flow_details else 0
-        combined_confidence = max(0, min(base_confidence + flow_adjustment, 125))  # 0-125 punktów
+        # Dodaj adjustmenty za flow analysis
+        directional_adjustment = directional_flow_score if directional_flow_details else 0
+        consistency_adjustment = flow_consistency_score
+        total_flow_adjustment = directional_adjustment + consistency_adjustment
+        
+        combined_confidence = max(0, min(base_confidence + total_flow_adjustment, 140))  # 0-140 punktów
         
         details = {
             "stage_minus1": {
@@ -125,9 +139,16 @@ def detect_trend_mode_extended(symbol, candle_data):
                 "score": directional_flow_score,
                 "details": directional_flow_details
             },
+            "flow_consistency": {
+                "index": flow_consistency,
+                "score": flow_consistency_score,
+                "description": flow_consistency_desc
+            },
             "combined_confidence": combined_confidence,
             "base_confidence": base_confidence,
-            "flow_adjustment": flow_adjustment,
+            "directional_adjustment": directional_adjustment,
+            "consistency_adjustment": consistency_adjustment,
+            "total_flow_adjustment": total_flow_adjustment,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "symbol": symbol
         }
