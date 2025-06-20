@@ -492,16 +492,13 @@ def scan_cycle():
                         }
                         save_trend_mode_alert(alert_data)
                         
-                        # Send Telegram alert for high-scoring trend mode signals
-                        alert_message = f"🔥 TREND MODE ALERT\n"
-                        alert_message += f"Symbol: {symbol}\n"
-                        alert_message += f"Comprehensive Score: {trend_mode_score}/100+\n"
-                        alert_message += f"Confidence: {trend_mode_confidence}/250\n"
-                        alert_message += f"Active Signals ({len(trend_mode_reasons)}):\n"
-                        for reason in trend_mode_reasons:
-                            alert_message += f"• {reason}\n"
-                        
-                        send_alert(alert_message)
+                        # Send dedicated Trend Mode alert using updated send_alert function
+                        send_alert(
+                            symbol=symbol,
+                            alert_type="trend_mode", 
+                            trend_score=trend_mode_score,
+                            trend_reasons=trend_mode_reasons
+                        )
                     
                     elif trend_mode_active:
                         print(f"📊 Trend Mode Active: {symbol} - Basic: {trend_mode_confidence}/250, Comprehensive: {trend_mode_score}/100+")
