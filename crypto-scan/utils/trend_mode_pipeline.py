@@ -12,6 +12,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from detectors.directional_flow_detector import detect_directional_flow, calculate_directional_score
 from detectors.flow_consistency import compute_flow_consistency, calculate_flow_consistency_score, get_price_series_bybit
+from detectors.pulse_delay import detect_pulse_delay, calculate_pulse_delay_score
 import json
 from datetime import datetime, timezone
 
@@ -81,13 +82,16 @@ def detect_trend_mode_extended(symbol, candle_data):
                     "bid_ask_ratio": 2.28
                 }
         
-        # === FLOW ANALYSIS (Directional + Consistency) ===
+        # === COMPREHENSIVE FLOW ANALYSIS (Directional + Consistency + Pulse Delay) ===
         directional_flow_detected = False
         directional_flow_score = 0
         directional_flow_details = {}
         flow_consistency = 0.0
         flow_consistency_score = 0
         flow_consistency_desc = ""
+        pulse_delay_detected = False
+        pulse_delay_score = 0
+        pulse_delay_details = {}
         
         try:
             # Pobierz serię cen z ostatnich 3h (dane 5-minutowe)
@@ -102,12 +106,23 @@ def detect_trend_mode_extended(symbol, candle_data):
                 flow_consistency = compute_flow_consistency(prices)
                 flow_consistency_score, flow_consistency_desc = calculate_flow_consistency_score(flow_consistency)
                 
+                # Pulse Delay Detection
+                pulse_result = detect_pulse_delay(prices)
+                pulse_delay_detected, pulse_description, pulse_delay_details = pulse_result
+                pulse_delay_score = calculate_pulse_delay_score(pulse_result)
+                
+                # Logging results
                 if directional_flow_detected:
                     print(f"📈 {symbol}: Natural flow detected - {flow_description} (+{directional_flow_score} points)")
                 else:
                     print(f"📉 {symbol}: Chaotic flow - {flow_description} ({directional_flow_score} points)")
                 
                 print(f"📊 {symbol}: Flow consistency {round(flow_consistency*100)}% ({flow_consistency_score:+d} points)")
+                
+                if pulse_delay_detected:
+                    print(f"⏸️ {symbol}: Pulse delay detected - {pulse_description} (+{pulse_delay_score} points)")
+                else:
+                    print(f"🌊 {symbol}: No pulse delay - continuous flow")
             else:
                 print(f"⚠️ {symbol}: No price data for flow analysis")
         except Exception as e:
@@ -116,12 +131,13 @@ def detect_trend_mode_extended(symbol, candle_data):
         # === ENHANCED COMBINED CONFIDENCE CALCULATION ===
         base_confidence = 100 if trend_active else (50 if stage_minus1_active else 0)
         
-        # Dodaj adjustmenty za flow analysis
+        # Dodaj adjustmenty za kompletną analizę flow
         directional_adjustment = directional_flow_score if directional_flow_details else 0
         consistency_adjustment = flow_consistency_score
-        total_flow_adjustment = directional_adjustment + consistency_adjustment
+        pulse_delay_adjustment = pulse_delay_score
+        total_flow_adjustment = directional_adjustment + consistency_adjustment + pulse_delay_adjustment
         
-        combined_confidence = max(0, min(base_confidence + total_flow_adjustment, 140))  # 0-140 punktów
+        combined_confidence = max(0, min(base_confidence + total_flow_adjustment, 155))  # 0-155 punktów
         
         details = {
             "stage_minus1": {
@@ -144,10 +160,16 @@ def detect_trend_mode_extended(symbol, candle_data):
                 "score": flow_consistency_score,
                 "description": flow_consistency_desc
             },
+            "pulse_delay": {
+                "detected": pulse_delay_detected,
+                "score": pulse_delay_score,
+                "details": pulse_delay_details
+            },
             "combined_confidence": combined_confidence,
             "base_confidence": base_confidence,
             "directional_adjustment": directional_adjustment,
             "consistency_adjustment": consistency_adjustment,
+            "pulse_delay_adjustment": pulse_delay_adjustment,
             "total_flow_adjustment": total_flow_adjustment,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "symbol": symbol
