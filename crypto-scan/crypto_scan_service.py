@@ -483,47 +483,55 @@ def scan_cycle():
                     if trend_mode_reasons:
                         print(f"🔍 [TREND DEBUG] Active signals: {', '.join(trend_mode_reasons)}")
                     
-                    # Enhanced trend mode alerting with new entry logic
+                    # Advanced trend mode alerting with 15M/5M analysis
                     if trend_mode_score >= 30:  # Alert threshold
                         print(f"🚨 TREND MODE ALERT: {symbol} - Score: {trend_mode_score}/100+")
                         print(f"📋 Active signals: {', '.join(trend_mode_reasons)}")
                         
-                        # Check for special trend entry signal (75+ score for immediate entry)
-                        if "trend entry – uptrend 15M + absorption trigger" in trend_mode_reasons:
-                            special_entry_score = 75
-                            print(f"🔥 TREND ENTRY TRIGGER: {symbol} - Premium entry signal ({special_entry_score} points)")
+                        # Check for premium S/R trend entry signal (100 points = perfect conditions)
+                        if trend_mode_score == 100 and any("Strong recent trend + Near support + Entry after correction" in reason for reason in trend_mode_reasons):
+                            print(f"🔥 PREMIUM S/R TREND ENTRY: {symbol} - Perfect S/R conditions detected (100 points)")
                             
-                            # Send special trend entry alert
+                            # Send premium S/R trend entry alert
                             send_alert(
                                 symbol=symbol,
                                 alert_type="trend_mode",
-                                trend_score=special_entry_score,
-                                trend_reasons=["Trend Mode Entry: Uptrend 15M + Trigger 5M (Absorption)"]
+                                trend_score=100,
+                                trend_reasons=["Premium S/R Trend Entry: 3h trend + Support level + Entry signal"]
                             )
-                        
-                        # Save comprehensive trend mode alert to dedicated report file
-                        alert_data = {
-                            'symbol': symbol,
-                            'trend_active': True,
-                            'description': f"Trend Mode Alert - Score: {trend_mode_score}",
-                            'confidence': trend_mode_confidence,
-                            'comprehensive_score': trend_mode_score,
-                            'active_signals': trend_mode_reasons,
-                            'timestamp': datetime.now(timezone.utc).isoformat(),
-                            'prices_5m_count': len(prices_5m),
-                            'orderbook_available': bool(orderbook_data)
-                        }
-                        save_trend_mode_alert(alert_data)
-                        save_trend_mode_report(symbol, alert_data)  # Save to reports folder
-                        
-                        # Send standard trend mode alert (if not special entry)
-                        if "trend entry – uptrend 15M + absorption trigger" not in trend_mode_reasons:
+                        elif trend_mode_score == 70 and any("Strong recent trend + Near support" in reason for reason in trend_mode_reasons):
+                            print(f"🎯 S/R TREND SETUP: {symbol} - Strong setup, waiting for entry (70 points)")
+                            
+                            # Send S/R trend setup alert
+                            send_alert(
+                                symbol=symbol,
+                                alert_type="trend_mode",
+                                trend_score=70,
+                                trend_reasons=["S/R Trend Setup: 3h trend + Support level, awaiting entry signal"]
+                            )
+                        else:
+                            # Send standard trend mode alert
                             send_alert(
                                 symbol=symbol,
                                 alert_type="trend_mode", 
                                 trend_score=trend_mode_score,
                                 trend_reasons=trend_mode_reasons
                             )
+                        
+                        # Save comprehensive trend mode alert to dedicated report file
+                        alert_data = {
+                            'symbol': symbol,
+                            'trend_active': True,
+                            'description': f"Advanced Trend Mode Alert - Score: {trend_mode_score}",
+                            'confidence': trend_mode_confidence,
+                            'comprehensive_score': trend_mode_score,
+                            'active_signals': trend_mode_reasons,
+                            'timestamp': datetime.now(timezone.utc).isoformat(),
+                            'analysis_type': 'advanced_15m_5m',
+                            'alert_threshold': 30
+                        }
+                        save_trend_mode_alert(alert_data)
+                        save_trend_mode_report(symbol, alert_data)  # Save to reports folder
                     
                     elif trend_mode_active:
                         print(f"📊 Trend Mode Active: {symbol} - Basic: {trend_mode_confidence}/250, Comprehensive: {trend_mode_score}/100+")

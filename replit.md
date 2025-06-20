@@ -98,6 +98,24 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 20, 2025 - Support/Resistance Trend Mode System - PRODUCTION READY
+- **Recent 3h trend analysis**: is_strong_recent_trend() analyzes only last 12x15M candles requiring ≥60% green candles for trend confirmation
+- **Historical S/R level detection**: find_support_resistance_levels() identifies pivot points from 3-24h history (84 candles) with tolerance-based level clustering
+- **Support proximity testing**: is_price_near_support() validates current price testing support levels within 0.2% margin
+- **5M correction entry timing**: is_entry_after_correction() detects end of correction with declining ask volume + rising bid volume
+- **Perfect condition scoring**: 100 points for 3h trend + near support + entry signal, 70 points for setup without entry
+- **Real-time S/R integration**: Complete Bybit API integration for 15M/5M data, current price, and orderbook analysis
+- **Complete system replacement**: Full replacement of old trend detection with sophisticated S/R-based multi-timeframe analysis
+
+### June 20, 2025 - Advanced Trend Mode System (15M/5M Analysis) - PRODUCTION READY
+- **Sophisticated 15M trend analysis**: is_strong_uptrend_15m() analyzes 96 candles (24h) requiring ≥60% green candles for trend confirmation
+- **Precise 5M entry detection**: is_entry_after_correction() monitors 12 candles (1h) for correction end with orderbook pressure analysis
+- **Real-time API integration**: Direct Bybit API calls for 15M/5M price data and orderbook volume analysis
+- **Perfect condition scoring**: 100-point alerts for strong uptrend + entry after correction combination
+- **Advanced pressure detection**: Monitors ask volume decline + bid volume increase for optimal entry timing
+- **Production-ready architecture**: Complete replacement of old trend detection with sophisticated multi-timeframe analysis
+- **Comprehensive data requirements**: 96x15M candles for trend context, 12x5M candles for entry timing, real-time orderbook for pressure analysis
+
 ### June 20, 2025 - Revolutionary Trend Entry Detection System - PRODUCTION READY
 - **Complete chaotic flow detector removal**: Eliminated old directional flow detector that penalized market corrections with -10 points based on color changes
 - **Advanced uptrend 15M detection**: New is_uptrend_15m() function detects genuine uptrends with small corrections (<1%) and dominance validation (3/5 periods up)

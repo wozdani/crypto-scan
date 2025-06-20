@@ -66,19 +66,73 @@ from datetime import datetime, timezone
 
 def compute_trend_mode_score(symbol: str, prices_5m: list, prices_1m: list, orderbook_data: dict) -> tuple:
     """
-    Główna funkcja scoringu Trend Mode - agreguje sygnały z 10 detektorów
+    S/R Based Trend Mode scoring - nowy system 3h trend + S/R levels + 5M entry
     
     Args:
         symbol: Symbol do analizy
-        prices_5m: Lista cen 5-minutowych
-        prices_1m: Lista cen 1-minutowych  
-        orderbook_data: Dane orderbook
+        prices_5m: Lista cen 5-minutowych (zachowana dla kompatybilności)
+        prices_1m: Lista cen 1-minutowych (zachowana dla kompatybilności)
+        orderbook_data: Dane orderbook (zachowane dla kompatybilności)
         
     Returns:
         tuple: (score, reasons) gdzie score 0-100+ i reasons to lista opisów
     """
-    score = 0
-    reasons = []
+    try:
+        print(f"🎯 [TREND DEBUG] Starting S/R trend mode analysis for {symbol}")
+        
+        # Use new S/R trend mode detection
+        from detectors.trend_mode_sr import detect_sr_trend_mode
+        
+        result = detect_sr_trend_mode(symbol)
+        
+        score = result.get("trend_score", 0)
+        
+        if result.get("trend_mode", False):
+            reasons = [result.get("description", "S/R trend mode detected")]
+            print(f"🚀 [TREND DEBUG] {symbol} - {result['description']} ({score} points)")
+        else:
+            reasons = []
+            print(f"📊 [TREND DEBUG] {symbol} - {result['description']}")
+        
+        # Fallback to basic detectors only if S/R detection completely fails
+        if score == 0 and "Error:" in result.get("description", ""):
+            print(f"📈 [TREND DEBUG] {symbol} - S/R detection failed, using basic fallback...")
+            
+            try:
+                from detectors.flow_consistency import detect_flow_consistency_index
+                from detectors.human_flow import detect_human_like_flow
+                
+                # Basic fallback scoring (reduced points)
+                if prices_5m and len(prices_5m) >= 10:
+                    try:
+                        consistency_result = detect_flow_consistency_index(prices_5m)
+                        if consistency_result[0]:
+                            score += 5
+                            reasons.append("flow consistency – basic trend momentum")
+                    except Exception:
+                        pass
+                    
+                    try:
+                        if len(prices_5m) >= 15:
+                            human_result = detect_human_like_flow(prices_5m)
+                            if human_result[0]:
+                                score += 5
+                                reasons.append("human flow – basic pattern recognition")
+                    except Exception:
+                        pass
+                
+            except ImportError:
+                print(f"⚠️ [TREND DEBUG] {symbol} - No fallback detectors available")
+        
+        print(f"🎯 [TREND DEBUG] {symbol} - Final score: {score}/100+, Active detectors: {len(reasons)}")
+        if reasons:
+            print(f"🔍 [TREND DEBUG] Active signals: {', '.join(reasons)}")
+        
+        return score, reasons
+        
+    except Exception as e:
+        print(f"⚠️ Error in S/R trend mode scoring for {symbol}: {str(e)}")
+        return 0, [f"Error: {str(e)[:50]}"]
     
     try:
         # Konwersja cen na float jeśli potrzeba
