@@ -17,6 +17,7 @@ from detectors.orderbook_freeze import detect_orderbook_freeze, calculate_orderb
 from detectors.heatmap_vacuum import detect_heatmap_vacuum, calculate_heatmap_vacuum_score, create_mock_heatmap_snapshots
 from detectors.vwap_pinning import detect_vwap_pinning, calculate_vwap_pinning_score, calculate_vwap_values
 from detectors.one_sided_pressure import detect_one_sided_pressure, calculate_one_sided_pressure_score
+from detectors.micro_echo import detect_micro_echo, calculate_micro_echo_score, fetch_1m_prices_bybit
 import json
 from datetime import datetime, timezone
 
@@ -108,6 +109,9 @@ def detect_trend_mode_extended(symbol, candle_data):
         pressure_detected = False
         pressure_score = 0
         pressure_details = {}
+        micro_echo_detected = False
+        micro_echo_score = 0
+        micro_echo_details = {}
         
         try:
             # Pobierz serię cen z ostatnich 3h (dane 5-minutowe)
@@ -213,10 +217,31 @@ def detect_trend_mode_extended(symbol, candle_data):
         else:
             print(f"⚖️ {symbol}: Balanced orderbook - {pressure_description}")
         
+        # === MICRO-TIMEFRAME ECHO DETECTION (8th Layer) ===
+        # Fetch 1-minute prices for micro impulse analysis
+        prices_1m = fetch_1m_prices_bybit(symbol, limit=45)
+        if prices_1m and len(prices_1m) >= 20:
+            echo_result = detect_micro_echo(prices_1m)
+            micro_echo_detected, micro_echo_description, micro_echo_details = echo_result
+            micro_echo_score = calculate_micro_echo_score(echo_result)
+        else:
+            # Fallback to mock data for development/testing
+            from detectors.micro_echo import create_mock_bullish_1m_prices
+            mock_prices_1m = create_mock_bullish_1m_prices()
+            echo_result = detect_micro_echo(mock_prices_1m)
+            micro_echo_detected, micro_echo_description, micro_echo_details = echo_result
+            micro_echo_score = calculate_micro_echo_score(echo_result)
+            micro_echo_description += " (mock data)"
+        
+        if micro_echo_detected:
+            print(f"🎵 {symbol}: Micro echo detected - {micro_echo_description} (+{micro_echo_score} points)")
+        else:
+            print(f"🔇 {symbol}: No micro echo - {micro_echo_description}")
+        
         # === ENHANCED COMBINED CONFIDENCE CALCULATION ===
         base_confidence = 100 if trend_active else (50 if stage_minus1_active else 0)
         
-        # Dodaj adjustmenty za kompletną analizę flow (7 warstw)
+        # Dodaj adjustmenty za kompletną analizę flow (8 warstw)
         directional_adjustment = directional_flow_score if directional_flow_details else 0
         consistency_adjustment = flow_consistency_score
         pulse_delay_adjustment = pulse_delay_score
@@ -224,9 +249,10 @@ def detect_trend_mode_extended(symbol, candle_data):
         heatmap_vacuum_adjustment = heatmap_vacuum_score
         vwap_pinning_adjustment = vwap_pinning_score
         pressure_adjustment = pressure_score
-        total_flow_adjustment = directional_adjustment + consistency_adjustment + pulse_delay_adjustment + orderbook_freeze_adjustment + heatmap_vacuum_adjustment + vwap_pinning_adjustment + pressure_adjustment
+        micro_echo_adjustment = micro_echo_score
+        total_flow_adjustment = directional_adjustment + consistency_adjustment + pulse_delay_adjustment + orderbook_freeze_adjustment + heatmap_vacuum_adjustment + vwap_pinning_adjustment + pressure_adjustment + micro_echo_adjustment
         
-        combined_confidence = max(0, min(base_confidence + total_flow_adjustment, 215))  # 0-215 punktów
+        combined_confidence = max(0, min(base_confidence + total_flow_adjustment, 225))  # 0-225 punktów
         
         details = {
             "stage_minus1": {
@@ -274,6 +300,11 @@ def detect_trend_mode_extended(symbol, candle_data):
                 "score": pressure_score,
                 "details": pressure_details
             },
+            "micro_echo": {
+                "detected": micro_echo_detected,
+                "score": micro_echo_score,
+                "details": micro_echo_details
+            },
             "combined_confidence": combined_confidence,
             "base_confidence": base_confidence,
             "directional_adjustment": directional_adjustment,
@@ -283,6 +314,7 @@ def detect_trend_mode_extended(symbol, candle_data):
             "heatmap_vacuum_adjustment": heatmap_vacuum_adjustment,
             "vwap_pinning_adjustment": vwap_pinning_adjustment,
             "pressure_adjustment": pressure_adjustment,
+            "micro_echo_adjustment": micro_echo_adjustment,
             "total_flow_adjustment": total_flow_adjustment,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "symbol": symbol
