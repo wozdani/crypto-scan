@@ -10,7 +10,7 @@ from .bybit_orderbook import get_orderbook_with_fallback
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from detectors.wave_flow_detector import detect_rhythmic_price_flow, get_price_series_bybit, calculate_rhythmic_score
+from detectors.directional_flow_detector import detect_directional_flow, get_price_series_bybit, calculate_directional_score
 import json
 from datetime import datetime, timezone
 
@@ -80,31 +80,34 @@ def detect_trend_mode_extended(symbol, candle_data):
                     "bid_ask_ratio": 2.28
                 }
         
-        # === WAVE FLOW DETECTION (Rytmiczny Ruch Ceny) ===
-        wave_flow_detected = False
-        wave_flow_score = 0
-        wave_flow_details = {}
+        # === DIRECTIONAL FLOW DETECTION (Naturalny Kierunkowy Ruch) ===
+        directional_flow_detected = False
+        directional_flow_score = 0
+        directional_flow_details = {}
         
         try:
             # Pobierz serię cen z ostatnich 3h (dane 5-minutowe)
             prices = get_price_series_bybit(symbol)
             if prices:
-                wave_result = detect_rhythmic_price_flow(prices)
-                wave_flow_detected, wave_description, wave_flow_details = wave_result
-                if wave_flow_detected:
-                    wave_flow_score = calculate_rhythmic_score(wave_result)
-                    print(f"🌊 {symbol}: Wave Flow detected - {wave_description} (+{wave_flow_score} points)")
+                flow_result = detect_directional_flow(prices)
+                directional_flow_detected, flow_description, directional_flow_details = flow_result
+                directional_flow_score = calculate_directional_score(flow_result)
+                
+                if directional_flow_detected:
+                    print(f"📈 {symbol}: Natural flow detected - {flow_description} (+{directional_flow_score} points)")
+                else:
+                    print(f"📉 {symbol}: Chaotic flow - {flow_description} ({directional_flow_score} points)")
             else:
-                print(f"⚠️ {symbol}: No price data for wave flow analysis")
+                print(f"⚠️ {symbol}: No price data for directional flow analysis")
         except Exception as e:
-            print(f"❌ {symbol}: Wave flow analysis failed: {e}")
+            print(f"❌ {symbol}: Directional flow analysis failed: {e}")
         
         # === ENHANCED COMBINED CONFIDENCE CALCULATION ===
         base_confidence = 100 if trend_active else (50 if stage_minus1_active else 0)
         
-        # Dodaj bonus za wave flow (max +25 punktów do confidence)
-        wave_bonus = min(wave_flow_score, 25) if wave_flow_detected else 0
-        combined_confidence = min(base_confidence + wave_bonus, 125)  # Max 125 punktów
+        # Dodaj bonus/karę za directional flow (+25 do -10 punktów)
+        flow_adjustment = directional_flow_score if directional_flow_details else 0
+        combined_confidence = max(0, min(base_confidence + flow_adjustment, 125))  # 0-125 punktów
         
         details = {
             "stage_minus1": {
@@ -117,14 +120,14 @@ def detect_trend_mode_extended(symbol, candle_data):
                 "confidence": orderbook_confidence,
                 "key_factors": orderbook_factors
             },
-            "wave_flow": {
-                "active": wave_flow_detected,
-                "score": wave_flow_score,
-                "details": wave_flow_details
+            "directional_flow": {
+                "active": directional_flow_detected,
+                "score": directional_flow_score,
+                "details": directional_flow_details
             },
             "combined_confidence": combined_confidence,
             "base_confidence": base_confidence,
-            "wave_bonus": wave_bonus,
+            "flow_adjustment": flow_adjustment,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "symbol": symbol
         }
