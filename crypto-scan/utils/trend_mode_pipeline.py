@@ -323,7 +323,7 @@ def detect_trend_mode_extended(symbol, candle_data):
                 # Old directional flow removed - using new uptrend detection system
                 flow_result = (False, "Directional flow detector removed", {})
                 directional_flow_detected, flow_description, directional_flow_details = flow_result
-                directional_flow_score = calculate_directional_score(flow_result)
+                directional_flow_score = 0  # No scoring from removed detector
                 
                 # Flow Consistency Index
                 flow_consistency = compute_flow_consistency(prices)
