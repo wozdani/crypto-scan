@@ -98,17 +98,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 20, 2025 - Directional Flow Detector Implementation - PRODUCTION READY
-- **Revolutionary directional flow detector implemented**: Complete replacement of rhythmic detection with natural directional flow analysis for superior trend identification
-- **Natural flow detection**: Analyzes price movement consistency vs chaos using direction change analysis (chaos ratio <40% = natural flow)
-- **Enhanced scoring system**: +25 points for excellent natural flow, +18 for acceptable flow, -10 penalty for chaotic movements (memecoin filtering)
-- **Quality-based classification**: Four-tier system (excellent/good/acceptable/chaotic) with detailed flow analysis and trend consistency metrics
-- **Complete trend mode integration**: Full integration with `detect_trend_mode_extended()` pipeline providing flow adjustment scoring (0-125 points total)
-- **Advanced directional analysis**: Segment-based trend analysis, dominant direction detection, and flow summary generation for comprehensive market behavior assessment
-- **Production-ready testing**: 5/5 comprehensive tests passed including directional detection, scoring validation, detailed analysis, API integration, and trend mode pipeline compatibility
-- **Simplified natural approach**: Eliminates artificial rhythmic patterns in favor of intuitive directional consistency analysis matching real trader psychology
-- **Chaos filtering capability**: Effectively filters out choppy, meme token movements while preserving legitimate trend signals for superior signal quality
-- **Enhanced pipeline confidence**: Combined confidence calculation now includes directional flow adjustment for more accurate trend mode activation
+### June 20, 2025 - Flow Consistency Index (FCI) + Directional Flow Complete Integration - PRODUCTION READY
+- **Flow Consistency Index (FCI) implemented**: Revolutionary micro-movement analysis measuring directional consistency based on price behavior sequence over 3-hour windows
+- **Advanced consistency scoring**: Measures ratio of dominant direction moves (0.0-1.0 scale) - ≥75% gets +15 points, 65-74% gets +8 points, <55% gets -10 penalty
+- **Dual-layer flow analysis**: Combined directional flow detection + consistency measurement for comprehensive trend quality assessment
+- **Enhanced scoring range**: Trend mode pipeline now supports 0-140 points total (base 100 + directional adjustment + consistency adjustment)
+- **Memecoin chaos filtering**: Effectively penalizes chaotic up-down-up-down patterns while rewarding sustained directional movements
+- **Comprehensive test validation**: All scenarios tested including excellent consistency (80%), good consistency (72%), chaotic patterns (51%), and edge cases
+- **Perfect trend detection**: System achieves 100% consistency score for perfect directional trends with maximum +15 point bonus
+- **Production-ready integration**: Complete integration with trend_mode_pipeline.py including detailed flow analysis reporting and confidence calculation
+- **Natural market behavior focus**: Analyzes actual price sequence behavior rather than artificial technical indicators for superior market psychology alignment
+- **Advanced flow metrics**: Provides dominant direction analysis, directional strength measurement, and comprehensive flow quality assessment
 
 ### June 19, 2025 - Liquidity Behavior Detector + Enhanced PPWCS Scoring Complete - PRODUCTION READY
 - **Complete Liquidity Behavior Detector implemented**: Revolutionary strategic liquidity analysis system with 4 sophisticated detection sublogics for identifying hidden whale accumulation patterns
