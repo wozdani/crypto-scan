@@ -15,6 +15,7 @@ from detectors.flow_consistency import compute_flow_consistency, calculate_flow_
 from detectors.pulse_delay import detect_pulse_delay, calculate_pulse_delay_score
 from detectors.orderbook_freeze import detect_orderbook_freeze, calculate_orderbook_freeze_score, create_mock_orderbook_snapshots
 from detectors.heatmap_vacuum import detect_heatmap_vacuum, calculate_heatmap_vacuum_score, create_mock_heatmap_snapshots
+from detectors.vwap_pinning import detect_vwap_pinning, calculate_vwap_pinning_score, calculate_vwap_values
 import json
 from datetime import datetime, timezone
 
@@ -84,7 +85,7 @@ def detect_trend_mode_extended(symbol, candle_data):
                     "bid_ask_ratio": 2.28
                 }
         
-        # === COMPREHENSIVE FLOW ANALYSIS (Directional + Consistency + Pulse Delay + Orderbook Freeze + Heatmap Vacuum) ===
+        # === COMPREHENSIVE FLOW ANALYSIS (Directional + Consistency + Pulse Delay + Orderbook Freeze + Heatmap Vacuum + VWAP Pinning) ===
         directional_flow_detected = False
         directional_flow_score = 0
         directional_flow_details = {}
@@ -100,6 +101,9 @@ def detect_trend_mode_extended(symbol, candle_data):
         heatmap_vacuum_detected = False
         heatmap_vacuum_score = 0
         heatmap_vacuum_details = {}
+        vwap_pinning_detected = False
+        vwap_pinning_score = 0
+        vwap_pinning_details = {}
         
         try:
             # Pobierz serię cen z ostatnich 3h (dane 5-minutowe)
@@ -131,6 +135,27 @@ def detect_trend_mode_extended(symbol, candle_data):
                 heatmap_vacuum_detected, vacuum_description, heatmap_vacuum_details = vacuum_result
                 heatmap_vacuum_score = calculate_heatmap_vacuum_score(vacuum_result)
                 
+                # VWAP Pinning Detection
+                # Calculate VWAP values from price data (simplified calculation for development)
+                # In production, this would use actual volume data
+                vwap_values = []
+                if len(prices) >= 20:
+                    # Simple moving average as VWAP approximation for development
+                    for i in range(len(prices)):
+                        start_idx = max(0, i - 9)  # 10-period window
+                        window_prices = prices[start_idx:i+1]
+                        avg_price = sum(window_prices) / len(window_prices)
+                        vwap_values.append(avg_price)
+                    
+                    pinning_result = detect_vwap_pinning(prices, vwap_values)
+                    vwap_pinning_detected, pinning_description, vwap_pinning_details = pinning_result
+                    vwap_pinning_score = calculate_vwap_pinning_score(pinning_result)
+                else:
+                    vwap_pinning_detected = False
+                    pinning_description = "Za mało danych dla analizy VWAP pinning"
+                    vwap_pinning_details = {}
+                    vwap_pinning_score = 0
+                
                 # Logging results
                 if directional_flow_detected:
                     print(f"📈 {symbol}: Natural flow detected - {flow_description} (+{directional_flow_score} points)")
@@ -153,6 +178,11 @@ def detect_trend_mode_extended(symbol, candle_data):
                     print(f"🗺️ {symbol}: Heatmap vacuum detected - {vacuum_description} (+{heatmap_vacuum_score} points)")
                 else:
                     print(f"📊 {symbol}: No heatmap vacuum - ask levels stable")
+                
+                if vwap_pinning_detected:
+                    print(f"📌 {symbol}: VWAP pinning detected - {pinning_description} (+{vwap_pinning_score} points)")
+                else:
+                    print(f"📈 {symbol}: No VWAP pinning - price volatile vs VWAP")
             else:
                 print(f"⚠️ {symbol}: No price data for flow analysis")
         except Exception as e:
@@ -167,9 +197,10 @@ def detect_trend_mode_extended(symbol, candle_data):
         pulse_delay_adjustment = pulse_delay_score
         orderbook_freeze_adjustment = orderbook_freeze_score
         heatmap_vacuum_adjustment = heatmap_vacuum_score
-        total_flow_adjustment = directional_adjustment + consistency_adjustment + pulse_delay_adjustment + orderbook_freeze_adjustment + heatmap_vacuum_adjustment
+        vwap_pinning_adjustment = vwap_pinning_score
+        total_flow_adjustment = directional_adjustment + consistency_adjustment + pulse_delay_adjustment + orderbook_freeze_adjustment + heatmap_vacuum_adjustment + vwap_pinning_adjustment
         
-        combined_confidence = max(0, min(base_confidence + total_flow_adjustment, 180))  # 0-180 punktów
+        combined_confidence = max(0, min(base_confidence + total_flow_adjustment, 195))  # 0-195 punktów
         
         details = {
             "stage_minus1": {
@@ -207,6 +238,11 @@ def detect_trend_mode_extended(symbol, candle_data):
                 "score": heatmap_vacuum_score,
                 "details": heatmap_vacuum_details
             },
+            "vwap_pinning": {
+                "detected": vwap_pinning_detected,
+                "score": vwap_pinning_score,
+                "details": vwap_pinning_details
+            },
             "combined_confidence": combined_confidence,
             "base_confidence": base_confidence,
             "directional_adjustment": directional_adjustment,
@@ -214,6 +250,7 @@ def detect_trend_mode_extended(symbol, candle_data):
             "pulse_delay_adjustment": pulse_delay_adjustment,
             "orderbook_freeze_adjustment": orderbook_freeze_adjustment,
             "heatmap_vacuum_adjustment": heatmap_vacuum_adjustment,
+            "vwap_pinning_adjustment": vwap_pinning_adjustment,
             "total_flow_adjustment": total_flow_adjustment,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "symbol": symbol
