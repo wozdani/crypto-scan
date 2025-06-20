@@ -13,6 +13,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from detectors.directional_flow_detector import detect_directional_flow, calculate_directional_score
 from detectors.flow_consistency import compute_flow_consistency, calculate_flow_consistency_score, get_price_series_bybit
 from detectors.pulse_delay import detect_pulse_delay, calculate_pulse_delay_score
+from detectors.orderbook_freeze import detect_orderbook_freeze, calculate_orderbook_freeze_score, create_mock_orderbook_snapshots
 import json
 from datetime import datetime, timezone
 
@@ -82,7 +83,7 @@ def detect_trend_mode_extended(symbol, candle_data):
                     "bid_ask_ratio": 2.28
                 }
         
-        # === COMPREHENSIVE FLOW ANALYSIS (Directional + Consistency + Pulse Delay) ===
+        # === COMPREHENSIVE FLOW ANALYSIS (Directional + Consistency + Pulse Delay + Orderbook Freeze) ===
         directional_flow_detected = False
         directional_flow_score = 0
         directional_flow_details = {}
@@ -92,6 +93,9 @@ def detect_trend_mode_extended(symbol, candle_data):
         pulse_delay_detected = False
         pulse_delay_score = 0
         pulse_delay_details = {}
+        orderbook_freeze_detected = False
+        orderbook_freeze_score = 0
+        orderbook_freeze_details = {}
         
         try:
             # Pobierz serię cen z ostatnich 3h (dane 5-minutowe)
@@ -111,6 +115,12 @@ def detect_trend_mode_extended(symbol, candle_data):
                 pulse_delay_detected, pulse_description, pulse_delay_details = pulse_result
                 pulse_delay_score = calculate_pulse_delay_score(pulse_result)
                 
+                # Orderbook Freeze Detection (using mock data in development)
+                orderbook_snapshots = create_mock_orderbook_snapshots()  # In production, use real snapshots
+                freeze_result = detect_orderbook_freeze(orderbook_snapshots)
+                orderbook_freeze_detected, freeze_description, orderbook_freeze_details = freeze_result
+                orderbook_freeze_score = calculate_orderbook_freeze_score(freeze_result)
+                
                 # Logging results
                 if directional_flow_detected:
                     print(f"📈 {symbol}: Natural flow detected - {flow_description} (+{directional_flow_score} points)")
@@ -123,6 +133,11 @@ def detect_trend_mode_extended(symbol, candle_data):
                     print(f"⏸️ {symbol}: Pulse delay detected - {pulse_description} (+{pulse_delay_score} points)")
                 else:
                     print(f"🌊 {symbol}: No pulse delay - continuous flow")
+                
+                if orderbook_freeze_detected:
+                    print(f"🧊 {symbol}: Orderbook freeze detected - {freeze_description} (+{orderbook_freeze_score} points)")
+                else:
+                    print(f"📋 {symbol}: No orderbook freeze - ask-side active")
             else:
                 print(f"⚠️ {symbol}: No price data for flow analysis")
         except Exception as e:
@@ -135,9 +150,10 @@ def detect_trend_mode_extended(symbol, candle_data):
         directional_adjustment = directional_flow_score if directional_flow_details else 0
         consistency_adjustment = flow_consistency_score
         pulse_delay_adjustment = pulse_delay_score
-        total_flow_adjustment = directional_adjustment + consistency_adjustment + pulse_delay_adjustment
+        orderbook_freeze_adjustment = orderbook_freeze_score
+        total_flow_adjustment = directional_adjustment + consistency_adjustment + pulse_delay_adjustment + orderbook_freeze_adjustment
         
-        combined_confidence = max(0, min(base_confidence + total_flow_adjustment, 155))  # 0-155 punktów
+        combined_confidence = max(0, min(base_confidence + total_flow_adjustment, 170))  # 0-170 punktów
         
         details = {
             "stage_minus1": {
@@ -165,11 +181,17 @@ def detect_trend_mode_extended(symbol, candle_data):
                 "score": pulse_delay_score,
                 "details": pulse_delay_details
             },
+            "orderbook_freeze": {
+                "detected": orderbook_freeze_detected,
+                "score": orderbook_freeze_score,
+                "details": orderbook_freeze_details
+            },
             "combined_confidence": combined_confidence,
             "base_confidence": base_confidence,
             "directional_adjustment": directional_adjustment,
             "consistency_adjustment": consistency_adjustment,
             "pulse_delay_adjustment": pulse_delay_adjustment,
+            "orderbook_freeze_adjustment": orderbook_freeze_adjustment,
             "total_flow_adjustment": total_flow_adjustment,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "symbol": symbol

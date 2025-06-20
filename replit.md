@@ -98,17 +98,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 20, 2025 - Flow Consistency Index (FCI) + Directional Flow Complete Integration - PRODUCTION READY
-- **Flow Consistency Index (FCI) implemented**: Revolutionary micro-movement analysis measuring directional consistency based on price behavior sequence over 3-hour windows
-- **Advanced consistency scoring**: Measures ratio of dominant direction moves (0.0-1.0 scale) - ≥75% gets +15 points, 65-74% gets +8 points, <55% gets -10 penalty
-- **Dual-layer flow analysis**: Combined directional flow detection + consistency measurement for comprehensive trend quality assessment
-- **Enhanced scoring range**: Trend mode pipeline now supports 0-140 points total (base 100 + directional adjustment + consistency adjustment)
-- **Memecoin chaos filtering**: Effectively penalizes chaotic up-down-up-down patterns while rewarding sustained directional movements
-- **Comprehensive test validation**: All scenarios tested including excellent consistency (80%), good consistency (72%), chaotic patterns (51%), and edge cases
-- **Perfect trend detection**: System achieves 100% consistency score for perfect directional trends with maximum +15 point bonus
-- **Production-ready integration**: Complete integration with trend_mode_pipeline.py including detailed flow analysis reporting and confidence calculation
-- **Natural market behavior focus**: Analyzes actual price sequence behavior rather than artificial technical indicators for superior market psychology alignment
-- **Advanced flow metrics**: Provides dominant direction analysis, directional strength measurement, and comprehensive flow quality assessment
+### June 20, 2025 - Pulse Delay Detector + Triple-Layer Flow Analysis Complete - PRODUCTION READY
+- **Pulse Delay Detector implemented**: Revolutionary controlled trend detection identifying flat → impulse → flat → impulse patterns characteristic of institutional accumulation
+- **Advanced pulse pattern recognition**: Detects controlled pause sequences (flat ±0.06%, impulse ≥0.1%) with sophisticated pattern scoring up to +15 points
+- **Triple-layer flow analysis**: Comprehensive analysis combining directional flow + consistency measurement + pulse delay detection for superior trend quality assessment
+- **Enhanced confidence range**: Trend mode pipeline now supports 0-155 points total (base 100 + directional + consistency + pulse delay adjustments)
+- **Institutional vs FOMO filtering**: Effectively distinguishes controlled institutional trends from chaotic FOMO movements through pause-impulse pattern analysis
+- **Advanced pattern scoring**: Strong pulse delay (4+ patterns) gets +15 points, moderate (2-3 patterns) gets +12-13 points, weak (1 pattern) gets +10-12 points
+- **Comprehensive test validation**: All scenarios validated including controlled trends (4 patterns, 15 points), institutional flow (1 pattern, 12 points), and chaotic rejection (0 points)
+- **Production-ready integration**: Complete integration with trend_mode_pipeline.py providing comprehensive flow analysis with pulse delay, consistency, and directional metrics
+- **Market control detection**: Identifies when large players use strategic pauses between movements, indicating controlled accumulation rather than organic retail activity
+- **Anti-chaos mechanism**: System penalizes rapid continuous movements while rewarding strategic pause-impulse sequences typical of professional market manipulation
 
 ### June 19, 2025 - Liquidity Behavior Detector + Enhanced PPWCS Scoring Complete - PRODUCTION READY
 - **Complete Liquidity Behavior Detector implemented**: Revolutionary strategic liquidity analysis system with 4 sophisticated detection sublogics for identifying hidden whale accumulation patterns
