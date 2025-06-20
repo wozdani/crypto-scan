@@ -98,6 +98,15 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 20, 2025 - Revolutionary Trend Entry Detection System - PRODUCTION READY
+- **Complete chaotic flow detector removal**: Eliminated old directional flow detector that penalized market corrections with -10 points based on color changes
+- **Advanced uptrend 15M detection**: New is_uptrend_15m() function detects genuine uptrends with small corrections (<1%) and dominance validation (3/5 periods up)
+- **Sophisticated absorption entry trigger**: is_absorption_entry_trigger() identifies optimal entry points when selling pressure weakens and bid pressure exceeds 1.4x ask volume
+- **Premium entry signal scoring**: Complete trend entry signals (uptrend + absorption) receive 75-point score for immediate high-confidence alerts
+- **Professional scalping logic**: System now mimics best scalpers by entering when corrections end and buying pressure resurges instead of avoiding healthy pullbacks
+- **Enhanced alert differentiation**: Special trend entry alerts distinguished from standard trend mode alerts with dedicated messaging and scoring
+- **Production-ready integration**: Complete replacement of chaotic flow logic with sophisticated trend continuation detection across multiple timeframes
+
 ### June 20, 2025 - Enhanced Trend Mode Debugging & Reports System - PRODUCTION READY
 - **Comprehensive debugging logging implemented**: Added detailed debug logs throughout Trend Mode pipeline showing analysis start, data collection status, scoring breakdown, and active detector identification
 - **Separate reports folder structure**: Created dedicated reports/ directory with daily trend_mode_alerts_YYYYMMDD.json files for persistent alert tracking and analysis

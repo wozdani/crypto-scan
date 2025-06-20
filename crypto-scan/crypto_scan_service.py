@@ -483,10 +483,23 @@ def scan_cycle():
                     if trend_mode_reasons:
                         print(f"🔍 [TREND DEBUG] Active signals: {', '.join(trend_mode_reasons)}")
                     
-                    # Enhanced trend mode alerting with comprehensive scoring
+                    # Enhanced trend mode alerting with new entry logic
                     if trend_mode_score >= 30:  # Alert threshold
                         print(f"🚨 TREND MODE ALERT: {symbol} - Score: {trend_mode_score}/100+")
                         print(f"📋 Active signals: {', '.join(trend_mode_reasons)}")
+                        
+                        # Check for special trend entry signal (75+ score for immediate entry)
+                        if "trend entry – uptrend 15M + absorption trigger" in trend_mode_reasons:
+                            special_entry_score = 75
+                            print(f"🔥 TREND ENTRY TRIGGER: {symbol} - Premium entry signal ({special_entry_score} points)")
+                            
+                            # Send special trend entry alert
+                            send_alert(
+                                symbol=symbol,
+                                alert_type="trend_mode",
+                                trend_score=special_entry_score,
+                                trend_reasons=["Trend Mode Entry: Uptrend 15M + Trigger 5M (Absorption)"]
+                            )
                         
                         # Save comprehensive trend mode alert to dedicated report file
                         alert_data = {
@@ -503,13 +516,14 @@ def scan_cycle():
                         save_trend_mode_alert(alert_data)
                         save_trend_mode_report(symbol, alert_data)  # Save to reports folder
                         
-                        # Send dedicated Trend Mode alert using updated send_alert function
-                        send_alert(
-                            symbol=symbol,
-                            alert_type="trend_mode", 
-                            trend_score=trend_mode_score,
-                            trend_reasons=trend_mode_reasons
-                        )
+                        # Send standard trend mode alert (if not special entry)
+                        if "trend entry – uptrend 15M + absorption trigger" not in trend_mode_reasons:
+                            send_alert(
+                                symbol=symbol,
+                                alert_type="trend_mode", 
+                                trend_score=trend_mode_score,
+                                trend_reasons=trend_mode_reasons
+                            )
                     
                     elif trend_mode_active:
                         print(f"📊 Trend Mode Active: {symbol} - Basic: {trend_mode_confidence}/250, Comprehensive: {trend_mode_score}/100+")

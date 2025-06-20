@@ -89,7 +89,7 @@ def compute_trend_mode_score(symbol: str, prices_5m: list, prices_1m: list, orde
         
         # Import specific detector functions
         try:
-            from detectors.directional_flow import detect_directional_flow
+            # Removed old directional_flow detector - replaced with uptrend_15m
             from detectors.flow_consistency import detect_flow_consistency_index
             from detectors.pulse_delay import detect_pulse_delay_pattern
             from detectors.orderbook_freeze import detect_orderbook_freeze
@@ -103,14 +103,27 @@ def compute_trend_mode_score(symbol: str, prices_5m: list, prices_1m: list, orde
             # Fallback to existing functions in pipeline
             pass
         
-        # 1. Directional Flow (5 punktów)
+        # 1. Trend Entry Detection (replaces old chaotic flow detector)
         try:
-            directional_result = detect_directional_flow(prices_5m)
-            if directional_result[0]:
-                score += 5
-                reasons.append("directional flow – consistent price direction")
-        except Exception:
-            pass
+            from detectors.uptrend_15m import detect_trend_entry_signal
+            
+            # Get 15m prices for trend analysis (mock data in development)
+            prices_15m = []  # Will be fetched from Bybit API in production
+            volumes_ask = []  # Volume data for ask analysis
+            
+            trend_entry_active, trend_description, trend_details = detect_trend_entry_signal(
+                prices_15m, prices_5m, volumes_ask, orderbook_data or {}
+            )
+            
+            if trend_entry_active:
+                score += 15  # Higher score for quality trend entry
+                reasons.append("trend entry – uptrend 15M + absorption trigger")
+                print(f"🚀 {symbol}: {trend_description} (+15 points)")
+            else:
+                print(f"📊 {symbol}: {trend_description}")
+                
+        except Exception as e:
+            print(f"⚠️ Trend entry detection failed for {symbol}: {e}")
         
         # 2. Flow Consistency (3 punkty) 
         try:
