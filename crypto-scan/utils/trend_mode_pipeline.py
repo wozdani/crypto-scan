@@ -19,6 +19,48 @@ from detectors.vwap_pinning import detect_vwap_pinning, calculate_vwap_pinning_s
 from detectors.one_sided_pressure import detect_one_sided_pressure, calculate_one_sided_pressure_score
 from detectors.micro_echo import detect_micro_echo, calculate_micro_echo_score, fetch_1m_prices_bybit
 from detectors.human_flow import detect_human_like_flow, calculate_human_flow_score
+from detectors.calm_before_trend import detect_calm_before_trend, calculate_calm_before_trend_score, create_mock_calm_prices
+
+def fetch_5m_prices_bybit(symbol: str, count: int = 24):
+    """
+    Fetch 5-minute close prices from Bybit API
+    
+    Args:
+        symbol: Trading symbol (e.g., 'BTCUSDT')
+        count: Number of 5-minute candles to fetch
+        
+    Returns:
+        List of close prices
+    """
+    try:
+        import requests
+        import time
+        
+        # Bybit API endpoint for kline data
+        url = "https://api.bybit.com/v5/market/kline"
+        params = {
+            "category": "linear",
+            "symbol": symbol,
+            "interval": "5",  # 5-minute intervals
+            "limit": count
+        }
+        
+        response = requests.get(url, params=params, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("retCode") == 0 and data.get("result", {}).get("list"):
+                candles = data["result"]["list"]
+                # Extract close prices (index 4 in each candle)
+                prices = [float(candle[4]) for candle in candles]
+                # Reverse to get chronological order (Bybit returns newest first)
+                return list(reversed(prices))
+        
+        return []
+        
+    except Exception as e:
+        print(f"⚠️ Error fetching 5m prices for {symbol}: {str(e)}")
+        return []
 import json
 from datetime import datetime, timezone
 
@@ -116,6 +158,9 @@ def detect_trend_mode_extended(symbol, candle_data):
         human_flow_detected = False
         human_flow_score = 0
         human_flow_details = {}
+        calm_before_trend_detected = False
+        calm_before_trend_score = 0
+        calm_before_trend_details = {}
         
         try:
             # Pobierz serię cen z ostatnich 3h (dane 5-minutowe)
@@ -264,10 +309,39 @@ def detect_trend_mode_extended(symbol, candle_data):
         else:
             print(f"🤖 {symbol}: No human flow - {human_flow_description}")
         
+        # === CALM BEFORE THE TREND DETECTION (10th Layer) ===
+        # Extract 5-minute prices for volatility analysis (last 2 hours = ~24 points)
+        try:
+            # Try to get real 5m price data from Bybit
+            calm_prices = fetch_5m_prices_bybit(symbol, 24)
+            if calm_prices and len(calm_prices) >= 20:
+                calm_result = detect_calm_before_trend(calm_prices)
+                calm_before_trend_detected, calm_description, calm_before_trend_details = calm_result
+                calm_before_trend_score = calculate_calm_before_trend_score(calm_result)
+            else:
+                # Fallback to mock data for development/testing
+                mock_calm_prices = create_mock_calm_prices()
+                calm_result = detect_calm_before_trend(mock_calm_prices)
+                calm_before_trend_detected, calm_description, calm_before_trend_details = calm_result
+                calm_before_trend_score = calculate_calm_before_trend_score(calm_result)
+                calm_description += " (mock data)"
+        except Exception as e:
+            # Error handling - use mock data
+            mock_calm_prices = create_mock_calm_prices()
+            calm_result = detect_calm_before_trend(mock_calm_prices)
+            calm_before_trend_detected, calm_description, calm_before_trend_details = calm_result
+            calm_before_trend_score = calculate_calm_before_trend_score(calm_result)
+            calm_description += f" (error: {str(e)[:50]})"
+        
+        if calm_before_trend_detected:
+            print(f"🌊 {symbol}: Calm before trend detected - {calm_description} (+{calm_before_trend_score} points)")
+        else:
+            print(f"⛈️ {symbol}: No calm before trend - {calm_description}")
+        
         # === ENHANCED COMBINED CONFIDENCE CALCULATION ===
         base_confidence = 100 if trend_active else (50 if stage_minus1_active else 0)
         
-        # Dodaj adjustmenty za kompletną analizę flow (9 warstw)
+        # Dodaj adjustmenty za kompletną analizę flow (10 warstw)
         directional_adjustment = directional_flow_score if directional_flow_details else 0
         consistency_adjustment = flow_consistency_score
         pulse_delay_adjustment = pulse_delay_score
@@ -277,9 +351,10 @@ def detect_trend_mode_extended(symbol, candle_data):
         pressure_adjustment = pressure_score
         micro_echo_adjustment = micro_echo_score
         human_flow_adjustment = human_flow_score
-        total_flow_adjustment = directional_adjustment + consistency_adjustment + pulse_delay_adjustment + orderbook_freeze_adjustment + heatmap_vacuum_adjustment + vwap_pinning_adjustment + pressure_adjustment + micro_echo_adjustment + human_flow_adjustment
+        calm_before_trend_adjustment = calm_before_trend_score
+        total_flow_adjustment = directional_adjustment + consistency_adjustment + pulse_delay_adjustment + orderbook_freeze_adjustment + heatmap_vacuum_adjustment + vwap_pinning_adjustment + pressure_adjustment + micro_echo_adjustment + human_flow_adjustment + calm_before_trend_adjustment
         
-        combined_confidence = max(0, min(base_confidence + total_flow_adjustment, 240))  # 0-240 punktów
+        combined_confidence = max(0, min(base_confidence + total_flow_adjustment, 250))  # 0-250 punktów
         
         details = {
             "stage_minus1": {
