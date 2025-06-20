@@ -452,8 +452,8 @@ def scan_cycle():
             try:
                 from utils.trend_mode_pipeline import (
                     detect_trend_mode, detect_trend_mode_extended, 
-                    save_trend_mode_alert, compute_trend_mode_score,
-                    fetch_5m_prices_bybit
+                    save_trend_mode_alert, save_trend_mode_report,
+                    compute_trend_mode_score, fetch_5m_prices_bybit
                 )
                 from utils.bybit_orderbook import get_orderbook_with_fallback
                 
@@ -465,22 +465,30 @@ def scan_cycle():
                 
                 # Comprehensive Trend Mode scoring with 10 detectors
                 try:
+                    print(f"🔍 [TREND DEBUG] Starting comprehensive analysis for {symbol}")
+                    
                     # Fetch required data for comprehensive scoring
                     prices_5m = fetch_5m_prices_bybit(symbol, 24)  # 2 hours of 5m data
                     prices_1m = []  # Will use mock data in development
                     orderbook_data = get_orderbook_with_fallback(symbol)
+                    
+                    print(f"📊 [TREND DEBUG] Data collected - 5m prices: {len(prices_5m)}, orderbook: {bool(orderbook_data)}")
                     
                     # Calculate comprehensive trend mode score
                     trend_mode_score, trend_mode_reasons = compute_trend_mode_score(
                         symbol, prices_5m, prices_1m, orderbook_data
                     )
                     
+                    print(f"🎯 [TREND DEBUG] {symbol} - Score: {trend_mode_score}/100+, Active detectors: {len(trend_mode_reasons)}")
+                    if trend_mode_reasons:
+                        print(f"🔍 [TREND DEBUG] Active signals: {', '.join(trend_mode_reasons)}")
+                    
                     # Enhanced trend mode alerting with comprehensive scoring
                     if trend_mode_score >= 30:  # Alert threshold
                         print(f"🚨 TREND MODE ALERT: {symbol} - Score: {trend_mode_score}/100+")
                         print(f"📋 Active signals: {', '.join(trend_mode_reasons)}")
                         
-                        # Save comprehensive trend mode alert
+                        # Save comprehensive trend mode alert to dedicated report file
                         alert_data = {
                             'symbol': symbol,
                             'trend_active': True,
@@ -488,9 +496,12 @@ def scan_cycle():
                             'confidence': trend_mode_confidence,
                             'comprehensive_score': trend_mode_score,
                             'active_signals': trend_mode_reasons,
-                            'timestamp': datetime.now(timezone.utc).isoformat()
+                            'timestamp': datetime.now(timezone.utc).isoformat(),
+                            'prices_5m_count': len(prices_5m),
+                            'orderbook_available': bool(orderbook_data)
                         }
                         save_trend_mode_alert(alert_data)
+                        save_trend_mode_report(symbol, alert_data)  # Save to reports folder
                         
                         # Send dedicated Trend Mode alert using updated send_alert function
                         send_alert(
@@ -502,6 +513,9 @@ def scan_cycle():
                     
                     elif trend_mode_active:
                         print(f"📊 Trend Mode Active: {symbol} - Basic: {trend_mode_confidence}/250, Comprehensive: {trend_mode_score}/100+")
+                    
+                    elif trend_mode_score > 0:
+                        print(f"📈 [TREND DEBUG] {symbol} - Low score: {trend_mode_score}/100+ (threshold: 30+)")
                     
                 except Exception as score_error:
                     print(f"⚠️ Comprehensive scoring failed for {symbol}: {str(score_error)}")
@@ -518,8 +532,15 @@ def scan_cycle():
                             trend_mode_confidence = trend_mode_details.get("combined_confidence", 0)
                             print(f"📈 {symbol}: Trend Mode ACTIVE - {trend_mode_description} (Confidence: {trend_mode_confidence}%)")
                             
-                            # Zapisz alert trend mode
-                            save_trend_mode_alert(symbol, trend_mode_active, trend_mode_description, trend_mode_details)
+                            # Zapisz alert trend mode (legacy format compatibility)
+                            legacy_alert_data = {
+                                'symbol': symbol,
+                                'trend_active': trend_mode_active,
+                                'description': trend_mode_description,
+                                'details': trend_mode_details,
+                                'timestamp': datetime.now(timezone.utc).isoformat()
+                            }
+                            save_trend_mode_alert(legacy_alert_data)
                         else:
                             print(f"📉 {symbol}: Trend Mode inactive - {trend_mode_description}")
                             

@@ -740,3 +740,85 @@ def analyze_trend_mode_patterns(symbol_list, candle_data_dict):
             continue
     
     return results
+
+
+def save_trend_mode_alert(alert_data):
+    """
+    Zapisuje alert trend mode do pliku JSON
+    
+    Args:
+        alert_data: Dictionary z danymi alertu
+    """
+    try:
+        # Ścieżka do pliku z alertami trend mode
+        alert_file = os.path.join("data", "trend_mode_alerts.json")
+        
+        # Wczytaj istniejące alerty
+        alerts = []
+        if os.path.exists(alert_file):
+            try:
+                with open(alert_file, 'r', encoding='utf-8') as f:
+                    alerts = json.load(f)
+            except (json.JSONDecodeError, FileNotFoundError):
+                alerts = []
+        
+        # Dodaj nowy alert
+        alerts.append(alert_data)
+        
+        # Zachowaj tylko ostatnie 100 alertów
+        alerts = alerts[-100:]
+        
+        # Zapisz z powrotem
+        os.makedirs(os.path.dirname(alert_file), exist_ok=True)
+        with open(alert_file, 'w', encoding='utf-8') as f:
+            json.dump(alerts, f, indent=2, ensure_ascii=False)
+            
+        print(f"💾 Trend mode alert saved for {alert_data.get('symbol', 'UNKNOWN')}")
+        
+    except Exception as e:
+        print(f"⚠️ Error saving trend mode alert: {str(e)}")
+
+
+def save_trend_mode_report(symbol, alert_data):
+    """
+    Zapisuje raport trend mode do osobnego pliku w folderze reports
+    
+    Args:
+        symbol: Trading symbol
+        alert_data: Dictionary z danymi alertu
+    """
+    try:
+        # Ścieżka do folderu reports
+        reports_dir = os.path.join("reports")
+        os.makedirs(reports_dir, exist_ok=True)
+        
+        # Nazwa pliku z datą
+        timestamp = datetime.now(timezone.utc)
+        filename = f"trend_mode_alerts_{timestamp.strftime('%Y%m%d')}.json"
+        report_file = os.path.join(reports_dir, filename)
+        
+        # Wczytaj istniejące raporty dla dzisiejszego dnia
+        reports = []
+        if os.path.exists(report_file):
+            try:
+                with open(report_file, 'r', encoding='utf-8') as f:
+                    reports = json.load(f)
+            except (json.JSONDecodeError, FileNotFoundError):
+                reports = []
+        
+        # Dodaj nowy raport
+        report_entry = {
+            "alert_time": timestamp.isoformat(),
+            "symbol": symbol,
+            "alert_data": alert_data
+        }
+        reports.append(report_entry)
+        
+        # Zapisz raport
+        with open(report_file, 'w', encoding='utf-8') as f:
+            json.dump(reports, f, indent=2, ensure_ascii=False)
+            
+        print(f"📄 [TREND DEBUG] Report saved to {filename} for {symbol}")
+        
+    except Exception as e:
+        print(f"⚠️ Error saving trend mode report: {str(e)}")
