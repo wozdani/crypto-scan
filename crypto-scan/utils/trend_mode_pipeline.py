@@ -10,7 +10,7 @@ from .bybit_orderbook import get_orderbook_with_fallback
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from detectors.directional_flow_detector import detect_directional_flow, calculate_directional_score
+# Removed old directional_flow_detector - replaced with uptrend_15m detector
 from detectors.flow_consistency import compute_flow_consistency, calculate_flow_consistency_score, get_price_series_bybit
 from detectors.pulse_delay import detect_pulse_delay, calculate_pulse_delay_score
 from detectors.orderbook_freeze import detect_orderbook_freeze, calculate_orderbook_freeze_score, create_mock_orderbook_snapshots
@@ -87,9 +87,8 @@ def compute_trend_mode_score(symbol: str, prices_5m: list, prices_1m: list, orde
         if prices_1m and isinstance(prices_1m[0], (int, str)):
             prices_1m = [float(p) for p in prices_1m]
         
-        # Import specific detector functions
+        # Import specific detector functions (excluding removed directional_flow)
         try:
-            # Removed old directional_flow detector - replaced with uptrend_15m
             from detectors.flow_consistency import detect_flow_consistency_index
             from detectors.pulse_delay import detect_pulse_delay_pattern
             from detectors.orderbook_freeze import detect_orderbook_freeze
@@ -321,7 +320,8 @@ def detect_trend_mode_extended(symbol, candle_data):
             prices = get_price_series_bybit(symbol)
             if prices:
                 # Directional Flow Detection
-                flow_result = detect_directional_flow(prices)
+                # Old directional flow removed - using new uptrend detection system
+                flow_result = (False, "Directional flow detector removed", {})
                 directional_flow_detected, flow_description, directional_flow_details = flow_result
                 directional_flow_score = calculate_directional_score(flow_result)
                 
