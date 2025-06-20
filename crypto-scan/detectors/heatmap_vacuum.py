@@ -115,6 +115,7 @@ def detect_heatmap_vacuum(orderbook_snapshots: list[dict]) -> tuple[bool, str, d
     # Definiuj vacuum zone: 1.01% - 1.02% powyżej początkowej ceny
     vacuum_zone_min = initial_price * 1.01
     vacuum_zone_max = initial_price * 1.02
+    final_price = orderbook_snapshots[-1]["price"]
     
     for level in initial_snapshot["asks"]:
         ask_price = level[0]
@@ -168,7 +169,7 @@ def detect_heatmap_vacuum(orderbook_snapshots: list[dict]) -> tuple[bool, str, d
         "disappearance_threshold_pct": disappearance_ratio_threshold * 100,
         "vacuum_details": vacuum_details,
         "snapshots_analyzed": len(orderbook_snapshots),
-        "price_at_analysis": price
+        "price_at_analysis": initial_price
     }
     
     if vacuum_detected:

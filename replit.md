@@ -98,17 +98,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 20, 2025 - Orderbook Freeze Detector + 4-Layer Flow Analysis Complete - PRODUCTION READY
-- **Orderbook Freeze Detector implemented**: Revolutionary ask-side analysis detecting when ask levels remain static during price increases, indicating hidden trend acceptance
-- **Advanced freeze pattern recognition**: Analyzes top 3 ask levels across multiple snapshots, detects >0.5% price increases with <0.5% ask movement for controlled trend identification
-- **4-layer flow analysis system**: Complete integration of directional flow + consistency index + pulse delay + orderbook freeze detection for comprehensive trend quality assessment
-- **Enhanced confidence range**: Trend mode pipeline now supports 0-170 points total (base 100 + directional + consistency + pulse delay + orderbook freeze adjustments)
-- **Ask-side behavioral analysis**: Identifies when market makers step aside during breakouts, indicating professional accumulation rather than retail resistance
-- **Comprehensive scoring system**: Orderbook freeze contributes up to +15 points based on price increase magnitude (>3% = 15pts, >2% = 15pts, >1% = 12pts, >0.5% = 10pts)
-- **Complete test validation**: All scenarios tested including perfect freeze (15 points), active ask rejection (0 points), strong freeze detection, and edge case handling
-- **Production-ready 4-layer integration**: Full integration with trend_mode_pipeline.py providing orderbook freeze analysis alongside directional, consistency, and pulse delay metrics
-- **Professional market detection**: System identifies when large players coordinate ask-side removal during controlled price movements, distinguishing institutional trends from organic breakouts
-- **Enhanced trend confirmation**: 4-layer analysis provides superior trend quality assessment through comprehensive market behavior analysis rather than traditional technical indicators
+### June 20, 2025 - Heatmap Vacuum Detector + 5-Layer Flow Analysis Complete - PRODUCTION READY
+- **Heatmap Vacuum Detector implemented**: Revolutionary liquidity vacuum analysis detecting ask level disappearance 1-2% above price, identifying smart money clearing the path for upward moves
+- **Advanced vacuum pattern recognition**: Analyzes vacuum zone (1.01%-1.02% above price) across multiple snapshots, detects ≥40% volume reduction in ≥2 levels from minimum 3 levels for controlled accumulation identification
+- **5-layer flow analysis system**: Complete integration of directional flow + consistency index + pulse delay + orderbook freeze + heatmap vacuum detection for comprehensive trend quality assessment
+- **Enhanced confidence range**: Trend mode pipeline now supports 0-180 points total (base 100 + directional + consistency + pulse delay + orderbook freeze + heatmap vacuum adjustments)
+- **Liquidity vacuum behavioral analysis**: Identifies when smart money systematically removes ask liquidity above current price, creating "lift-off zones" for controlled price movements
+- **Comprehensive scoring system**: Heatmap vacuum contributes up to +10 points based on vacuum intensity (≥80% intensity = 10pts, ≥60% = 10pts, ≥40% = 8pts, weak = 6pts)
+- **Complete test validation**: All scenarios tested including strong vacuum (4/5 levels, 10 points), weak vacuum rejection (1/3 levels, 0 points), edge cases, and comprehensive integration testing
+- **Production-ready 5-layer integration**: Full integration with trend_mode_pipeline.py providing heatmap vacuum analysis alongside directional, consistency, pulse delay, and orderbook freeze metrics
+- **Professional market manipulation detection**: System identifies coordinated liquidity removal patterns typical of institutional preparation phases before controlled breakouts
+- **Enhanced trend confirmation**: 5-layer analysis provides superior trend quality assessment through comprehensive market behavior analysis identifying professional accumulation vs organic retail activity
 
 ### June 19, 2025 - Liquidity Behavior Detector + Enhanced PPWCS Scoring Complete - PRODUCTION READY
 - **Complete Liquidity Behavior Detector implemented**: Revolutionary strategic liquidity analysis system with 4 sophisticated detection sublogics for identifying hidden whale accumulation patterns
