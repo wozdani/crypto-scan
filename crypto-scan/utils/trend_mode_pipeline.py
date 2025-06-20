@@ -87,10 +87,26 @@ def compute_trend_mode_score(symbol: str, prices_5m: list, prices_1m: list, orde
         if prices_1m and isinstance(prices_1m[0], (int, str)):
             prices_1m = [float(p) for p in prices_1m]
         
+        # Import specific detector functions
+        try:
+            from detectors.directional_flow import detect_directional_flow
+            from detectors.flow_consistency import detect_flow_consistency_index
+            from detectors.pulse_delay import detect_pulse_delay_pattern
+            from detectors.orderbook_freeze import detect_orderbook_freeze
+            from detectors.heatmap_vacuum import detect_heatmap_vacuum
+            from detectors.vwap_pinning import detect_vwap_pinning, calculate_vwap_values
+            from detectors.one_sided_pressure import detect_one_sided_pressure
+            from detectors.micro_echo import detect_micro_echo
+            from detectors.human_flow import detect_human_like_flow
+            from detectors.calm_before_trend import detect_calm_before_trend
+        except ImportError:
+            # Fallback to existing functions in pipeline
+            pass
+        
         # 1. Directional Flow (5 punktów)
         try:
             directional_result = detect_directional_flow(prices_5m)
-            if directional_result[0]:  # detected
+            if directional_result[0]:
                 score += 5
                 reasons.append("directional flow – consistent price direction")
         except Exception:
@@ -134,12 +150,13 @@ def compute_trend_mode_score(symbol: str, prices_5m: list, prices_1m: list, orde
         
         # 6. VWAP Pinning (8 punktów)
         try:
-            volumes = [100000] * len(prices_5m)  # Mock volume data
-            vwap_values = calculate_vwap_values(prices_5m, volumes)
-            vwap_result = detect_vwap_pinning(prices_5m, vwap_values, volumes)
-            if vwap_result[0]:
-                score += 8
-                reasons.append("VWAP pinning – price anchor stability")
+            if len(prices_5m) >= 10:
+                volumes = [100000.0] * len(prices_5m)
+                vwap_values = calculate_vwap_values(prices_5m, volumes)
+                vwap_result = detect_vwap_pinning(prices_5m, vwap_values, min_periods=5)
+                if vwap_result[0]:
+                    score += 8
+                    reasons.append("VWAP pinning – price anchor stability")
         except Exception:
             pass
         
