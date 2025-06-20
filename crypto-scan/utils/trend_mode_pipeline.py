@@ -14,6 +14,7 @@ from detectors.directional_flow_detector import detect_directional_flow, calcula
 from detectors.flow_consistency import compute_flow_consistency, calculate_flow_consistency_score, get_price_series_bybit
 from detectors.pulse_delay import detect_pulse_delay, calculate_pulse_delay_score
 from detectors.orderbook_freeze import detect_orderbook_freeze, calculate_orderbook_freeze_score, create_mock_orderbook_snapshots
+from detectors.heatmap_vacuum import detect_heatmap_vacuum, calculate_heatmap_vacuum_score, create_mock_heatmap_snapshots
 import json
 from datetime import datetime, timezone
 
@@ -83,7 +84,7 @@ def detect_trend_mode_extended(symbol, candle_data):
                     "bid_ask_ratio": 2.28
                 }
         
-        # === COMPREHENSIVE FLOW ANALYSIS (Directional + Consistency + Pulse Delay + Orderbook Freeze) ===
+        # === COMPREHENSIVE FLOW ANALYSIS (Directional + Consistency + Pulse Delay + Orderbook Freeze + Heatmap Vacuum) ===
         directional_flow_detected = False
         directional_flow_score = 0
         directional_flow_details = {}
@@ -96,6 +97,9 @@ def detect_trend_mode_extended(symbol, candle_data):
         orderbook_freeze_detected = False
         orderbook_freeze_score = 0
         orderbook_freeze_details = {}
+        heatmap_vacuum_detected = False
+        heatmap_vacuum_score = 0
+        heatmap_vacuum_details = {}
         
         try:
             # Pobierz serię cen z ostatnich 3h (dane 5-minutowe)
@@ -121,6 +125,12 @@ def detect_trend_mode_extended(symbol, candle_data):
                 orderbook_freeze_detected, freeze_description, orderbook_freeze_details = freeze_result
                 orderbook_freeze_score = calculate_orderbook_freeze_score(freeze_result)
                 
+                # Heatmap Vacuum Detection (using mock data in development)
+                heatmap_snapshots = create_mock_heatmap_snapshots()  # In production, use real heatmap data
+                vacuum_result = detect_heatmap_vacuum(heatmap_snapshots)
+                heatmap_vacuum_detected, vacuum_description, heatmap_vacuum_details = vacuum_result
+                heatmap_vacuum_score = calculate_heatmap_vacuum_score(vacuum_result)
+                
                 # Logging results
                 if directional_flow_detected:
                     print(f"📈 {symbol}: Natural flow detected - {flow_description} (+{directional_flow_score} points)")
@@ -138,6 +148,11 @@ def detect_trend_mode_extended(symbol, candle_data):
                     print(f"🧊 {symbol}: Orderbook freeze detected - {freeze_description} (+{orderbook_freeze_score} points)")
                 else:
                     print(f"📋 {symbol}: No orderbook freeze - ask-side active")
+                
+                if heatmap_vacuum_detected:
+                    print(f"🗺️ {symbol}: Heatmap vacuum detected - {vacuum_description} (+{heatmap_vacuum_score} points)")
+                else:
+                    print(f"📊 {symbol}: No heatmap vacuum - ask levels stable")
             else:
                 print(f"⚠️ {symbol}: No price data for flow analysis")
         except Exception as e:
@@ -151,9 +166,10 @@ def detect_trend_mode_extended(symbol, candle_data):
         consistency_adjustment = flow_consistency_score
         pulse_delay_adjustment = pulse_delay_score
         orderbook_freeze_adjustment = orderbook_freeze_score
-        total_flow_adjustment = directional_adjustment + consistency_adjustment + pulse_delay_adjustment + orderbook_freeze_adjustment
+        heatmap_vacuum_adjustment = heatmap_vacuum_score
+        total_flow_adjustment = directional_adjustment + consistency_adjustment + pulse_delay_adjustment + orderbook_freeze_adjustment + heatmap_vacuum_adjustment
         
-        combined_confidence = max(0, min(base_confidence + total_flow_adjustment, 170))  # 0-170 punktów
+        combined_confidence = max(0, min(base_confidence + total_flow_adjustment, 180))  # 0-180 punktów
         
         details = {
             "stage_minus1": {
@@ -186,12 +202,18 @@ def detect_trend_mode_extended(symbol, candle_data):
                 "score": orderbook_freeze_score,
                 "details": orderbook_freeze_details
             },
+            "heatmap_vacuum": {
+                "detected": heatmap_vacuum_detected,
+                "score": heatmap_vacuum_score,
+                "details": heatmap_vacuum_details
+            },
             "combined_confidence": combined_confidence,
             "base_confidence": base_confidence,
             "directional_adjustment": directional_adjustment,
             "consistency_adjustment": consistency_adjustment,
             "pulse_delay_adjustment": pulse_delay_adjustment,
             "orderbook_freeze_adjustment": orderbook_freeze_adjustment,
+            "heatmap_vacuum_adjustment": heatmap_vacuum_adjustment,
             "total_flow_adjustment": total_flow_adjustment,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "symbol": symbol
