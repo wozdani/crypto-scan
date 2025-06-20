@@ -457,9 +457,9 @@ def scan_cycle():
                 )
                 from utils.bybit_orderbook import get_orderbook_with_fallback
                 
-                # Pobierz dane świec dla trend mode pipeline
                 # Extended trend mode analysis with 10-layer flow detection
-                trend_result = detect_trend_mode_extended(symbol, candle_data)
+                candles = market_data.get('candles', []) if market_data else []
+                trend_result = detect_trend_mode_extended(symbol, candles)
                 trend_mode_active, trend_mode_description, trend_details = trend_result
                 trend_mode_confidence = trend_details.get('combined_confidence', 0)
                 
@@ -521,11 +521,11 @@ def scan_cycle():
                     print(f"⚠️ Comprehensive scoring failed for {symbol}: {str(score_error)}")
                     trend_mode_score = 0
                     trend_mode_reasons = []
-                success_tm, market_data_tm, price_usd_tm, is_valid_tm = get_market_data(symbol)
-                if success_tm and market_data_tm and isinstance(market_data_tm, dict) and 'candles' in market_data_tm:
-                    candles_data_tm = market_data_tm.get('candles')
+                # Use existing market_data instead of fetching again
+                if market_data and isinstance(market_data, dict) and 'candles' in market_data:
+                    candles_data_tm = market_data.get('candles')
                     if candles_data_tm and isinstance(candles_data_tm, list) and len(candles_data_tm) >= 6:
-                        # Użyj rozszerzonej wersji dla pełnych szczegółów
+                        # Use extended version for full details (legacy compatibility)
                         trend_mode_active, trend_mode_description, trend_mode_details = detect_trend_mode_extended(symbol, candles_data_tm)
                         
                         if trend_mode_active:
