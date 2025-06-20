@@ -37,13 +37,7 @@ def detect_human_like_flow(prices: List[float]) -> Tuple[bool, str, Dict]:
             leg2 = abs((prices[i+5] - prices[i+3]) / prices[i+3])  # pauza (zawahanie)
             leg3 = (prices[i+7] - prices[i+5]) / prices[i+5]  # kontynuacja (commitment)
             
-            # Debug output for first pattern
-            if i == 0:
-                print(f"Debug - Pattern at position {i}:")
-                print(f"  leg0 (cofka): {leg0:.6f} (need < -0.002)")
-                print(f"  leg1 (impuls): {leg1:.6f} (need > 0.004)")  
-                print(f"  leg2 (pauza): {leg2:.6f} (need < 0.0015)")
-                print(f"  leg3 (kontynuacja): {leg3:.6f} (need > 0.004)")
+
             
             # Warunki wzorca psychologicznego
             cofka_valid = leg0 < -0.002        # cofka min -0.2%
@@ -235,70 +229,33 @@ def calculate_consistency(values: List[float]) -> float:
 def create_mock_human_flow_prices():
     """Tworzy mock ceny z wyraźnym human flow dla testów"""
     base_price = 50000.0
-    prices = [base_price]
-    current_price = base_price
+    prices = []
     
     # Wzorzec 1: cofka → impuls → pauza → kontynuacja (pozycja 0-7)
-    # Pozycja 0 (start)
-    prices.append(current_price)
+    # i=0: prices[0] do prices[7]
+    prices.append(base_price)                    # i+0: 50000.0
+    prices.append(base_price * (1 - 0.0025))     # i+1: 49875.0 (cofka -0.25%)
+    prices.append(prices[-1] * (1 - 0.0005))     # i+2: 49850.06 (lekka kontynuacja cofki)
+    prices.append(prices[-1] * (1 + 0.0045))     # i+3: 50074.56 (impuls +0.45%)
+    prices.append(prices[-1] * (1 + 0.001))      # i+4: 50124.63 (lekka kontynuacja impulsu)
+    prices.append(prices[-1] * (1 + 0.001))      # i+5: 50174.76 (pauza +0.1%)
+    prices.append(prices[-1] * (1 - 0.0008))     # i+6: 50134.65 (pauza -0.08%)
+    prices.append(prices[-1] * (1 + 0.0045))     # i+7: 50360.21 (kontynuacja +0.45%)
     
-    # Pozycja 1: Cofka (zwątpienie) - wymagane < -0.2%
-    current_price *= (1 - 0.0025)  # -0.25%
-    prices.append(current_price)
-    
-    # Pozycja 2: Kontynuacja cofki
-    current_price *= (1 - 0.001)   # Dodatkowa mała cofka
-    prices.append(current_price)
-    
-    # Pozycja 3: Impuls (decyzja) - wymagane > +0.4%
-    current_price *= (1 + 0.005)   # +0.5%
-    prices.append(current_price)
-    
-    # Pozycja 4: Kontynuacja impulsu
-    current_price *= (1 + 0.002)   # Dodatkowy wzrost
-    prices.append(current_price)
-    
-    # Pozycja 5: Pauza (zawahanie) - wymagane < ±0.15%
-    current_price *= (1 + 0.0008)  # +0.08% (bardzo mała zmiana)
-    prices.append(current_price)
-    
-    # Pozycja 6: Kontynuacja pauzy
-    current_price *= (1 - 0.0005)  # -0.05% (minimalna oscylacja)
-    prices.append(current_price)
-    
-    # Pozycja 7: Kontynuacja (commitment) - wymagane > +0.4%
-    current_price *= (1 + 0.0045)  # +0.45%
-    prices.append(current_price)
-    
-    # Wzorzec 2: Drugi human flow pattern (pozycja 8-15)
-    # Pozycja 8-9: Druga cofka
-    current_price *= (1 - 0.003)   # -0.3%
-    prices.append(current_price)
-    current_price *= (1 - 0.0008)  # Dodatkowa cofka
-    prices.append(current_price)
-    
-    # Pozycja 10-11: Drugi impuls  
-    current_price *= (1 + 0.0048)  # +0.48%
-    prices.append(current_price)
-    current_price *= (1 + 0.0015)  # Kontynuacja
-    prices.append(current_price)
-    
-    # Pozycja 12-13: Druga pauza
-    current_price *= (1 + 0.0012)  # +0.12% (w limicie)
-    prices.append(current_price)
-    current_price *= (1 - 0.0007)  # Mała oscylacja
-    prices.append(current_price)
-    
-    # Pozycja 14-15: Druga kontynuacja
-    current_price *= (1 + 0.0042)  # +0.42%
-    prices.append(current_price)
-    current_price *= (1 + 0.001)   # Potwierdzenie
-    prices.append(current_price)
+    # Wzorzec 2: Drugi human flow pattern (pozycja 8-15) 
+    # i=8: prices[8] do prices[15]
+    prices.append(prices[-1] * (1 - 0.003))      # i+8: cofka -0.3%
+    prices.append(prices[-1] * (1 - 0.0008))     # i+9: kontynuacja cofki
+    prices.append(prices[-1] * (1 + 0.0048))     # i+10: impuls +0.48%
+    prices.append(prices[-1] * (1 + 0.0015))     # i+11: kontynuacja impulsu
+    prices.append(prices[-1] * (1 + 0.0012))     # i+12: pauza +0.12%
+    prices.append(prices[-1] * (1 - 0.0007))     # i+13: pauza -0.07%
+    prices.append(prices[-1] * (1 + 0.0042))     # i+14: kontynuacja +0.42%
+    prices.append(prices[-1] * (1 + 0.001))      # i+15: potwierdzenie
     
     # Dodaj 2 więcej punktów do 18 total
-    for i in range(2):
-        current_price *= (1 + (-0.001 + i * 0.0015))  # Lekka oscylacja
-        prices.append(current_price)
+    prices.append(prices[-1] * (1 - 0.001))      # i+16: lekka oscylacja
+    prices.append(prices[-1] * (1 + 0.0015))     # i+17: lekki wzrost
     
     return prices
 

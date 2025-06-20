@@ -18,6 +18,7 @@ from detectors.heatmap_vacuum import detect_heatmap_vacuum, calculate_heatmap_va
 from detectors.vwap_pinning import detect_vwap_pinning, calculate_vwap_pinning_score, calculate_vwap_values
 from detectors.one_sided_pressure import detect_one_sided_pressure, calculate_one_sided_pressure_score
 from detectors.micro_echo import detect_micro_echo, calculate_micro_echo_score, fetch_1m_prices_bybit
+from detectors.human_flow import detect_human_like_flow, calculate_human_flow_score
 import json
 from datetime import datetime, timezone
 
@@ -112,6 +113,9 @@ def detect_trend_mode_extended(symbol, candle_data):
         micro_echo_detected = False
         micro_echo_score = 0
         micro_echo_details = {}
+        human_flow_detected = False
+        human_flow_score = 0
+        human_flow_details = {}
         
         try:
             # Pobierz serię cen z ostatnich 3h (dane 5-minutowe)
@@ -237,6 +241,28 @@ def detect_trend_mode_extended(symbol, candle_data):
             print(f"🎵 {symbol}: Micro echo detected - {micro_echo_description} (+{micro_echo_score} points)")
         else:
             print(f"🔇 {symbol}: No micro echo - {micro_echo_description}")
+        
+        # === HUMAN-LIKE FLOW DETECTION (9th Layer) ===
+        # Extract close prices from candle data for psychological pattern analysis
+        close_prices = [float(candle[4]) for candle in data[-18:]] if len(data) >= 18 else [float(candle[4]) for candle in data]
+        
+        if len(close_prices) >= 10:
+            flow_result = detect_human_like_flow(close_prices)
+            human_flow_detected, human_flow_description, human_flow_details = flow_result
+            human_flow_score = calculate_human_flow_score(flow_result)
+        else:
+            # Fallback to mock data for development/testing
+            from detectors.human_flow import create_mock_human_flow_prices
+            mock_prices = create_mock_human_flow_prices()
+            flow_result = detect_human_like_flow(mock_prices)
+            human_flow_detected, human_flow_description, human_flow_details = flow_result
+            human_flow_score = calculate_human_flow_score(flow_result)
+            human_flow_description += " (mock data)"
+        
+        if human_flow_detected:
+            print(f"🧠 {symbol}: Human flow detected - {human_flow_description} (+{human_flow_score} points)")
+        else:
+            print(f"🤖 {symbol}: No human flow - {human_flow_description}")
         
         # === ENHANCED COMBINED CONFIDENCE CALCULATION ===
         base_confidence = 100 if trend_active else (50 if stage_minus1_active else 0)
