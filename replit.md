@@ -98,17 +98,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 20, 2025 - Heatmap Vacuum Detector + 5-Layer Flow Analysis Complete - PRODUCTION READY
-- **Heatmap Vacuum Detector implemented**: Revolutionary liquidity vacuum analysis detecting ask level disappearance 1-2% above price, identifying smart money clearing the path for upward moves
-- **Advanced vacuum pattern recognition**: Analyzes vacuum zone (1.01%-1.02% above price) across multiple snapshots, detects ≥40% volume reduction in ≥2 levels from minimum 3 levels for controlled accumulation identification
-- **5-layer flow analysis system**: Complete integration of directional flow + consistency index + pulse delay + orderbook freeze + heatmap vacuum detection for comprehensive trend quality assessment
-- **Enhanced confidence range**: Trend mode pipeline now supports 0-180 points total (base 100 + directional + consistency + pulse delay + orderbook freeze + heatmap vacuum adjustments)
-- **Liquidity vacuum behavioral analysis**: Identifies when smart money systematically removes ask liquidity above current price, creating "lift-off zones" for controlled price movements
-- **Comprehensive scoring system**: Heatmap vacuum contributes up to +10 points based on vacuum intensity (≥80% intensity = 10pts, ≥60% = 10pts, ≥40% = 8pts, weak = 6pts)
-- **Complete test validation**: All scenarios tested including strong vacuum (4/5 levels, 10 points), weak vacuum rejection (1/3 levels, 0 points), edge cases, and comprehensive integration testing
-- **Production-ready 5-layer integration**: Full integration with trend_mode_pipeline.py providing heatmap vacuum analysis alongside directional, consistency, pulse delay, and orderbook freeze metrics
-- **Professional market manipulation detection**: System identifies coordinated liquidity removal patterns typical of institutional preparation phases before controlled breakouts
-- **Enhanced trend confirmation**: 5-layer analysis provides superior trend quality assessment through comprehensive market behavior analysis identifying professional accumulation vs organic retail activity
+### June 20, 2025 - VWAP Pinning Detector + 6-Layer Flow Analysis Complete - PRODUCTION READY
+- **VWAP Pinning Detector implemented**: Revolutionary controlled consolidation analysis detecting when price remains "pinned" within 0.2% of VWAP for extended periods, identifying whale-controlled accumulation phases
+- **Advanced pinning pattern recognition**: Analyzes price deviation from VWAP across minimum 20 periods, requires <0.2% average deviation with ≥70% stability ratio for manipulated consolidation identification
+- **6-layer flow analysis system**: Complete integration of directional flow + consistency index + pulse delay + orderbook freeze + heatmap vacuum + VWAP pinning detection for comprehensive trend quality assessment
+- **Enhanced confidence range**: Trend mode pipeline now supports 0-195 points total (base 100 + directional + consistency + pulse delay + orderbook freeze + heatmap vacuum + VWAP pinning adjustments)
+- **Controlled consolidation behavioral analysis**: Identifies when whales maintain price stability near VWAP despite low volatility, indicating preparation for directional breakouts with bias detection (bullish/bearish/neutral)
+- **Comprehensive scoring system**: VWAP pinning contributes up to +15 points based on pinning strength (very strong <0.1% = 15pts, strong <0.15% = 15pts, moderate <0.2% = 12pts, weak = 10pts)
+- **Complete test validation**: All scenarios tested including bullish pinning (0.13% deviation, 15 points), neutral pinning (0.07% deviation, 15 points), edge cases rejection, and comprehensive integration testing
+- **Production-ready 6-layer integration**: Full integration with trend_mode_pipeline.py providing VWAP pinning analysis alongside directional, consistency, pulse delay, orderbook freeze, and heatmap vacuum metrics
+- **Professional market control detection**: System identifies coordinated price manipulation near volume-weighted averages typical of institutional consolidation phases before controlled directional moves
+- **Enhanced trend confirmation**: 6-layer analysis provides superior trend quality assessment through comprehensive market behavior analysis identifying professional accumulation patterns vs organic retail activity
 
 ### June 19, 2025 - Liquidity Behavior Detector + Enhanced PPWCS Scoring Complete - PRODUCTION READY
 - **Complete Liquidity Behavior Detector implemented**: Revolutionary strategic liquidity analysis system with 4 sophisticated detection sublogics for identifying hidden whale accumulation patterns
