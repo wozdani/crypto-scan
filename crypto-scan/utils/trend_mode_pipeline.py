@@ -16,6 +16,7 @@ from detectors.pulse_delay import detect_pulse_delay, calculate_pulse_delay_scor
 from detectors.orderbook_freeze import detect_orderbook_freeze, calculate_orderbook_freeze_score, create_mock_orderbook_snapshots
 from detectors.heatmap_vacuum import detect_heatmap_vacuum, calculate_heatmap_vacuum_score, create_mock_heatmap_snapshots
 from detectors.vwap_pinning import detect_vwap_pinning, calculate_vwap_pinning_score, calculate_vwap_values
+from detectors.one_sided_pressure import detect_one_sided_pressure, calculate_one_sided_pressure_score
 import json
 from datetime import datetime, timezone
 
@@ -183,6 +184,27 @@ def detect_trend_mode_extended(symbol, candle_data):
                     print(f"📌 {symbol}: VWAP pinning detected - {pinning_description} (+{vwap_pinning_score} points)")
                 else:
                     print(f"📈 {symbol}: No VWAP pinning - price volatile vs VWAP")
+                
+                # One-Sided Pressure Detection (7th Layer)
+                # Use current orderbook snapshot for bid/ask pressure analysis
+                current_orderbook = get_orderbook_with_fallback(symbol)
+                if current_orderbook and current_orderbook.get("bids") and current_orderbook.get("asks"):
+                    pressure_result = detect_one_sided_pressure(current_orderbook)
+                    pressure_detected, pressure_description, pressure_details = pressure_result
+                    pressure_score = calculate_one_sided_pressure_score(pressure_result)
+                else:
+                    # Fallback to mock data for development/testing
+                    from detectors.one_sided_pressure import create_mock_strong_bid_orderbook
+                    mock_orderbook = create_mock_strong_bid_orderbook()
+                    pressure_result = detect_one_sided_pressure(mock_orderbook)
+                    pressure_detected, pressure_description, pressure_details = pressure_result
+                    pressure_score = calculate_one_sided_pressure_score(pressure_result)
+                    pressure_description += " (mock data)"
+                
+                if pressure_detected:
+                    print(f"💪 {symbol}: One-sided pressure detected - {pressure_description} (+{pressure_score} points)")
+                else:
+                    print(f"⚖️ {symbol}: Balanced orderbook - {pressure_description}")
             else:
                 print(f"⚠️ {symbol}: No price data for flow analysis")
         except Exception as e:
@@ -191,16 +213,17 @@ def detect_trend_mode_extended(symbol, candle_data):
         # === ENHANCED COMBINED CONFIDENCE CALCULATION ===
         base_confidence = 100 if trend_active else (50 if stage_minus1_active else 0)
         
-        # Dodaj adjustmenty za kompletną analizę flow
+        # Dodaj adjustmenty za kompletną analizę flow (7 warstw)
         directional_adjustment = directional_flow_score if directional_flow_details else 0
         consistency_adjustment = flow_consistency_score
         pulse_delay_adjustment = pulse_delay_score
         orderbook_freeze_adjustment = orderbook_freeze_score
         heatmap_vacuum_adjustment = heatmap_vacuum_score
         vwap_pinning_adjustment = vwap_pinning_score
-        total_flow_adjustment = directional_adjustment + consistency_adjustment + pulse_delay_adjustment + orderbook_freeze_adjustment + heatmap_vacuum_adjustment + vwap_pinning_adjustment
+        pressure_adjustment = pressure_score
+        total_flow_adjustment = directional_adjustment + consistency_adjustment + pulse_delay_adjustment + orderbook_freeze_adjustment + heatmap_vacuum_adjustment + vwap_pinning_adjustment + pressure_adjustment
         
-        combined_confidence = max(0, min(base_confidence + total_flow_adjustment, 195))  # 0-195 punktów
+        combined_confidence = max(0, min(base_confidence + total_flow_adjustment, 215))  # 0-215 punktów
         
         details = {
             "stage_minus1": {
@@ -243,6 +266,11 @@ def detect_trend_mode_extended(symbol, candle_data):
                 "score": vwap_pinning_score,
                 "details": vwap_pinning_details
             },
+            "one_sided_pressure": {
+                "detected": pressure_detected,
+                "score": pressure_score,
+                "details": pressure_details
+            },
             "combined_confidence": combined_confidence,
             "base_confidence": base_confidence,
             "directional_adjustment": directional_adjustment,
@@ -251,6 +279,7 @@ def detect_trend_mode_extended(symbol, candle_data):
             "orderbook_freeze_adjustment": orderbook_freeze_adjustment,
             "heatmap_vacuum_adjustment": heatmap_vacuum_adjustment,
             "vwap_pinning_adjustment": vwap_pinning_adjustment,
+            "pressure_adjustment": pressure_adjustment,
             "total_flow_adjustment": total_flow_adjustment,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "symbol": symbol
