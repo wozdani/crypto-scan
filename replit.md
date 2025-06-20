@@ -98,17 +98,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 20, 2025 - VWAP Pinning Detector + 6-Layer Flow Analysis Complete - PRODUCTION READY
-- **VWAP Pinning Detector implemented**: Revolutionary controlled consolidation analysis detecting when price remains "pinned" within 0.2% of VWAP for extended periods, identifying whale-controlled accumulation phases
-- **Advanced pinning pattern recognition**: Analyzes price deviation from VWAP across minimum 20 periods, requires <0.2% average deviation with ≥70% stability ratio for manipulated consolidation identification
-- **6-layer flow analysis system**: Complete integration of directional flow + consistency index + pulse delay + orderbook freeze + heatmap vacuum + VWAP pinning detection for comprehensive trend quality assessment
-- **Enhanced confidence range**: Trend mode pipeline now supports 0-195 points total (base 100 + directional + consistency + pulse delay + orderbook freeze + heatmap vacuum + VWAP pinning adjustments)
-- **Controlled consolidation behavioral analysis**: Identifies when whales maintain price stability near VWAP despite low volatility, indicating preparation for directional breakouts with bias detection (bullish/bearish/neutral)
-- **Comprehensive scoring system**: VWAP pinning contributes up to +15 points based on pinning strength (very strong <0.1% = 15pts, strong <0.15% = 15pts, moderate <0.2% = 12pts, weak = 10pts)
-- **Complete test validation**: All scenarios tested including bullish pinning (0.13% deviation, 15 points), neutral pinning (0.07% deviation, 15 points), edge cases rejection, and comprehensive integration testing
-- **Production-ready 6-layer integration**: Full integration with trend_mode_pipeline.py providing VWAP pinning analysis alongside directional, consistency, pulse delay, orderbook freeze, and heatmap vacuum metrics
-- **Professional market control detection**: System identifies coordinated price manipulation near volume-weighted averages typical of institutional consolidation phases before controlled directional moves
-- **Enhanced trend confirmation**: 6-layer analysis provides superior trend quality assessment through comprehensive market behavior analysis identifying professional accumulation patterns vs organic retail activity
+### June 20, 2025 - One-Sided Pressure Detector + 7-Layer Flow Analysis Complete - PRODUCTION READY
+- **One-Sided Pressure Detector implemented**: Revolutionary bid dominance analysis detecting when buying pressure overwhelms selling pressure in orderbook structure, identifying trend continuation scenarios with institutional accumulation
+- **Advanced orderbook pressure analysis**: Analyzes top 5 bid/ask levels requiring >1.5x bid/ask volume ratio with depth analysis, detects strong bid dominance (>2.0x), moderate dominance (1.5-2.0x), and selling pressure scenarios
+- **7-layer flow analysis system**: Complete integration of directional flow + consistency index + pulse delay + orderbook freeze + heatmap vacuum + VWAP pinning + one-sided pressure detection for comprehensive trend quality assessment
+- **Enhanced confidence range**: Trend mode pipeline now supports 0-215 points total (base 100 + directional + consistency + pulse delay + orderbook freeze + heatmap vacuum + VWAP pinning + pressure adjustments)
+- **Bid dominance behavioral analysis**: Identifies when institutional buyers control orderbook structure with deep bid support and weak ask resistance, indicating professional accumulation phases before trend continuation
+- **Comprehensive scoring system**: One-sided pressure contributes up to +20 points based on pressure intensity (extreme >3.0x = 20pts, strong >2.0x = 15pts, moderate >1.5x = 12pts) with depth ratio bonuses
+- **Complete test validation**: All scenarios tested including extreme bid dominance (34.5x ratio, 20 points), real-world scenarios (3.1x ratio, 20 points), balanced rejection, and comprehensive integration testing
+- **Production-ready 7-layer integration**: Full integration with trend_mode_pipeline.py providing one-sided pressure analysis alongside all existing flow detection layers for maximum market behavior comprehension
+- **Professional market manipulation detection**: System identifies coordinated bid support patterns typical of institutional trend continuation phases where smart money maintains buying pressure dominance
+- **Enhanced trend confirmation**: 7-layer analysis provides superior trend quality assessment through comprehensive market behavior analysis identifying professional bid control vs organic retail activity
 
 ### June 19, 2025 - Liquidity Behavior Detector + Enhanced PPWCS Scoring Complete - PRODUCTION READY
 - **Complete Liquidity Behavior Detector implemented**: Revolutionary strategic liquidity analysis system with 4 sophisticated detection sublogics for identifying hidden whale accumulation patterns

@@ -105,6 +105,9 @@ def detect_trend_mode_extended(symbol, candle_data):
         vwap_pinning_detected = False
         vwap_pinning_score = 0
         vwap_pinning_details = {}
+        pressure_detected = False
+        pressure_score = 0
+        pressure_details = {}
         
         try:
             # Pobierz serię cen z ostatnich 3h (dane 5-minutowe)
@@ -184,31 +187,31 @@ def detect_trend_mode_extended(symbol, candle_data):
                     print(f"📌 {symbol}: VWAP pinning detected - {pinning_description} (+{vwap_pinning_score} points)")
                 else:
                     print(f"📈 {symbol}: No VWAP pinning - price volatile vs VWAP")
-                
-                # One-Sided Pressure Detection (7th Layer)
-                # Use current orderbook snapshot for bid/ask pressure analysis
-                current_orderbook = get_orderbook_with_fallback(symbol)
-                if current_orderbook and current_orderbook.get("bids") and current_orderbook.get("asks"):
-                    pressure_result = detect_one_sided_pressure(current_orderbook)
-                    pressure_detected, pressure_description, pressure_details = pressure_result
-                    pressure_score = calculate_one_sided_pressure_score(pressure_result)
-                else:
-                    # Fallback to mock data for development/testing
-                    from detectors.one_sided_pressure import create_mock_strong_bid_orderbook
-                    mock_orderbook = create_mock_strong_bid_orderbook()
-                    pressure_result = detect_one_sided_pressure(mock_orderbook)
-                    pressure_detected, pressure_description, pressure_details = pressure_result
-                    pressure_score = calculate_one_sided_pressure_score(pressure_result)
-                    pressure_description += " (mock data)"
-                
-                if pressure_detected:
-                    print(f"💪 {symbol}: One-sided pressure detected - {pressure_description} (+{pressure_score} points)")
-                else:
-                    print(f"⚖️ {symbol}: Balanced orderbook - {pressure_description}")
             else:
                 print(f"⚠️ {symbol}: No price data for flow analysis")
         except Exception as e:
             print(f"❌ {symbol}: Flow analysis failed: {e}")
+        
+        # === ONE-SIDED PRESSURE DETECTION (7th Layer) - Outside try block ===
+        # Use current orderbook snapshot for bid/ask pressure analysis
+        current_orderbook = get_orderbook_with_fallback(symbol)
+        if current_orderbook and current_orderbook.get("bids") and current_orderbook.get("asks"):
+            pressure_result = detect_one_sided_pressure(current_orderbook)
+            pressure_detected, pressure_description, pressure_details = pressure_result
+            pressure_score = calculate_one_sided_pressure_score(pressure_result)
+        else:
+            # Fallback to mock data for development/testing
+            from detectors.one_sided_pressure import create_mock_strong_bid_orderbook
+            mock_orderbook = create_mock_strong_bid_orderbook()
+            pressure_result = detect_one_sided_pressure(mock_orderbook)
+            pressure_detected, pressure_description, pressure_details = pressure_result
+            pressure_score = calculate_one_sided_pressure_score(pressure_result)
+            pressure_description += " (mock data)"
+        
+        if pressure_detected:
+            print(f"💪 {symbol}: One-sided pressure detected - {pressure_description} (+{pressure_score} points)")
+        else:
+            print(f"⚖️ {symbol}: Balanced orderbook - {pressure_description}")
         
         # === ENHANCED COMBINED CONFIDENCE CALCULATION ===
         base_confidence = 100 if trend_active else (50 if stage_minus1_active else 0)
