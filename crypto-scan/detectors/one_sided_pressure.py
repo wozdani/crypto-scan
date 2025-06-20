@@ -77,7 +77,9 @@ def detect_one_sided_pressure(orderbook: Dict) -> Tuple[bool, str, Dict]:
             dominance_type = "weak_ask_dominance"
         
         # Detekcja one-sided pressure (przewaga kupujących)
-        detected = pressure_ratio > 1.5 and depth_ratio >= 1.0
+        # Główny warunek: pressure ratio > 1.5x
+        # Dodatkowy warunek: depth ratio >= 0.8 (złagodzony próg)
+        detected = pressure_ratio > 1.5 and depth_ratio >= 0.8
         
         details = {
             "bid_levels": len(bids),
@@ -102,7 +104,10 @@ def detect_one_sided_pressure(orderbook: Dict) -> Tuple[bool, str, Dict]:
             if pressure_ratio < 1.0:
                 description = f"Przewaga sprzedających - ask dominuje {1/pressure_ratio:.1f}x nad bid"
             else:
-                description = f"Brak one-sided pressure - stosunek {pressure_ratio:.1f}x niewystarczający (wymagane >1.5x)"
+                if pressure_ratio > 1.5:
+                    description = f"⚖️ Balanced orderbook - pressure ratio {pressure_ratio:.1f}x spełniony, ale niewystarczająca głębokość bid (depth ratio: {depth_ratio:.1f}, wymagane ≥0.8)"
+                else:
+                    description = f"Brak one-sided pressure - stosunek {pressure_ratio:.1f}x niewystarczający (wymagane >1.5x)"
         
         return detected, description, details
         
