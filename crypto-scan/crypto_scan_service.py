@@ -442,16 +442,74 @@ def scan_cycle():
                     print(f"❌ Failed to send comprehensive alert for {symbol}")
 
             # === TREND MODE PIPELINE INTEGRATION ===
-            # New trend mode pipeline: Stage -1 + Orderbook Sentiment
+            # New trend mode pipeline: 10-layer flow analysis with comprehensive scoring
             trend_mode_active = False
             trend_mode_description = "Nieaktywny"
             trend_mode_confidence = 0
+            trend_mode_score = 0
+            trend_mode_reasons = []
             
             try:
-                from utils.trend_mode_pipeline import detect_trend_mode, detect_trend_mode_extended, save_trend_mode_alert
+                from utils.trend_mode_pipeline import (
+                    detect_trend_mode, detect_trend_mode_extended, 
+                    save_trend_mode_alert, compute_trend_mode_score,
+                    fetch_5m_prices_bybit
+                )
                 from utils.bybit_orderbook import get_orderbook_with_fallback
                 
                 # Pobierz dane świec dla trend mode pipeline
+                # Extended trend mode analysis with 10-layer flow detection
+                trend_result = detect_trend_mode_extended(symbol, candle_data)
+                trend_mode_active, trend_mode_description, trend_details = trend_result
+                trend_mode_confidence = trend_details.get('combined_confidence', 0)
+                
+                # Comprehensive Trend Mode scoring with 10 detectors
+                try:
+                    # Fetch required data for comprehensive scoring
+                    prices_5m = fetch_5m_prices_bybit(symbol, 24)  # 2 hours of 5m data
+                    prices_1m = []  # Will use mock data in development
+                    orderbook_data = get_orderbook_with_fallback(symbol)
+                    
+                    # Calculate comprehensive trend mode score
+                    trend_mode_score, trend_mode_reasons = compute_trend_mode_score(
+                        symbol, prices_5m, prices_1m, orderbook_data
+                    )
+                    
+                    # Enhanced trend mode alerting with comprehensive scoring
+                    if trend_mode_score >= 30:  # Alert threshold
+                        print(f"🚨 TREND MODE ALERT: {symbol} - Score: {trend_mode_score}/100+")
+                        print(f"📋 Active signals: {', '.join(trend_mode_reasons)}")
+                        
+                        # Save comprehensive trend mode alert
+                        alert_data = {
+                            'symbol': symbol,
+                            'trend_active': True,
+                            'description': f"Trend Mode Alert - Score: {trend_mode_score}",
+                            'confidence': trend_mode_confidence,
+                            'comprehensive_score': trend_mode_score,
+                            'active_signals': trend_mode_reasons,
+                            'timestamp': datetime.now(timezone.utc).isoformat()
+                        }
+                        save_trend_mode_alert(alert_data)
+                        
+                        # Send Telegram alert for high-scoring trend mode signals
+                        alert_message = f"🔥 TREND MODE ALERT\n"
+                        alert_message += f"Symbol: {symbol}\n"
+                        alert_message += f"Comprehensive Score: {trend_mode_score}/100+\n"
+                        alert_message += f"Confidence: {trend_mode_confidence}/250\n"
+                        alert_message += f"Active Signals ({len(trend_mode_reasons)}):\n"
+                        for reason in trend_mode_reasons:
+                            alert_message += f"• {reason}\n"
+                        
+                        send_alert(alert_message)
+                    
+                    elif trend_mode_active:
+                        print(f"📊 Trend Mode Active: {symbol} - Basic: {trend_mode_confidence}/250, Comprehensive: {trend_mode_score}/100+")
+                    
+                except Exception as score_error:
+                    print(f"⚠️ Comprehensive scoring failed for {symbol}: {str(score_error)}")
+                    trend_mode_score = 0
+                    trend_mode_reasons = []
                 success_tm, market_data_tm, price_usd_tm, is_valid_tm = get_market_data(symbol)
                 if success_tm and market_data_tm and isinstance(market_data_tm, dict) and 'candles' in market_data_tm:
                     candles_data_tm = market_data_tm.get('candles')

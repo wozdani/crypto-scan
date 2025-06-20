@@ -64,6 +64,130 @@ def fetch_5m_prices_bybit(symbol: str, count: int = 24):
 import json
 from datetime import datetime, timezone
 
+def compute_trend_mode_score(symbol: str, prices_5m: list, prices_1m: list, orderbook_data: dict) -> tuple:
+    """
+    Główna funkcja scoringu Trend Mode - agreguje sygnały z 10 detektorów
+    
+    Args:
+        symbol: Symbol do analizy
+        prices_5m: Lista cen 5-minutowych
+        prices_1m: Lista cen 1-minutowych  
+        orderbook_data: Dane orderbook
+        
+    Returns:
+        tuple: (score, reasons) gdzie score 0-100+ i reasons to lista opisów
+    """
+    score = 0
+    reasons = []
+    
+    try:
+        # Konwersja cen na float jeśli potrzeba
+        if prices_5m and isinstance(prices_5m[0], (int, str)):
+            prices_5m = [float(p) for p in prices_5m]
+        if prices_1m and isinstance(prices_1m[0], (int, str)):
+            prices_1m = [float(p) for p in prices_1m]
+        
+        # 1. Directional Flow (5 punktów)
+        try:
+            directional_result = detect_directional_flow(prices_5m)
+            if directional_result[0]:  # detected
+                score += 5
+                reasons.append("directional flow – consistent price direction")
+        except Exception:
+            pass
+        
+        # 2. Flow Consistency (3 punkty) 
+        try:
+            consistency_result = detect_flow_consistency_index(prices_5m)
+            if consistency_result[0]:
+                score += 3
+                reasons.append("flow consistency – stable trend momentum")
+        except Exception:
+            pass
+        
+        # 3. Pulse Delay (5 punktów)
+        try:
+            pulse_result = detect_pulse_delay_pattern(prices_5m)
+            if pulse_result[0]:
+                score += 5
+                reasons.append("pulse delay – rhythm pattern detected")
+        except Exception:
+            pass
+        
+        # 4. Orderbook Freeze (7 punktów)
+        try:
+            freeze_result = detect_orderbook_freeze([orderbook_data] if orderbook_data else [])
+            if freeze_result[0]:
+                score += 7
+                reasons.append("orderbook freeze – depth stability")
+        except Exception:
+            pass
+        
+        # 5. Heatmap Vacuum (10 punktów)
+        try:
+            vacuum_result = detect_heatmap_vacuum([orderbook_data] if orderbook_data else [])
+            if vacuum_result[0]:
+                score += 10
+                reasons.append("heatmap vacuum – resistance removal")
+        except Exception:
+            pass
+        
+        # 6. VWAP Pinning (8 punktów)
+        try:
+            volumes = [100000] * len(prices_5m)  # Mock volume data
+            vwap_values = calculate_vwap_values(prices_5m, volumes)
+            vwap_result = detect_vwap_pinning(prices_5m, vwap_values, volumes)
+            if vwap_result[0]:
+                score += 8
+                reasons.append("VWAP pinning – price anchor stability")
+        except Exception:
+            pass
+        
+        # 7. One-Sided Pressure (15 punktów)
+        try:
+            pressure_result = detect_one_sided_pressure(orderbook_data or {})
+            if pressure_result[0]:
+                score += 15
+                reasons.append("one-sided pressure – bid dominance")
+        except Exception:
+            pass
+        
+        # 8. Micro Echo (10 punktów)
+        try:
+            if prices_1m and len(prices_1m) >= 10:
+                micro_result = detect_micro_echo(prices_1m)
+                if micro_result[0]:
+                    score += 10
+                    reasons.append("micro echo – LTF trend confirmation")
+        except Exception:
+            pass
+        
+        # 9. Human Flow (15 punktów)
+        try:
+            if prices_5m and len(prices_5m) >= 10:
+                human_result = detect_human_like_flow(prices_5m)
+                if human_result[0]:
+                    score += 15
+                    reasons.append("human flow – psychological trading pattern")
+        except Exception:
+            pass
+        
+        # 10. Calm Before Trend (10 punktów)
+        try:
+            if prices_5m and len(prices_5m) >= 20:
+                calm_result = detect_calm_before_trend(prices_5m)
+                if calm_result[0]:
+                    score += 10
+                    reasons.append("calm before trend – volatility compression + movement")
+        except Exception:
+            pass
+        
+        return score, reasons
+        
+    except Exception as e:
+        print(f"⚠️ Error in compute_trend_mode_score for {symbol}: {str(e)}")
+        return 0, [f"Error: {str(e)[:50]}"]
+
 def detect_trend_mode(symbol, data, get_orderbook_func):
     """
     Główna funkcja detekcji trendu (Trend Mode).
