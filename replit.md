@@ -98,17 +98,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 20, 2025 - Pulse Delay Detector + Triple-Layer Flow Analysis Complete - PRODUCTION READY
-- **Pulse Delay Detector implemented**: Revolutionary controlled trend detection identifying flat → impulse → flat → impulse patterns characteristic of institutional accumulation
-- **Advanced pulse pattern recognition**: Detects controlled pause sequences (flat ±0.06%, impulse ≥0.1%) with sophisticated pattern scoring up to +15 points
-- **Triple-layer flow analysis**: Comprehensive analysis combining directional flow + consistency measurement + pulse delay detection for superior trend quality assessment
-- **Enhanced confidence range**: Trend mode pipeline now supports 0-155 points total (base 100 + directional + consistency + pulse delay adjustments)
-- **Institutional vs FOMO filtering**: Effectively distinguishes controlled institutional trends from chaotic FOMO movements through pause-impulse pattern analysis
-- **Advanced pattern scoring**: Strong pulse delay (4+ patterns) gets +15 points, moderate (2-3 patterns) gets +12-13 points, weak (1 pattern) gets +10-12 points
-- **Comprehensive test validation**: All scenarios validated including controlled trends (4 patterns, 15 points), institutional flow (1 pattern, 12 points), and chaotic rejection (0 points)
-- **Production-ready integration**: Complete integration with trend_mode_pipeline.py providing comprehensive flow analysis with pulse delay, consistency, and directional metrics
-- **Market control detection**: Identifies when large players use strategic pauses between movements, indicating controlled accumulation rather than organic retail activity
-- **Anti-chaos mechanism**: System penalizes rapid continuous movements while rewarding strategic pause-impulse sequences typical of professional market manipulation
+### June 20, 2025 - Orderbook Freeze Detector + 4-Layer Flow Analysis Complete - PRODUCTION READY
+- **Orderbook Freeze Detector implemented**: Revolutionary ask-side analysis detecting when ask levels remain static during price increases, indicating hidden trend acceptance
+- **Advanced freeze pattern recognition**: Analyzes top 3 ask levels across multiple snapshots, detects >0.5% price increases with <0.5% ask movement for controlled trend identification
+- **4-layer flow analysis system**: Complete integration of directional flow + consistency index + pulse delay + orderbook freeze detection for comprehensive trend quality assessment
+- **Enhanced confidence range**: Trend mode pipeline now supports 0-170 points total (base 100 + directional + consistency + pulse delay + orderbook freeze adjustments)
+- **Ask-side behavioral analysis**: Identifies when market makers step aside during breakouts, indicating professional accumulation rather than retail resistance
+- **Comprehensive scoring system**: Orderbook freeze contributes up to +15 points based on price increase magnitude (>3% = 15pts, >2% = 15pts, >1% = 12pts, >0.5% = 10pts)
+- **Complete test validation**: All scenarios tested including perfect freeze (15 points), active ask rejection (0 points), strong freeze detection, and edge case handling
+- **Production-ready 4-layer integration**: Full integration with trend_mode_pipeline.py providing orderbook freeze analysis alongside directional, consistency, and pulse delay metrics
+- **Professional market detection**: System identifies when large players coordinate ask-side removal during controlled price movements, distinguishing institutional trends from organic breakouts
+- **Enhanced trend confirmation**: 4-layer analysis provides superior trend quality assessment through comprehensive market behavior analysis rather than traditional technical indicators
 
 ### June 19, 2025 - Liquidity Behavior Detector + Enhanced PPWCS Scoring Complete - PRODUCTION READY
 - **Complete Liquidity Behavior Detector implemented**: Revolutionary strategic liquidity analysis system with 4 sophisticated detection sublogics for identifying hidden whale accumulation patterns

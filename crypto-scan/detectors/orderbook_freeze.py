@@ -125,8 +125,8 @@ def detect_orderbook_freeze(orderbook_snapshots: list[dict]) -> tuple[bool, str,
                 "movement_pct": movement * 100
             })
             
-            # Jeśli ruch >1% na dowolnym poziomie, ask się porusza
-            if movement > 0.01:
+            # Jeśli ruch >0.5% na dowolnym poziomie, ask się porusza
+            if movement > 0.005:  # 0.5% threshold for ask movement
                 snapshot_movement = True
                 ask_movement_detected = True
         
