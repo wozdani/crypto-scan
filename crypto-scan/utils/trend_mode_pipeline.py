@@ -412,6 +412,11 @@ def detect_trend_mode_extended(symbol, candle_data):
                 "score": human_flow_score,
                 "details": human_flow_details
             },
+            "calm_before_trend": {
+                "detected": calm_before_trend_detected,
+                "score": calm_before_trend_score,
+                "details": calm_before_trend_details
+            },
             "combined_confidence": combined_confidence,
             "base_confidence": base_confidence,
             "directional_adjustment": directional_adjustment,
@@ -423,6 +428,7 @@ def detect_trend_mode_extended(symbol, candle_data):
             "pressure_adjustment": pressure_adjustment,
             "micro_echo_adjustment": micro_echo_adjustment,
             "human_flow_adjustment": human_flow_adjustment,
+            "calm_before_trend_adjustment": calm_before_trend_adjustment,
             "total_flow_adjustment": total_flow_adjustment,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "symbol": symbol
