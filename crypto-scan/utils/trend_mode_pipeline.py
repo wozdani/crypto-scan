@@ -244,7 +244,7 @@ def detect_trend_mode_extended(symbol, candle_data):
         
         # === HUMAN-LIKE FLOW DETECTION (9th Layer) ===
         # Extract close prices from candle data for psychological pattern analysis
-        close_prices = [float(candle[4]) for candle in data[-18:]] if len(data) >= 18 else [float(candle[4]) for candle in data]
+        close_prices = [float(candle[4]) for candle in candle_data[-18:]] if len(candle_data) >= 18 else [float(candle[4]) for candle in candle_data]
         
         if len(close_prices) >= 10:
             flow_result = detect_human_like_flow(close_prices)
@@ -267,7 +267,7 @@ def detect_trend_mode_extended(symbol, candle_data):
         # === ENHANCED COMBINED CONFIDENCE CALCULATION ===
         base_confidence = 100 if trend_active else (50 if stage_minus1_active else 0)
         
-        # Dodaj adjustmenty za kompletną analizę flow (8 warstw)
+        # Dodaj adjustmenty za kompletną analizę flow (9 warstw)
         directional_adjustment = directional_flow_score if directional_flow_details else 0
         consistency_adjustment = flow_consistency_score
         pulse_delay_adjustment = pulse_delay_score
@@ -276,9 +276,10 @@ def detect_trend_mode_extended(symbol, candle_data):
         vwap_pinning_adjustment = vwap_pinning_score
         pressure_adjustment = pressure_score
         micro_echo_adjustment = micro_echo_score
-        total_flow_adjustment = directional_adjustment + consistency_adjustment + pulse_delay_adjustment + orderbook_freeze_adjustment + heatmap_vacuum_adjustment + vwap_pinning_adjustment + pressure_adjustment + micro_echo_adjustment
+        human_flow_adjustment = human_flow_score
+        total_flow_adjustment = directional_adjustment + consistency_adjustment + pulse_delay_adjustment + orderbook_freeze_adjustment + heatmap_vacuum_adjustment + vwap_pinning_adjustment + pressure_adjustment + micro_echo_adjustment + human_flow_adjustment
         
-        combined_confidence = max(0, min(base_confidence + total_flow_adjustment, 225))  # 0-225 punktów
+        combined_confidence = max(0, min(base_confidence + total_flow_adjustment, 240))  # 0-240 punktów
         
         details = {
             "stage_minus1": {
@@ -331,6 +332,11 @@ def detect_trend_mode_extended(symbol, candle_data):
                 "score": micro_echo_score,
                 "details": micro_echo_details
             },
+            "human_flow": {
+                "detected": human_flow_detected,
+                "score": human_flow_score,
+                "details": human_flow_details
+            },
             "combined_confidence": combined_confidence,
             "base_confidence": base_confidence,
             "directional_adjustment": directional_adjustment,
@@ -341,6 +347,7 @@ def detect_trend_mode_extended(symbol, candle_data):
             "vwap_pinning_adjustment": vwap_pinning_adjustment,
             "pressure_adjustment": pressure_adjustment,
             "micro_echo_adjustment": micro_echo_adjustment,
+            "human_flow_adjustment": human_flow_adjustment,
             "total_flow_adjustment": total_flow_adjustment,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "symbol": symbol

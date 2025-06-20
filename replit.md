@@ -98,17 +98,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 20, 2025 - Complete 8-Layer Flow Analysis System + Micro-Timeframe Echo Detection - PRODUCTION READY
-- **Revolutionary 8-layer flow analysis system completed**: Ultimate market behavior analysis integrating directional flow + consistency index + pulse delay + orderbook freeze + heatmap vacuum + VWAP pinning + one-sided pressure + micro-timeframe echo detection
-- **Micro-Timeframe Echo Detector implemented**: Advanced fractal pattern recognition analyzing 1-minute intervals for bullish micro impulses, detecting 3+ consecutive micro-impulses with >0.1% strength over 45-minute windows
-- **Sophisticated micro impulse analysis**: Identifies rhythmic bullish patterns in 1m timeframes including impulse frequency calculation, echo strength classification (weak/moderate/strong/very_strong), and fractal trend confirmation
-- **Enhanced confidence range**: System now supports 0-225 points total (base 100 + all 8-layer flow adjustments) providing maximum precision for trend quality assessment
-- **Complete pattern recognition**: Micro echo contributes up to +10 points based on impulse count (6+ impulses = 10pts, 4-5 impulses = 8pts, 3 impulses = 6pts) with echo frequency and strength multipliers
-- **Advanced fractal structure detection**: Analyzes micro-timeframe patterns for trend confirmation, overall momentum calculation, price volatility assessment, and impulse consistency scoring
-- **Comprehensive test validation**: All 8 layers tested with scenarios including very strong echo (6+ impulses, 10 points), strong echo (4 impulses, 8 points), insufficient data handling, and complete integration testing
-- **Production-ready 8-layer integration**: Full integration with trend_mode_pipeline.py providing micro-timeframe analysis alongside all existing flow detection layers for maximum market behavior comprehension
-- **Professional micro-pattern recognition**: System identifies sophisticated micro-accumulation patterns typical of pre-breakout phases where smart money creates rhythmic buying pressure through coordinated micro-impulses
-- **Ultimate trend confirmation**: 8-layer analysis provides supreme trend quality assessment through comprehensive multi-timeframe market behavior analysis from macro orderbook patterns to micro-impulse fractals
+### June 20, 2025 - Ultimate 9-Layer Flow Analysis System + Human-Like Flow Detection - PRODUCTION READY
+- **Revolutionary 9-layer flow analysis system completed**: Ultimate market behavior analysis integrating directional flow + consistency index + pulse delay + orderbook freeze + heatmap vacuum + VWAP pinning + one-sided pressure + micro-timeframe echo + human-like flow detection
+- **Human-Like Flow Detector implemented**: Advanced psychological pattern recognition analyzing price sequences for human decision patterns: cofka (pullback) → impuls (decision) → pauza (hesitation) → kontynuacja (commitment), distinguishing human vs bot trading behavior
+- **Sophisticated psychological analysis**: Identifies human trading sequences with strict thresholds (cofka <-0.2%, impuls >+0.4%, pauza <±0.15%, kontynuacja >+0.4%) analyzing 4-leg patterns across 90-minute windows for authentic trader psychology detection
+- **Enhanced confidence range**: System now supports 0-240 points total (base 100 + all 9-layer flow adjustments) providing maximum precision for trend quality assessment with complete market behavior analysis
+- **Complete behavioral recognition**: Human flow contributes up to +15 points based on pattern count (3+ patterns = 15pts, 2 patterns = 12pts, 1 pattern = 10pts) with pattern strength and sequence clarity multipliers
+- **Advanced decision pattern detection**: Analyzes close price sequences to identify psychological trading signatures typical of human decision-making vs algorithmic trading, recognizing emotional commitment phases
+- **Comprehensive test validation**: All 9 layers tested with scenarios including strong human flow (multiple patterns, 15 points), micro echo (4+ impulses, 8 points), one-sided pressure (bid dominance, 15 points), and complete integration testing
+- **Production-ready 9-layer integration**: Full integration with trend_mode_pipeline.py providing psychological pattern analysis alongside all existing flow detection layers for supreme market behavior comprehension
+- **Professional psychological pattern recognition**: System identifies sophisticated human decision sequences typical of professional trader commitment phases where experienced traders create recognizable psychological signatures
+- **Supreme trend confirmation**: 9-layer analysis provides ultimate trend quality assessment through comprehensive multi-dimensional market behavior analysis from macro orderbook patterns to micro-impulse fractals to psychological decision sequences
 
 ### June 19, 2025 - Liquidity Behavior Detector + Enhanced PPWCS Scoring Complete - PRODUCTION READY
 - **Complete Liquidity Behavior Detector implemented**: Revolutionary strategic liquidity analysis system with 4 sophisticated detection sublogics for identifying hidden whale accumulation patterns
