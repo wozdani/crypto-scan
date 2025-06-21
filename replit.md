@@ -112,13 +112,13 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Bug Resolution**: System nie odrzuca już wysokich PPWCS scores z powodu niskich checklist scores
 - **Enhanced Logic**: Bardzo słabe PPWCS (<15) nadal blokuje alert niezależnie od checklist
 
-### June 21, 2025 - Production System Cleanup & Trend-Mode Integration - LIVE READY
-- **Clean Debug Output**: Usunięto wszystkie debug printy z pre-pump systemu - pozostają tylko [TREND DEBUG] logi
-- **Direct Bybit API**: Moduł utils/bybit_symbols.py pobiera symbole jednym zapytaniem z filtrowaniem jakości
-- **Smart Symbol Selection**: Filtrowanie według wolumenu ($1M+), ceny, spread (≤2%) dla najwyższej jakości
-- **Multi-tier Fallback**: Bybit API → CoinGecko cache → Essential pairs dla maksymalnej niezawodności  
-- **Parallel Trend-Mode**: LIVE & TESTED - 9-stage professional trader analysis z comprehensive debug logging
-- **Production Ready**: System działa stabilnie z czystymi logami i pełną integracją obu systemów analitycznych
+### June 21, 2025 - Safe Candles Integration & Trend-Mode Stability - PRODUCTION READY
+- **Safe Candles System**: Nowy moduł utils/safe_candles.py z robust candle fetching i validation
+- **Quality Validation**: Automatyczne sprawdzanie jakości świec - minimum 10 candles, 80% valid data
+- **Smart Fallback Logic**: Direct API → Existing market data → Skip analysis (no empty data processing)
+- **Error Prevention**: Trend-Mode pomija symbole z insufficient/invalid data zamiast generować błędy
+- **Clean Debug Output**: Usunięto wszystkie debug printy z pre-pump - pozostają tylko [TREND DEBUG] logi
+- **Production Stability**: System działa bez błędów nawet przy brakujących danych dla nowych tokenów
 
 ### June 21, 2025 - Advanced Trend-Mode Integration - PRODUCTION READY
 - **Professional Trader Logic**: Kompletny moduł trend_mode.py z 9 etapami analizy symulującej myślenie profesjonalnego tradera
