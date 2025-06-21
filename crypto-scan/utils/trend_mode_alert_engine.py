@@ -85,9 +85,54 @@ class TrendModeAlertEngine:
         
         return previous_score, score_change
     
+    def should_trigger_alert_trend_mode_2(self, symbol: str, current_score: int, alert_level: int, score_breakdown: Dict) -> Tuple[bool, str]:
+        """
+        Trend Mode 2.0 trailing logic - alert tylko przy wzroście score +5 AND przekroczeniu progu
+        
+        Args:
+            symbol: Trading symbol
+            current_score: Aktualny Trend Mode 2.0 score
+            alert_level: Poziom alertu (1/2/3)
+            score_breakdown: Breakdown scoringu
+            
+        Returns:
+            tuple: (should_alert, reason)
+        """
+        previous_score, score_change = self.get_score_change(symbol, current_score)
+        
+        # Brak alertu jeśli level = 0
+        if alert_level == 0:
+            return False, f"No alert level (score: {current_score}, change: {score_change:+d})"
+        
+        # Trailing logic: Score musi wzrosnąć o min. +5 AND przekroczyć próg alertu
+        score_increased = score_change >= 5
+        
+        # Progi dla różnych poziomów
+        level_thresholds = {1: 25, 2: 40, 3: 60}
+        threshold = level_thresholds.get(alert_level, 25)
+        threshold_crossed = current_score >= threshold and previous_score < threshold
+        
+        # Alert tylko gdy BOTH warunki spełnione
+        if score_increased and threshold_crossed:
+            reason = f"Level {alert_level}: Score +{score_change} AND crossed {threshold} ({previous_score}→{current_score})"
+            return True, reason
+        
+        # Alternatywnie: duży wzrost score (+15) nawet bez przekroczenia nowego progu
+        if score_change >= 15 and current_score >= threshold:
+            reason = f"Level {alert_level}: Major score increase +{score_change} (current: {current_score})"
+            return True, reason
+        
+        # Brak warunków alertu
+        if not score_increased:
+            return False, f"Score change too small: {score_change:+d} (need +5)"
+        elif not threshold_crossed:
+            return False, f"Threshold not crossed: {current_score} (need {threshold}+)"
+        else:
+            return False, f"No alert conditions met (score: {current_score}, change: {score_change:+d})"
+
     def should_trigger_alert(self, symbol: str, current_score: int, details: Dict) -> Tuple[bool, str]:
         """
-        Określa czy powinien zostać wysłany alert na podstawie trailing logic
+        Legacy compatibility - określa czy powinien zostać wysłany alert
         
         Args:
             symbol: Trading symbol
@@ -182,6 +227,82 @@ class TrendModeAlertEngine:
         
         return enhanced_score, score_breakdown
     
+    def generate_trend_mode_2_alert(self, symbol: str, score: int, alert_level: int, score_breakdown: Dict, reason: str) -> Dict:
+        """
+        Generuje alert dla Trend Mode 2.0
+        
+        Args:
+            symbol: Trading symbol
+            score: Final trend score
+            alert_level: Poziom alertu (1/2/3)
+            score_breakdown: Breakdown scoringu
+            reason: Powód alertu
+            
+        Returns:
+            dict: Alert data
+        """
+        level_names = {1: "WATCHLIST", 2: "ACTIVE ENTRY", 3: "CONFIRMED TREND"}
+        level_name = level_names.get(alert_level, "UNKNOWN")
+        
+        # Formatuj wiadomość alertu
+        alert_message = f"🔥 TREND MODE 2.0 - {level_name}: {symbol}\n"
+        alert_message += f"📊 Score: {score}/100 (Level {alert_level}/3)\n"
+        alert_message += f"🎯 {reason}\n"
+        
+        # Core detectors
+        if score_breakdown.get('active_core'):
+            alert_message += f"🔵 Core: {', '.join(score_breakdown['active_core'])}\n"
+        
+        # Helper detectors
+        if score_breakdown.get('active_helper'):
+            alert_message += f"🟢 Helper: {', '.join(score_breakdown['active_helper'])}\n"
+        
+        # Negative detectors (warning)
+        if score_breakdown.get('active_negative'):
+            alert_message += f"🔴 Warning: {', '.join(score_breakdown['active_negative'])}\n"
+        
+        # Points breakdown
+        alert_message += f"📈 Points: Core +{score_breakdown.get('core_points', 0)}, Helper +{score_breakdown.get('helper_points', 0)}"
+        if score_breakdown.get('negative_points', 0) < 0:
+            alert_message += f", Negative {score_breakdown['negative_points']}"
+        
+        # Timestamp
+        alert_message += f"\n⏰ {datetime.now(timezone.utc).strftime('%H:%M:%S UTC')}"
+        
+        alert_data = {
+            "symbol": symbol,
+            "alert_type": "trend_mode_2",
+            "alert_level": alert_level,
+            "level_name": level_name,
+            "score": score,
+            "reason": reason,
+            "message": alert_message,
+            "score_breakdown": score_breakdown,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "priority": self._calculate_trend_mode_2_priority(alert_level, score, score_breakdown)
+        }
+        
+        return alert_data
+    
+    def _calculate_trend_mode_2_priority(self, alert_level: int, score: int, score_breakdown: Dict) -> str:
+        """Oblicza priorytet alertu dla Trend Mode 2.0"""
+        core_count = len(score_breakdown.get('active_core', []))
+        negative_count = len(score_breakdown.get('active_negative', []))
+        
+        # HIGH priority
+        if alert_level >= 3 or (score >= 70 and core_count >= 2):
+            return "HIGH"
+        
+        # MEDIUM priority
+        if alert_level == 2 or (score >= 40 and core_count >= 1):
+            return "MEDIUM"
+        
+        # LOW priority but warning if negatives
+        if negative_count >= 2:
+            return "LOW-WARNING"
+        
+        return "LOW"
+
     def generate_trend_alert(self, symbol: str, score: int, score_breakdown: Dict, reason: str) -> Dict:
         """
         Generuje alert dla Trend Mode
@@ -231,6 +352,51 @@ class TrendModeAlertEngine:
         else:
             return "LOW"
     
+    def process_trend_mode_2_alert(self, symbol: str, trend_mode_2_result: Dict) -> Optional[Dict]:
+        """
+        Główna funkcja przetwarzania alertów Trend Mode 2.0
+        
+        Args:
+            symbol: Trading symbol
+            trend_mode_2_result: Wynik z TrendMode2ScoreEngine.process_symbol_trend_mode_2()
+            
+        Returns:
+            dict lub None: Alert data jeśli warunki spełnione
+        """
+        try:
+            score = trend_mode_2_result.get('trend_mode_2_score', 0)
+            alert_level = trend_mode_2_result.get('alert_level', 0)
+            score_breakdown = trend_mode_2_result.get('score_breakdown', {})
+            
+            # Sprawdź warunki alertu z Trend Mode 2.0 trailing logic
+            should_alert, reason = self.should_trigger_alert_trend_mode_2(
+                symbol, score, alert_level, score_breakdown
+            )
+            
+            # Aktualizuj historię
+            details = {
+                'alert_level': alert_level,
+                'score_breakdown': score_breakdown,
+                'trend_mode_2': True
+            }
+            self.update_score_history(symbol, score, details)
+            
+            # Generuj alert jeśli potrzeba
+            if should_alert:
+                alert_data = self.generate_trend_mode_2_alert(
+                    symbol, score, alert_level, score_breakdown, reason
+                )
+                print(f"🚨 [TREND MODE 2.0] {symbol}: {reason}")
+                return alert_data
+            else:
+                level_name = {0: "No Alert", 1: "Watchlist", 2: "Active Entry", 3: "Confirmed"}[alert_level]
+                print(f"📊 [TREND MODE 2.0] {symbol}: {score}/100 - {level_name} - {reason}")
+                return None
+                
+        except Exception as e:
+            print(f"⚠️ Error processing Trend Mode 2.0 alert for {symbol}: {e}")
+            return None
+
     def process_trend_mode_alert(self, symbol: str, base_score: int, modules_data: Dict) -> Optional[Dict]:
         """
         Główna funkcja przetwarzania alertów Trend Mode

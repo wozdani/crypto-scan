@@ -1,10 +1,12 @@
 """
 Trend Mode Integration Helper - funkcje pomocnicze dla integracji z głównym systemem
+Obsługuje zarówno legacy Trend Mode jak i nowy Trend Mode 2.0
 """
 
 from detectors.pullback_flow_pattern import pullback_flow_pattern
 from detectors.trend_mode_sr import detect_sr_trend_mode
 from utils.trend_mode_alert_engine import trend_alert_engine
+from utils.trend_mode_score_engine import trend_mode_2_engine
 import time
 
 
@@ -95,6 +97,44 @@ def collect_real_modules_data(symbol, candle_data, orderbook_data=None):
     return modules_data
 
 
+def process_trend_mode_2(symbol, market_data, orderbook_data=None):
+    """
+    Przetwórz symbol przez nowy Trend Mode 2.0 system
+    
+    Args:
+        symbol: Trading symbol
+        market_data: Dane rynkowe (candles, prices, volumes)
+        orderbook_data: Opcjonalne dane orderbook
+        
+    Returns:
+        dict: Kompletny wynik Trend Mode 2.0
+    """
+    try:
+        # 1. Analizuj przez Trend Mode 2.0 engine
+        trend_result = trend_mode_2_engine.process_symbol_trend_mode_2(
+            symbol, market_data, orderbook_data
+        )
+        
+        # 2. Przetwórz przez Alert Engine dla trailing logic
+        alert_data = trend_alert_engine.process_trend_mode_2_alert(symbol, trend_result)
+        
+        # 3. Dodaj alert data do wyniku
+        trend_result['alert_generated'] = alert_data is not None
+        trend_result['alert_data'] = alert_data
+        
+        return trend_result
+        
+    except Exception as e:
+        print(f"⚠️ Error in Trend Mode 2.0 for {symbol}: {e}")
+        return {
+            "symbol": symbol,
+            "trend_mode_2_score": 0,
+            "alert_level": 0,
+            "trend_active": False,
+            "alert_generated": False,
+            "error": str(e)
+        }
+
 def process_enhanced_trend_mode(symbol, candle_data, base_trend_result=None):
     """
     Przetwórz symbol przez Enhanced Trend Mode z Alert Engine
@@ -154,6 +194,49 @@ def process_enhanced_trend_mode(symbol, candle_data, base_trend_result=None):
             "error": str(e)
         }
 
+
+def get_trend_mode_2_summary(trend_mode_2_result):
+    """
+    Stwórz czytelne podsumowanie Trend Mode 2.0
+    
+    Args:
+        trend_mode_2_result: Wynik z process_trend_mode_2
+        
+    Returns:
+        list: Lista stringów z podsumowaniem
+    """
+    summary = []
+    
+    score = trend_mode_2_result.get("trend_mode_2_score", 0)
+    alert_level = trend_mode_2_result.get("alert_level", 0)
+    score_breakdown = trend_mode_2_result.get("score_breakdown", {})
+    
+    # Podstawowe info
+    level_names = {0: "No Alert", 1: "Watchlist", 2: "Active Entry", 3: "Confirmed"}
+    level_name = level_names.get(alert_level, "Unknown")
+    summary.append(f"Trend Mode 2.0: {score}/100 (Level {alert_level}: {level_name})")
+    
+    # Aktywne detektory
+    core_active = score_breakdown.get('active_core', [])
+    helper_active = score_breakdown.get('active_helper', [])
+    negative_active = score_breakdown.get('active_negative', [])
+    
+    if core_active:
+        summary.append(f"🔵 Core: {', '.join(core_active)} (+{score_breakdown.get('core_points', 0)})")
+    
+    if helper_active:
+        summary.append(f"🟢 Helper: {', '.join(helper_active)} (+{score_breakdown.get('helper_points', 0)})")
+    
+    if negative_active:
+        summary.append(f"🔴 Warning: {', '.join(negative_active)} ({score_breakdown.get('negative_points', 0)})")
+    
+    # Alert info
+    if trend_mode_2_result.get("alert_generated"):
+        alert_data = trend_mode_2_result.get("alert_data", {})
+        summary.append(f"🚨 ALERT: {alert_data.get('reason', 'unknown')}")
+        summary.append(f"Priority: {alert_data.get('priority', 'unknown')}")
+    
+    return summary
 
 def get_trend_mode_summary(enhanced_result):
     """
