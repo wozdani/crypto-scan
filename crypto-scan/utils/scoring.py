@@ -290,7 +290,6 @@ def save_score(symbol, score):
             json.dump(scores, f, indent=2)
         
         # Atomic rename to prevent corruption during write
-        import os
         os.rename(temp_file, scores_file)
             
     except Exception as e:

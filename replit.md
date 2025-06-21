@@ -101,6 +101,7 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 ### June 21, 2025 - Alert System Integration Fix - PRODUCTION READY
 - **Critical Alert Function Fixed**: Naprawiono process_alert() w alert_system.py - KERNELUSDT score 57 teraz wysyła alerty
 - **Telegram 400 Error Fixed**: Dodano Markdown escape dla special characters - VELOUSDT Level 3 alert działa poprawnie  
+- **Variable Scope Error Fixed**: Usunięto redundant import os w save_score() - BIGTIMEUSDT scoring działa poprawnie
 - **Simplified Alert Logic**: Zastąpiono skomplikowaną cache logic prostym wywołaniem send_alert() function
 - **JSON Corruption Fixed**: Dodano atomic writes i error handling dla wszystkich JSON operations w scoring.py
 - **Dashboard API Fixed**: Naprawiono get_top_performers() obsługujący różne formaty danych JSON
