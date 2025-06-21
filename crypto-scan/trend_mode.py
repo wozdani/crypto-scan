@@ -1,20 +1,26 @@
 """
-Trend-Mode: Professional Trader Simulation Module
+Trend-Mode: Advanced Professional Trader Simulation Module
 
-Symuluje myślenie profesjonalnego tradera, który dołącza do istniejącego trendu wzrostowego
-w momencie korekty (pullbacku), a nie na breakoutcie czy odwróceniu.
+Rozbudowany moduł symulujący analizę profesjonalnego tradera, który dołącza do silnego trendu
+w czasie korekty (pullbacku), a nie wchodzi przypadkowo.
 
-Etapy decyzyjne:
+9 Etapów Analizy:
 1. Analiza Kontekstu Rynkowego (market_context)
 2. Ocena Siły Trendu (trend_strength) 
-3. Wykrycie Korekty (pullback_detection)
+3. Detekcja Korekty (pullback_detection)
 4. Reakcja na wsparcie (support_reaction)
-5. Logika Decyzyjna Tradera (trader_decision_logic)
+5. Czas + dynamika (market_time_score)
+6. Potwierdzenie bounce'a (detect_bounce_confirmation)
+7. Scoring heurystyczny (compute_trend_score)
+8. Trader logic (interpret_market_as_trader)
+9. GPT-Feedback jako trader-asystent (opcjonalny)
 """
 
 import numpy as np
+import os
 from typing import List, Dict, Tuple, Optional
-from datetime import datetime
+from datetime import datetime, timezone
+import json
 
 
 def determine_market_context(candles: List[List]) -> str:
@@ -225,7 +231,7 @@ def detect_pullback(candles: List[List]) -> Dict:
         return {"detected": False, "magnitude": 0.0, "volume_declining": False}
 
 
-def is_near_support(candles: List[List]) -> Dict:
+def detect_support_reaction(candles: List[List]) -> Dict:
     """
     📍 Etap 4: Reakcja na wsparcie
     
@@ -270,7 +276,7 @@ def is_near_support(candles: List[List]) -> Dict:
         # 5. Sprawdź reakcję na wsparcie (czy były odbicia?)
         reaction_strength = 0.0
         support_type = "none"
-        near_support = False
+        support_detected = False
         
         if near_ema:
             # Sprawdź czy były niedawne testy EMA z odbiciami
@@ -305,13 +311,15 @@ def is_near_support(candles: List[List]) -> Dict:
         total_reaction = (reaction_strength * 0.6 + last_candle_strength * 0.4)
         
         return {
-            "near_support": near_support,
+            "support_detected": support_detected,
             "support_type": support_type,
             "reaction_strength": total_reaction,
             "distance_to_support": min(distance_to_ema, distance_to_vwap),
             "ema21_level": ema_support,
             "vwap_level": vwap,
-            "last_candle_strength": last_candle_strength
+            "last_candle_strength": last_candle_strength,
+            "engulfing_pattern": _detect_engulfing_pattern(candles[-3:]) if len(candles) >= 3 else False,
+            "wick_bounce": _detect_wick_bounce(candles[-2:]) if len(candles) >= 2 else False
         }
         
     except Exception as e:
@@ -319,26 +327,498 @@ def is_near_support(candles: List[List]) -> Dict:
         return {"near_support": False, "support_type": "none", "reaction_strength": 0.0}
 
 
-def interpret_market_as_trader(symbol: str, candles: List[List]) -> Dict:
+def market_time_score(utc_hour: int) -> Dict:
     """
-    🧠 Etap 5: Logika Decyzyjna Tradera
+    ⏱️ Etap 5: Czas + dynamika
     
-    Łączy wszystko w jedno logiczne „myślenie" tradera:
-    Jeśli trend_score wysoki + pullback aktywny + near_support = sygnał wejścia
+    Zwraca boost jeśli ruch odbywa się w czasie większej płynności
+    
+    Args:
+        utc_hour: Godzina UTC (0-23)
+        
+    Returns:
+        dict: {"time_boost": float, "session": str, "liquidity": str}
+    """
+    try:
+        # Definicje sesji tradingowych (UTC)
+        # Asian: 00:00-08:00 UTC (Tokyo 09:00-17:00 JST)
+        # London: 08:00-16:00 UTC  
+        # NY: 13:00-21:00 UTC
+        # Overlap London/NY: 13:00-16:00 UTC (najlepsza płynność)
+        
+        if 13 <= utc_hour <= 16:  # London/NY overlap
+            return {
+                "time_boost": 1.2,
+                "session": "london_ny_overlap", 
+                "liquidity": "highest"
+            }
+        elif 8 <= utc_hour <= 12:  # London morning
+            return {
+                "time_boost": 1.1,
+                "session": "london_morning",
+                "liquidity": "high"
+            }
+        elif 17 <= utc_hour <= 21:  # NY afternoon
+            return {
+                "time_boost": 1.1,
+                "session": "ny_afternoon", 
+                "liquidity": "high"
+            }
+        elif 1 <= utc_hour <= 7:  # Asian session
+            return {
+                "time_boost": 0.9,
+                "session": "asian",
+                "liquidity": "medium"
+            }
+        else:  # Night/weekend (22:00-00:00)
+            return {
+                "time_boost": 0.7,
+                "session": "night",
+                "liquidity": "low"
+            }
+            
+    except Exception as e:
+        print(f"⚠️ Error in market_time_score: {e}")
+        return {"time_boost": 1.0, "session": "unknown", "liquidity": "medium"}
+
+
+def detect_bounce_confirmation(candles: List[List]) -> Dict:
+    """
+    🎥 Etap 6: Potwierdzenie bounce'a
+    
+    Obserwuje zakończenie pullbacku, mniejsze świece, odbicie od wsparcia
+    
+    Args:
+        candles: Lista OHLCV candles
+        
+    Returns:
+        dict: {"bounce_confirmed": bool, "bounce_strength": float, "pattern": str}
+    """
+    if not candles or len(candles) < 5:
+        return {"bounce_confirmed": False, "bounce_strength": 0.0, "pattern": "insufficient_data"}
+    
+    try:
+        # Ostatnie 5 świec do analizy bounce'a
+        recent_candles = candles[-5:]
+        opens = [float(c[1]) for c in recent_candles]
+        highs = [float(c[2]) for c in recent_candles]
+        lows = [float(c[3]) for c in recent_candles]
+        closes = [float(c[4]) for c in recent_candles]
+        volumes = [float(c[5]) for c in recent_candles]
+        
+        # 1. Sprawdź czy ostatnie świece są mniejsze (konsolidacja po pullbacku)
+        candle_sizes = [(highs[i] - lows[i]) for i in range(len(recent_candles))]
+        avg_size_before = np.mean(candle_sizes[:-2]) if len(candle_sizes) > 2 else 0
+        avg_size_recent = np.mean(candle_sizes[-2:]) if len(candle_sizes) >= 2 else 0
+        
+        smaller_candles = avg_size_recent < avg_size_before * 0.8 if avg_size_before > 0 else False
+        
+        # 2. Sprawdź czy była próba odbicia (higher lows pattern)
+        higher_lows = 0
+        for i in range(1, len(lows)):
+            if lows[i] > lows[i-1]:
+                higher_lows += 1
+        
+        higher_lows_pattern = higher_lows >= 2
+        
+        # 3. Sprawdź siłę ostatniej świecy (czy jest bullish?)
+        last_candle_bullish = closes[-1] > opens[-1]
+        last_candle_strength = (closes[-1] - lows[-1]) / (highs[-1] - lows[-1]) if highs[-1] > lows[-1] else 0
+        
+        # 4. Sprawdź wzrost wolumenu na bounce'ie
+        volume_increase = False
+        if len(volumes) >= 3:
+            recent_volume = volumes[-1]
+            avg_volume_before = np.mean(volumes[:-1])
+            volume_increase = recent_volume > avg_volume_before * 1.2
+        
+        # 5. Detekcja specific patterns
+        pattern = "none"
+        if smaller_candles and higher_lows_pattern:
+            pattern = "consolidation_bounce"
+        elif last_candle_bullish and last_candle_strength > 0.7:
+            pattern = "strong_reversal_candle"
+        elif volume_increase and last_candle_bullish:
+            pattern = "volume_bounce"
+        elif higher_lows_pattern:
+            pattern = "higher_lows"
+        
+        # 6. Kalkulacja bounce strength
+        bounce_factors = [
+            smaller_candles,
+            higher_lows_pattern, 
+            last_candle_bullish,
+            volume_increase,
+            last_candle_strength > 0.6
+        ]
+        
+        bounce_strength = sum(bounce_factors) / len(bounce_factors)
+        bounce_confirmed = bounce_strength >= 0.6 and pattern != "none"
+        
+        return {
+            "bounce_confirmed": bounce_confirmed,
+            "bounce_strength": bounce_strength,
+            "pattern": pattern,
+            "smaller_candles": smaller_candles,
+            "higher_lows": higher_lows_pattern,
+            "volume_increase": volume_increase,
+            "last_candle_strength": last_candle_strength
+        }
+        
+    except Exception as e:
+        print(f"⚠️ Error in detect_bounce_confirmation: {e}")
+        return {"bounce_confirmed": False, "bounce_strength": 0.0, "pattern": "error"}
+
+
+def compute_trend_score(
+    trend_strength: float,
+    pullback_data: Dict,
+    support_data: Dict, 
+    bounce_data: Dict,
+    time_data: Dict
+) -> Dict:
+    """
+    📊 Etap 7: Scoring heurystyczny
+    
+    Łączy wszystkie czynniki w jeden score z wagami
+    
+    Args:
+        trend_strength: Score siły trendu (0.0-1.0)
+        pullback_data: Dane z detect_pullback()
+        support_data: Dane z detect_support_reaction()
+        bounce_data: Dane z detect_bounce_confirmation()
+        time_data: Dane z market_time_score()
+        
+    Returns:
+        dict: {"final_score": float, "weighted_scores": dict, "quality_grade": str}
+    """
+    try:
+        # Wagi dla różnych czynników
+        weights = {
+            "trend_strength": 0.30,
+            "pullback_quality": 0.20,
+            "support_reaction": 0.20,
+            "bounce_confirmation": 0.15,
+            "time_boost": 0.15
+        }
+        
+        # 1. Trend Strength Score (już jest 0.0-1.0)
+        trend_score = trend_strength
+        
+        # 2. Pullback Quality Score
+        pullback_score = 0.0
+        if pullback_data.get("detected", False):
+            magnitude = pullback_data.get("magnitude", 0)
+            volume_declining = pullback_data.get("volume_declining", False)
+            quality_score = pullback_data.get("quality_score", 0)
+            
+            # Idealne pullbacki: 1-3%, z malejącym wolumenem
+            if 1.0 <= magnitude <= 3.0:
+                pullback_score = 0.8
+                if volume_declining:
+                    pullback_score = 1.0
+            elif 0.5 <= magnitude <= 4.0:
+                pullback_score = 0.6
+                if volume_declining:
+                    pullback_score = 0.8
+            else:
+                pullback_score = quality_score
+        
+        # 3. Support Reaction Score
+        support_score = 0.0
+        if support_data.get("support_detected", False):
+            reaction_strength = support_data.get("reaction_strength", 0)
+            engulfing = support_data.get("engulfing_pattern", False)
+            wick_bounce = support_data.get("wick_bounce", False)
+            
+            support_score = reaction_strength
+            if engulfing:
+                support_score += 0.2
+            if wick_bounce:
+                support_score += 0.1
+            
+            support_score = min(support_score, 1.0)
+        
+        # 4. Bounce Confirmation Score
+        bounce_score = bounce_data.get("bounce_strength", 0.0)
+        if bounce_data.get("bounce_confirmed", False):
+            bounce_score += 0.2  # Bonus za potwierdzenie
+            bounce_score = min(bounce_score, 1.0)
+        
+        # 5. Time Boost (może być > 1.0)
+        time_boost = time_data.get("time_boost", 1.0)
+        time_score = min((time_boost - 0.7) / 0.5, 1.0)  # Normalize 0.7-1.2 to 0.0-1.0
+        
+        # Kalkulacja weighted scores
+        weighted_scores = {
+            "trend_component": trend_score * weights["trend_strength"],
+            "pullback_component": pullback_score * weights["pullback_quality"],
+            "support_component": support_score * weights["support_reaction"],
+            "bounce_component": bounce_score * weights["bounce_confirmation"],
+            "time_component": time_score * weights["time_boost"]
+        }
+        
+        # Final score (przed time boost)
+        base_score = sum(weighted_scores.values())
+        
+        # Zastosuj time boost jako multiplier
+        final_score = base_score * time_boost
+        final_score = min(final_score, 1.0)  # Cap at 1.0
+        
+        # Quality grading
+        if final_score >= 0.80:
+            quality_grade = "excellent"
+        elif final_score >= 0.65:
+            quality_grade = "good"
+        elif final_score >= 0.50:
+            quality_grade = "average"
+        elif final_score >= 0.35:
+            quality_grade = "poor"
+        else:
+            quality_grade = "very_poor"
+        
+        return {
+            "final_score": final_score,
+            "base_score": base_score,
+            "weighted_scores": weighted_scores,
+            "quality_grade": quality_grade,
+            "time_boost_applied": time_boost,
+            "individual_scores": {
+                "trend": trend_score,
+                "pullback": pullback_score,
+                "support": support_score,
+                "bounce": bounce_score,
+                "time": time_score
+            }
+        }
+        
+    except Exception as e:
+        print(f"⚠️ Error in compute_trend_score: {e}")
+        return {
+            "final_score": 0.0,
+            "base_score": 0.0,
+            "weighted_scores": {},
+            "quality_grade": "error",
+            "time_boost_applied": 1.0
+        }
+
+
+def gpt_infer_market_description(symbol: str, candles: List[List]) -> str:
+    """
+    💬 Etap 9A: Generuj opis rynku dla GPT
+    
+    Tworzy tekstowy opis wykresu do analizy przez GPT
+    
+    Args:
+        symbol: Symbol trading pair
+        candles: Lista OHLCV candles
+        
+    Returns:
+        str: Opis rynku dla GPT
+    """
+    if not candles or len(candles) < 10:
+        return f"{symbol}: Insufficient data for analysis"
+    
+    try:
+        # Podstawowe dane
+        closes = [float(c[4]) for c in candles[-20:]]
+        highs = [float(c[2]) for c in candles[-10:]]
+        lows = [float(c[3]) for c in candles[-10:]]
+        volumes = [float(c[5]) for c in candles[-10:]]
+        
+        current_price = closes[-1]
+        
+        # EMA21 dla kontekstu trendu
+        ema21 = _calculate_ema(closes, min(21, len(closes)))
+        ema_current = ema21[-1] if ema21 else current_price
+        
+        # Trend direction
+        price_change = ((closes[-1] - closes[-10]) / closes[-10]) * 100
+        trend_direction = "uptrend" if price_change > 2 else "downtrend" if price_change < -2 else "sideways"
+        
+        # Pullback analysis
+        recent_high = max(highs)
+        pullback_pct = ((recent_high - current_price) / recent_high) * 100
+        
+        # Volume trend
+        recent_vol = np.mean(volumes[-3:])
+        earlier_vol = np.mean(volumes[-10:-3])
+        volume_trend = "increasing" if recent_vol > earlier_vol * 1.1 else "decreasing" if recent_vol < earlier_vol * 0.9 else "stable"
+        
+        # EMA position
+        ema_distance = ((current_price - ema_current) / ema_current) * 100
+        ema_position = "above EMA21" if ema_distance > 0.5 else "below EMA21" if ema_distance < -0.5 else "near EMA21"
+        
+        # Last candle analysis
+        last_candle = candles[-1]
+        last_open, last_high, last_low, last_close = [float(x) for x in last_candle[1:5]]
+        candle_type = "bullish" if last_close > last_open else "bearish"
+        
+        # Wick analysis
+        upper_wick = last_high - max(last_open, last_close)
+        lower_wick = min(last_open, last_close) - last_low
+        body_size = abs(last_close - last_open)
+        
+        wick_info = ""
+        if lower_wick > body_size * 2:
+            wick_info = " with significant lower wick (potential support test)"
+        elif upper_wick > body_size * 2:
+            wick_info = " with significant upper wick (potential resistance)"
+        
+        # Construct description
+        description = (
+            f"{symbol}: {trend_direction.capitalize()} market, "
+            f"price {ema_position} ({ema_distance:+.1f}%), "
+            f"pulled back {pullback_pct:.1f}% from recent high, "
+            f"{volume_trend} volume, "
+            f"current candle is {candle_type}{wick_info}"
+        )
+        
+        return description
+        
+    except Exception as e:
+        print(f"⚠️ Error generating market description: {e}")
+        return f"{symbol}: Error analyzing market structure"
+
+
+def ask_gpt_trader_opinion(market_description: str) -> Dict:
+    """
+    💬 Etap 9B: GPT Trader Assistant
+    
+    Pyta GPT o opinię na temat entry point
+    
+    Args:
+        market_description: Opis rynku z gpt_infer_market_description()
+        
+    Returns:
+        dict: {"gpt_decision": str, "confidence": float, "explanation": str}
+    """
+    try:
+        # Sprawdź czy mamy klucz API
+        openai_api_key = os.environ.get('OPENAI_API_KEY')
+        if not openai_api_key:
+            return {
+                "gpt_decision": "unavailable",
+                "confidence": 0.0,
+                "explanation": "OpenAI API key not configured"
+            }
+        
+        try:
+            import openai
+            openai.api_key = openai_api_key
+            
+            # Prompt dla GPT jako doświadczonego tradera
+            prompt = f"""You are an expert crypto trader analyzing pullback entries in uptrends.
+
+Market situation: {market_description}
+
+Based on this market structure, should I join this trend now?
+
+Respond with JSON format:
+{{
+  "decision": "yes" / "wait" / "no",
+  "confidence": 0.0-1.0,
+  "explanation": "brief explanation of your reasoning"
+}}
+
+Focus on: trend quality, pullback depth, support levels, volume confirmation, entry timing."""
+
+            response = openai.ChatCompletion.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are an expert cryptocurrency trader specializing in trend-following strategies. Respond only with valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=200,
+                temperature=0.3
+            )
+            
+            # Parse response
+            gpt_text = response.choices[0].message.content.strip()
+            
+            # Extract JSON from response
+            try:
+                import re
+                json_match = re.search(r'\{.*\}', gpt_text, re.DOTALL)
+                if json_match:
+                    gpt_json = json.loads(json_match.group())
+                    
+                    decision = gpt_json.get("decision", "wait").lower()
+                    confidence = float(gpt_json.get("confidence", 0.5))
+                    explanation = gpt_json.get("explanation", "No explanation provided")
+                    
+                    # Map decision to standard format
+                    if decision in ["yes", "join", "buy"]:
+                        decision = "Yes – join trend"
+                    elif decision in ["no", "avoid", "skip"]:
+                        decision = "No – avoid entry"
+                    else:
+                        decision = "Wait – monitor"
+                    
+                    return {
+                        "gpt_decision": decision,
+                        "confidence": min(max(confidence, 0.0), 1.0),
+                        "explanation": explanation
+                    }
+                else:
+                    raise ValueError("No JSON found in response")
+                    
+            except (json.JSONDecodeError, ValueError) as parse_error:
+                # Fallback: simple text analysis
+                gpt_lower = gpt_text.lower()
+                if any(word in gpt_lower for word in ["yes", "good", "buy", "join"]):
+                    decision = "Yes – join trend"
+                    confidence = 0.7
+                elif any(word in gpt_lower for word in ["no", "avoid", "bad"]):
+                    decision = "No – avoid entry"  
+                    confidence = 0.7
+                else:
+                    decision = "Wait – monitor"
+                    confidence = 0.5
+                
+                return {
+                    "gpt_decision": decision,
+                    "confidence": confidence,
+                    "explanation": gpt_text[:100] + "..." if len(gpt_text) > 100 else gpt_text
+                }
+                
+        except ImportError:
+            return {
+                "gpt_decision": "unavailable",
+                "confidence": 0.0,
+                "explanation": "OpenAI library not installed"
+            }
+        except Exception as api_error:
+            print(f"⚠️ OpenAI API error: {api_error}")
+            return {
+                "gpt_decision": "error",
+                "confidence": 0.0,
+                "explanation": f"API error: {str(api_error)[:50]}"
+            }
+            
+    except Exception as e:
+        print(f"⚠️ Error in ask_gpt_trader_opinion: {e}")
+        return {
+            "gpt_decision": "error",
+            "confidence": 0.0,
+            "explanation": "Analysis error"
+        }
+
+
+def interpret_market_as_trader(symbol: str, candles: List[List], utc_hour: int = None, enable_gpt: bool = False) -> Dict:
+    """
+    🧠 Etap 8: Logika Decyzyjna Tradera
+    
+    Łączy wszystkie warstwy analizy w logiczną decyzję profesjonalnego tradera
     
     Args:
         symbol: Symbol trading pair (np. 'BTCUSDT')
         candles: Lista OHLCV candles
+        utc_hour: Aktualna godzina UTC (0-23), None = auto-detect
+        enable_gpt: Czy włączyć GPT trader assistant
         
     Returns:
-        dict: {
-            "decision": "join_trend" / "wait" / "avoid",
-            "confidence": 0.0-1.0,
-            "reasons": ["reason1", "reason2", ...],
-            "market_context": str,
-            "trend_strength": float,
-            "entry_quality": float
-        }
+        dict: Kompletna analiza i decyzja tradera
     """
     if not candles or len(candles) < 40:
         return {
@@ -347,157 +827,161 @@ def interpret_market_as_trader(symbol: str, candles: List[List]) -> Dict:
             "reasons": ["insufficient_data"],
             "market_context": "unknown",
             "trend_strength": 0.0,
-            "entry_quality": 0.0
+            "entry_quality": 0.0,
+            "analysis_complete": False
         }
     
     try:
-        # === WYKONAJ WSZYSTKIE ANALIZY ===
+        # Auto-detect UTC hour if not provided
+        if utc_hour is None:
+            utc_hour = datetime.now(timezone.utc).hour
+        
+        # === WYKONAJ WSZYSTKIE 9 ETAPÓW ANALIZY ===
         
         # 1. Kontekst rynkowy
         market_context = determine_market_context(candles)
         
-        # 2. Siła trendu
+        # 2. Siła trendu  
         trend_strength = compute_trend_strength(candles)
         
         # 3. Detekcja pullbacku
         pullback_data = detect_pullback(candles)
         
-        # 4. Analiza wsparcia
-        support_data = is_near_support(candles)
+        # 4. Reakcja na wsparcie
+        support_data = detect_support_reaction(candles)
         
-        # === LOGIKA DECYZYJNA TRADERA ===
+        # 5. Czas i dynamika
+        time_data = market_time_score(utc_hour)
+        
+        # 6. Potwierdzenie bounce'a
+        bounce_data = detect_bounce_confirmation(candles)
+        
+        # 7. Scoring heurystyczny
+        scoring_data = compute_trend_score(
+            trend_strength, pullback_data, support_data, bounce_data, time_data
+        )
+        
+        # 9. GPT Analysis (opcjonalny)
+        gpt_data = {}
+        if enable_gpt:
+            market_description = gpt_infer_market_description(symbol, candles)
+            gpt_data = ask_gpt_trader_opinion(market_description)
+            gpt_data["market_description"] = market_description
+        
+        # === ADVANCED TRADER DECISION LOGIC ===
+        
+        # Używaj scoring_data jako podstawy decyzji
+        final_score = scoring_data.get("final_score", 0.0)
+        quality_grade = scoring_data.get("quality_grade", "poor")
+        time_boost = time_data.get("time_boost", 1.0)
         
         reasons = []
         decision = "wait"
-        confidence = 0.0
-        entry_quality = 0.0
         
-        # Warunki podstawowe dla join_trend:
-        # - Kontekst: pullback w trendzie wzrostowym
-        # - Siła trendu: > 0.6
-        # - Pullback: wykryty i jakościowy
-        # - Wsparcie: blisko i z reakcją
-        
-        # 1. Sprawdź kontekst rynkowy
-        context_score = 0.0
+        # Zbuduj powody na podstawie wszystkich analiz
         if market_context == "pullback":
-            context_score = 1.0
-            reasons.append("clean_pullback_context")
+            reasons.append("pullback_context")
         elif market_context == "impulse":
-            context_score = 0.7  # Można dołączyć, ale mniej idealne
             reasons.append("impulse_momentum")
-        elif market_context == "range":
-            context_score = 0.0
-            reasons.append("ranging_market")
         else:
-            context_score = 0.3
-            reasons.append(f"context_{market_context}")
-        
-        # 2. Sprawdź siłę trendu
-        trend_score = 0.0
+            reasons.append(f"{market_context}_market")
+            
         if trend_strength >= 0.7:
-            trend_score = 1.0
             reasons.append("strong_trend")
         elif trend_strength >= 0.5:
-            trend_score = 0.7
             reasons.append("moderate_trend")
-        elif trend_strength >= 0.3:
-            trend_score = 0.3
+        else:
             reasons.append("weak_trend")
-        else:
-            trend_score = 0.0
-            reasons.append("no_trend")
-        
-        # 3. Sprawdź pullback
-        pullback_score = 0.0
-        if pullback_data["detected"]:
-            if pullback_data["volume_declining"]:
-                pullback_score = 1.0
-                reasons.append("quality_pullback_low_volume")
+            
+        if pullback_data.get("detected", False):
+            if pullback_data.get("volume_declining", False):
+                reasons.append("quality_pullback")
             else:
-                pullback_score = 0.6
                 reasons.append("pullback_detected")
-        else:
-            pullback_score = 0.0
-            if market_context != "impulse":  # W impulsie nie potrzebujemy pullbacku
-                reasons.append("no_pullback")
+                
+        if support_data.get("support_detected", False):
+            support_type = support_data.get("support_type", "")
+            reasons.append(f"{support_type}_support")
+            
+        if bounce_data.get("bounce_confirmed", False):
+            pattern = bounce_data.get("pattern", "")
+            reasons.append(f"bounce_{pattern}")
+            
+        # Time boost info
+        session = time_data.get("session", "unknown")
+        if time_boost > 1.0:
+            reasons.append(f"favorable_time_{session}")
+        elif time_boost < 1.0:
+            reasons.append(f"unfavorable_time_{session}")
+            
+        # === DECISION THRESHOLDS ===
+        # Użyj final_score z compute_trend_score()
         
-        # 4. Sprawdź wsparcie
-        support_score = 0.0
-        if support_data["near_support"]:
-            if support_data["reaction_strength"] >= 0.5:
-                support_score = 1.0
-                reasons.append("support_held_strong")
-            else:
-                support_score = 0.6
-                reasons.append("near_support")
-        else:
-            support_score = 0.0
-            reasons.append("no_support")
-        
-        # === KALKULACJA KOŃCOWA ===
-        
-        # Różne wagi dla różnych kontekstów
-        if market_context == "pullback":
-            # W pullbacku wszystkie czynniki ważne
-            entry_quality = (
-                context_score * 0.20 +
-                trend_score * 0.30 +
-                pullback_score * 0.25 +
-                support_score * 0.25
-            )
-        elif market_context == "impulse":
-            # W impulsie mniej ważny pullback, ważniejszy trend i momentum
-            entry_quality = (
-                context_score * 0.25 +
-                trend_score * 0.50 +
-                pullback_score * 0.10 +  # Mniej ważny
-                support_score * 0.15
-            )
-        else:
-            # Inne konteksty - ostrożnie
-            entry_quality = (
-                context_score * 0.40 +
-                trend_score * 0.30 +
-                pullback_score * 0.15 +
-                support_score * 0.15
-            )
-        
-        # === OSTATECZNA DECYZJA ===
-        
-        if entry_quality >= 0.75:
+        if final_score >= 0.75:
             decision = "join_trend"
-            confidence = entry_quality
-            reasons.append("high_probability_setup")
-        elif entry_quality >= 0.50:
+            reasons.append("excellent_setup")
+        elif final_score >= 0.60:
+            decision = "wait"  # Może zostać upgraded przez GPT
+            reasons.append("good_setup_wait_confirmation")
+        elif final_score >= 0.40:
             decision = "wait"
-            confidence = entry_quality
-            reasons.append("wait_for_better_setup")
+            reasons.append("average_setup")
         else:
             decision = "avoid"
-            confidence = entry_quality
-            reasons.append("low_probability_setup")
+            reasons.append("poor_setup")
+            
+        # === GPT OVERRIDE LOGIC ===
+        # GPT może wpłynąć na decyzję jeśli jest włączony
+        gpt_influenced = False
+        if enable_gpt and gpt_data:
+            gpt_decision = gpt_data.get("gpt_decision", "")
+            gpt_confidence = gpt_data.get("confidence", 0.0)
+            
+            # GPT może upgrade'ować decyzję "wait" do "join_trend" jeśli jest bardzo pewny
+            if decision == "wait" and "yes" in gpt_decision.lower() and gpt_confidence >= 0.8:
+                decision = "join_trend"
+                reasons.append("gpt_confirms_entry")
+                gpt_influenced = True
+                
+            # GPT może downgrade'ować "join_trend" do "wait" jeśli widzi problemy
+            elif decision == "join_trend" and "no" in gpt_decision.lower() and gpt_confidence >= 0.8:
+                decision = "wait"
+                reasons.append("gpt_advises_caution")
+                gpt_influenced = True
+                
+        # Final confidence calculation
+        confidence = final_score
+        if gpt_influenced and enable_gpt:
+            gpt_conf = gpt_data.get("confidence", 0.0)
+            confidence = (confidence + gpt_conf) / 2  # Average of algo + GPT
         
-        # Dodaj szczegółowe informacje dla debugowania
-        debug_info = {
-            "context_score": context_score,
-            "trend_score": trend_score,
-            "pullback_score": pullback_score,
-            "support_score": support_score,
-            "pullback_magnitude": pullback_data.get("magnitude", 0),
-            "support_type": support_data.get("support_type", "none"),
-            "reaction_strength": support_data.get("reaction_strength", 0)
-        }
-        
-        return {
+        # === COMPREHENSIVE RESULT ===
+        result = {
             "decision": decision,
             "confidence": confidence,
             "reasons": reasons,
             "market_context": market_context,
             "trend_strength": trend_strength,
-            "entry_quality": entry_quality,
-            "debug": debug_info
+            "entry_quality": final_score,
+            "quality_grade": quality_grade,
+            "analysis_complete": True,
+            
+            # Detailed component data
+            "components": {
+                "trend_strength": trend_strength,
+                "pullback_data": pullback_data,
+                "support_data": support_data,
+                "bounce_data": bounce_data,
+                "time_data": time_data,
+                "scoring_data": scoring_data
+            },
+            
+            # GPT data if enabled
+            "gpt_analysis": gpt_data if enable_gpt else {},
+            "gpt_influenced": gpt_influenced
         }
+        
+        return result
         
     except Exception as e:
         print(f"⚠️ Error in interpret_market_as_trader for {symbol}: {e}")
@@ -507,7 +991,8 @@ def interpret_market_as_trader(symbol: str, candles: List[List]) -> Dict:
             "reasons": ["analysis_error"],
             "market_context": "error",
             "trend_strength": 0.0,
-            "entry_quality": 0.0
+            "entry_quality": 0.0,
+            "analysis_complete": False
         }
 
 
@@ -592,46 +1077,163 @@ def _calculate_vwap(candles: List[List]) -> float:
 
 # === MAIN INTEGRATION FUNCTION ===
 
-def analyze_symbol_trend_mode(symbol: str, candles: List[List]) -> Dict:
+def _detect_engulfing_pattern(candles: List[List]) -> bool:
+    """Wykryj bullish engulfing pattern"""
+    if len(candles) < 2:
+        return False
+    
+    try:
+        prev_candle = candles[-2]
+        curr_candle = candles[-1]
+        
+        prev_open, prev_close = float(prev_candle[1]), float(prev_candle[4])
+        curr_open, curr_close = float(curr_candle[1]), float(curr_candle[4])
+        
+        # Previous candle bearish, current bullish and engulfs previous
+        prev_bearish = prev_close < prev_open
+        curr_bullish = curr_close > curr_open
+        engulfs = curr_open < prev_close and curr_close > prev_open
+        
+        return prev_bearish and curr_bullish and engulfs
+    except:
+        return False
+
+
+def _detect_wick_bounce(candles: List[List]) -> bool:
+    """Wykryj odbicie z długim dolnym knotem"""
+    if len(candles) < 1:
+        return False
+    
+    try:
+        candle = candles[-1]
+        open_price, high, low, close = [float(x) for x in candle[1:5]]
+        
+        body_size = abs(close - open_price)
+        lower_wick = min(open_price, close) - low
+        
+        # Długi dolny knot (większy niż body)
+        return lower_wick > body_size * 1.5 and close > open_price
+    except:
+        return False
+
+
+def analyze_symbol_trend_mode(symbol: str, candles: List[List], enable_gpt: bool = False) -> Dict:
     """
-    Główna funkcja integracyjna dla Trend-Mode
+    Główna funkcja integracyjna dla Advanced Trend-Mode
     
     Args:
         symbol: Symbol trading pair
-        candles: Lista OHLCV candles
+        candles: Lista OHLCV candles  
+        enable_gpt: Czy włączyć GPT trader assistant
         
     Returns:
-        dict: Kompletna analiza Trend-Mode
+        dict: Kompletna analiza Advanced Trend-Mode
     """
-    result = interpret_market_as_trader(symbol, candles)
+    # Auto-detect UTC hour
+    utc_hour = datetime.now(timezone.utc).hour
+    
+    result = interpret_market_as_trader(symbol, candles, utc_hour, enable_gpt)
     
     # Dodaj timestamp i symbol do wyniku
     result.update({
         "symbol": symbol,
         "timestamp": datetime.now().isoformat(),
-        "analysis_type": "trend_mode"
+        "analysis_type": "advanced_trend_mode",
+        "version": "2.0"
     })
     
     return result
 
 
 if __name__ == "__main__":
-    # Test z przykładowymi danymi
-    print("🧪 Testing Trend-Mode module...")
+    # Test Advanced Trend-Mode module
+    print("🧪 Testing Advanced Trend-Mode module...")
     
-    # Przykładowe dane (OHLCV format)
-    test_candles = [
-        [1640995200, 47000, 47500, 46800, 47200, 1000],  # Trend wzrostowy
-        [1640995260, 47200, 47800, 47100, 47600, 1100],
-        [1640995320, 47600, 48000, 47400, 47800, 1200],
-        [1640995380, 47800, 48200, 47600, 48000, 1300],
-        [1640995440, 48000, 48100, 47700, 47900, 900],   # Pullback start
-        [1640995500, 47900, 48000, 47600, 47750, 800],   # Pullback continues
-        [1640995560, 47750, 47950, 47650, 47850, 700],   # Recovery?
-    ] * 10  # Powtórz dla większej próby
+    # Enhanced test data - realistic uptrend with pullback
+    test_candles = []
+    base_price = 50000
     
-    analysis = analyze_symbol_trend_mode("BTCUSDT", test_candles)
+    # Build uptrend (30 candles)
+    for i in range(30):
+        # Progressive uptrend with some noise
+        trend_component = i * 80  # Base trend
+        noise = (i % 3 - 1) * 30  # Small noise
+        price = base_price + trend_component + noise
+        
+        candle = [
+            1640995200 + i*900,  # 15min intervals
+            price - 40,          # open
+            price + 60,          # high
+            price - 80,          # low  
+            price,               # close
+            1000 + i*30 + (50 if i % 2 == 0 else -20)  # volume with pattern
+        ]
+        test_candles.append(candle)
+    
+    # Add realistic pullback (4 candles)
+    high_price = base_price + 29*80
+    for i in range(4):
+        pullback_drop = i * 50  # Gradual pullback
+        price = high_price - pullback_drop
+        
+        candle = [
+            1640995200 + (30+i)*900,
+            price + 20,
+            price + 30, 
+            price - 60,
+            price,
+            800 - i*50  # Declining volume in pullback
+        ]
+        test_candles.append(candle)
+    
+    # Add bounce attempt (2 candles)
+    bounce_price = high_price - 3*50
+    for i in range(2):
+        price = bounce_price + i*30
+        candle = [
+            1640995200 + (34+i)*900,
+            price - 20,
+            price + 50,
+            price - 30,
+            price,
+            900 + i*100  # Increasing volume on bounce
+        ]
+        test_candles.append(candle)
+    
+    # Test complete analysis
+    print("\n=== BASIC ANALYSIS ===")
+    analysis = analyze_symbol_trend_mode("TESTUSDT", test_candles, enable_gpt=False)
+    
     print(f"Decision: {analysis['decision']}")
     print(f"Confidence: {analysis['confidence']:.2f}")
     print(f"Market Context: {analysis['market_context']}")
-    print(f"Reasons: {', '.join(analysis['reasons'])}")
+    print(f"Quality Grade: {analysis['quality_grade']}")
+    print(f"Trend Strength: {analysis['trend_strength']:.2f}")
+    print(f"Final Score: {analysis['entry_quality']:.2f}")
+    print(f"Main Reasons: {', '.join(analysis['reasons'][:4])}")
+    
+    # Test individual components
+    print(f"\n=== COMPONENT BREAKDOWN ===")
+    components = analysis.get('components', {})
+    
+    pullback = components.get('pullback_data', {})
+    if pullback.get('detected'):
+        print(f"Pullback: {pullback['magnitude']:.1f}% (Volume declining: {pullback['volume_declining']})")
+    
+    support = components.get('support_data', {})
+    if support.get('support_detected'):
+        print(f"Support: {support['support_type']} (Reaction: {support['reaction_strength']:.2f})")
+    
+    bounce = components.get('bounce_data', {})
+    if bounce.get('bounce_confirmed'):
+        print(f"Bounce: {bounce['pattern']} (Strength: {bounce['bounce_strength']:.2f})")
+    
+    time_info = components.get('time_data', {})
+    print(f"Time: {time_info.get('session', 'unknown')} session (Boost: {time_info.get('time_boost', 1.0):.1f}x)")
+    
+    scoring = components.get('scoring_data', {})
+    if scoring:
+        print(f"Score breakdown: {scoring.get('individual_scores', {})}")
+    
+    print(f"\n✅ Advanced Trend-Mode test completed!")
+    print(f"Analysis type: {analysis.get('analysis_type', 'unknown')} v{analysis.get('version', '1.0')}")

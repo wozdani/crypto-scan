@@ -440,8 +440,12 @@ def scan_cycle():
             try:
                 from trend_mode import analyze_symbol_trend_mode
                 
-                # Analizuj symbol przez Trend-Mode
-                trend_mode_result = analyze_symbol_trend_mode(symbol, market_data.get('candles', []))
+                # Analizuj symbol przez Advanced Trend-Mode (z GPT disabled dla wydajności)
+                trend_mode_result = analyze_symbol_trend_mode(
+                    symbol, 
+                    market_data.get('candles', []), 
+                    enable_gpt=False  # GPT tylko dla high-confidence alerts
+                )
                 
                 if trend_mode_result:
                     decision = trend_mode_result.get('decision', 'wait')
