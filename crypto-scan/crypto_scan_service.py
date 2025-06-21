@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 # Load environment variables at the start
 load_dotenv()
-from utils.contracts import get_contract
+# from utils.contracts import get_contract  # Module not available
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from utils.coingecko import build_coingecko_cache
 import logging
