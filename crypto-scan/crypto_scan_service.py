@@ -222,7 +222,7 @@ def scan_cycle():
 
     def run_detect_stage(symbol, price_usd):
         try:
-            print(f"🧪 Wywołanie detect_stage_minus2_1({symbol})")
+
             stage2_pass, signals, inflow_usd, stage1g_active = detect_stage_minus2_1(symbol, price_usd=price_usd)
             print(f"[DEBUG] {symbol} signals: {signals}")
             return symbol, (stage2_pass, signals, inflow_usd, stage1g_active)
