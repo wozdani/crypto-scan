@@ -29,15 +29,13 @@ from utils.telegram_bot import send_alert, format_alert
 from utils.data_fetchers import get_symbols_cached, get_market_data
 from utils.data_fetchers import build_bybit_symbol_cache_all_categories as build_bybit_symbol_cache, is_bybit_cache_expired
 # === CONFIGURATION ===
-# Trend Mode disabled in Pre-Pump 2.0 refactoring
-TREND_COOLDOWN_MINUTES = 45  # Independent cooldown for trend alerts
 
 if is_bybit_cache_expired():
     print("🕒 Cache symboli Bybit jest przestarzały – buduję ponownie...")
     build_bybit_symbol_cache()
 
 from stages.stage_minus2_1 import detect_stage_minus2_1
-from utils.trend_stage_minus1 import detect_stage_minus1
+
 from utils.scoring import compute_ppwcs, should_alert, log_ppwcs_score, get_previous_score, save_score
 from utils.gpt_feedback import send_report_to_chatgpt, score_gpt_feedback, categorize_feedback_score
 from utils.alert_system import process_alert
