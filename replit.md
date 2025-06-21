@@ -112,15 +112,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Bug Resolution**: System nie odrzuca już wysokich PPWCS scores z powodu niskich checklist scores
 - **Enhanced Logic**: Bardzo słabe PPWCS (<15) nadal blokuje alert niezależnie od checklist
 
-### June 21, 2025 - Trader AI Engine Implementation - NEXT-GEN ANALYSIS
+### June 21, 2025 - Trader AI Engine + Intelligent Scoring - NEXT-GEN ANALYSIS  
 - **Intelligent Decision System**: Zastąpiono sztywne reguły trend-mode heurystyczną analizą symulującą myślenie tradera
 - **Multi-Layer Analysis**: analyze_market_structure() + analyze_candle_behavior() + interpret_orderbook() + simulate_trader_decision()
+- **Adaptive Scoring System**: compute_trader_score() z context-aware weights - impulse/pullback/breakout mają różne priorytety
+- **Score Breakdown**: Detailed breakdown w alertach Telegram: trend=0.85, pullback=0.70, support=0.80, bounce=0.75
+- **Quality Grading**: excellent (≥0.85), strong (≥0.75), good (≥0.65), neutral-watch (≥0.50), weak/very_poor
+- **Context Adaptation**: Range penalty (×0.7), distribution avoid (×0.3), impulse_focused vs pullback_focused weights  
+- **Enhanced Logging**: trader_score_log.txt z JSON entries, terminal scoring breakdown, alert integration
 - **Natural Language Reasoning**: describe_setup_naturally() tworzy tekstowe opisy setup'ów jak doświadczony trader
-- **Advanced Pattern Recognition**: Wykrywa impulse/pullback/breakout/distribution bez checklisty, bazuje na kontekście
-- **Orderbook Intelligence**: Interpretuje bid layering, spoofing detection, ask pressure jak institutional trader
-- **Confidence-Based Alerts**: Wysyła alerty tylko przy score ≥0.75 + confidence ≥0.3 z quality grading (premium/high/medium/low)
-- **Decision Logging**: Zapisuje pełne reasoning do trader_decision_log.txt dla analizy i uczenia się
-- **Production Integration**: Pełna integracja z crypto_scan_service.py - działa równolegle z PPWCS scoring
+- **Production Integration**: Pełna integracja z crypto_scan_service.py - score ≥0.75 + confidence ≥0.3 triggers alerts
 
 ### June 21, 2025 - Advanced Trend-Mode Integration - PRODUCTION READY
 - **Professional Trader Logic**: Kompletny moduł trend_mode.py z 9 etapami analizy symulującej myślenie profesjonalnego tradera

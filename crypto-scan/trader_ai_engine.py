@@ -406,6 +406,153 @@ def interpret_orderbook(symbol: str, market_data: Dict = None) -> Dict:
         }
 
 
+def compute_trader_score(features: Dict, symbol: str = None) -> Dict:
+    """
+    🧠 Inteligentny heurystyczny scoring jak trader
+    
+    Ważone punkty z kontekstem i adaptacją - nie sztywne reguły
+    
+    Args:
+        features: Dict z cechami rynku {
+            "trend_strength": 0.0-1.0,
+            "pullback_quality": 0.0-1.0,  
+            "support_reaction_strength": 0.0-1.0,
+            "bounce_confirmation_strength": 0.0-1.0,
+            "orderbook_alignment": 0.0-1.0,
+            "time_boost": 0.0-1.0,
+            "market_context": str
+        }
+        symbol: Symbol for logging
+        
+    Returns:
+        dict: {
+            "final_score": float,
+            "quality_grade": str,
+            "score_breakdown": dict,
+            "weights_used": dict,
+            "context_adjustment": str
+        }
+    """
+    try:
+        # Base weights (standardowe dla balanced market)
+        base_weights = {
+            "trend_strength": 0.25,
+            "pullback_quality": 0.20,
+            "support_reaction_strength": 0.20,
+            "bounce_confirmation_strength": 0.15,
+            "orderbook_alignment": 0.10,
+            "time_boost": 0.10
+        }
+        
+        # Context-aware weight adjustments (jak myśli trader)
+        market_context = features.get("market_context", "neutral")
+        weights = base_weights.copy()
+        context_adjustment = "standard"
+        
+        if market_context == "impulse":
+            # W impulsie liczy się trend strength + orderbook
+            weights["trend_strength"] = 0.35
+            weights["orderbook_alignment"] = 0.15
+            weights["pullback_quality"] = 0.15
+            weights["support_reaction_strength"] = 0.20
+            weights["bounce_confirmation_strength"] = 0.10
+            weights["time_boost"] = 0.05
+            context_adjustment = "impulse_focused"
+            
+        elif market_context == "pullback":
+            # W pullback kluczowe: support + bounce + quality
+            weights["pullback_quality"] = 0.30
+            weights["support_reaction_strength"] = 0.25
+            weights["bounce_confirmation_strength"] = 0.20
+            weights["trend_strength"] = 0.15
+            weights["orderbook_alignment"] = 0.05
+            weights["time_boost"] = 0.05
+            context_adjustment = "pullback_focused"
+            
+        elif market_context == "breakout":
+            # W breakout: volume + time + momentum
+            weights["trend_strength"] = 0.30
+            weights["time_boost"] = 0.20
+            weights["orderbook_alignment"] = 0.20
+            weights["bounce_confirmation_strength"] = 0.15
+            weights["support_reaction_strength"] = 0.10
+            weights["pullback_quality"] = 0.05
+            context_adjustment = "breakout_focused"
+            
+        elif market_context == "range":
+            # W range wszystko ma mniejsze znaczenie, liczy się patience
+            weights = {k: v * 0.7 for k, v in weights.items()}  # Penalty za range
+            weights["time_boost"] = 0.05  # Range nie liczy się timing
+            context_adjustment = "range_penalty"
+            
+        elif market_context == "distribution":
+            # Dystrybucja = avoid, heavy penalty
+            weights = {k: v * 0.3 for k, v in weights.items()}
+            context_adjustment = "distribution_avoid"
+        
+        # Calculate weighted score
+        score_breakdown = {}
+        total_score = 0.0
+        
+        for feature, weight in weights.items():
+            feature_value = features.get(feature, 0.0)
+            # Ensure value is in 0.0-1.0 range
+            feature_value = max(0.0, min(1.0, feature_value))
+            
+            contribution = feature_value * weight
+            score_breakdown[feature] = round(contribution, 4)
+            total_score += contribution
+        
+        # Ensure final score is in 0.0-1.0 range
+        final_score = max(0.0, min(1.0, total_score))
+        
+        # Quality grade assessment (jak trader ocenia setup)
+        if final_score >= 0.85:
+            quality_grade = "excellent"
+        elif final_score >= 0.75:
+            quality_grade = "strong"  
+        elif final_score >= 0.65:
+            quality_grade = "good"
+        elif final_score >= 0.50:
+            quality_grade = "neutral-watch"
+        elif final_score >= 0.35:
+            quality_grade = "weak"
+        else:
+            quality_grade = "very_poor"
+        
+        result = {
+            "final_score": round(final_score, 3),
+            "quality_grade": quality_grade,
+            "score_breakdown": score_breakdown,
+            "weights_used": {k: round(v, 3) for k, v in weights.items()},
+            "context_adjustment": context_adjustment,
+            "market_context": market_context
+        }
+        
+        # Enhanced logging dla tradera
+        if symbol:
+            breakdown_str = ", ".join([f"{k.split('_')[0]}={v:.3f}" for k, v in score_breakdown.items()])
+            print(f"[TRADER SCORE] {symbol} → {final_score:.3f} ({quality_grade}) [{context_adjustment}]")
+            print(f"[TRADER SCORE] {symbol}: {breakdown_str}")
+        
+        # Log to file dla analizy
+        _log_trader_score(symbol, result, features)
+        
+        return result
+        
+    except Exception as e:
+        if symbol:
+            print(f"[TRADER ERROR] {symbol} - compute_trader_score failed: {e}")
+        return {
+            "final_score": 0.0,
+            "quality_grade": "error",
+            "score_breakdown": {},
+            "weights_used": {},
+            "context_adjustment": "error",
+            "error": str(e)
+        }
+
+
 def simulate_trader_decision(
     symbol: str,
     market_context: str,
@@ -444,111 +591,138 @@ def simulate_trader_decision(
         
         # === TRADER THINKING PROCESS ===
         
-        # 1. Context Assessment - What's the big picture?
-        context_score = 0.0
+        # 1. Prepare features for intelligent scoring
+        features = {}
         
+        # Context Assessment - What's the big picture?
         if market_context == "pullback":
-            context_score = 0.7
+            features["trend_strength"] = 0.75
             reasons.append("pullback_in_trend")
             confidence_factors.append(0.15)
         elif market_context == "impulse":
-            context_score = 0.6
+            features["trend_strength"] = 0.85
             reasons.append("strong_impulse")
             confidence_factors.append(0.1)
         elif market_context == "breakout":
-            context_score = 0.8
+            features["trend_strength"] = 0.80
             reasons.append("breakout_detected")
             confidence_factors.append(0.2)
         elif market_context in ["range", "distribution"]:
-            context_score = 0.2
+            features["trend_strength"] = 0.25
             red_flags.append("choppy_conditions")
-        elif market_context == "uncertain":
-            context_score = 0.3
+        else:
+            features["trend_strength"] = 0.40
             red_flags.append("unclear_structure")
         
-        # 2. Candle Behavior - What's price telling us?
-        candle_score = 0.0
+        # 2. Candle Behavior Analysis
+        pullback_quality = 0.5  # Base
+        bounce_strength = 0.5   # Base
         
         if candle_behavior.get("shows_buy_pressure", False):
-            candle_score += 0.3
+            bounce_strength += 0.25
             reasons.append("buy_pressure_visible")
             confidence_factors.append(0.1)
         
         pattern = candle_behavior.get("pattern", "")
         if pattern in ["momentum_building", "absorption_bounce"]:
-            candle_score += 0.3
+            bounce_strength += 0.25
+            pullback_quality += 0.20
             reasons.append(f"pattern_{pattern}")
             confidence_factors.append(0.15)
         elif pattern == "absorbing_dip":
-            candle_score += 0.2
+            pullback_quality += 0.15
             reasons.append("absorbing_weakness")
             confidence_factors.append(0.1)
         
         momentum = candle_behavior.get("momentum", "neutral")
         if momentum == "building":
-            candle_score += 0.2
+            bounce_strength += 0.15
             confidence_factors.append(0.1)
         elif momentum == "negative":
-            candle_score -= 0.2
+            bounce_strength -= 0.20
             red_flags.append("negative_momentum")
         
-        # 3. Orderbook Intelligence - What's the institutional view?
-        orderbook_score = 0.0
+        features["pullback_quality"] = max(0.0, min(1.0, pullback_quality))
+        features["bounce_confirmation_strength"] = max(0.0, min(1.0, bounce_strength))
+        
+        # 3. Orderbook Intelligence
+        orderbook_alignment = 0.5  # Base
+        support_reaction = 0.5     # Base
         
         if orderbook_info.get("data_available", False):
             if orderbook_info.get("bids_layered", False):
-                orderbook_score += 0.25
+                orderbook_alignment += 0.25
+                support_reaction += 0.20
                 reasons.append("bid_layering")
                 confidence_factors.append(0.1)
             
             bid_strength = orderbook_info.get("bid_strength", "unknown")
             if bid_strength == "strong_support":
-                orderbook_score += 0.25
+                orderbook_alignment += 0.25
+                support_reaction += 0.30
                 reasons.append("strong_bid_support")
                 confidence_factors.append(0.15)
             elif bid_strength == "weak":
-                orderbook_score -= 0.15
+                orderbook_alignment -= 0.20
+                support_reaction -= 0.15
                 red_flags.append("weak_bids")
             
             ask_pressure = orderbook_info.get("ask_pressure", "unknown")
             if ask_pressure == "light":
-                orderbook_score += 0.15
+                orderbook_alignment += 0.15
                 reasons.append("light_ask_pressure")
                 confidence_factors.append(0.05)
             elif ask_pressure == "heavy":
-                orderbook_score -= 0.15
+                orderbook_alignment -= 0.15
                 red_flags.append("heavy_asks")
             
             if orderbook_info.get("spoofing_suspected", False):
-                orderbook_score -= 0.2
+                orderbook_alignment -= 0.30
                 red_flags.append("spoofing_detected")
         
-        # 4. Trader's Final Assessment
-        base_score = (context_score + candle_score + orderbook_score) / 3.0
+        features["orderbook_alignment"] = max(0.0, min(1.0, orderbook_alignment))
+        features["support_reaction_strength"] = max(0.0, min(1.0, support_reaction))
+        
+        # 4. Time boost (session quality)
+        utc_hour = datetime.now(timezone.utc).hour
+        if 13 <= utc_hour <= 16:  # London/NY overlap
+            features["time_boost"] = 0.85
+        elif 8 <= utc_hour <= 12:   # London session
+            features["time_boost"] = 0.70
+        elif 17 <= utc_hour <= 21:  # NY session
+            features["time_boost"] = 0.65
+        else:
+            features["time_boost"] = 0.40
+        
+        # 5. Market context for scoring
+        features["market_context"] = market_context
+        
+        # 6. Use intelligent scoring system
+        scoring_result = compute_trader_score(features, symbol)
+        final_score = scoring_result["final_score"]
+        quality_grade = scoring_result["quality_grade"]
+        score_breakdown = scoring_result["score_breakdown"]
+        
+        # Calculate confidence from factors
         confidence = sum(confidence_factors)
         
-        # Apply red flags penalty
-        red_flag_penalty = len(red_flags) * 0.1
-        final_score = max(0.0, base_score - red_flag_penalty)
+        # Apply red flags penalty to confidence
+        red_flag_penalty = len(red_flags) * 0.05
+        confidence = max(0.0, confidence - red_flag_penalty)
         
         # === DECISION LOGIC (jak myśli trader) ===
         
-        if final_score >= 0.75 and confidence >= 0.3 and len(red_flags) == 0:
+        if final_score >= 0.80 and confidence >= 0.3 and len(red_flags) == 0:
             decision = "join_trend"
-            quality_grade = "premium"
-        elif final_score >= 0.65 and confidence >= 0.2 and len(red_flags) <= 1:
+        elif final_score >= 0.70 and confidence >= 0.25 and len(red_flags) <= 1:
             decision = "join_trend"
-            quality_grade = "high"
-        elif final_score >= 0.5 and confidence >= 0.15:
+        elif final_score >= 0.60 and confidence >= 0.20:
             decision = "join_trend"
-            quality_grade = "medium"
-        elif final_score >= 0.35:
+        elif final_score >= 0.40:
             decision = "wait"
-            quality_grade = "low"
             reasons.append("insufficient_edge")
         else:
             decision = "avoid"
-            quality_grade = "low"
             reasons.append("no_clear_edge")
         
         # Add red flags to reasons for transparency
@@ -558,13 +732,15 @@ def simulate_trader_decision(
         result = {
             "decision": decision,
             "confidence": round(confidence, 3),
-            "final_score": round(final_score, 3),
+            "final_score": final_score,  # Already rounded in scoring
             "reasons": reasons,
-            "quality_grade": quality_grade,
-            "context_score": round(context_score, 3),
-            "candle_score": round(candle_score, 3),
-            "orderbook_score": round(orderbook_score, 3),
-            "red_flags": red_flags
+            "quality_grade": quality_grade,  # From intelligent scoring
+            "red_flags": red_flags,
+            "score_breakdown": score_breakdown,
+            "scoring_details": {
+                "weights_used": scoring_result["weights_used"],
+                "context_adjustment": scoring_result["context_adjustment"]
+            }
         }
         
         # Enhanced logging
@@ -680,6 +856,24 @@ def describe_setup_naturally(
     except Exception as e:
         print(f"[TRADER ERROR] {symbol} - describe_setup_naturally failed: {e}")
         return f"Analiza {symbol}: {decision_result.get('decision', 'wait')} - score {decision_result.get('final_score', 0):.2f}"
+
+
+def _log_trader_score(symbol: str, scoring_result: Dict, features: Dict):
+    """Log detailed trader scoring for analysis"""
+    try:
+        log_entry = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "symbol": symbol,
+            "scoring_result": scoring_result,
+            "input_features": features
+        }
+        
+        log_file = "trader_score_log.txt"
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(log_entry) + "\n")
+            
+    except Exception as e:
+        print(f"[TRADER ERROR] Failed to log score for {symbol}: {e}")
 
 
 def _log_trader_decision(
