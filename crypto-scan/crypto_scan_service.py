@@ -436,6 +436,51 @@ def scan_cycle():
 
 
 
+            # === TREND-MODE ANALYSIS ===
+            try:
+                from trend_mode import analyze_symbol_trend_mode
+                
+                # Analizuj symbol przez Trend-Mode
+                trend_mode_result = analyze_symbol_trend_mode(symbol, market_data.get('candles', []))
+                
+                if trend_mode_result:
+                    decision = trend_mode_result.get('decision', 'wait')
+                    confidence = trend_mode_result.get('confidence', 0.0)
+                    market_context = trend_mode_result.get('market_context', 'unknown')
+                    trend_strength = trend_mode_result.get('trend_strength', 0.0)
+                    entry_quality = trend_mode_result.get('entry_quality', 0.0)
+                    reasons = trend_mode_result.get('reasons', [])
+                    
+                    # Update signals z Trend-Mode wynikami
+                    signals.update({
+                        'trend_mode_decision': decision,
+                        'trend_mode_confidence': confidence,
+                        'trend_mode_context': market_context,
+                        'trend_mode_strength': trend_strength,
+                        'trend_mode_quality': entry_quality
+                    })
+                    
+                    # Loguj wynik Trend-Mode
+                    if decision == "join_trend":
+                        print(f"🎯 [TREND-MODE] {symbol}: JOIN TREND - Confidence: {confidence:.2f}")
+                        print(f"   Context: {market_context}, Quality: {entry_quality:.2f}")
+                        print(f"   Reasons: {', '.join(reasons[:3])}")  # Pokaż top 3 powody
+                    elif decision == "wait":
+                        print(f"⏳ [TREND-MODE] {symbol}: WAIT - Quality: {entry_quality:.2f} ({market_context})")
+                    else:
+                        print(f"❌ [TREND-MODE] {symbol}: AVOID - Low quality setup ({market_context})")
+                
+            except Exception as trend_error:
+                print(f"⚠️ Trend-Mode analysis failed for {symbol}: {trend_error}")
+                # Fallback values
+                signals.update({
+                    'trend_mode_decision': 'error',
+                    'trend_mode_confidence': 0.0,
+                    'trend_mode_context': 'error',
+                    'trend_mode_strength': 0.0,
+                    'trend_mode_quality': 0.0
+                })
+
             # Save complete stage signal data 
             save_stage_signal(symbol, final_score, stage2_pass, compressed, stage1g_active, 
                             checklist_score, checklist_summary)

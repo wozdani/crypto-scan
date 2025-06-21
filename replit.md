@@ -112,12 +112,15 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Bug Resolution**: System nie odrzuca już wysokich PPWCS scores z powodu niskich checklist scores
 - **Enhanced Logic**: Bardzo słabe PPWCS (<15) nadal blokuje alert niezależnie od checklist
 
-### June 21, 2025 - Trend-Mode System Removed - PRODUCTION READY
-- **Complete Trend-Mode Removal**: Usunięto całą logikę trend-mode zgodnie z wymaganiem użytkownika
-- **System Simplification**: Zastąpiono skomplikowaną architekturę Trend Mode 2.0 czystym systemem PPWCS
-- **File Cleanup**: Usunięto wszystkie pliki trend_*.py, perception_evaluator.py i detektory związane z trend-mode
-- **Code Purification**: Wyczyszczono crypto_scan_service.py i app.py z wszystkich referencji do trend-mode
-- **Focus on PPWCS**: System skupia się teraz wyłącznie na Pre-Pump Weighted Composite Score i klasycznych detektorach
+### June 21, 2025 - New Trend-Mode: Professional Trader Simulation - PRODUCTION READY
+- **Professional Trader Logic**: Nowy moduł trend_mode.py symuluje myślenie profesjonalnego tradera dołączającego do trendu podczas pullbacku
+- **5-Stage Analysis Pipeline**: Analiza kontekstu rynkowego → ocena siły trendu → wykrycie korekty → reakcja na wsparcie → decyzja tradera
+- **Market Context Classification**: Automatyczne rozpoznawanie "impulse", "pullback", "range", "breakout", "redistribution"
+- **Trend Strength Scoring**: Algorytm 0.0-1.0 bazujący na % zielonych świec, slope, stabilności momentum i higher highs pattern
+- **Smart Pullback Detection**: Wykrywa korekty 0.5-4% z malejącym wolumenem jako sygnał jakości
+- **Dynamic Support Analysis**: EMA21 i VWAP jako wsparcie z oceną siły reakcji świec na poziomach
+- **Trader Decision Engine**: Kompleksowa logika łącząca wszystkie czynniki w decyzję "join_trend", "wait", "avoid" z confidence score
+- **Real-time Integration**: Pełna integracja z crypto_scan_service.py - każdy symbol analizowany przez Trend-Mode
 
 ## User Preferences
 
