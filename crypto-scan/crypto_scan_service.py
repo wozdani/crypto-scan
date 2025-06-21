@@ -343,10 +343,7 @@ def scan_cycle():
             
             save_score(symbol, final_score)
             log_ppwcs_score(symbol, final_score, signals)
-            # Initialize trend data (will be updated later if Trend Mode runs)
-            trend_score = None
-            trend_active = False
-            trend_summary = []
+
 
             scan_results.append({
                 'symbol': symbol,
@@ -357,9 +354,7 @@ def scan_cycle():
                 'stage2_pass': stage2_pass,
                 'compressed': compressed,
                 'stage1g_active': stage1g_active,
-                'trend_score': None,  # Will be updated if Trend Mode runs
-                'trend_active': False,
-                'trend_summary': []
+
             })
 
             from utils.take_profit_engine import forecast_take_profit_levels
@@ -420,7 +415,7 @@ def scan_cycle():
                     with open(feedback_file, "w", encoding="utf-8") as f:
                         f.write(f"Token: {symbol}\nPPWCS: {final_score} (Structure: {ppwcs_structure}, Quality: {ppwcs_quality})\n")
                         f.write(f"Checklist Score: {checklist_score}/41 ({len(checklist_summary)}/20 conditions)\n")
-                        f.write(f"Trend Score: {trend_score if trend_score is not None else 'N/A'}/57 (Active: {trend_active})\n")
+
                         f.write(f"Alert Tier: {alert_tier}\nTimestamp: {datetime.now(timezone.utc).isoformat()}\n")
                         f.write(f"Signals: {signals}\nTP Forecast: {tp_forecast}\nFeedback Score: {feedback_score}/100\n")
                         f.write(f"Feedback Category: {category} ({description})\nGPT Feedback:\n{gpt_feedback}\n")
@@ -439,135 +434,7 @@ def scan_cycle():
                 else:
                     print(f"❌ Failed to send comprehensive alert for {symbol}")
 
-            # === TREND MODE 2.0 + PERCEPTION EVALUATOR DETECTION ===
-            try:
-                from utils.trend_mode_integration import process_trend_mode_2, get_trend_mode_2_summary
-                from utils.trend_mode_pipeline import analyze_trend_mode_dual_path
-                
-                # Przygotuj dane rynkowe dla Trend Mode 2.0
-                trend_market_data = {
-                    'candles': market_data.get('candles', []) if market_data else [],
-                    'prices': [float(c[4]) for c in market_data.get('candles', [])] if market_data and market_data.get('candles') else [],
-                    'volumes': [float(c[5]) for c in market_data.get('candles', [])] if market_data and market_data.get('candles') else []
-                }
-                
-                # Pobierz prawdziwe dane orderbook jeśli dostępne
-                try:
-                    from utils.bybit_orderbook import get_orderbook_with_fallback
-                    orderbook_data = get_orderbook_with_fallback(symbol)
-                    if not orderbook_data:
-                        # Fallback orderbook data
-                        orderbook_data = {
-                            'ask_volumes': [1000, 950, 900],
-                            'bid_volumes': [800, 900, 1000]
-                        }
-                except:
-                    orderbook_data = {
-                        'ask_volumes': [1000, 950, 900],
-                        'bid_volumes': [800, 900, 1000]
-                    }
-                
-                # PRZETWÓRZ SYMBOL PRZEZ TREND MODE 2.0
-                trend_result = process_trend_mode_2(symbol, trend_market_data, orderbook_data)
-                
-                # DODATKOWO: DUAL PATH ANALYSIS (Scoring vs Perception)
-                try:
-                    dual_analysis = analyze_trend_mode_dual_path(
-                        symbol, 
-                        trend_market_data.get('prices', []), 
-                        [],  # 1m prices not available in this context
-                        orderbook_data
-                    )
-                    
-                    # Wyciągnij wyniki perception path
-                    perception_path = dual_analysis.get('perception_path', {})
-                    perception_convincing = perception_path.get('setup_convincing', False)
-                    perception_reasoning = perception_path.get('reasoning', 'No reasoning')
-                    
-                    # Loguj comparison
-                    comparison = dual_analysis.get('comparison', {})
-                    if comparison.get('perception_only', False):
-                        print(f"🧠 [PERCEPTION ONLY] {symbol}: Perception says YES, Scoring says NO")
-                        print(f"   Reasoning: {perception_reasoning}")
-                    elif comparison.get('scoring_only', False):
-                        print(f"📊 [SCORING ONLY] {symbol}: Scoring says YES, Perception says NO")
-                    elif comparison.get('both_positive', False):
-                        print(f"🎯 [BOTH AGREE] {symbol}: Both systems recommend entry")
-                        
-                except Exception as dual_error:
-                    print(f"⚠️ Dual path analysis failed for {symbol}: {dual_error}")
-                
-                # Wyciągnij kluczowe dane
-                trend_score = trend_result.get("trend_mode_2_score", 0)
-                alert_level = trend_result.get("alert_level", 0)
-                trend_active = trend_result.get("trend_active", False)
-                alert_generated = trend_result.get("alert_generated", False)
-                alert_data = trend_result.get("alert_data")
-                score_breakdown = trend_result.get("score_breakdown", {})
-                
-                # WAŻNE: Score zawsze sumuje punkty z detektorów niezależnie od entry_signal
-                active_core = score_breakdown.get('active_core', [])
-                active_helper = score_breakdown.get('active_helper', [])
-                active_negative = score_breakdown.get('active_negative', [])
-                
-                # Stwórz podsumowanie
-                trend_summary = get_trend_mode_2_summary(trend_result)
-                
-                # Update scan result z Trend Mode 2.0 data
-                for result in scan_results:
-                    if result['symbol'] == symbol:
-                        result['trend_score'] = trend_score
-                        result['trend_active'] = trend_active
-                        result['trend_summary'] = trend_summary
-                        result['trend_alert_generated'] = alert_generated
-                        result['trend_alert_level'] = alert_level
-                        result['trend_core_detectors'] = active_core
-                        result['trend_helper_detectors'] = active_helper
-                        result['trend_negative_detectors'] = active_negative
-                        break
-                
-                # Loguj wynik z detalami detektorów
-                level_names = {0: "No Alert", 1: "Watchlist", 2: "Active Entry", 3: "Confirmed"}
-                level_name = level_names.get(alert_level, "Unknown")
-                
-                if trend_score > 0:
-                    detector_info = []
-                    if active_core:
-                        detector_info.append(f"Core: {', '.join(active_core)}")
-                    if active_helper:
-                        detector_info.append(f"Helper: {', '.join(active_helper)}")
-                    if active_negative:
-                        detector_info.append(f"Negative: {', '.join(active_negative)}")
-                    
-                    detector_summary = " | ".join(detector_info) if detector_info else "No active detectors"
-                    
-                    if alert_generated and alert_data:
-                        print(f"🚨 [TREND MODE 2.0] {symbol}: {alert_data['reason']} (Level {alert_level}: {level_name})")
-                        print(f"   Detectors: {detector_summary}")
-                    else:
-                        print(f"📊 [TREND MODE 2.0] {symbol}: {trend_score}/100 - Level {alert_level}: {level_name}")
-                        print(f"   Active: {detector_summary}")
-                else:
-                    print(f"📊 [TREND MODE 2.0] {symbol}: {trend_score}/100 - No detectors active")
-                
-                # Update signals with Trend Mode 2.0 results
-                signals["trend_mode_active"] = trend_active
-                signals["trend_mode_description"] = f"Level {alert_level}: {level_name}"
-                signals["trend_mode_confidence"] = trend_score
-                signals["trend_mode_2_score"] = trend_score
-                signals["trend_alert_level"] = alert_level
-                signals["trend_core_detectors"] = len(active_core)
-                signals["trend_helper_detectors"] = len(active_helper)
-                signals["trend_negative_detectors"] = len(active_negative)
-                    
-            except Exception as e:
-                print(f"⚠️ Error in Trend Mode 2.0 detection for {symbol}: {e}")
-                import traceback
-                traceback.print_exc()
-                # Fallback values
-                signals["trend_mode_active"] = False
-                signals["trend_mode_description"] = "Error"
-                signals["trend_mode_confidence"] = 0
+
 
             # Save complete stage signal data 
             save_stage_signal(symbol, final_score, stage2_pass, compressed, stage1g_active, 

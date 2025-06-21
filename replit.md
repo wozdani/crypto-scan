@@ -112,72 +112,12 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Bug Resolution**: System nie odrzuca już wysokich PPWCS scores z powodu niskich checklist scores
 - **Enhanced Logic**: Bardzo słabe PPWCS (<15) nadal blokuje alert niezależnie od checklist
 
-### June 21, 2025 - Perception Evaluator Fixed - Alert Generation Restored - PRODUCTION READY
-- **Alert Engine Unblocked**: Naprawiono zbyt restrykcyjną logikę w is_setup_convincing() - system generuje znacznie więcej alertów
-- **Elastic Conditions**: Flow requirement zmniejszony z 70% na 50%, orderbook akceptuje "slightly_bullish", support tolerance zwiększona do 2.5%
-- **Multiple Entry Scenarios**: 4 elastyczne scenariusze zamiast sztywnych warunków - pullback+flow+orderbook, flow+support, 2+ detectors, support bounce
-- **Detector Integration**: Heatmap vacuum, orderbook freeze, VWAP pinning wpływają na decyzję bez requirement perfect match
-- **Trader-like Logic**: System przypomina ocenę tradera a nie twarde filtry - więcej alertów bez utraty jakości
-
-### June 21, 2025 - Perception Evaluator Module - PRODUCTION READY
-- **Behavioral Market Analysis**: Nowy moduł perception_evaluator.py zastępuje klasyczny scoring behawioralną analizą rynku
-- **Trader-like Logic**: System ocenia setup jako całość z perspektywy doświadczonego tradera bez punktów i progów
-- **4 Scenariusze Entry**: Pullback Recovery, Momentum Continuation, Breakout Preparation, Support Bounce
-- **Context Building**: Automatyczna konwersja trend_mode_data na market_context dla behavioral analysis
-- **Dual Path Analysis**: analyze_trend_mode_dual_path() porównuje traditional scoring vs perception approach
-- **Pipeline Integration**: compute_trend_mode_with_perception() jako alternatywa dla compute_trend_mode_score()
-
-### June 21, 2025 - Trend Mode 2.0 Integration FIX - PRODUCTION READY
-- **Critical Issue Fixed**: Stary system compute_trend_mode_score() zastąpiony nowym Trend Mode 2.0 w crypto_scan_service.py
-- **Score Accumulation Fixed**: Punkty z detektorów (heatmap_vacuum +10, one_sided_pressure +5) zawsze się sumują niezależnie od entry_signal
-- **Real-time Integration**: Pełna integracja process_trend_mode_2() w głównym cyklu skanowania z prawdziwymi danymi orderbook
-- **Enhanced Logging**: Szczegółowe logi pokazują aktywne detektory (Core/Helper/Negative) oraz breakdown punktów
-- **Signal Updates**: trend_mode_confidence teraz zawiera rzeczywisty Trend Mode 2.0 score zamiast legacy values
-
-### June 21, 2025 - Trend Mode 2.0 Complete System - PRODUCTION READY
-- **Revolutionary Scoring System**: Zastąpienie binarnej logiki trend_active nowym modelem z 3 kategoriami detektorów
-- **Core Detectors (+10 pts)**: uptrend_15m, pullback_flow, calm_before_trend, orderbook_freeze, heatmap_vacuum
-- **Helper Detectors (+5 pts)**: vwap_pinning, human_flow, micro_echo, sr_structure_score>7, volume_flow_consistency  
-- **Negative Detectors (-10 pts)**: chaotic_flow≥40%, ask_domination>80x, fake_pulse, high_volatility, strong_sell_pressure
-- **3-Level Alert System**: Watchlist (≥25pts), Active Entry (≥40pts), Confirmed Trend (≥60pts)
-- **Advanced Trailing Logic**: Alert tylko gdy score wzrasta +5 AND przekracza próg poziomu
-- **Production Integration**: Pełne zastąpienie legacy trend mode w crypto_scan_service.py
-
-### June 21, 2025 - Trailing Scoring & Alert Engine - PRODUCTION READY
-- **Trend Mode Alert Engine**: Kompletny system trailing scoring z historią 5 ostatnich wyników dla każdego symbolu
-- **Enhanced Scoring System**: Integracja pullback_flow_pattern (+10), flow_consistency (+5), bullish orderbook (+5) i innych detektorów
-- **Alert Triggers**: Score wzrost +10 punktów OR przekroczenie progu ≥70 OR pullback trigger z wysokim score ≥65
-- **Production Integration**: Pełna integracja z crypto_scan_service.py przez trend_mode_integration.py helper
-- **Real-time Processing**: Automatyczne zbieranie danych z modułów, obliczanie enhanced score i generowanie alertów
-
-### June 21, 2025 - Pullback Flow Pattern Module - PRODUCTION READY
-- **Nowy moduł pullback_flow_pattern**: Wykrywa koniec korekty i potencjalne wejście w pozycję z analizą 15M downtrend + 5M reversal signals
-- **Integracja z Trend Mode Pipeline**: Dodano jako 10. detektor z maksymalnie 18 punktami w systemie scoringu
-- **Zaawansowana analiza orderbook**: Wykrywa malejący ask pressure, rosnący bid pressure, vacuum i freeze conditions
-- **System scoring 0-100**: Confidence score z progiem 50 punktów i minimum 3 entry triggers dla aktywacji
-- **Pełna kompatybilność**: Wrapper functions dla integracji z istniejącym systemem detektorów PPWCS
-
-### June 21, 2025 - Critical Function Fix & Trend Mode Debug System - PRODUCTION READY
-- **Critical function name error fixed**: Resolved undefined `is_valid_symbol` function causing main scanning loop failure by replacing with existing `is_valid_perpetual_symbol`
-- **System stability restored**: Fixed crash in symbol validation that was preventing any scanning operations from completing successfully
-
-### June 21, 2025 - Trend Mode Debug & API Connectivity System - PRODUCTION READY
-- **Comprehensive debugging system implemented**: Added trend_debug_log.txt with detailed condition analysis showing up_ratio calculations, support level distances, and bid pressure status
-- **Enhanced symbol fetching reliability**: Emergency fallback to 24 essential trading pairs when Bybit cache/API unavailable to ensure continuous operation
-- **Multi-endpoint API fallback strategy**: Sequential testing of linear, spot, and inverse categories for maximum data availability across different market conditions
-- **Lowered detection thresholds for testing**: Temporarily reduced up_ratio to 0.5 (from 0.6) and support margin to 0.004 (from 0.002) for enhanced signal detection sensitivity
-- **Complete debugging workflow**: Step-by-step analysis logging including 15M trend validation, 5M entry signal detection, S/R level identification, and orderbook pressure monitoring
-- **Production-ready monitoring system**: Full visibility into Trend Mode decision process with comprehensive failure reason tracking and detailed condition breakdowns
-- **Enhanced trend_mode_debugger.py tool**: Batch testing capability for multiple symbols with detailed analysis reports and debugging summaries
-
-### June 20, 2025 - Support/Resistance Trend Mode System - PRODUCTION READY
-- **Recent 3h trend analysis**: is_strong_recent_trend() analyzes only last 12x15M candles requiring ≥60% green candles for trend confirmation
-- **Historical S/R level detection**: find_support_resistance_levels() identifies pivot points from 3-24h history (84 candles) with tolerance-based level clustering
-- **Support proximity testing**: is_price_near_support() validates current price testing support levels within 0.2% margin
-- **5M correction entry timing**: is_entry_after_correction() detects end of correction with declining ask volume + rising bid volume
-- **Perfect condition scoring**: 100 points for 3h trend + near support + entry signal, 70 points for setup without entry
-- **Real-time S/R integration**: Complete Bybit API integration for 15M/5M data, current price, and orderbook analysis
-- **Complete system replacement**: Full replacement of old trend detection with sophisticated S/R-based multi-timeframe analysis
+### June 21, 2025 - Trend-Mode System Removed - PRODUCTION READY
+- **Complete Trend-Mode Removal**: Usunięto całą logikę trend-mode zgodnie z wymaganiem użytkownika
+- **System Simplification**: Zastąpiono skomplikowaną architekturę Trend Mode 2.0 czystym systemem PPWCS
+- **File Cleanup**: Usunięto wszystkie pliki trend_*.py, perception_evaluator.py i detektory związane z trend-mode
+- **Code Purification**: Wyczyszczono crypto_scan_service.py i app.py z wszystkich referencji do trend-mode
+- **Focus on PPWCS**: System skupia się teraz wyłącznie na Pre-Pump Weighted Composite Score i klasycznych detektorach
 
 ## User Preferences
 
