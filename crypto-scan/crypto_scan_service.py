@@ -37,6 +37,8 @@ if is_bybit_cache_expired():
 from stages.stage_minus2_1 import detect_stage_minus2_1
 
 from utils.scoring import compute_ppwcs, should_alert, log_ppwcs_score, get_previous_score, save_score
+from utils.datetime_utils import get_utc_hour, get_utc_timestamp
+from utils.trend_alert_cache import trend_alert_cache
 from utils.gpt_feedback import send_report_to_chatgpt, score_gpt_feedback, categorize_feedback_score
 from utils.alert_system import process_alert
 from utils.reports import save_stage_signal, save_conditional_reports, compress_reports_to_zip
@@ -436,24 +438,30 @@ def scan_cycle():
 
 
 
-            # === TREND-MODE ANALYSIS ===
+            # === ADVANCED TREND-MODE ANALYSIS & ALERTS ===
             try:
-                from trend_mode import analyze_symbol_trend_mode
+                from trend_mode import interpret_market_as_trader
                 
-                # Analizuj symbol przez Advanced Trend-Mode (z GPT disabled dla wydajności)
-                trend_mode_result = analyze_symbol_trend_mode(
+                # Get UTC hour for session analysis
+                utc_hour = get_utc_hour()
+                candles_15m = market_data.get('candles', [])
+                
+                # Run Advanced Trend-Mode analysis
+                trend_result = interpret_market_as_trader(
                     symbol, 
-                    market_data.get('candles', []), 
-                    enable_gpt=False  # GPT tylko dla high-confidence alerts
+                    candles_15m, 
+                    utc_hour, 
+                    enable_gpt=False  # GPT disabled for performance - can be enabled for high-confidence
                 )
                 
-                if trend_mode_result:
-                    decision = trend_mode_result.get('decision', 'wait')
-                    confidence = trend_mode_result.get('confidence', 0.0)
-                    market_context = trend_mode_result.get('market_context', 'unknown')
-                    trend_strength = trend_mode_result.get('trend_strength', 0.0)
-                    entry_quality = trend_mode_result.get('entry_quality', 0.0)
-                    reasons = trend_mode_result.get('reasons', [])
+                if trend_result and trend_result.get('analysis_complete', False):
+                    decision = trend_result.get('decision', 'wait')
+                    confidence = trend_result.get('confidence', 0.0)
+                    market_context = trend_result.get('market_context', 'unknown')
+                    trend_strength = trend_result.get('trend_strength', 0.0)
+                    entry_quality = trend_result.get('entry_quality', 0.0)
+                    quality_grade = trend_result.get('quality_grade', 'unknown')
+                    reasons = trend_result.get('reasons', [])
                     
                     # Update signals z Trend-Mode wynikami
                     signals.update({
@@ -461,18 +469,80 @@ def scan_cycle():
                         'trend_mode_confidence': confidence,
                         'trend_mode_context': market_context,
                         'trend_mode_strength': trend_strength,
-                        'trend_mode_quality': entry_quality
+                        'trend_mode_quality': entry_quality,
+                        'trend_mode_grade': quality_grade
                     })
                     
-                    # Loguj wynik Trend-Mode
+                    # === TREND-MODE ALERT LOGIC ===
+                    # Alert conditions: decision="join_trend" AND entry_quality >= 0.75
+                    if (decision == "join_trend" and entry_quality >= 0.75 and 
+                        not trend_alert_cache.already_alerted_recently(symbol, "trend_mode")):
+                        
+                        # Prepare alert message
+                        alert_text = f'''📈 [Trend Mode Alert] {symbol}
+✅ Trader AI Decision: JOIN TREND
+🎯 Confidence: {confidence*100:.1f}%
+📊 Quality: {quality_grade.upper()} ({entry_quality:.2f})
+🧠 Reasons:
+- {chr(10).join(f"  {reason}" for reason in reasons[:5])}
+
+💡 Context: {market_context} | Trend Strength: {trend_strength:.2f}
+⏰ Session: {utc_hour:02d}:XX UTC'''
+
+                        # Check if GPT feedback is available
+                        gpt_data = trend_result.get('gpt_analysis', {})
+                        if gpt_data and gpt_data.get('gpt_decision'):
+                            alert_text += f'''
+
+🤖 GPT Analysis: {gpt_data["gpt_decision"]}
+📝 {gpt_data.get("explanation", "No explanation")}'''
+
+                        # Send Telegram alert
+                        try:
+                            from utils.telegram_bot import send_alert
+                            alert_sent = send_alert(symbol, alert_text)
+                            
+                            if alert_sent:
+                                trend_alert_cache.mark_alert_sent(symbol, "trend_mode")
+                                print(f"📢 [TREND-MODE ALERT] Sent for {symbol} - Quality: {quality_grade}")
+                                
+                                # Log alert to file
+                                alert_log_file = f"data/alerts/trend_mode_{symbol}_{get_utc_timestamp()[:10]}.txt"
+                                os.makedirs("data/alerts", exist_ok=True)
+                                with open(alert_log_file, "w", encoding="utf-8") as f:
+                                    f.write(f"Timestamp: {get_utc_timestamp()}\n")
+                                    f.write(f"Symbol: {symbol}\n")
+                                    f.write(f"Decision: {decision}\n")
+                                    f.write(f"Confidence: {confidence:.3f}\n")
+                                    f.write(f"Entry Quality: {entry_quality:.3f}\n")
+                                    f.write(f"Quality Grade: {quality_grade}\n")
+                                    f.write(f"Market Context: {market_context}\n")
+                                    f.write(f"Trend Strength: {trend_strength:.3f}\n")
+                                    f.write(f"Reasons: {reasons}\n")
+                                    f.write(f"Components: {trend_result.get('components', {})}\n")
+                                    f.write(f"\nAlert Text:\n{alert_text}\n")
+                            else:
+                                print(f"❌ [TREND-MODE ALERT] Failed to send for {symbol}")
+                                
+                        except Exception as alert_error:
+                            print(f"⚠️ Trend-Mode alert error for {symbol}: {alert_error}")
+                    
+                    # Enhanced logging for all decisions
                     if decision == "join_trend":
-                        print(f"🎯 [TREND-MODE] {symbol}: JOIN TREND - Confidence: {confidence:.2f}")
-                        print(f"   Context: {market_context}, Quality: {entry_quality:.2f}")
-                        print(f"   Reasons: {', '.join(reasons[:3])}")  # Pokaż top 3 powody
+                        if entry_quality >= 0.75:
+                            cooldown_status = trend_alert_cache.get_cooldown_status(symbol, "trend_mode")
+                            if cooldown_status["on_cooldown"]:
+                                print(f"🎯 [TREND-MODE] {symbol}: JOIN TREND - Quality: {quality_grade} (COOLDOWN: {cooldown_status['minutes_remaining']}min)")
+                            else:
+                                print(f"🎯 [TREND-MODE] {symbol}: JOIN TREND - Quality: {quality_grade} (ALERT SENT)")
+                        else:
+                            print(f"🎯 [TREND-MODE] {symbol}: JOIN TREND - Quality: {quality_grade} (below alert threshold)")
+                        print(f"   Context: {market_context}, Confidence: {confidence:.2f}")
+                        print(f"   Top reasons: {', '.join(reasons[:3])}")
                     elif decision == "wait":
-                        print(f"⏳ [TREND-MODE] {symbol}: WAIT - Quality: {entry_quality:.2f} ({market_context})")
+                        print(f"⏳ [TREND-MODE] {symbol}: WAIT - Quality: {quality_grade} ({entry_quality:.2f})")
                     else:
-                        print(f"❌ [TREND-MODE] {symbol}: AVOID - Low quality setup ({market_context})")
+                        print(f"❌ [TREND-MODE] {symbol}: AVOID - {quality_grade} setup ({market_context})")
                 
             except Exception as trend_error:
                 print(f"⚠️ Trend-Mode analysis failed for {symbol}: {trend_error}")
@@ -482,7 +552,8 @@ def scan_cycle():
                     'trend_mode_confidence': 0.0,
                     'trend_mode_context': 'error',
                     'trend_mode_strength': 0.0,
-                    'trend_mode_quality': 0.0
+                    'trend_mode_quality': 0.0,
+                    'trend_mode_grade': 'error'
                 })
 
             # Save complete stage signal data 

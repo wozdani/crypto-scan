@@ -112,15 +112,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Bug Resolution**: System nie odrzuca już wysokich PPWCS scores z powodu niskich checklist scores
 - **Enhanced Logic**: Bardzo słabe PPWCS (<15) nadal blokuje alert niezależnie od checklist
 
-### June 21, 2025 - New Trend-Mode: Professional Trader Simulation - PRODUCTION READY
-- **Professional Trader Logic**: Nowy moduł trend_mode.py symuluje myślenie profesjonalnego tradera dołączającego do trendu podczas pullbacku
-- **5-Stage Analysis Pipeline**: Analiza kontekstu rynkowego → ocena siły trendu → wykrycie korekty → reakcja na wsparcie → decyzja tradera
-- **Market Context Classification**: Automatyczne rozpoznawanie "impulse", "pullback", "range", "breakout", "redistribution"
-- **Trend Strength Scoring**: Algorytm 0.0-1.0 bazujący na % zielonych świec, slope, stabilności momentum i higher highs pattern
-- **Smart Pullback Detection**: Wykrywa korekty 0.5-4% z malejącym wolumenem jako sygnał jakości
-- **Dynamic Support Analysis**: EMA21 i VWAP jako wsparcie z oceną siły reakcji świec na poziomach
-- **Trader Decision Engine**: Kompleksowa logika łącząca wszystkie czynniki w decyzję "join_trend", "wait", "avoid" z confidence score
-- **Real-time Integration**: Pełna integracja z crypto_scan_service.py - każdy symbol analizowany przez Trend-Mode
+### June 21, 2025 - Advanced Trend-Mode Integration - PRODUCTION READY
+- **Professional Trader Logic**: Kompletny moduł trend_mode.py z 9 etapami analizy symulującej myślenie profesjonalnego tradera
+- **Full Production Integration**: Trend-Mode zintegrowany z crypto_scan_service.py - automatyczna analiza każdego symbolu w pętli głównej
+- **Advanced Alert System**: Automatyczne Telegram alerty dla "join_trend" decisions z quality ≥0.75 + cooldown 60min
+- **Session-Aware Analysis**: UTC hour detection z boostami dla London/NY overlap (1.2x), London morning (1.1x), NY afternoon (1.1x)
+- **9-Stage Pipeline**: Market context → trend strength → pullback detection → support reaction → time scoring → bounce confirmation → heuristic scoring → trader logic → GPT assistant
+- **Weighted Scoring System**: trend_strength (30%), pullback_quality (20%), support_reaction (20%), bounce_confirmation (15%), time_boost (15%)
+- **Pattern Recognition**: Engulfing patterns, wick bounce detection, consolidation patterns, higher lows analysis
+- **Alert Cache System**: Sophisticated cooldown mechanism z trend_alert_cache.py - prevents spam, tracks status
+- **Enhanced Logging**: Detailed decision breakdown z quality grades, component analysis, alert status tracking
+- **GPT Integration Ready**: Optional AI trader assistant z market description generation i opinion analysis
 
 ## User Preferences
 
