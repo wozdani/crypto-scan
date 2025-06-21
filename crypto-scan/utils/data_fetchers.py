@@ -157,13 +157,7 @@ def get_symbols_cached(require_chain=True):
             symbols = json.load(f)
     except FileNotFoundError:
         print("❌ Błąd: Nie można załadować cache'u symboli po rebuild")
-        # Return essential trading pairs as emergency fallback
-        fallback_symbols = [
-            "BTCUSDT", "ETHUSDT", "SOLUSDT", "ADAUSDT", "DOTUSDT", "AVAXUSDT",
-            "MATICUSDT", "LINKUSDT", "UNIUSDT", "LTCUSDT", "ATOMUSDT", "FILUSDT"
-        ]
-        print(f"🔄 Using emergency fallback: {len(fallback_symbols)} symbols")
-        return fallback_symbols
+        symbols = []
 
     valid_symbols = []
     for symbol in symbols:
@@ -173,13 +167,25 @@ def get_symbols_cached(require_chain=True):
         if require_chain:
             token_info = get_contract(symbol)
             if not token_info or "chain" not in token_info:
-                print(f"⚠️ Brak danych chain w token_info dla {symbol}")
                 continue
             chain = token_info["chain"].lower() if isinstance(token_info.get("chain"), str) else ""
             if chain not in VALID_CHAINS:
                 continue
 
-        valid_symbols.append(symbol)
+        if is_valid_symbol(symbol):
+            valid_symbols.append(symbol)
+
+    # Essential fallback when API/cache fails
+    if not valid_symbols:
+        print("🔄 No symbols from cache/API - using essential trading pairs...")
+        essential_symbols = [
+            "BTCUSDT", "ETHUSDT", "SOLUSDT", "ADAUSDT", "DOTUSDT", "AVAXUSDT",
+            "MATICUSDT", "LINKUSDT", "UNIUSDT", "LTCUSDT", "ATOMUSDT", "FILUSDT",
+            "NEARUSDT", "AAVEUSDT", "CRVUSDT", "SUSHIUSDT", "1INCHUSDT", "CKBUSDT",
+            "MANAUSDT", "SANDUSDT", "AXSUSDT", "CHZUSDT", "ENJUSDT", "GALAUSDT"
+        ]
+        print(f"📋 Using {len(essential_symbols)} essential trading pairs")
+        return essential_symbols
 
     print(f"🔢 Liczba symboli z Bybit: {len(valid_symbols)}")
     print(f"🔚 Ostatnie 10 symboli: {valid_symbols[-10:]}")

@@ -35,19 +35,26 @@ def fetch_15m_prices_extended(symbol: str, hours_back: int = 24):
             prices = [float(candle[4]) for candle in data["result"]["list"]]
             return prices
         
-        # Try alternative API endpoints before fallback
-        try:
-            # Try linear category instead of spot
-            params["category"] = "linear"
-            response = requests.get(url, params=params, timeout=10)
-            data = response.json()
-            
-            if data.get("retCode") == 0 and data.get("result", {}).get("list"):
-                prices = [float(candle[4]) for candle in data["result"]["list"]]
-                print(f"✅ [LINEAR API] Got {len(prices)} 15M prices for {symbol}")
-                return prices
-        except:
-            pass
+        # Try alternative endpoints
+        alternatives = [
+            ("linear", "linear"),
+            ("spot", "spot"),
+            ("inverse", "inverse")
+        ]
+        
+        for category_name, category in alternatives:
+            try:
+                alt_params = params.copy()
+                alt_params["category"] = category
+                response = requests.get(url, params=alt_params, timeout=10)
+                data = response.json()
+                
+                if data.get("retCode") == 0 and data.get("result", {}).get("list"):
+                    prices = [float(candle[4]) for candle in data["result"]["list"]]
+                    print(f"✅ [{category_name.upper()} API] Got {len(prices)} 15M prices for {symbol}")
+                    return prices
+            except:
+                continue
         
         return []
     except Exception as e:
