@@ -14,7 +14,7 @@ def detect_whale_tx(symbol, price_usd=None):
     Returns:
         tuple: (whale_active, large_tx_count, total_usd)
     """
-    print("RUNNING: detect_whale_tx (Enhanced)")
+
     
     token_info = get_contract(symbol)
     if not token_info:

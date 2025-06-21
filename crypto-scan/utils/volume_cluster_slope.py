@@ -11,7 +11,7 @@ def detect_volume_cluster_slope(data):
     
     Returns: bool - True jeśli wykryto pozytywny slope cluster
     """
-    print("RUNNING: detect_volume_cluster_slope")
+
     if not isinstance(data, dict): return False, 0.0
     volumes = data.get("recent_volumes", [])
     closes = data.get("recent_closes", [])

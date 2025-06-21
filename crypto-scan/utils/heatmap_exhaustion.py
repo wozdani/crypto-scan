@@ -9,7 +9,7 @@ def detect_heatmap_exhaustion(symbol):
     
     Returns: (bool, float) - True jeśli wykryto wyczerpanie podaży, score
     """
-    print("RUNNING: detect_heatmap_exhaustion")
+
     try:
         # Sprawdź czy symbol jest string
         if not isinstance(symbol, str):

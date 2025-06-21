@@ -28,7 +28,7 @@ def detect_volume_spike(symbol, data):
     Wykrywa nagly skok wolumenu w ostatnich 2-3 świecach z cooldown (45 min)
     Analizuje każdą z ostatnich 3 świec względem wcześniejszych 4
     """
-    print(f"[DEBUG] detect_volume_spike({symbol}) - START")
+
     
     # Sprawdź cooldown (3 świece = 45 minut)
     import time
@@ -393,7 +393,7 @@ def detect_stealth_inflow(symbol, whale_activity, volume_spike, compressed, dex_
 
 def detect_social_spike(symbol):
     """Detect social media activity spike"""
-    print("RUNNING: detect_social_spike")
+
     try:
         # Simple simulation based on symbol characteristics
         # In production, this would connect to Twitter/Reddit APIs
@@ -890,19 +890,18 @@ def detect_liquidity_behavior(symbol, data, price_usd=None):
         return False, 0, {}
 
 def detect_stage_minus2_1(symbol, price_usd=None):
-    print(f"[DEBUG] === STAGE -2.1 ANALYSIS START: {symbol} ===")
-    print(f"[DEBUG] Input price_usd: {price_usd}")
+
     
     try:
         result = get_market_data(symbol)
-        print(f"[DEBUG] get_market_data result type: {type(result)}, length: {len(result) if isinstance(result, (tuple, list)) else 'N/A'}")
+
         
         if not isinstance(result, tuple) or len(result) != 4:
             print(f"❌ Dane rynkowe {symbol} nieprawidłowe: {result}")
             return False, {}, 0.0, False
 
         success, data, price_usd, compressed = result
-        print(f"[DEBUG] Market data unpacked - success: {success}, data type: {type(data)}, price_usd: {price_usd}")
+
 
         if not success or not isinstance(data, dict):
             print(f"❌ [get_market_data] {symbol} → oczekiwano dict, otrzymano: {type(data)} → przerwanie etapu")

@@ -11,7 +11,7 @@ def detect_vwap_pinning(symbol, data):
     
     Returns: bool - True jeśli wykryto VWAP pinning
     """
-    print("RUNNING: detect_vwap_pinning")
+
     if not isinstance(data, dict): return False, 0.0
     closes = data.get("recent_closes", [])
     vwaps = data.get("recent_vwaps", [])

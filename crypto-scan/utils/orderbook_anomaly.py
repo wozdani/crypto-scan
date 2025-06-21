@@ -88,7 +88,7 @@ def fetch_orderbook_snapshot(symbol):
         return None, None
 
 def detect_orderbook_anomaly(symbol):
-    print("RUNNING: detect_orderbook_anomaly")
+
     current_bid_sum, current_ask_sum = fetch_orderbook_snapshot(symbol)
     if current_bid_sum is None:
         return False, 0.0

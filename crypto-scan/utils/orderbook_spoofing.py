@@ -12,7 +12,7 @@ def detect_orderbook_spoofing(symbol):
     
     Returns: (bool, float) - True jeśli wykryto spoofing, score
     """
-    print("RUNNING: detect_orderbook_spoofing")
+
     try:
         # Sprawdź czy symbol jest string
         if not isinstance(symbol, str):
