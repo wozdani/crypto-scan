@@ -123,16 +123,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Quality Assessment**: excellent/strong/good/neutral-watch/weak/very_poor z context adjustment info
 - **Production Integration**: Pełna integracja z crypto_scan_service.py - audytowalny decision trail
 
-### June 21, 2025 - TJDE Full Integration - PRODUCTION READY
-- **TJDE Complete Integration**: Pełna integracja AdvancedTraderWeightedDecisionEngine do trend_mode.py zastępująca legacy system
-- **4-Layer TJDE Architecture**: Market Structure → Liquidity Behavior → Psychological Traps → HTF Confirmation z dynamicznymi wagami
-- **TJDE Core Functions**: compute_trader_score() + simulate_trader_decision_advanced() + analyze_trend_opportunity() z unified API
-- **Weighted Scoring System**: 7 components z wagami - trend_strength (25%), pullback_quality (20%), support_reaction (15%), liquidity_pattern_score (10%), psych_score (10%), htf_supportive_score (10%), market_phase_modifier (10%)
-- **TJDE Decision Thresholds**: join ≥0.7, consider ≥0.45, avoid <0.45 z adaptive confidence scoring
-- **Alert Integration**: send_tjde_alert() tylko dla decision="join" z cooldown management + Telegram formatting
-- **Enhanced Logging**: logs/advanced_trader_log.txt z TJDE_AdvancedTraderWeightedDecisionEngine identifier
-- **Production Integration**: crypto_scan_service.py zaktualizowany dla TJDE decision checking
-- **Backward Compatibility**: trend_mode_legacy.py preserved, nowy trend_mode.py z TJDE
+### June 21, 2025 - TJDE Complete Production Integration - LIVE
+- **TJDE Full Production System**: Complete AdvancedTraderWeightedDecisionEngine replacing all legacy trend-mode logic
+- **4-Layer Professional Analysis**: Market Structure → Liquidity Behavior → Psychological Traps → HTF Confirmation z wagami kontekstowymi
+- **TJDE Core Engine**: compute_trader_score() + simulate_trader_decision_advanced() + analyze_trend_opportunity() z unified production API
+- **Dynamic Weighted Scoring**: 7 components - trend_strength (25%), pullback_quality (20%), support_reaction (15%), liquidity_pattern_score (10%), psych_score (10%), htf_supportive_score (10%), market_phase_modifier (10%)
+- **Professional Decision Logic**: join ≥0.7, consider ≥0.45, avoid <0.45 z adaptive confidence levels zastępujące sztywne reguły
+- **Production Alert System**: send_tjde_alert() z 60-minute cooldown, decision="join" only, Telegram integration
+- **Comprehensive Logging**: logs/advanced_trader_log.txt z TJDE_AdvancedTraderWeightedDecisionEngine timestamp tracking
+- **Live Service Integration**: crypto_scan_service.py updated z TJDE signals (tjde_decision, tjde_final_score, tjde_grade, tjde_reasons)
+- **Import Fix Complete**: All module dependencies resolved, trend_mode_legacy.py backup maintained
 
 ## User Preferences
 

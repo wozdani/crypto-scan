@@ -29,8 +29,14 @@ from utils.htf_overlay import get_htf_confirmation
 
 # Import utilities
 from utils.safe_candles import get_candles
-from utils.trend_alert_cache import already_alerted_recently, mark_alert_sent
-from utils.telegram_bot import send_trend_alert
+# Import trend alert cache functions
+try:
+    from utils.trend_alert_cache import TrendAlertCache
+    trend_cache = TrendAlertCache()
+except ImportError:
+    print("Warning: TrendAlertCache not available")
+    trend_cache = None
+from utils.telegram_bot import send_alert
 
 
 def compute_trader_score(ctx: Dict) -> Dict:
@@ -376,7 +382,7 @@ def send_tjde_alert(symbol: str, ctx: Dict):
     """
     try:
         # Check cooldown
-        if already_alerted_recently(symbol, "tjde"):
+        if trend_cache and trend_cache.already_alerted_recently(symbol, "tjde"):
             print(f"[TJDE ALERT] {symbol}: Cooldown active, skipping alert")
             return
         
@@ -386,19 +392,23 @@ def send_tjde_alert(symbol: str, ctx: Dict):
         market_phase = ctx.get("market_phase", "unknown")
         liquidity_score = ctx.get("liquidity_pattern_score", 0.0)
         
-        # Send enhanced trend alert
-        success = send_trend_alert(
-            symbol=symbol,
-            score=final_score,
-            grade=grade,
-            reasons=reasons,
-            phase=market_phase,
-            liquidity=liquidity_score,
-            comment="💥 TJDE Smart Trend Join Opportunity"
-        )
+        # Build alert message for TJDE
+        alert_message = f"""💥 TJDE Smart Trend Join Opportunity
+Symbol: {symbol}
+Score: {final_score:.3f}
+Grade: {grade}
+Phase: {market_phase}
+Liquidity: {liquidity_score:.3f}
+
+Top Reasons:
+{chr(10).join(f"• {reason}" for reason in reasons[:3])}"""
+        
+        # Send alert
+        success = send_alert(symbol, alert_message)
         
         if success:
-            mark_alert_sent(symbol, "tjde")
+            if trend_cache:
+                trend_cache.mark_alert_sent(symbol, "tjde")
             print(f"[TJDE ALERT] {symbol}: Alert sent successfully")
         else:
             print(f"[TJDE ALERT] {symbol}: Alert failed to send")
