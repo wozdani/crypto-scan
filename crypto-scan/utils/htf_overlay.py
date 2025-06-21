@@ -6,7 +6,7 @@ Pobiera dane z wyższych timeframów i ocenia zgodność trendu
 
 import numpy as np
 from typing import List, Dict, Optional
-from utils.bybit_candles import get_candles
+from utils.safe_candles import get_candles
 
 
 def get_htf_confirmation(symbol: str, current_timeframe: str = "15") -> Dict:
