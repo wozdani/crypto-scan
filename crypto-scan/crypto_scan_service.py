@@ -228,8 +228,11 @@ def scan_cycle():
             # === PARALLEL TREND-MODE ANALYSIS ===
             # Run trend-mode analysis simultaneously with pre-pump PPWCS
             try:
+                print(f"[TREND DEBUG] {symbol}: Attempting Trend-Mode analysis...")
                 from utils.data_fetchers import get_all_data
-                candles_15m = get_all_data(symbol, interval="15", limit=50)
+                candles_15m = get_all_data(symbol, "15", 50)
+                
+                print(f"[TREND DEBUG] {symbol}: Got {len(candles_15m) if candles_15m else 0} candles for trend analysis")
                 
                 if candles_15m and len(candles_15m) >= 10:
                     from trend_mode import analyze_symbol_trend_mode
@@ -285,10 +288,12 @@ def scan_cycle():
                         print(f"✅ [TREND] {symbol}: JOIN ({quality_grade}, {entry_quality:.2f})")
                     elif decision == "wait":
                         print(f"⏳ [TREND] {symbol}: WAIT ({quality_grade}, {entry_quality:.2f})")
+                else:
+                    print(f"[TREND DEBUG] {symbol}: Insufficient candles for trend analysis ({len(candles_15m) if candles_15m else 0}/10 required)")
                 
             except Exception as trend_error:
                 # Log trend errors but don't fail pre-pump analysis
-                print(f"[TREND ERROR] {symbol} - {str(trend_error)}")
+                print(f"[TREND ERROR] {symbol} - Trend analysis failed: {str(trend_error)}")
                 
                 # Add error fallback values to signals
                 signals.update({
