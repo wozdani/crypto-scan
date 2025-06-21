@@ -428,23 +428,29 @@ def get_alert_level(ppwcs: int, checklist_score: int) -> int:
     print(f"[ALERT LEVEL] Evaluating: PPWCS {ppwcs}/65, Checklist {checklist_score}/85")
     
     # Level 0: Weak signals - no alert
-    if ppwcs < 25 or checklist_score < 20:
-        print(f"[ALERT LEVEL] Level 0: Too weak (PPWCS<25 or checklist<20)")
+    # FIXED: Use AND logic - both must be weak to reject, not OR
+    if ppwcs < 25 and checklist_score < 20:
+        print(f"[ALERT LEVEL] Level 0: Too weak (PPWCS<25 AND checklist<20)")
+        return 0
+    
+    # Alternative rejection: Very weak PPWCS regardless of checklist
+    if ppwcs < 15:
+        print(f"[ALERT LEVEL] Level 0: Too weak (PPWCS<15 regardless of checklist)")
         return 0
     
     # Start with level 1 as base
     level = 1
     print(f"[ALERT LEVEL] Level 1: Watchlist (basic signals)")
     
-    # Level 2: Pre-pump active - strong structural signals
-    if ppwcs >= 40 and checklist_score >= 35:
+    # Level 2: Pre-pump active - strong PPWCS OR strong structure
+    if ppwcs >= 40 or (ppwcs >= 35 and checklist_score >= 35):
         level = 2
-        print(f"[ALERT LEVEL] Level 2: Pre-pump active (strong structure)")
+        print(f"[ALERT LEVEL] Level 2: Pre-pump active (strong PPWCS or structure)")
     
-    # Level 3: Strong alert - maximum signal strength
-    if ppwcs >= 50 and checklist_score >= 50:
+    # Level 3: Strong alert - high PPWCS OR maximum combined strength
+    if ppwcs >= 50 or (ppwcs >= 45 and checklist_score >= 40):
         level = 3
-        print(f"[ALERT LEVEL] Level 3: Strong alert (maximum strength)")
+        print(f"[ALERT LEVEL] Level 3: Strong alert (high PPWCS or combined strength)")
     
     print(f"[ALERT LEVEL] Final level: {level}")
     return level

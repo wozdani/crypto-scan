@@ -98,6 +98,12 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 21, 2025 - Pre-Pump Alert Logic Fix - PRODUCTION READY
+- **Critical Alert Logic Fixed**: Zmieniono warunek z OR na AND w get_alert_level() - PPWCS 52 z checklist 5 teraz generuje alert
+- **Improved Thresholds**: Level 2 dla PPWCS ≥40 OR (PPWCS ≥35 AND checklist ≥35), Level 3 dla PPWCS ≥50 OR combined strength
+- **Bug Resolution**: System nie odrzuca już wysokich PPWCS scores z powodu niskich checklist scores
+- **Enhanced Logic**: Bardzo słabe PPWCS (<15) nadal blokuje alert niezależnie od checklist
+
 ### June 21, 2025 - Perception Evaluator Module - PRODUCTION READY
 - **Behavioral Market Analysis**: Nowy moduł perception_evaluator.py zastępuje klasyczny scoring behawioralną analizą rynku
 - **Trader-like Logic**: System ocenia setup jako całość z perspektywy doświadczonego tradera bez punktów i progów
