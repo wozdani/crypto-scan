@@ -229,7 +229,7 @@ def get_fallback_symbols():
     return get_symbols_cached()
 
 def get_market_data(symbol):
-    print(f"🧪 [get_market_data] Start dla {symbol}")
+
     
     # Najpierw spróbuj pobrać dane z tickers endpoint dla prawidłowego wolumenu
     try:
