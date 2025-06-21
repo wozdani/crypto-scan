@@ -235,29 +235,28 @@ def scan_cycle():
                 candles_15m, is_ready = safe_trend_analysis_check(symbol, market_data)
                 
                 if is_ready and candles_15m:
-                    from trend_mode import analyze_symbol_trend_mode
-                    trend_analysis = analyze_symbol_trend_mode(
+                    from trend_mode import analyze_trend_opportunity
+                    trend_analysis = analyze_trend_opportunity(
                         symbol=symbol,
-                        candles=candles_15m,
-                        enable_gpt=False  # GPT disabled for speed
+                        candles=candles_15m
                     )
                     
-                    # Extract trend data
+                    # Extract TJDE trend data
                     decision = trend_analysis.get('decision', 'avoid')
                     confidence = trend_analysis.get('confidence', 0.0)
-                    entry_quality = trend_analysis.get('entry_quality', 0.0)
-                    quality_grade = trend_analysis.get('quality_grade', 'poor')
-                    market_context = trend_analysis.get('market_context', 'unknown')
+                    final_score = trend_analysis.get('final_score', 0.0)
+                    quality_grade = trend_analysis.get('grade', 'poor')
+                    market_context = trend_analysis.get('market_context', {}).get('session', 'unknown')
                     trend_strength = trend_analysis.get('trend_strength', 0.0)
                     
-                    # Add trend data to signals for PPWCS integration
+                    # Add TJDE data to signals for PPWCS integration
                     signals.update({
-                        'trend_mode_decision': decision,
-                        'trend_mode_confidence': confidence,
-                        'trend_mode_context': market_context,
-                        'trend_mode_strength': trend_strength,
-                        'trend_mode_quality': entry_quality,
-                        'trend_mode_grade': quality_grade
+                        'tjde_decision': decision,
+                        'tjde_confidence': confidence,
+                        'tjde_final_score': final_score,
+                        'tjde_context': market_context,
+                        'tjde_strength': trend_strength,
+                        'tjde_grade': quality_grade
                     })
                     
                     # Send Trend-Mode alert if high-quality setup

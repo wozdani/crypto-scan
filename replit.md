@@ -132,7 +132,7 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Session-Aware Scoring**: London (+20% liquidity), NY (+25% liquidity, +15% trend), Asia (-20% liquidity) contextual adjustments
 - **Market Phase Intelligence**: retest-confirmation (+25% support), breakout-continuation (+30% trend), exhaustion-pullback (+40% psychology)
 - **Performance Tracking**: Detailed analytics in logs/adaptive_weights_analysis.json with weight evolution and success metrics
-- **Production Demo System**: demo_adaptive_system.py demonstrates learning without live API data
+- **Production Integration Fix**: Corrected import error from analyze_symbol_trend_mode to analyze_trend_opportunity in crypto_scan_service.py
 
 ## User Preferences
 
