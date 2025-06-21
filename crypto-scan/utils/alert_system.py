@@ -270,9 +270,12 @@ def send_alert(symbol, ppwcs, checklist_score, checklist_summary, signals):
         chat_id = os.getenv('TELEGRAM_CHAT_ID')
         
         if bot_token and chat_id:
+            # Escape Markdown special characters to prevent 400 errors
+            escaped_msg = final_msg.replace('*', '\\*').replace('_', '\\_').replace('[', '\\[').replace(']', '\\]').replace('(', '\\(').replace(')', '\\)')
+            
             payload = {
                 "chat_id": chat_id,
-                "text": final_msg,
+                "text": escaped_msg,
                 "parse_mode": "Markdown"
             }
 
