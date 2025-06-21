@@ -68,7 +68,7 @@ def add_active_alert(symbol: str, ppwcs_score: float, signals: Dict[str, Any],
     }
     
     save_alert_cache(cache)
-    print(f"✅ Added active alert for {symbol}: PPWCS={ppwcs_score}, level={alert_level}")
+
 
 def remove_active_alert(symbol: str):
     """Remove symbol from active alerts cache"""
@@ -186,7 +186,7 @@ def update_active_alert(symbol: str, signals: Dict[str, Any], ppwcs_score: float
     cache[symbol] = alert_data
     save_alert_cache(cache)
     
-    print(f"🔄 Updated alert for {symbol}: new signals={new_signals}, PPWCS={ppwcs_score}")
+
     
     return alert_data
 

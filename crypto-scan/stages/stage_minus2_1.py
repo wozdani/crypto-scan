@@ -1438,7 +1438,7 @@ def detect_silent_accumulation(symbol, market_data, rsi_series):
                     with open(cache_file, 'w') as f:
                         json.dump(existing_alerts, f, indent=2)
                     
-                    print(f"✅ Silent accumulation pattern saved for {symbol} (PPWCS: {ppwcs_score})")
+
                     
                 except Exception as save_error:
                     print(f"⚠️ Error saving silent accumulation alert for {symbol}: {save_error}")
@@ -1653,7 +1653,7 @@ def detect_silent_accumulation_v1(symbol, market_data, rsi_series, orderbook=Non
                     # Wyślij do GPT
                     send_report_to_gpt(symbol, data, tp_forecast, "Silent Accumulation v1")
                     
-                    print(f"✅ Silent Accumulation v1 alert sent for {symbol} (PPWCS: {ppwcs_score})")
+
                     
                 except ImportError:
                     # Fallback - zapisz do cache jak poprzednio
@@ -1680,7 +1680,7 @@ def detect_silent_accumulation_v1(symbol, market_data, rsi_series, orderbook=Non
                     with open(cache_file, 'w') as f:
                         json.dump(existing_alerts, f, indent=2)
                     
-                    print(f"✅ Silent Accumulation v1 pattern saved for {symbol} (PPWCS: {ppwcs_score})")
+
                 
             except Exception as e:
                 print(f"⚠️ Error in Silent Accumulation v1 alert processing for {symbol}: {e}")

@@ -374,11 +374,9 @@ def scan_cycle():
             # Enhanced conditions based on weighted checklist scoring (new system)
             if checklist_score >= 25 and final_score >= 45:  # Adjusted for weighted scoring (max 41)
                 is_high_confidence = True
-                print(f"[HIGH CONFIDENCE] {symbol}: PPWCS={final_score}, Weighted Checklist={checklist_score}")
             
             if checklist_score >= 15:  # Quality threshold instead of count-based ≥3
                 structure_ok = True
-                print(f"[STRUCTURE OK] {symbol}: Quality score {checklist_score}/41")
             
             # Map alert levels to tiers and determine if alert should be sent
             if alert_level == 3:  # Strong alert
@@ -393,7 +391,7 @@ def scan_cycle():
                 alert_tier = "🟡 Watchlist" + (" [STRUCTURE OK]" if structure_ok else "")
                 allow_alert = False  # Watchlist items don't send alerts, only logged
             
-            print(f"[ALERT EVALUATION] {symbol}: Level={alert_level}, Tier='{alert_tier}', Send={allow_alert}")
+
 
             gpt_feedback = None
             # Enhanced GPT conditions to include high confidence alerts
@@ -408,8 +406,7 @@ def scan_cycle():
                     gpt_feedback = send_report_to_gpt(symbol, signals, tp_forecast, alert_tier)
                     feedback_score = score_gpt_feedback(gpt_feedback)
                     category, description, emoji = categorize_feedback_score(feedback_score)
-                    print(f"[GPT FEEDBACK] {symbol}: {gpt_feedback}")
-                    print(f"[FEEDBACK SCORE] {symbol}: {feedback_score}/100 ({category}) {emoji}")
+
                     signals["feedback_score"] = feedback_score
                     signals["feedback_category"] = category
                     os.makedirs("data/feedback", exist_ok=True)
@@ -425,15 +422,9 @@ def scan_cycle():
                     print(f"⚠️ GPT feedback failed for {symbol}: {gpt_error}")
 
             if allow_alert and alert_tier:
-                print(f"✅ Alert triggered: {symbol} - {alert_tier} (Score: {final_score}, Quality: {ppwcs_quality})")
-                
                 # Use comprehensive alert system with all features (checklist, TP forecast, GPT)
                 from utils.alert_system import process_alert
                 alert_success = process_alert(symbol, final_score, signals, gpt_feedback)
-                
-                if alert_success:
-                    print(f"📢 Comprehensive alert sent for {symbol} with all features")
-                else:
 
 
 

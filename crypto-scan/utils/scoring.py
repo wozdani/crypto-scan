@@ -192,8 +192,7 @@ def compute_combined_scores(signals: dict) -> dict:
                                 if signals.get(k) is True])
         soft_signal_count = len(checklist_summary)
         
-        print(f"[COMBINED Pre-Pump 2.0] PPWCS: {ppwcs_score}/65, Checklist: {checklist_score}/110")
-        print(f"[COMBINED Pre-Pump 2.0] Total: {total_combined}/175, Hard: {hard_signal_count}/6, Soft: {soft_signal_count}/22")
+
         
         return {
             "ppwcs": ppwcs_score,
@@ -207,7 +206,7 @@ def compute_combined_scores(signals: dict) -> dict:
         }
         
     except Exception as e:
-        print(f"❌ Error in combined scoring: {e}")
+
         return {
             "ppwcs": 0,
             "checklist_score": 0,
@@ -316,7 +315,7 @@ def log_ppwcs_score(symbol, score, signals):
             json.dump(logs, f, indent=2)
             
     except Exception as e:
-        print(f"Error logging PPWCS score: {e}")
+
 
 def get_top_performers(hours=24, limit=10):
     """Get top performing symbols by PPWCS score"""
