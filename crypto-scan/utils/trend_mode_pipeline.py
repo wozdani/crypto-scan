@@ -20,6 +20,7 @@ from detectors.one_sided_pressure import detect_one_sided_pressure, calculate_on
 from detectors.micro_echo import detect_micro_echo, calculate_micro_echo_score, fetch_1m_prices_bybit
 from detectors.human_flow import detect_human_like_flow, calculate_human_flow_score
 from detectors.calm_before_trend import detect_calm_before_trend, calculate_calm_before_trend_score, create_mock_calm_prices
+from detectors.pullback_flow_pattern import pullback_flow_pattern, calculate_pullback_flow_score, detect_pullback_flow
 
 def fetch_5m_prices_bybit(symbol: str, count: int = 24):
     """

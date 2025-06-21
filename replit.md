@@ -98,6 +98,13 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 21, 2025 - Pullback Flow Pattern Module - PRODUCTION READY
+- **Nowy moduł pullback_flow_pattern**: Wykrywa koniec korekty i potencjalne wejście w pozycję z analizą 15M downtrend + 5M reversal signals
+- **Integracja z Trend Mode Pipeline**: Dodano jako 10. detektor z maksymalnie 18 punktami w systemie scoringu
+- **Zaawansowana analiza orderbook**: Wykrywa malejący ask pressure, rosnący bid pressure, vacuum i freeze conditions
+- **System scoring 0-100**: Confidence score z progiem 50 punktów i minimum 3 entry triggers dla aktywacji
+- **Pełna kompatybilność**: Wrapper functions dla integracji z istniejącym systemem detektorów PPWCS
+
 ### June 21, 2025 - Critical Function Fix & Trend Mode Debug System - PRODUCTION READY
 - **Critical function name error fixed**: Resolved undefined `is_valid_symbol` function causing main scanning loop failure by replacing with existing `is_valid_perpetual_symbol`
 - **System stability restored**: Fixed crash in symbol validation that was preventing any scanning operations from completing successfully
