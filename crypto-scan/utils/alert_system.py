@@ -362,28 +362,6 @@ def process_alert(token, ppwcs_score, signals, gpt_analysis=None):
         else:
             print(f"❌ Alert failed for {token}")
             return False
-
-            
-            # Send new alert
-            feedback_score = signals.get('feedback_score')
-            success = send_telegram_alert(
-                token, ppwcs_score, signals, tp_forecast, stage1g_trigger_type, 
-                gpt_analysis, feedback_score, is_update=False
-            )
-            
-            if success:
-                # Add to active alerts cache
-                update_alert_cache(token, signals, ppwcs_score, active_alerts)
-                save_alert_cache_to_file(active_alerts)
-                
-                print(f"📢 NEW alert sent for {token} (Score: {ppwcs_score})")
-                return True
-            else:
-                print(f"❌ Failed to send new alert for {token}")
-                return False
-        else:
-            print(f"⏭️ {token} has active alert but no significant updates ({update_reason})")
-            return False
             
     except Exception as e:
         print(f"❌ Error processing alert for {token}: {e}")
