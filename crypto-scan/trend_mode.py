@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 import json
 
 
-def determine_market_context(candles: List[List]) -> str:
+def determine_market_context(candles: List[List], symbol: str = None) -> str:
     """
     🧩 Etap 1: Analiza Kontekstu Rynkowego
     
@@ -35,11 +35,14 @@ def determine_market_context(candles: List[List]) -> str:
     
     Args:
         candles: Lista OHLCV candles [[timestamp, open, high, low, close, volume], ...]
+        symbol: Symbol for debug logging
         
     Returns:
         str: "impulse", "pullback", "range", "breakout", "redistribution"
     """
     if not candles or len(candles) < 20:
+        if symbol:
+            print(f"[TREND DEBUG] {symbol}: Market context = range (insufficient data: {len(candles)} candles)")
         return "range"
     
     try:
@@ -72,33 +75,42 @@ def determine_market_context(candles: List[List]) -> str:
         
         # === LOGIKA KLASYFIKACJI ===
         
+        context = "range"  # Default
+        
         # IMPULSE: Silny trend wzrostowy z rosnącym wolumenem
         if (price_slope > 0.5 and ema_slope > 0.3 and 
             price_vs_ema > 1.0 and green_ratio >= 0.7 and volume_slope > 0):
-            return "impulse"
+            context = "impulse"
         
         # PULLBACK: Korekta w trendzie wzrostowym
-        if (ema_slope > 0.1 and price_vs_ema > -1.0 and price_vs_ema < 1.0 and
+        elif (ema_slope > 0.1 and price_vs_ema > -1.0 and price_vs_ema < 1.0 and
             price_slope < 0 and volatility < 3.0):
-            return "pullback"
+            context = "pullback"
         
         # BREAKOUT: Wybicie z zakresu z wolumenem
-        if (price_slope > 0.8 and volume_slope > 0.5 and volatility > 2.0):
-            return "breakout"
+        elif (price_slope > 0.8 and volume_slope > 0.5 and volatility > 2.0):
+            context = "breakout"
         
         # REDISTRIBUTION: Wysokie wolumeny, brak kierunku
-        if (volatility > 4.0 and abs(price_slope) < 0.2 and volume_slope > 0):
-            return "redistribution"
+        elif (volatility > 4.0 and abs(price_slope) < 0.2 and volume_slope > 0):
+            context = "redistribution"
         
-        # RANGE: Brak wyraźnego trendu
-        return "range"
+        # Debug logging
+        if symbol:
+            print(f"[TREND DEBUG] {symbol}: Market context = {context} "
+                  f"(price_slope={price_slope:.3f}, ema_slope={ema_slope:.3f}, "
+                  f"volatility={volatility:.3f}, price_vs_ema={price_vs_ema:.2f}%, "
+                  f"green_ratio={green_ratio:.2f})")
+        
+        return context
         
     except Exception as e:
-        print(f"⚠️ Error in determine_market_context: {e}")
+        if symbol:
+            print(f"⚠️ Error in determine_market_context for {symbol}: {e}")
         return "range"
 
 
-def compute_trend_strength(candles: List[List]) -> float:
+def compute_trend_strength(candles: List[List], symbol: str = None) -> float:
     """
     📈 Etap 2: Ocena Siły Trendu
     
@@ -109,11 +121,14 @@ def compute_trend_strength(candles: List[List]) -> float:
     
     Args:
         candles: Lista OHLCV candles
+        symbol: Symbol for debug logging
         
     Returns:
         float: Score trendu 0.0-1.0
     """
     if not candles or len(candles) < 40:
+        if symbol:
+            print(f"[TREND DEBUG] {symbol}: Trend strength = 0.0 (insufficient data: {len(candles)} candles)")
         return 0.0
     
     try:
@@ -156,14 +171,23 @@ def compute_trend_strength(candles: List[List]) -> float:
             hh_ratio * 0.15               # 15% - pattern wyższych szczytów
         )
         
-        return min(max(trend_strength, 0.0), 1.0)
+        final_strength = min(max(trend_strength, 0.0), 1.0)
+        
+        # Debug logging
+        if symbol:
+            print(f"[TREND DEBUG] {symbol}: Trend strength = {final_strength:.3f} "
+                  f"(green_20={green_ratio_20:.2f}, green_40={green_ratio_40:.2f}, "
+                  f"slope={price_slope:.3f}, stability={stability:.2f}, higher_highs={hh_ratio:.2f})")
+        
+        return final_strength
         
     except Exception as e:
-        print(f"⚠️ Error in compute_trend_strength: {e}")
+        if symbol:
+            print(f"⚠️ Error in compute_trend_strength for {symbol}: {e}")
         return 0.0
 
 
-def detect_pullback(candles: List[List]) -> Dict:
+def detect_pullback(candles: List[List], symbol: str = None) -> Dict:
     """
     🔁 Etap 3: Wykrycie Korekty
     
@@ -172,12 +196,16 @@ def detect_pullback(candles: List[List]) -> Dict:
     
     Args:
         candles: Lista OHLCV candles
+        symbol: Symbol for debug logging
         
     Returns:
         dict: {"detected": bool, "magnitude": float, "volume_declining": bool}
     """
     if not candles or len(candles) < 10:
-        return {"detected": False, "magnitude": 0.0, "volume_declining": False}
+        result = {"detected": False, "magnitude": 0.0, "volume_declining": False}
+        if symbol:
+            print(f"[TREND DEBUG] {symbol}: Pullback = False (insufficient data: {len(candles)} candles)")
+        return result
     
     try:
         closes = [float(c[4]) for c in candles[-10:]]
@@ -197,6 +225,7 @@ def detect_pullback(candles: List[List]) -> Dict:
         pullback_detected = 0.5 <= pullback_magnitude <= 4.0
         
         # 4. Sprawdź trend wolumenu (czy maleje podczas pullbacku?)
+        volume_declining = False
         if local_high_index < len(volumes) - 2:  # Musi być przynajmniej 2 świece po high
             volume_during_pullback = volumes[local_high_index+1:]
             volume_before_pullback = volumes[max(0, local_high_index-3):local_high_index+1]
@@ -205,8 +234,6 @@ def detect_pullback(candles: List[List]) -> Dict:
             avg_volume_during = np.mean(volume_during_pullback) if volume_during_pullback else 0
             
             volume_declining = avg_volume_during < avg_volume_before * 0.8  # 20% spadek
-        else:
-            volume_declining = False
         
         # 5. Dodatkowe warunki jakości pullbacku
         # - Nie powinien być zbyt głęboki (max 4%)
@@ -216,6 +243,12 @@ def detect_pullback(candles: List[List]) -> Dict:
         duration_ok = 1 <= pullback_duration <= 5
         
         quality_pullback = pullback_detected and duration_ok
+        
+        # Debug logging
+        if symbol:
+            print(f"[TREND DEBUG] {symbol}: Pullback = {quality_pullback} "
+                  f"(magnitude={pullback_magnitude:.2f}%, volume_declining={volume_declining}, "
+                  f"duration={pullback_duration}, high_index={local_high_index})")
         
         return {
             "detected": quality_pullback,
@@ -227,11 +260,12 @@ def detect_pullback(candles: List[List]) -> Dict:
         }
         
     except Exception as e:
-        print(f"⚠️ Error in detect_pullback: {e}")
+        if symbol:
+            print(f"⚠️ Error in detect_pullback for {symbol}: {e}")
         return {"detected": False, "magnitude": 0.0, "volume_declining": False}
 
 
-def detect_support_reaction(candles: List[List]) -> Dict:
+def detect_support_reaction(candles: List[List], symbol: str = None) -> Dict:
     """
     📍 Etap 4: Reakcja na wsparcie
     
@@ -310,6 +344,17 @@ def detect_support_reaction(candles: List[List]) -> Dict:
         # 7. Kombinuj wszystkie czynniki
         total_reaction = (reaction_strength * 0.6 + last_candle_strength * 0.4)
         
+        # Check for additional patterns
+        engulfing_pattern = _detect_engulfing_pattern(candles[-3:]) if len(candles) >= 3 else False
+        wick_bounce = _detect_wick_bounce(candles[-2:]) if len(candles) >= 2 else False
+        
+        # Debug logging
+        if symbol:
+            print(f"[TREND DEBUG] {symbol}: Support reaction = {support_detected} "
+                  f"(type={support_type}, strength={total_reaction:.3f}, "
+                  f"ema_distance={distance_to_ema:.2f}%, vwap_distance={distance_to_vwap:.2f}%, "
+                  f"engulfing={engulfing_pattern}, wick_bounce={wick_bounce})")
+        
         return {
             "support_detected": support_detected,
             "support_type": support_type,
@@ -318,8 +363,8 @@ def detect_support_reaction(candles: List[List]) -> Dict:
             "ema21_level": ema_support,
             "vwap_level": vwap,
             "last_candle_strength": last_candle_strength,
-            "engulfing_pattern": _detect_engulfing_pattern(candles[-3:]) if len(candles) >= 3 else False,
-            "wick_bounce": _detect_wick_bounce(candles[-2:]) if len(candles) >= 2 else False
+            "engulfing_pattern": engulfing_pattern,
+            "wick_bounce": wick_bounce
         }
         
     except Exception as e:
@@ -327,7 +372,7 @@ def detect_support_reaction(candles: List[List]) -> Dict:
         return {"near_support": False, "support_type": "none", "reaction_strength": 0.0}
 
 
-def market_time_score(utc_hour: int) -> Dict:
+def market_time_score(utc_hour: int, symbol: str = None) -> Dict:
     """
     ⏱️ Etap 5: Czas + dynamika
     
@@ -346,43 +391,52 @@ def market_time_score(utc_hour: int) -> Dict:
         # NY: 13:00-21:00 UTC
         # Overlap London/NY: 13:00-16:00 UTC (najlepsza płynność)
         
+        result = {}
+        
         if 13 <= utc_hour <= 16:  # London/NY overlap
-            return {
+            result = {
                 "time_boost": 1.2,
                 "session": "london_ny_overlap", 
                 "liquidity": "highest"
             }
         elif 8 <= utc_hour <= 12:  # London morning
-            return {
+            result = {
                 "time_boost": 1.1,
                 "session": "london_morning",
                 "liquidity": "high"
             }
         elif 17 <= utc_hour <= 21:  # NY afternoon
-            return {
+            result = {
                 "time_boost": 1.1,
                 "session": "ny_afternoon", 
                 "liquidity": "high"
             }
         elif 1 <= utc_hour <= 7:  # Asian session
-            return {
+            result = {
                 "time_boost": 0.9,
                 "session": "asian",
                 "liquidity": "medium"
             }
         else:  # Night/weekend (22:00-00:00)
-            return {
+            result = {
                 "time_boost": 0.7,
                 "session": "night",
                 "liquidity": "low"
             }
+        
+        # Debug logging
+        if symbol:
+            print(f"[TREND DEBUG] {symbol}: Time scoring at UTC {utc_hour} = {result['time_boost']:.2f} "
+                  f"(session={result['session']}, liquidity={result['liquidity']})")
+        
+        return result
             
     except Exception as e:
         print(f"⚠️ Error in market_time_score: {e}")
         return {"time_boost": 1.0, "session": "unknown", "liquidity": "medium"}
 
 
-def detect_bounce_confirmation(candles: List[List]) -> Dict:
+def detect_bounce_confirmation(candles: List[List], symbol: str = None) -> Dict:
     """
     🎥 Etap 6: Potwierdzenie bounce'a
     
@@ -395,7 +449,10 @@ def detect_bounce_confirmation(candles: List[List]) -> Dict:
         dict: {"bounce_confirmed": bool, "bounce_strength": float, "pattern": str}
     """
     if not candles or len(candles) < 5:
-        return {"bounce_confirmed": False, "bounce_strength": 0.0, "pattern": "insufficient_data"}
+        result = {"bounce_confirmed": False, "bounce_strength": 0.0, "pattern": "insufficient_data"}
+        if symbol:
+            print(f"[TREND DEBUG] {symbol}: Bounce confirmation = False (insufficient data: {len(candles)} candles)")
+        return result
     
     try:
         # Ostatnie 5 świec do analizy bounce'a
@@ -455,6 +512,13 @@ def detect_bounce_confirmation(candles: List[List]) -> Dict:
         bounce_strength = sum(bounce_factors) / len(bounce_factors)
         bounce_confirmed = bounce_strength >= 0.6 and pattern != "none"
         
+        # Debug logging
+        if symbol:
+            print(f"[TREND DEBUG] {symbol}: Bounce confirmation = {bounce_confirmed} "
+                  f"(strength={bounce_strength:.3f}, pattern={pattern}, "
+                  f"smaller_candles={smaller_candles}, higher_lows={higher_lows_pattern}, "
+                  f"volume_increase={volume_increase}, last_candle_bullish={last_candle_bullish})")
+        
         return {
             "bounce_confirmed": bounce_confirmed,
             "bounce_strength": bounce_strength,
@@ -475,7 +539,8 @@ def compute_trend_score(
     pullback_data: Dict,
     support_data: Dict, 
     bounce_data: Dict,
-    time_data: Dict
+    time_data: Dict,
+    symbol: str = None
 ) -> Dict:
     """
     📊 Etap 7: Scoring heurystyczny
@@ -576,6 +641,13 @@ def compute_trend_score(
             quality_grade = "poor"
         else:
             quality_grade = "very_poor"
+        
+        # Debug logging
+        if symbol:
+            print(f"[TREND DEBUG] {symbol}: Final trend score = {final_score:.3f} "
+                  f"(trend={trend_score:.2f}, pullback={pullback_score:.2f}, "
+                  f"support={support_score:.2f}, bounce={bounce_score:.2f}, "
+                  f"time={time_score:.2f}, grade={quality_grade})")
         
         return {
             "final_score": final_score,
@@ -838,27 +910,29 @@ def interpret_market_as_trader(symbol: str, candles: List[List], utc_hour: int =
         
         # === WYKONAJ WSZYSTKIE 9 ETAPÓW ANALIZY ===
         
+        print(f"[TREND DEBUG] {symbol}: Starting 9-stage trend analysis...")
+        
         # 1. Kontekst rynkowy
-        market_context = determine_market_context(candles)
+        market_context = determine_market_context(candles, symbol)
         
         # 2. Siła trendu  
-        trend_strength = compute_trend_strength(candles)
+        trend_strength = compute_trend_strength(candles, symbol)
         
         # 3. Detekcja pullbacku
-        pullback_data = detect_pullback(candles)
+        pullback_data = detect_pullback(candles, symbol)
         
         # 4. Reakcja na wsparcie
-        support_data = detect_support_reaction(candles)
+        support_data = detect_support_reaction(candles, symbol)
         
         # 5. Czas i dynamika
-        time_data = market_time_score(utc_hour)
+        time_data = market_time_score(utc_hour, symbol)
         
         # 6. Potwierdzenie bounce'a
-        bounce_data = detect_bounce_confirmation(candles)
+        bounce_data = detect_bounce_confirmation(candles, symbol)
         
         # 7. Scoring heurystyczny
         scoring_data = compute_trend_score(
-            trend_strength, pullback_data, support_data, bounce_data, time_data
+            trend_strength, pullback_data, support_data, bounce_data, time_data, symbol
         )
         
         # 9. GPT Analysis (opcjonalny)
@@ -954,6 +1028,12 @@ def interpret_market_as_trader(symbol: str, candles: List[List], utc_hour: int =
         if gpt_influenced and enable_gpt:
             gpt_conf = gpt_data.get("confidence", 0.0)
             confidence = (confidence + gpt_conf) / 2  # Average of algo + GPT
+        
+        # Debug logging - Final decision
+        print(f"[TREND DEBUG] {symbol}: TRADER DECISION = {decision} "
+              f"(final_score={final_score:.3f}, confidence={confidence:.3f}, "
+              f"quality_grade={quality_grade}, gpt_influenced={gpt_influenced})")
+        print(f"[TREND DEBUG] {symbol}: Decision reasons: {reasons[:5]}")  # Top 5 reasons
         
         # === COMPREHENSIVE RESULT ===
         result = {
