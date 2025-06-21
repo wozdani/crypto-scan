@@ -220,7 +220,7 @@ def scan_cycle():
         
     scan_results = []
 
-    def run_detect_stage(symbol, price_usd):
+    def run_detect_stage(symbol, price_usd, market_data=None):
         try:
             # Run pre-pump analysis
             stage2_pass, signals, inflow_usd, stage1g_active = detect_stage_minus2_1(symbol, price_usd=price_usd)
@@ -346,7 +346,7 @@ def scan_cycle():
                         continue
 
                 # ✅ Token przeszedł wszystkie filtry
-                futures.append(executor.submit(run_detect_stage, symbol, price_usd))
+                futures.append(executor.submit(run_detect_stage, symbol, price_usd, data))
 
             except Exception as e:
                 print(f"❌ Błąd przy analizie {symbol}: {e}")
