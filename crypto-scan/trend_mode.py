@@ -29,7 +29,7 @@ from utils.htf_overlay import get_htf_confirmation
 
 # Import utilities
 from utils.safe_candles import get_candles
-from utils.trend_alert_cache import can_send_trend_alert, add_to_trend_alert_cache
+from utils.trend_alert_cache import already_alerted_recently, mark_alert_sent
 from utils.telegram_bot import send_trend_alert
 
 
@@ -376,7 +376,7 @@ def send_tjde_alert(symbol: str, ctx: Dict):
     """
     try:
         # Check cooldown
-        if not can_send_trend_alert(symbol):
+        if already_alerted_recently(symbol, "tjde"):
             print(f"[TJDE ALERT] {symbol}: Cooldown active, skipping alert")
             return
         
@@ -398,7 +398,7 @@ def send_tjde_alert(symbol: str, ctx: Dict):
         )
         
         if success:
-            add_to_trend_alert_cache(symbol, final_score, grade)
+            mark_alert_sent(symbol, "tjde")
             print(f"[TJDE ALERT] {symbol}: Alert sent successfully")
         else:
             print(f"[TJDE ALERT] {symbol}: Alert failed to send")

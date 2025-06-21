@@ -513,41 +513,33 @@ def scan_cycle():
 
             # === ADVANCED TREND-MODE ANALYSIS & ALERTS ===
             try:
-                from trend_mode import interpret_market_as_trader
+                from trend_mode import analyze_trend_opportunity
                 
                 # Get UTC hour for session analysis
                 utc_hour = get_utc_hour()
                 candles_15m = market_data.get('candles', [])
                 
-                # Run Advanced Trend-Mode analysis
-                trend_result = interpret_market_as_trader(
-                    symbol, 
-                    candles_15m, 
-                    utc_hour, 
-                    enable_gpt=False  # GPT disabled for performance - can be enabled for high-confidence
-                )
+                # Run TJDE Trend-Mode analysis
+                trend_result = analyze_trend_opportunity(symbol, candles_15m)
                 
-                if trend_result and trend_result.get('analysis_complete', False):
-                    decision = trend_result.get('decision', 'wait')
+                if trend_result and trend_result.get('decision') != 'avoid':
+                    decision = trend_result.get('decision', 'avoid')
                     confidence = trend_result.get('confidence', 0.0)
-                    market_context = trend_result.get('market_context', 'unknown')
-                    trend_strength = trend_result.get('trend_strength', 0.0)
-                    entry_quality = trend_result.get('entry_quality', 0.0)
-                    quality_grade = trend_result.get('quality_grade', 'unknown')
-                    reasons = trend_result.get('reasons', [])
+                    final_score = trend_result.get('final_score', 0.0)
+                    grade = trend_result.get('grade', 'unknown')
+                    reasons = trend_result.get('decision_reasons', [])
                     
-                    # Update signals z Trend-Mode wynikami
+                    # Update signals z TJDE wynikami
                     signals.update({
-                        'trend_mode_decision': decision,
-                        'trend_mode_confidence': confidence,
-                        'trend_mode_context': market_context,
-                        'trend_mode_strength': trend_strength,
-                        'trend_mode_quality': entry_quality,
-                        'trend_mode_grade': quality_grade
+                        'tjde_decision': decision,
+                        'tjde_confidence': confidence,
+                        'tjde_final_score': final_score,
+                        'tjde_grade': grade,
+                        'tjde_reasons': reasons[:3]  # Top 3 reasons
                     })
                     
-                    # === TREND-MODE ALERT LOGIC ===
-                    # Alert conditions: decision="join_trend" AND entry_quality >= 0.75
+                    # === TJDE ALERT LOGIC ===
+                    # Alert conditions: decision="join" (handled in trend_mode.py)
                     if (decision == "join_trend" and entry_quality >= 0.75 and 
                         not trend_alert_cache.already_alerted_recently(symbol, "trend_mode")):
                         
