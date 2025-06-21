@@ -112,13 +112,13 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Bug Resolution**: System nie odrzuca już wysokich PPWCS scores z powodu niskich checklist scores
 - **Enhanced Logic**: Bardzo słabe PPWCS (<15) nadal blokuje alert niezależnie od checklist
 
-### June 21, 2025 - Safe Candles Integration & Trend-Mode Stability - PRODUCTION READY
-- **Safe Candles System**: Nowy moduł utils/safe_candles.py z robust candle fetching i validation
-- **Quality Validation**: Automatyczne sprawdzanie jakości świec - minimum 10 candles, 80% valid data
-- **Smart Fallback Logic**: Direct API → Existing market data → Skip analysis (no empty data processing)
-- **Error Prevention**: Trend-Mode pomija symbole z insufficient/invalid data zamiast generować błędy
-- **Clean Debug Output**: Usunięto wszystkie debug printy z pre-pump - pozostają tylko [TREND DEBUG] logi
-- **Production Stability**: System działa bez błędów nawet przy brakujących danych dla nowych tokenów
+### June 21, 2025 - Pump-Analysis Candles Integration & Trend-Mode Fix - PRODUCTION READY
+- **Proven Candles Function**: Przeniesiono get_candles() z pump-analysis do utils/safe_candles.py z pełną autentykacją
+- **Authenticated API Calls**: Używa BYBIT_API_KEY i BYBIT_SECRET_KEY dla stabilnego dostępu do danych świec
+- **Robust Data Processing**: Obsługa reversed candles (newest first → oldest first) jak w pump-analysis
+- **Multi-layer Fallback**: get_candles() → get_all_data() → Skip analysis dla maksymalnej niezawodności
+- **Quality Validation**: Automatyczne sprawdzanie jakości świec - minimum 10 candles, format validation
+- **Production Stability**: Eliminuje błędy "Insufficient raw candles (0/10)" przez proven API integration
 
 ### June 21, 2025 - Advanced Trend-Mode Integration - PRODUCTION READY
 - **Professional Trader Logic**: Kompletny moduł trend_mode.py z 9 etapami analizy symulującej myślenie profesjonalnego tradera

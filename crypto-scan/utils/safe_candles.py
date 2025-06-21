@@ -6,6 +6,110 @@ Provides robust candle data fetching with validation and error handling
 from utils.data_fetchers import get_all_data
 import requests
 
+def get_candles(symbol, interval="15m", limit=96):
+    """
+    Get candles from Bybit API - ported from pump-analysis
+    
+    Args:
+        symbol: Trading pair symbol (e.g., 'BTCUSDT')
+        interval: Timeframe (default '15m')
+        limit: Number of candles to fetch (default 96)
+        
+    Returns:
+        list: Candles in format [[timestamp, open, high, low, close, volume], ...]
+    """
+    import os
+    import hashlib
+    import hmac
+    import time
+    
+    try:
+        # Prepare authenticated request
+        api_key = os.getenv('BYBIT_API_KEY')
+        api_secret = os.getenv('BYBIT_SECRET_KEY')
+        
+        base_url = "https://api.bybit.com"
+        endpoint = "/v5/market/kline"
+        
+        # Parameters
+        params = {
+            "category": "linear",
+            "symbol": symbol,
+            "interval": interval,
+            "limit": str(limit)
+        }
+        
+        # Create query string
+        query_string = "&".join([f"{k}={v}" for k, v in sorted(params.items())])
+        
+        # Authentication headers
+        timestamp = str(int(time.time() * 1000))
+        recv_window = "5000"
+        
+        if api_key and api_secret:
+            # Authenticated request
+            param_str = f"{timestamp}{api_key}{recv_window}{query_string}"
+            signature = hmac.new(
+                api_secret.encode('utf-8'),
+                param_str.encode('utf-8'),
+                hashlib.sha256
+            ).hexdigest()
+            
+            headers = {
+                "X-BAPI-API-KEY": api_key,
+                "X-BAPI-SIGN": signature,
+                "X-BAPI-SIGN-TYPE": "2",
+                "X-BAPI-TIMESTAMP": timestamp,
+                "X-BAPI-RECV-WINDOW": recv_window,
+                "Content-Type": "application/json"
+            }
+        else:
+            # Public request (no auth)
+            headers = {"Content-Type": "application/json"}
+        
+        # Make request
+        url = f"{base_url}{endpoint}?{query_string}"
+        response = requests.get(url, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("retCode") == 0:
+                candles_raw = data.get("result", {}).get("list", [])
+                
+                if not candles_raw:
+                    print(f"[TREND DEBUG] {symbol}: No candles returned from API")
+                    return []
+                
+                # Convert to standard format and reverse (oldest first)
+                candles = []
+                for candle_data in reversed(candles_raw):  # Bybit returns newest first
+                    try:
+                        timestamp = int(candle_data[0])
+                        open_price = float(candle_data[1])
+                        high_price = float(candle_data[2])
+                        low_price = float(candle_data[3])
+                        close_price = float(candle_data[4])
+                        volume = float(candle_data[5])
+                        
+                        candles.append([timestamp, open_price, high_price, low_price, close_price, volume])
+                    except (ValueError, IndexError, TypeError) as e:
+                        print(f"[TREND ERROR] {symbol}: Invalid candle format – {e}")
+                        continue
+                
+                print(f"[TREND DEBUG] {symbol}: Successfully fetched {len(candles)} candles from Bybit API")
+                return candles
+                
+            else:
+                print(f"[TREND ERROR] {symbol}: API error – {data.get('retMsg', 'Unknown')}")
+                return []
+        else:
+            print(f"[TREND ERROR] {symbol}: HTTP {response.status_code} – {response.text[:100]}")
+            return []
+            
+    except Exception as e:
+        print(f"[TREND ERROR] {symbol}: Exception in get_candles – {e}")
+        return []
+
 def safe_get_candles(symbol, interval="15m", limit=96):
     """
     Safely fetch candles with comprehensive validation and error handling
@@ -19,55 +123,18 @@ def safe_get_candles(symbol, interval="15m", limit=96):
         list: Valid candles list or empty list if insufficient data
     """
     try:
-        # Try direct Bybit API call for candles
-        url = "https://api.bybit.com/v5/market/kline"
-        params = {
-            "category": "linear",
-            "symbol": symbol,
-            "interval": interval,
-            "limit": limit
-        }
+        # Use pump-analysis proven get_candles function
+        candles = get_candles(symbol, interval, limit)
         
-        response = requests.get(url, params=params, timeout=10)
-        
-        if response.status_code == 200:
-            data = response.json()
-            if data.get("retCode") == 0:
-                candles_raw = data.get("result", {}).get("list", [])
-                
-                if candles_raw and len(candles_raw) >= 10:
-                    # Convert to standard format: [timestamp, open, high, low, close, volume]
-                    candles = []
-                    for candle in candles_raw:
-                        try:
-                            timestamp = int(candle[0])
-                            open_price = float(candle[1])
-                            high_price = float(candle[2])
-                            low_price = float(candle[3])
-                            close_price = float(candle[4])
-                            volume = float(candle[5])
-                            
-                            candles.append([timestamp, open_price, high_price, low_price, close_price, volume])
-                        except (ValueError, IndexError) as e:
-                            print(f"[TREND ERROR] {symbol}: Invalid candle data format – {e}")
-                            continue
-                    
-                    if len(candles) >= 10:
-                        print(f"[TREND DEBUG] {symbol}: Successfully fetched {len(candles)} valid candles")
-                        return candles
-                    else:
-                        print(f"[TREND DEBUG] {symbol}: Insufficient valid candles after parsing ({len(candles)}/10)")
-                        return []
-                else:
-                    print(f"[TREND DEBUG] {symbol}: Insufficient raw candles ({len(candles_raw) if candles_raw else 0}/10)")
-                    return []
-            else:
-                print(f"[TREND ERROR] {symbol}: Bybit API error – {data.get('retMsg', 'Unknown error')}")
+        if candles and len(candles) >= 10:
+            print(f"[TREND DEBUG] {symbol}: Successfully fetched {len(candles)} valid candles via get_candles")
+            return candles
         else:
-            print(f"[TREND ERROR] {symbol}: HTTP {response.status_code} fetching candles")
+            print(f"[TREND DEBUG] {symbol}: Insufficient candles from get_candles ({len(candles) if candles else 0}/10)")
         
         # Fallback to existing data fetcher
         print(f"[TREND DEBUG] {symbol}: Trying fallback data source...")
+        from utils.data_fetchers import get_all_data
         market_data = get_all_data(symbol)
         
         if market_data and isinstance(market_data, dict):
@@ -81,11 +148,8 @@ def safe_get_candles(symbol, interval="15m", limit=96):
         print(f"[TREND DEBUG] {symbol}: No valid candle source available")
         return []
         
-    except requests.exceptions.RequestException as e:
-        print(f"[TREND ERROR] {symbol}: Network error fetching candles – {e}")
-        return []
     except Exception as e:
-        print(f"[TREND ERROR] {symbol}: Unexpected error fetching candles – {e}")
+        print(f"[TREND ERROR] {symbol}: Exception in safe_get_candles – {e}")
         return []
 
 def validate_candles_quality(candles, symbol=None):
