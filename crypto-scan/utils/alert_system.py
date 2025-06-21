@@ -346,58 +346,23 @@ def send_telegram_alert(token, ppwcs_score, stage_signals, tp_forecast, stage1g_
 def process_alert(token, ppwcs_score, signals, gpt_analysis=None):
     """Main alert processing function with dynamic updates"""
     try:
-        # Load active alerts cache
-        active_alerts = load_alert_cache_from_file()
+        # Extract checklist data for alert generation
+        checklist_score = signals.get('checklist_score', 0)
+        checklist_summary = signals.get('checklist_summary', [])
         
-        # Determine if alert should be sent
-        if ppwcs_score < 70:
-            # Only log to watchlist for scores 60-69
-            if ppwcs_score >= 60:
-                log_to_watchlist(token, ppwcs_score, signals)
+        # Use the enhanced alert function directly - bypass complex caching logic
+        print(f"[PROCESS ALERT] {token}: PPWCS={ppwcs_score}, Checklist={checklist_score}")
+        
+        # Send alert using the working send_alert function
+        alert_success = send_alert(token, ppwcs_score, checklist_score, checklist_summary, signals)
+        
+        if alert_success:
+            print(f"✅ Alert sent successfully for {token}")
+            return True
+        else:
+            print(f"❌ Alert failed for {token}")
             return False
-        
-        # Check if update is needed
-        should_update, update_reason = should_update_alert(token, signals, active_alerts, ppwcs_score)
-        
-        if should_update:
-            # Update existing alert
-            new_signals_list = []
-            for key in ["dex_inflow", "spoofing", "event_tag", "stealth_inflow"]:
-                if signals.get(key) and not active_alerts[token]["signals"].get(key):
-                    new_signals_list.append(key)
-            
-            # Generate TP forecast
-            tp_forecast = forecast_take_profit_levels(signals)
-            stage1g_trigger_type = signals.get('stage1g_trigger_type') if signals.get('stage1g_active') else None
-            
-            # Send updated alert
-            feedback_score = signals.get('feedback_score')
-            success = send_telegram_alert(
-                token, ppwcs_score, signals, tp_forecast, stage1g_trigger_type, 
-                gpt_analysis, feedback_score, is_update=True, new_signals=new_signals_list,
-                update_reason=update_reason
-            )
-            
-            if success:
-                # Update cache
-                update_alert_cache(token, signals, ppwcs_score, active_alerts)
-                save_alert_cache_to_file(active_alerts)
-                
-                print(f"🔄 UPDATED alert sent for {token} (Score: {ppwcs_score}, Reason: {update_reason})")
-                return True
-            else:
-                print(f"❌ Failed to send updated alert for {token}")
-                return False
-                
-        elif token not in active_alerts:
-            # New alert - check traditional cooldown
-            if check_cooldown(token):
-                print(f"⏱️ {token} in cooldown period, skipping alert")
-                return False
-                
-            # Generate TP forecast
-            tp_forecast = forecast_take_profit_levels(signals)
-            stage1g_trigger_type = signals.get('stage1g_trigger_type') if signals.get('stage1g_active') else None
+
             
             # Send new alert
             feedback_score = signals.get('feedback_score')

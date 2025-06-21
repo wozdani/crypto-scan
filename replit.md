@@ -98,6 +98,12 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 21, 2025 - Alert System Integration Fix - PRODUCTION READY
+- **Critical Alert Function Fixed**: Naprawiono process_alert() w alert_system.py - KERNELUSDT score 57 teraz wysyła alerty
+- **Simplified Alert Logic**: Zastąpiono skomplikowaną cache logic prostym wywołaniem send_alert() function
+- **JSON Corruption Fixed**: Dodano atomic writes i error handling dla wszystkich JSON operations w scoring.py
+- **Dashboard API Fixed**: Naprawiono get_top_performers() obsługujący różne formaty danych JSON
+
 ### June 21, 2025 - Pre-Pump Alert Logic Fix - PRODUCTION READY
 - **Critical Alert Logic Fixed**: Zmieniono warunek z OR na AND w get_alert_level() - PPWCS 52 z checklist 5 teraz generuje alert
 - **Improved Thresholds**: Level 2 dla PPWCS ≥40 OR (PPWCS ≥35 AND checklist ≥35), Level 3 dla PPWCS ≥50 OR combined strength
