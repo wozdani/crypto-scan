@@ -173,19 +173,19 @@ def build_coingecko_cache():
         print(f"❌ Błąd podczas budowy cache: {e}")
 
 def get_contract_from_coingecko(symbol):
-    print(f"[DEBUG] get_contract_from_coingecko({symbol}) - START")
+
     
     cache = load_coingecko_cache()
-    print(f"[DEBUG] Cache loaded: {len(cache)} symbols")
+
     
     normalized_symbol = normalize_token_name(symbol, cache)
-    print(f"[DEBUG] Normalized symbol: {symbol} → {normalized_symbol}")
+
 
     # First check if symbol is directly in cache (new format)
     if symbol in cache:
         entry = cache[symbol]
         platforms = entry.get("platforms", {})
-        print(f"[DEBUG] {symbol} found directly in cache, platforms: {list(platforms.keys())}")
+
         
         # Priorytet dla różnych chainów
         chains = ["ethereum", "polygon-pos", "binance-smart-chain", "arbitrum-one", "optimistic-ethereum"]
@@ -193,23 +193,23 @@ def get_contract_from_coingecko(symbol):
         for chain in chains:
             if chain in platforms and platforms[chain]:
                 contract_address = platforms[chain]
-                print(f"[DEBUG] {symbol} contract found on {chain}: {contract_address}")
+
                 return {
                     "address": contract_address,
                     "chain": chain
                 }
         
-        print(f"[DEBUG] {symbol} no valid contract addresses found in platforms")
+
     
     # Fallback to old format search
-    print(f"[DEBUG] Searching cache using old format for {normalized_symbol}")
+
     for entry in cache:
         if not isinstance(entry, dict):
             continue
         entry_symbol = entry.get("symbol", "").lower()
    
         if entry_symbol == normalized_symbol.lower():
-            print(f"[DEBUG] Found match in old format: {entry_symbol}")
+
             return {
                 "address": entry.get("platforms", {}).get("ethereum", ""),
                 "chain": "ethereum"

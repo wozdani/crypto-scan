@@ -39,7 +39,7 @@ def detect_volume_spike(symbol, data):
         time_since_spike = current_time - volume_spike_cooldown[symbol]
         if time_since_spike < cooldown_period:
             remaining = int((cooldown_period - time_since_spike) / 60)
-            print(f"[DEBUG] {symbol} w cooldown ({remaining}min pozostało)")
+
             return False
     
     # Sprawdź recent_volumes z data (preferred method)
