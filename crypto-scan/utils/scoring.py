@@ -249,9 +249,13 @@ def get_previous_score(symbol):
     try:
         scores_file = os.path.join("data", "ppwcs_scores.json")
         if os.path.exists(scores_file):
-            with open(scores_file, "r") as f:
-                scores = json.load(f)
-                return scores.get(symbol, 0)
+            try:
+                with open(scores_file, "r") as f:
+                    scores = json.load(f)
+                    return scores.get(symbol, 0)
+            except json.JSONDecodeError:
+                print(f"Warning: Corrupted JSON in {scores_file}, returning 0 for {symbol}")
+                return 0
         return 0
     except Exception:
         return 0
@@ -263,15 +267,31 @@ def save_score(symbol, score):
         scores = {}
         
         if os.path.exists(scores_file):
-            with open(scores_file, "r") as f:
-                scores = json.load(f)
+            try:
+                with open(scores_file, "r") as f:
+                    scores = json.load(f)
+            except json.JSONDecodeError as e:
+                print(f"Warning: Corrupted JSON in {scores_file}, starting fresh. Error: {e}")
+                # Backup corrupted file
+                backup_file = f"{scores_file}.backup"
+                if os.path.exists(scores_file):
+                    import shutil
+                    shutil.copy2(scores_file, backup_file)
+                    print(f"Corrupted file backed up to {backup_file}")
+                scores = {}
         
         scores[symbol] = score
         
         os.makedirs(os.path.dirname(scores_file), exist_ok=True)
         
-        with open(scores_file, "w") as f:
+        # Write with atomic operation to prevent corruption
+        temp_file = f"{scores_file}.tmp"
+        with open(temp_file, "w") as f:
             json.dump(scores, f, indent=2)
+        
+        # Atomic rename to prevent corruption during write
+        import os
+        os.rename(temp_file, scores_file)
             
     except Exception as e:
         print(f"Error saving score for {symbol}: {e}")
@@ -283,18 +303,24 @@ def should_alert(symbol, score):
 def log_ppwcs_score(symbol, score, signals):
     """Log PPWCS score for analysis"""
     try:
+        from datetime import datetime, timezone
+        
         log_file = os.path.join("data", "ppwcs_log.json")
         log_entry = {
             "symbol": symbol,
             "score": score,
-            "timestamp": json.dumps(None, default=str),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "signals": len([k for k, v in signals.items() if v is True])
         }
         
         logs = []
         if os.path.exists(log_file):
-            with open(log_file, "r") as f:
-                logs = json.load(f)
+            try:
+                with open(log_file, "r") as f:
+                    logs = json.load(f)
+            except json.JSONDecodeError:
+                print(f"Warning: Corrupted JSON in {log_file}, starting fresh")
+                logs = []
         
         logs.append(log_entry)
         
@@ -319,9 +345,21 @@ def get_top_performers(hours=24, limit=10):
         with open(scores_file, "r") as f:
             scores = json.load(f)
         
+        # Handle different data formats - ensure we extract scores properly
+        performers = []
+        for symbol, data in scores.items():
+            if isinstance(data, dict):
+                # New format with metadata
+                score = data.get('ppwcs_score', 0) if 'ppwcs_score' in data else data.get('score', 0)
+            else:
+                # Legacy format - direct score
+                score = data if isinstance(data, (int, float)) else 0
+            
+            performers.append({"symbol": symbol, "score": score})
+        
         # Sort by score and return top performers
-        sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-        return [{"symbol": symbol, "score": score} for symbol, score in sorted_scores[:limit]]
+        sorted_performers = sorted(performers, key=lambda x: x['score'], reverse=True)
+        return sorted_performers[:limit]
         
     except Exception as e:
         print(f"Error getting top performers: {e}")
