@@ -441,9 +441,10 @@ def scan_cycle():
                 else:
                     print(f"❌ Failed to send comprehensive alert for {symbol}")
 
-            # === TREND MODE 2.0 DETECTION WITH NEW SCORING SYSTEM ===
+            # === TREND MODE 2.0 + PERCEPTION EVALUATOR DETECTION ===
             try:
                 from utils.trend_mode_integration import process_trend_mode_2, get_trend_mode_2_summary
+                from utils.trend_mode_pipeline import analyze_trend_mode_dual_path
                 
                 # Przygotuj dane rynkowe dla Trend Mode 2.0
                 trend_market_data = {
@@ -470,6 +471,33 @@ def scan_cycle():
                 
                 # PRZETWÓRZ SYMBOL PRZEZ TREND MODE 2.0
                 trend_result = process_trend_mode_2(symbol, trend_market_data, orderbook_data)
+                
+                # DODATKOWO: DUAL PATH ANALYSIS (Scoring vs Perception)
+                try:
+                    dual_analysis = analyze_trend_mode_dual_path(
+                        symbol, 
+                        trend_market_data.get('prices', []), 
+                        [],  # 1m prices not available in this context
+                        orderbook_data
+                    )
+                    
+                    # Wyciągnij wyniki perception path
+                    perception_path = dual_analysis.get('perception_path', {})
+                    perception_convincing = perception_path.get('setup_convincing', False)
+                    perception_reasoning = perception_path.get('reasoning', 'No reasoning')
+                    
+                    # Loguj comparison
+                    comparison = dual_analysis.get('comparison', {})
+                    if comparison.get('perception_only', False):
+                        print(f"🧠 [PERCEPTION ONLY] {symbol}: Perception says YES, Scoring says NO")
+                        print(f"   Reasoning: {perception_reasoning}")
+                    elif comparison.get('scoring_only', False):
+                        print(f"📊 [SCORING ONLY] {symbol}: Scoring says YES, Perception says NO")
+                    elif comparison.get('both_positive', False):
+                        print(f"🎯 [BOTH AGREE] {symbol}: Both systems recommend entry")
+                        
+                except Exception as dual_error:
+                    print(f"⚠️ Dual path analysis failed for {symbol}: {dual_error}")
                 
                 # Wyciągnij kluczowe dane
                 trend_score = trend_result.get("trend_mode_2_score", 0)

@@ -272,6 +272,177 @@ def compute_trend_mode_score(symbol: str, prices_5m: list, prices_1m: list, orde
         print(f"⚠️ Error in compute_trend_mode_score for {symbol}: {str(e)}")
         return 0, [f"Error: {str(e)[:50]}"]
 
+
+def compute_trend_mode_with_perception(symbol: str, prices_5m: list, prices_1m: list, orderbook_data: dict) -> tuple:
+    """
+    Nowa ścieżka analizy wykorzystująca perception evaluator zamiast scoringu
+    
+    Args:
+        symbol: Trading symbol
+        prices_5m: Lista cen 5-minutowych
+        prices_1m: Lista cen 1-minutowych  
+        orderbook_data: Dane orderbook
+        
+    Returns:
+        tuple: (setup_convincing, reasoning, perception_data)
+    """
+    try:
+        from utils.perception_evaluator import evaluate_trend_mode_with_perception
+        
+        # Zbierz dane trend_mode dla perception evaluator
+        trend_mode_data = {}
+        
+        # === TREND CONFIRMATION ===
+        if prices_5m and len(prices_5m) >= 12:
+            recent_prices = prices_5m[-12:]
+            uptrend_count = sum(1 for i in range(1, len(recent_prices)) if recent_prices[i] > recent_prices[i-1])
+            trend_mode_data["uptrend_active"] = uptrend_count >= 7  # 7/11 = 63%+ wzrostów
+        
+        # === FLOW CONSISTENCY ===
+        if prices_5m and len(prices_5m) >= 20:
+            flow_changes = 0
+            for i in range(2, len(prices_5m)):
+                prev_direction = prices_5m[i-1] > prices_5m[i-2]
+                curr_direction = prices_5m[i] > prices_5m[i-1]
+                if prev_direction != curr_direction:
+                    flow_changes += 1
+            
+            consistency = 100 - (flow_changes / (len(prices_5m) - 2) * 100)
+            trend_mode_data["flow_consistency_score"] = consistency
+        
+        # === ORDERBOOK ANALYSIS ===
+        if orderbook_data:
+            ask_volumes = orderbook_data.get("ask_volumes", [])
+            bid_volumes = orderbook_data.get("bid_volumes", [])
+            
+            if ask_volumes and bid_volumes:
+                total_ask = sum(ask_volumes)
+                total_bid = sum(bid_volumes)
+                
+                trend_mode_data["bid_pressure"] = total_bid
+                trend_mode_data["ask_pressure"] = total_ask
+        
+        # === VOLUME & MOMENTUM ===
+        if prices_5m and len(prices_5m) >= 10:
+            recent_prices = prices_5m[-10:]
+            price_change = (recent_prices[-1] - recent_prices[0]) / recent_prices[0] * 100
+            
+            if price_change > 2:
+                trend_mode_data["price_momentum"] = "strong"
+            elif price_change > 0.5:
+                trend_mode_data["price_momentum"] = "moderate"
+            else:
+                trend_mode_data["price_momentum"] = "neutral"
+        
+        # === PULLBACK DETECTION ===
+        if prices_5m and len(prices_5m) >= 20:
+            recent = prices_5m[-20:]
+            high_point = max(recent)
+            current = recent[-1]
+            pullback_pct = (high_point - current) / high_point * 100
+            
+            trend_mode_data["pullback_detected"] = pullback_pct > 1
+            trend_mode_data["pullback_magnitude"] = pullback_pct
+        
+        # === SUPPORT/RESISTANCE ===
+        if prices_5m and len(prices_5m) >= 30:
+            # Prosta detekcja wsparcia - znajdź lokalne lows
+            recent = prices_5m[-30:]
+            current = recent[-1]
+            
+            support_levels = []
+            for i in range(2, len(recent)-2):
+                if (recent[i] < recent[i-1] and recent[i] < recent[i+1] and
+                    recent[i] < recent[i-2] and recent[i] < recent[i+2]):
+                    support_levels.append(recent[i])
+            
+            if support_levels:
+                nearest_support = min(support_levels, key=lambda x: abs(x - current))
+                support_distance = abs(current - nearest_support) / current * 100
+                
+                trend_mode_data["near_support"] = support_distance < 0.5  # Within 0.5%
+                trend_mode_data["support_strength"] = "strong" if support_distance < 0.2 else "moderate"
+        
+        # === MARKET STRUCTURE ===
+        # Heatmap vacuum detection
+        if prices_5m and len(prices_5m) >= 15:
+            recent = prices_5m[-15:]
+            current = recent[-1]
+            resistance_levels = [p for p in recent if p > current * 1.002]
+            trend_mode_data["heatmap_vacuum"] = len(resistance_levels) <= 2
+        
+        # Volume trend (mock - replace with real data)
+        trend_mode_data["volume_trend"] = "increasing"  # Placeholder
+        
+        # === OCEŃ PRZEZ PERCEPTION EVALUATOR ===
+        setup_convincing, reasoning, context = evaluate_trend_mode_with_perception(trend_mode_data)
+        
+        return setup_convincing, reasoning, {
+            "trend_mode_data": trend_mode_data,
+            "context": context,
+            "timestamp": int(time.time())
+        }
+        
+    except Exception as e:
+        print(f"⚠️ Error in perception-based trend mode for {symbol}: {e}")
+        return False, f"Error: {str(e)}", {}
+
+
+def analyze_trend_mode_dual_path(symbol: str, prices_5m: list, prices_1m: list, orderbook_data: dict) -> dict:
+    """
+    Analizuje trend mode przez obie ścieżki: scoring i perception
+    
+    Args:
+        symbol: Trading symbol
+        prices_5m: Lista cen 5-minutowych
+        prices_1m: Lista cen 1-minutowych
+        orderbook_data: Dane orderbook
+        
+    Returns:
+        dict: Wyniki z obu ścieżek analizy
+    """
+    results = {
+        "symbol": symbol,
+        "timestamp": int(time.time()),
+        "scoring_path": {},
+        "perception_path": {}
+    }
+    
+    try:
+        # Ścieżka 1: Traditional Scoring
+        score, reasons = compute_trend_mode_score(symbol, prices_5m, prices_1m, orderbook_data)
+        results["scoring_path"] = {
+            "score": score,
+            "reasons": reasons,
+            "alert_threshold": 30,
+            "alert_ready": score >= 30
+        }
+        
+        # Ścieżka 2: Perception Evaluator
+        setup_convincing, reasoning, perception_data = compute_trend_mode_with_perception(
+            symbol, prices_5m, prices_1m, orderbook_data
+        )
+        results["perception_path"] = {
+            "setup_convincing": setup_convincing,
+            "reasoning": reasoning,
+            "perception_data": perception_data,
+            "alert_ready": setup_convincing
+        }
+        
+        # Porównanie wyników
+        results["comparison"] = {
+            "both_positive": score >= 30 and setup_convincing,
+            "both_negative": score < 30 and not setup_convincing,
+            "scoring_only": score >= 30 and not setup_convincing,
+            "perception_only": score < 30 and setup_convincing
+        }
+        
+    except Exception as e:
+        print(f"⚠️ Error in dual path analysis for {symbol}: {e}")
+        results["error"] = str(e)
+    
+    return results
+
 def detect_trend_mode(symbol, data, get_orderbook_func):
     """
     Główna funkcja detekcji trendu (Trend Mode).

@@ -98,6 +98,14 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 21, 2025 - Perception Evaluator Module - PRODUCTION READY
+- **Behavioral Market Analysis**: Nowy moduł perception_evaluator.py zastępuje klasyczny scoring behawioralną analizą rynku
+- **Trader-like Logic**: System ocenia setup jako całość z perspektywy doświadczonego tradera bez punktów i progów
+- **4 Scenariusze Entry**: Pullback Recovery, Momentum Continuation, Breakout Preparation, Support Bounce
+- **Context Building**: Automatyczna konwersja trend_mode_data na market_context dla behavioral analysis
+- **Dual Path Analysis**: analyze_trend_mode_dual_path() porównuje traditional scoring vs perception approach
+- **Pipeline Integration**: compute_trend_mode_with_perception() jako alternatywa dla compute_trend_mode_score()
+
 ### June 21, 2025 - Trend Mode 2.0 Integration FIX - PRODUCTION READY
 - **Critical Issue Fixed**: Stary system compute_trend_mode_score() zastąpiony nowym Trend Mode 2.0 w crypto_scan_service.py
 - **Score Accumulation Fixed**: Punkty z detektorów (heatmap_vacuum +10, one_sided_pressure +5) zawsze się sumują niezależnie od entry_signal
