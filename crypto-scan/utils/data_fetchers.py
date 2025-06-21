@@ -172,7 +172,7 @@ def get_symbols_cached(require_chain=True):
             if chain not in VALID_CHAINS:
                 continue
 
-        if is_valid_symbol(symbol):
+        if is_valid_perpetual_symbol(symbol):
             valid_symbols.append(symbol)
 
     # Essential fallback when API/cache fails
