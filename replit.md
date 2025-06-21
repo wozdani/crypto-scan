@@ -98,6 +98,13 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 21, 2025 - Trend Mode 2.0 Integration FIX - PRODUCTION READY
+- **Critical Issue Fixed**: Stary system compute_trend_mode_score() zastąpiony nowym Trend Mode 2.0 w crypto_scan_service.py
+- **Score Accumulation Fixed**: Punkty z detektorów (heatmap_vacuum +10, one_sided_pressure +5) zawsze się sumują niezależnie od entry_signal
+- **Real-time Integration**: Pełna integracja process_trend_mode_2() w głównym cyklu skanowania z prawdziwymi danymi orderbook
+- **Enhanced Logging**: Szczegółowe logi pokazują aktywne detektory (Core/Helper/Negative) oraz breakdown punktów
+- **Signal Updates**: trend_mode_confidence teraz zawiera rzeczywisty Trend Mode 2.0 score zamiast legacy values
+
 ### June 21, 2025 - Trend Mode 2.0 Complete System - PRODUCTION READY
 - **Revolutionary Scoring System**: Zastąpienie binarnej logiki trend_active nowym modelem z 3 kategoriami detektorów
 - **Core Detectors (+10 pts)**: uptrend_15m, pullback_flow, calm_before_trend, orderbook_freeze, heatmap_vacuum

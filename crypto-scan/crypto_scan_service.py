@@ -441,146 +441,107 @@ def scan_cycle():
                 else:
                     print(f"❌ Failed to send comprehensive alert for {symbol}")
 
-            # === TREND MODE PIPELINE INTEGRATION ===
-            # New trend mode pipeline: 10-layer flow analysis with comprehensive scoring
-            trend_mode_active = False
-            trend_mode_description = "Nieaktywny"
-            trend_mode_confidence = 0
-            trend_mode_score = 0
-            trend_mode_reasons = []
-            
+            # === TREND MODE 2.0 DETECTION WITH NEW SCORING SYSTEM ===
             try:
-                from utils.trend_mode_pipeline import (
-                    detect_trend_mode, detect_trend_mode_extended, 
-                    save_trend_mode_alert, save_trend_mode_report,
-                    compute_trend_mode_score, fetch_5m_prices_bybit
-                )
-                from utils.bybit_orderbook import get_orderbook_with_fallback
+                from utils.trend_mode_integration import process_trend_mode_2, get_trend_mode_2_summary
                 
-                # Extended trend mode analysis with 10-layer flow detection
-                candles = market_data.get('candles', []) if market_data else []
-                trend_result = detect_trend_mode_extended(symbol, candles)
-                trend_mode_active, trend_mode_description, trend_details = trend_result
-                trend_mode_confidence = trend_details.get('combined_confidence', 0)
+                # Przygotuj dane rynkowe dla Trend Mode 2.0
+                trend_market_data = {
+                    'candles': market_data.get('candles', []) if market_data else [],
+                    'prices': [float(c[4]) for c in market_data.get('candles', [])] if market_data and market_data.get('candles') else [],
+                    'volumes': [float(c[5]) for c in market_data.get('candles', [])] if market_data and market_data.get('candles') else []
+                }
                 
-                # Comprehensive Trend Mode scoring with 10 detectors
+                # Pobierz prawdziwe dane orderbook jeśli dostępne
                 try:
-                    print(f"🔍 [TREND DEBUG] Starting comprehensive analysis for {symbol}")
-                    
-                    # Fetch required data for comprehensive scoring
-                    prices_5m = fetch_5m_prices_bybit(symbol, 24)  # 2 hours of 5m data
-                    prices_1m = []  # Will use mock data in development
+                    from utils.bybit_orderbook import get_orderbook_with_fallback
                     orderbook_data = get_orderbook_with_fallback(symbol)
-                    
-                    print(f"📊 [TREND DEBUG] Data collected - 5m prices: {len(prices_5m)}, orderbook: {bool(orderbook_data)}")
-                    
-                    # Calculate comprehensive trend mode score
-                    trend_mode_score, trend_mode_reasons = compute_trend_mode_score(
-                        symbol, prices_5m, prices_1m, orderbook_data
-                    )
-                    
-                    print(f"🎯 [TREND DEBUG] {symbol} - Score: {trend_mode_score}/100+, Active detectors: {len(trend_mode_reasons)}")
-                    if trend_mode_reasons:
-                        print(f"🔍 [TREND DEBUG] Active signals: {', '.join(trend_mode_reasons)}")
-                    
-                    # Advanced trend mode alerting with 15M/5M analysis
-                    # Debug logging for trend mode
-                    if trend_mode_score > 0:
-                        print(f"🎯 TREND MODE DEBUG: {symbol} - Score: {trend_mode_score}, Reasons: {trend_mode_reasons}")
-                        
-                        # Check if entry is triggered for debugging
-                        if any("Entry after correction" in reason for reason in trend_mode_reasons):
-                            print(f"✅ ALERT TREND MODE dla {symbol}! Entry triggered.")
-                            
-                    if trend_mode_score >= 30:  # Alert threshold
-                        print(f"🚨 TREND MODE ALERT: {symbol} - Score: {trend_mode_score}/100+")
-                        print(f"📋 Active signals: {', '.join(trend_mode_reasons)}")
-                        
-                        # Check for premium S/R trend entry signal (100 points = perfect conditions)
-                        if trend_mode_score == 100 and any("Strong recent trend + Near support + Entry after correction" in reason for reason in trend_mode_reasons):
-                            print(f"🔥 PREMIUM S/R TREND ENTRY: {symbol} - Perfect S/R conditions detected (100 points)")
-                            
-                            # Send premium S/R trend entry alert
-                            send_alert(
-                                symbol=symbol,
-                                alert_type="trend_mode",
-                                trend_score=100,
-                                trend_reasons=["Premium S/R Trend Entry: 3h trend + Support level + Entry signal"]
-                            )
-                        elif trend_mode_score == 70 and any("Strong recent trend + Near support" in reason for reason in trend_mode_reasons):
-                            print(f"🎯 S/R TREND SETUP: {symbol} - Strong setup, waiting for entry (70 points)")
-                            
-                            # Send S/R trend setup alert
-                            send_alert(
-                                symbol=symbol,
-                                alert_type="trend_mode",
-                                trend_score=70,
-                                trend_reasons=["S/R Trend Setup: 3h trend + Support level, awaiting entry signal"]
-                            )
-                        else:
-                            # Send standard trend mode alert
-                            send_alert(
-                                symbol=symbol,
-                                alert_type="trend_mode", 
-                                trend_score=trend_mode_score,
-                                trend_reasons=trend_mode_reasons
-                            )
-                        
-                        # Save comprehensive trend mode alert to dedicated report file
-                        alert_data = {
-                            'symbol': symbol,
-                            'trend_active': True,
-                            'description': f"Advanced Trend Mode Alert - Score: {trend_mode_score}",
-                            'confidence': trend_mode_confidence,
-                            'comprehensive_score': trend_mode_score,
-                            'active_signals': trend_mode_reasons,
-                            'timestamp': datetime.now(timezone.utc).isoformat(),
-                            'analysis_type': 'advanced_15m_5m',
-                            'alert_threshold': 30
+                    if not orderbook_data:
+                        # Fallback orderbook data
+                        orderbook_data = {
+                            'ask_volumes': [1000, 950, 900],
+                            'bid_volumes': [800, 900, 1000]
                         }
-                        save_trend_mode_alert(alert_data)
-                        save_trend_mode_report(symbol, alert_data)  # Save to reports folder
+                except:
+                    orderbook_data = {
+                        'ask_volumes': [1000, 950, 900],
+                        'bid_volumes': [800, 900, 1000]
+                    }
+                
+                # PRZETWÓRZ SYMBOL PRZEZ TREND MODE 2.0
+                trend_result = process_trend_mode_2(symbol, trend_market_data, orderbook_data)
+                
+                # Wyciągnij kluczowe dane
+                trend_score = trend_result.get("trend_mode_2_score", 0)
+                alert_level = trend_result.get("alert_level", 0)
+                trend_active = trend_result.get("trend_active", False)
+                alert_generated = trend_result.get("alert_generated", False)
+                alert_data = trend_result.get("alert_data")
+                score_breakdown = trend_result.get("score_breakdown", {})
+                
+                # WAŻNE: Score zawsze sumuje punkty z detektorów niezależnie od entry_signal
+                active_core = score_breakdown.get('active_core', [])
+                active_helper = score_breakdown.get('active_helper', [])
+                active_negative = score_breakdown.get('active_negative', [])
+                
+                # Stwórz podsumowanie
+                trend_summary = get_trend_mode_2_summary(trend_result)
+                
+                # Update scan result z Trend Mode 2.0 data
+                for result in scan_results:
+                    if result['symbol'] == symbol:
+                        result['trend_score'] = trend_score
+                        result['trend_active'] = trend_active
+                        result['trend_summary'] = trend_summary
+                        result['trend_alert_generated'] = alert_generated
+                        result['trend_alert_level'] = alert_level
+                        result['trend_core_detectors'] = active_core
+                        result['trend_helper_detectors'] = active_helper
+                        result['trend_negative_detectors'] = active_negative
+                        break
+                
+                # Loguj wynik z detalami detektorów
+                level_names = {0: "No Alert", 1: "Watchlist", 2: "Active Entry", 3: "Confirmed"}
+                level_name = level_names.get(alert_level, "Unknown")
+                
+                if trend_score > 0:
+                    detector_info = []
+                    if active_core:
+                        detector_info.append(f"Core: {', '.join(active_core)}")
+                    if active_helper:
+                        detector_info.append(f"Helper: {', '.join(active_helper)}")
+                    if active_negative:
+                        detector_info.append(f"Negative: {', '.join(active_negative)}")
                     
-                    elif trend_mode_active:
-                        print(f"📊 Trend Mode Active: {symbol} - Basic: {trend_mode_confidence}/250, Comprehensive: {trend_mode_score}/100+")
+                    detector_summary = " | ".join(detector_info) if detector_info else "No active detectors"
                     
-                    elif trend_mode_score > 0:
-                        print(f"📈 [TREND DEBUG] {symbol} - Low score: {trend_mode_score}/100+ (threshold: 30+)")
+                    if alert_generated and alert_data:
+                        print(f"🚨 [TREND MODE 2.0] {symbol}: {alert_data['reason']} (Level {alert_level}: {level_name})")
+                        print(f"   Detectors: {detector_summary}")
+                    else:
+                        print(f"📊 [TREND MODE 2.0] {symbol}: {trend_score}/100 - Level {alert_level}: {level_name}")
+                        print(f"   Active: {detector_summary}")
+                else:
+                    print(f"📊 [TREND MODE 2.0] {symbol}: {trend_score}/100 - No detectors active")
+                
+                # Update signals with Trend Mode 2.0 results
+                signals["trend_mode_active"] = trend_active
+                signals["trend_mode_description"] = f"Level {alert_level}: {level_name}"
+                signals["trend_mode_confidence"] = trend_score
+                signals["trend_mode_2_score"] = trend_score
+                signals["trend_alert_level"] = alert_level
+                signals["trend_core_detectors"] = len(active_core)
+                signals["trend_helper_detectors"] = len(active_helper)
+                signals["trend_negative_detectors"] = len(active_negative)
                     
-                except Exception as score_error:
-                    print(f"⚠️ Comprehensive scoring failed for {symbol}: {str(score_error)}")
-                    trend_mode_score = 0
-                    trend_mode_reasons = []
-                # Use existing market_data instead of fetching again
-                if market_data and isinstance(market_data, dict) and 'candles' in market_data:
-                    candles_data_tm = market_data.get('candles')
-                    if candles_data_tm and isinstance(candles_data_tm, list) and len(candles_data_tm) >= 6:
-                        # Use extended version for full details (legacy compatibility)
-                        trend_mode_active, trend_mode_description, trend_mode_details = detect_trend_mode_extended(symbol, candles_data_tm)
-                        
-                        if trend_mode_active:
-                            trend_mode_confidence = trend_mode_details.get("combined_confidence", 0)
-                            print(f"📈 {symbol}: Trend Mode ACTIVE - {trend_mode_description} (Confidence: {trend_mode_confidence}%)")
-                            
-                            # Zapisz alert trend mode (legacy format compatibility)
-                            legacy_alert_data = {
-                                'symbol': symbol,
-                                'trend_active': trend_mode_active,
-                                'description': trend_mode_description,
-                                'details': trend_mode_details,
-                                'timestamp': datetime.now(timezone.utc).isoformat()
-                            }
-                            save_trend_mode_alert(legacy_alert_data)
-                        else:
-                            print(f"📉 {symbol}: Trend Mode inactive - {trend_mode_description}")
-                            
-            except Exception as trend_mode_error:
-                print(f"⚠️ Trend Mode pipeline failed for {symbol}: {trend_mode_error}")
-            
-            # Update signals with Trend Mode results
-            signals["trend_mode_active"] = trend_mode_active
-            signals["trend_mode_description"] = trend_mode_description
-            signals["trend_mode_confidence"] = trend_mode_confidence
+            except Exception as e:
+                print(f"⚠️ Error in Trend Mode 2.0 detection for {symbol}: {e}")
+                import traceback
+                traceback.print_exc()
+                # Fallback values
+                signals["trend_mode_active"] = False
+                signals["trend_mode_description"] = "Error"
+                signals["trend_mode_confidence"] = 0
 
             # Save complete stage signal data 
             save_stage_signal(symbol, final_score, stage2_pass, compressed, stage1g_active, 

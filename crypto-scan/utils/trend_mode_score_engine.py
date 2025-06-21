@@ -374,17 +374,35 @@ class TrendMode2ScoreEngine:
         return avg_ask_change < 0.05 and avg_bid_change < 0.05  # < 5% change
     
     def _detect_heatmap_vacuum(self, prices: List[float], orderbook_data: Dict) -> bool:
-        """Wykryj heatmap vacuum - brak podaży powyżej"""
-        if len(prices) < 10:
+        """Wykryj heatmap vacuum - brak podaży powyżej (4/5 poziomów czyste)"""
+        if len(prices) < 15:
             return False
         
         current_price = prices[-1]
-        recent_highs = [max(prices[i:i+5]) for i in range(len(prices)-10, len(prices)-5)]
         
-        # Sprawdź czy current price jest blisko lub powyżej ostatnich highs
-        resistance_levels = [h for h in recent_highs if h > current_price * 1.002]
+        # Analizuj ostatnie 15 świec dla resistance levels
+        recent_prices = prices[-15:]
         
-        # Vacuum = mało poziomów resistance
+        # Znajdź lokalne highs
+        resistance_levels = []
+        for i in range(2, len(recent_prices)-2):
+            if (recent_prices[i] > recent_prices[i-1] and 
+                recent_prices[i] > recent_prices[i+1] and
+                recent_prices[i] > current_price * 1.002):  # Minimum 0.2% powyżej
+                resistance_levels.append(recent_prices[i])
+        
+        # Dodaj również orderbook resistance jeśli dostępne
+        if orderbook_data and 'ask_volumes' in orderbook_data:
+            ask_volumes = orderbook_data['ask_volumes']
+            # Duże ask volume = silny resistance
+            avg_ask = sum(ask_volumes) / len(ask_volumes) if ask_volumes else 0
+            strong_ask_levels = sum(1 for v in ask_volumes if v > avg_ask * 1.5)
+            
+            # Jeśli mało silnych ask levels, to jest vacuum
+            if strong_ask_levels <= 1:
+                resistance_levels = resistance_levels[:2]  # Ogranicz do 2 levels
+        
+        # Vacuum = maksymalnie 1 level resistance (4/5 poziomów czyste)
         return len(resistance_levels) <= 1
     
     def _detect_vwap_pinning(self, prices: List[float], volumes: List[float]) -> bool:
@@ -442,18 +460,22 @@ class TrendMode2ScoreEngine:
         return min(len(highs) + len(lows), 10)  # Max 10 punktów
     
     def _detect_volume_flow_consistency(self, volumes: List[float]) -> bool:
-        """Wykryj stały napływ volume"""
+        """Wykryj stały napływ volume (one_sided_pressure equivalent)"""
         if len(volumes) < 10:
             return False
         
         recent = volumes[-10:]
         avg_volume = sum(recent) / len(recent)
         
-        # Sprawdź czy ostatnie 5 okresów ma volume powyżej średniej
+        # Sprawdź trend volume w ostatnich 5 okresach
         last_5 = recent[-5:]
+        
+        # Volume flow consistency = rosnący trend volume
+        volume_increases = sum(1 for i in range(1, len(last_5)) if last_5[i] > last_5[i-1])
         above_avg = sum(1 for v in last_5 if v > avg_volume * 0.8)
         
-        return above_avg >= 4  # 4/5 ostatnich powyżej 80% średniej
+        # Warunek: rosnący volume trend I powyżej średniej
+        return volume_increases >= 3 and above_avg >= 4  # 3/4 wzrostów I 4/5 powyżej średniej
     
     def _detect_chaotic_flow(self, prices: List[float]) -> bool:
         """Wykryj chaotic flow - dużo zmian kierunku"""
@@ -512,12 +534,26 @@ class TrendMode2ScoreEngine:
         return volatility > 0.05  # >5% volatility
     
     def _detect_strong_sell_pressure(self, orderbook_data: Dict) -> bool:
-        """Wykryj silną presję sprzedaży"""
+        """Wykryj silną presję sprzedaży w orderbooku"""
         if not orderbook_data:
             return False
         
+        ask_volumes = orderbook_data.get('ask_volumes', [])
+        bid_volumes = orderbook_data.get('bid_volumes', [])
+        
+        if not ask_volumes or not bid_volumes:
+            return False
+        
+        # Sprawdź trend ask volumes (rosnące = pressure)
+        ask_increasing = False
+        if len(ask_volumes) >= 3:
+            ask_increasing = ask_volumes[2] > ask_volumes[1] > ask_volumes[0]
+        
+        # Sprawdź bid/ask ratio
         ask_ratio = self._calculate_ask_domination(orderbook_data)
-        return ask_ratio > 5.0  # Ask volume 5x większy niż bid
+        
+        # Strong sell pressure = rosnące ask volumes AND dominacja ask
+        return ask_increasing and ask_ratio > 3.0
 
 
 # Globalna instancja dla całego systemu
