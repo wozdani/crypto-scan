@@ -157,7 +157,13 @@ def get_symbols_cached(require_chain=True):
             symbols = json.load(f)
     except FileNotFoundError:
         print("❌ Błąd: Nie można załadować cache'u symboli po rebuild")
-        return []
+        # Return essential trading pairs as emergency fallback
+        fallback_symbols = [
+            "BTCUSDT", "ETHUSDT", "SOLUSDT", "ADAUSDT", "DOTUSDT", "AVAXUSDT",
+            "MATICUSDT", "LINKUSDT", "UNIUSDT", "LTCUSDT", "ATOMUSDT", "FILUSDT"
+        ]
+        print(f"🔄 Using emergency fallback: {len(fallback_symbols)} symbols")
+        return fallback_symbols
 
     valid_symbols = []
     for symbol in symbols:

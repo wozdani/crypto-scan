@@ -35,11 +35,19 @@ def fetch_15m_prices_extended(symbol: str, hours_back: int = 24):
             prices = [float(candle[4]) for candle in data["result"]["list"]]
             return prices
         
-        # Fallback to mock data when API fails
-        from detectors.trend_mode_mock import generate_mock_15m_prices, should_use_mock_data
-        if should_use_mock_data():
-            print(f"[API FALLBACK] Using mock 15M data for {symbol}")
-            return generate_mock_15m_prices(symbol, candles_needed)
+        # Try alternative API endpoints before fallback
+        try:
+            # Try linear category instead of spot
+            params["category"] = "linear"
+            response = requests.get(url, params=params, timeout=10)
+            data = response.json()
+            
+            if data.get("retCode") == 0 and data.get("result", {}).get("list"):
+                prices = [float(candle[4]) for candle in data["result"]["list"]]
+                print(f"✅ [LINEAR API] Got {len(prices)} 15M prices for {symbol}")
+                return prices
+        except:
+            pass
         
         return []
     except Exception as e:
@@ -80,10 +88,18 @@ def fetch_5m_prices_recent(symbol: str, count: int = 12):
             prices = [float(candle[4]) for candle in data["result"]["list"]]
             return prices[:count] if len(prices) >= count else prices
         
-        # Fallback to mock data when API fails
-        from detectors.trend_mode_mock import generate_mock_5m_prices
-        print(f"[API FALLBACK] Using mock 5M data for {symbol}")
-        return generate_mock_5m_prices(symbol, count)
+        # Try linear category instead of spot
+        try:
+            params["category"] = "linear"
+            response = requests.get(url, params=params, timeout=10)
+            data = response.json()
+            
+            if data.get("retCode") == 0 and data.get("result", {}).get("list"):
+                prices = [float(candle[4]) for candle in data["result"]["list"]]
+                print(f"✅ [LINEAR API] Got {len(prices)} 5M prices for {symbol}")
+                return prices[:count] if len(prices) >= count else prices
+        except:
+            pass
         
     except Exception as e:
         print(f"Error fetching 5M prices for {symbol}: {e}")
@@ -120,10 +136,19 @@ def get_current_price(symbol: str):
             ticker = data["result"]["list"][0]
             return float(ticker.get("lastPrice", 0))
         
-        # Fallback to mock data when API fails
-        from detectors.trend_mode_mock import generate_mock_current_price
-        print(f"[API FALLBACK] Using mock current price for {symbol}")
-        return generate_mock_current_price(symbol)
+        # Try linear category for price
+        try:
+            params["category"] = "linear"
+            response = requests.get(url, params=params, timeout=10)
+            data = response.json()
+            
+            if data.get("retCode") == 0 and data.get("result", {}).get("list"):
+                ticker = data["result"]["list"][0]
+                price = float(ticker.get("lastPrice", 0))
+                print(f"✅ [LINEAR API] Got price for {symbol}: {price}")
+                return price
+        except:
+            pass
         
     except Exception as e:
         print(f"Error fetching current price for {symbol}: {e}")
@@ -171,10 +196,26 @@ def get_orderbook_volumes_sr(symbol: str):
             
             return ask_volumes, bid_volumes
         
-        # Fallback to mock data when API fails
-        from detectors.trend_mode_mock import generate_mock_orderbook_volumes
-        print(f"[API FALLBACK] Using mock orderbook data for {symbol}")
-        return generate_mock_orderbook_volumes(symbol)
+        # Try linear category for orderbook
+        try:
+            params["category"] = "linear"
+            response = requests.get(url, params=params, timeout=10)
+            data = response.json()
+            
+            if data.get("retCode") == 0 and data.get("result"):
+                asks = data["result"].get("a", [])
+                bids = data["result"].get("b", [])
+                
+                ask_vol = sum(float(ask[1]) for ask in asks[:3]) if asks else 0
+                bid_vol = sum(float(bid[1]) for bid in bids[:3]) if bids else 0
+                
+                ask_volumes = [ask_vol * 1.1, ask_vol * 1.05, ask_vol]
+                bid_volumes = [bid_vol * 0.9, bid_vol * 0.95, bid_vol]
+                
+                print(f"✅ [LINEAR API] Got orderbook for {symbol}")
+                return ask_volumes, bid_volumes
+        except:
+            pass
         
     except Exception as e:
         print(f"Error fetching orderbook volumes for {symbol}: {e}")
