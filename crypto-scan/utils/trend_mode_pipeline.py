@@ -9,6 +9,7 @@ from .orderbook_sentiment import detect_orderbook_sentiment
 from .bybit_orderbook import get_orderbook_with_fallback
 import sys
 import os
+import time
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 # Removed old directional_flow_detector - replaced with uptrend_15m detector
 from detectors.flow_consistency import compute_flow_consistency, calculate_flow_consistency_score, get_price_series_bybit
