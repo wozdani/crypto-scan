@@ -12,7 +12,7 @@ import time
 
 def is_setup_convincing(context: Dict) -> bool:
     """
-    Główna funkcja oceny setupu z perspektywy behawioralnej
+    Elastyczna funkcja oceny setupu - zmniejszone wymagania dla więcej alertów
     
     Args:
         context: Market context z danymi o trendzie, flow, orderbook, etc.
@@ -21,37 +21,56 @@ def is_setup_convincing(context: Dict) -> bool:
         bool: True jeśli setup jest przekonujący dla wejścia
     """
     try:
-        # === PODSTAWOWE WARUNKI (MUST HAVE) ===
-        
-        # 1. Trend musi być potwierdzony
+        # === PODSTAWOWY WARUNEK ===
+        # Tylko trend musi być potwierdzony - reszta jest elastyczna
         if not context.get("trend_confirmed", False):
             return False
-            
-        # 2. Flow musi być spójny
-        if not context.get("flow_consistent", False):
-            return False
         
-        # 3. Orderbook behavior musi wspierać ruch
+        # === ELASTYCZNE WARUNKI WEJŚCIA ===
+        
+        # Warunki pullback - akceptujemy weak i medium
+        pullback_ok = False
+        if context.get("pullback_detected", False):
+            pullback_strength = context.get("pullback_strength", "strong")
+            pullback_ok = pullback_strength in ["weak", "medium"]
+        
+        # Flow - zmniejszone wymaganie lub aktywne detektory
+        flow_ok = (context.get("flow_consistent", False) or 
+                   context.get("heatmap_vacuum", False) or
+                   context.get("orderbook_freeze", False) or
+                   context.get("vwap_pinning", False))
+        
+        # Orderbook - akceptujemy więcej stanów
         orderbook_behavior = context.get("orderbook_behavior", "neutral")
-        if orderbook_behavior not in ["bullish_control", "accumulation", "squeeze"]:
-            return False
+        orderbook_ok = orderbook_behavior in ["bullish_control", "slightly_bullish", "accumulation", "squeeze"]
         
-        # === SCENARIUSZE WEJŚCIA ===
+        # Support - zwiększona tolerancja do 2.5%
+        support_ok = context.get("near_support", False)
         
-        # Scenariusz 1: Pullback + Support + Vacuum
-        if _evaluate_pullback_recovery_scenario(context):
+        # === SCENARIUSZE WEJŚCIA (elastyczne kombinacje) ===
+        
+        # Scenariusz 1: Pullback Recovery (zrelaksowany)
+        if pullback_ok and flow_ok and orderbook_ok:
             return True
         
-        # Scenariusz 2: Momentum Continuation
-        if _evaluate_momentum_continuation_scenario(context):
+        # Scenariusz 2: Strong Flow + Support
+        if flow_ok and support_ok and orderbook_ok:
             return True
         
-        # Scenariusz 3: Breakout Preparation
-        if _evaluate_breakout_preparation_scenario(context):
+        # Scenariusz 3: Multiple Detectors Active (bez pullback requirement)
+        active_detectors = sum([
+            context.get("heatmap_vacuum", False),
+            context.get("orderbook_freeze", False),
+            context.get("vwap_pinning", False),
+            context.get("human_flow", False),
+            context.get("micro_echo", False)
+        ])
+        
+        if active_detectors >= 2 and orderbook_ok:
             return True
         
-        # Scenariusz 4: Support Bounce
-        if _evaluate_support_bounce_scenario(context):
+        # Scenariusz 4: Support Bounce (zrelaksowany)
+        if support_ok and (flow_ok or orderbook_behavior == "bullish_control"):
             return True
         
         return False
@@ -204,9 +223,9 @@ def build_market_context_from_trend_mode(trend_mode_data: Dict) -> Dict:
         # Trend confirmation
         context["trend_confirmed"] = trend_mode_data.get("uptrend_active", False)
         
-        # Flow analysis
+        # Flow analysis - zmniejszone wymaganie z 70% na 50%
         flow_score = trend_mode_data.get("flow_consistency_score", 0)
-        context["flow_consistent"] = flow_score > 70
+        context["flow_consistent"] = flow_score >= 50
         
         # Orderbook behavior
         bid_pressure = trend_mode_data.get("bid_pressure", 0)
@@ -215,6 +234,8 @@ def build_market_context_from_trend_mode(trend_mode_data: Dict) -> Dict:
         if bid_pressure > ask_pressure * 1.5:
             context["orderbook_behavior"] = "bullish_control"
         elif bid_pressure > ask_pressure * 1.2:
+            context["orderbook_behavior"] = "slightly_bullish"  # Nowa kategoria
+        elif bid_pressure > ask_pressure * 1.0:
             context["orderbook_behavior"] = "accumulation"
         elif abs(bid_pressure - ask_pressure) < ask_pressure * 0.1:
             context["orderbook_behavior"] = "squeeze"
@@ -243,10 +264,19 @@ def build_market_context_from_trend_mode(trend_mode_data: Dict) -> Dict:
         else:
             context["pullback_strength"] = "strong"
         
-        # Support/Resistance analysis
-        context["price_near_support"] = trend_mode_data.get("near_support", False)
+        # Support/Resistance analysis - zwiększona tolerancja do 2.5%
+        near_support_raw = trend_mode_data.get("near_support", False)
+        support_distance = trend_mode_data.get("support_distance_pct", 100)
+        context["near_support"] = near_support_raw or support_distance <= 2.5
         context["near_resistance"] = trend_mode_data.get("near_resistance", False)
         context["support_strength"] = trend_mode_data.get("support_strength", "weak")
+        
+        # Dodaj informacje o detektorach
+        context["heatmap_vacuum"] = trend_mode_data.get("heatmap_vacuum", False)
+        context["orderbook_freeze"] = trend_mode_data.get("orderbook_freeze", False)
+        context["vwap_pinning"] = trend_mode_data.get("vwap_pinning", False)
+        context["human_flow"] = trend_mode_data.get("human_flow", False)
+        context["micro_echo"] = trend_mode_data.get("micro_echo", False)
         
         # Market structure
         context["heatmap_vacuum"] = trend_mode_data.get("heatmap_vacuum", False)

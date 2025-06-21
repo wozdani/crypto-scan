@@ -112,6 +112,13 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Bug Resolution**: System nie odrzuca już wysokich PPWCS scores z powodu niskich checklist scores
 - **Enhanced Logic**: Bardzo słabe PPWCS (<15) nadal blokuje alert niezależnie od checklist
 
+### June 21, 2025 - Perception Evaluator Fixed - Alert Generation Restored - PRODUCTION READY
+- **Alert Engine Unblocked**: Naprawiono zbyt restrykcyjną logikę w is_setup_convincing() - system generuje znacznie więcej alertów
+- **Elastic Conditions**: Flow requirement zmniejszony z 70% na 50%, orderbook akceptuje "slightly_bullish", support tolerance zwiększona do 2.5%
+- **Multiple Entry Scenarios**: 4 elastyczne scenariusze zamiast sztywnych warunków - pullback+flow+orderbook, flow+support, 2+ detectors, support bounce
+- **Detector Integration**: Heatmap vacuum, orderbook freeze, VWAP pinning wpływają na decyzję bez requirement perfect match
+- **Trader-like Logic**: System przypomina ocenę tradera a nie twarde filtry - więcej alertów bez utraty jakości
+
 ### June 21, 2025 - Perception Evaluator Module - PRODUCTION READY
 - **Behavioral Market Analysis**: Nowy moduł perception_evaluator.py zastępuje klasyczny scoring behawioralną analizą rynku
 - **Trader-like Logic**: System ocenia setup jako całość z perspektywy doświadczonego tradera bez punktów i progów
