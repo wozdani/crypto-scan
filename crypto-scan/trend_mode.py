@@ -105,8 +105,23 @@ def determine_market_context(candles: List[List], symbol: str = None) -> str:
         return context
         
     except Exception as e:
+        error_msg = f"determine_market_context failed: {str(e)}"
         if symbol:
-            print(f"⚠️ Error in determine_market_context for {symbol}: {e}")
+            print(f"[TREND ERROR] {symbol} - {error_msg}")
+            # Log to file
+            try:
+                with open("trend_error_log.txt", "a", encoding="utf-8") as f:
+                    f.write(json.dumps({
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "symbol": symbol,
+                        "function": "determine_market_context",
+                        "error": str(e),
+                        "candles_count": len(candles) if candles else 0
+                    }) + "\n")
+            except:
+                pass
+        else:
+            print(f"[TREND ERROR] {error_msg}")
         return "range"
 
 
@@ -182,8 +197,23 @@ def compute_trend_strength(candles: List[List], symbol: str = None) -> float:
         return final_strength
         
     except Exception as e:
+        error_msg = f"compute_trend_strength failed: {str(e)}"
         if symbol:
-            print(f"⚠️ Error in compute_trend_strength for {symbol}: {e}")
+            print(f"[TREND ERROR] {symbol} - {error_msg}")
+            # Log to file
+            try:
+                with open("trend_error_log.txt", "a", encoding="utf-8") as f:
+                    f.write(json.dumps({
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "symbol": symbol,
+                        "function": "compute_trend_strength",
+                        "error": str(e),
+                        "candles_count": len(candles) if candles else 0
+                    }) + "\n")
+            except:
+                pass  # Don't fail on logging failure
+        else:
+            print(f"[TREND ERROR] {error_msg}")
         return 0.0
 
 
@@ -260,9 +290,24 @@ def detect_pullback(candles: List[List], symbol: str = None) -> Dict:
         }
         
     except Exception as e:
+        error_msg = f"detect_pullback failed: {str(e)}"
         if symbol:
-            print(f"⚠️ Error in detect_pullback for {symbol}: {e}")
-        return {"detected": False, "magnitude": 0.0, "volume_declining": False}
+            print(f"[TREND ERROR] {symbol} - {error_msg}")
+            # Log to file
+            try:
+                with open("trend_error_log.txt", "a", encoding="utf-8") as f:
+                    f.write(json.dumps({
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "symbol": symbol,
+                        "function": "detect_pullback",
+                        "error": str(e),
+                        "candles_count": len(candles) if candles else 0
+                    }) + "\n")
+            except:
+                pass
+        else:
+            print(f"[TREND ERROR] {error_msg}")
+        return {"detected": False, "magnitude": 0.0, "volume_declining": False, "error": True}
 
 
 def detect_support_reaction(candles: List[List], symbol: str = None) -> Dict:
@@ -432,8 +477,24 @@ def market_time_score(utc_hour: int, symbol: str = None) -> Dict:
         return result
             
     except Exception as e:
-        print(f"⚠️ Error in market_time_score: {e}")
-        return {"time_boost": 1.0, "session": "unknown", "liquidity": "medium"}
+        error_msg = f"market_time_score failed: {str(e)}"
+        if symbol:
+            print(f"[TREND ERROR] {symbol} - {error_msg}")
+            # Log to file
+            try:
+                with open("trend_error_log.txt", "a", encoding="utf-8") as f:
+                    f.write(json.dumps({
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "symbol": symbol,
+                        "function": "market_time_score",
+                        "error": str(e),
+                        "utc_hour": utc_hour
+                    }) + "\n")
+            except:
+                pass
+        else:
+            print(f"[TREND ERROR] {error_msg}")
+        return {"time_boost": 1.0, "session": "unknown", "liquidity": "medium", "error": True}
 
 
 def detect_bounce_confirmation(candles: List[List], symbol: str = None) -> Dict:
@@ -530,8 +591,24 @@ def detect_bounce_confirmation(candles: List[List], symbol: str = None) -> Dict:
         }
         
     except Exception as e:
-        print(f"⚠️ Error in detect_bounce_confirmation: {e}")
-        return {"bounce_confirmed": False, "bounce_strength": 0.0, "pattern": "error"}
+        error_msg = f"detect_bounce_confirmation failed: {str(e)}"
+        if symbol:
+            print(f"[TREND ERROR] {symbol} - {error_msg}")
+            # Log to file
+            try:
+                with open("trend_error_log.txt", "a", encoding="utf-8") as f:
+                    f.write(json.dumps({
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "symbol": symbol,
+                        "function": "detect_bounce_confirmation",
+                        "error": str(e),
+                        "candles_count": len(candles) if candles else 0
+                    }) + "\n")
+            except:
+                pass
+        else:
+            print(f"[TREND ERROR] {error_msg}")
+        return {"bounce_confirmed": False, "bounce_strength": 0.0, "pattern": "error", "error": True}
 
 
 def compute_trend_score(
@@ -665,13 +742,31 @@ def compute_trend_score(
         }
         
     except Exception as e:
-        print(f"⚠️ Error in compute_trend_score: {e}")
+        error_msg = f"compute_trend_score failed: {str(e)}"
+        if symbol:
+            print(f"[TREND ERROR] {symbol} - {error_msg}")
+            # Log to file
+            try:
+                with open("trend_error_log.txt", "a", encoding="utf-8") as f:
+                    f.write(json.dumps({
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "symbol": symbol,
+                        "function": "compute_trend_score",
+                        "error": str(e),
+                        "trend_strength": trend_strength,
+                        "time_boost": time_data.get("time_boost", "unknown") if isinstance(time_data, dict) else "unknown"
+                    }) + "\n")
+            except:
+                pass
+        else:
+            print(f"[TREND ERROR] {error_msg}")
         return {
             "final_score": 0.0,
             "base_score": 0.0,
             "weighted_scores": {},
             "quality_grade": "error",
-            "time_boost_applied": 1.0
+            "time_boost_applied": 1.0,
+            "error": True
         }
 
 
@@ -861,7 +956,20 @@ Focus on: trend quality, pullback depth, support levels, volume confirmation, en
                 "explanation": "OpenAI library not installed"
             }
         except Exception as api_error:
-            print(f"⚠️ OpenAI API error: {api_error}")
+            error_msg = f"OpenAI API error: {str(api_error)}"
+            print(f"[TREND ERROR] GPT - {error_msg}")
+            # Log GPT errors too
+            try:
+                with open("trend_error_log.txt", "a", encoding="utf-8") as f:
+                    f.write(json.dumps({
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "function": "ask_gpt_trader_opinion",
+                        "error": str(api_error),
+                        "error_type": type(api_error).__name__,
+                        "market_description_length": len(market_description) if market_description else 0
+                    }) + "\n")
+            except:
+                pass
             return {
                 "gpt_decision": "error",
                 "confidence": 0.0,
@@ -869,7 +977,19 @@ Focus on: trend quality, pullback depth, support levels, volume confirmation, en
             }
             
     except Exception as e:
-        print(f"⚠️ Error in ask_gpt_trader_opinion: {e}")
+        error_msg = f"ask_gpt_trader_opinion failed: {str(e)}"
+        print(f"[TREND ERROR] GPT - {error_msg}")
+        # Log GPT errors
+        try:
+            with open("trend_error_log.txt", "a", encoding="utf-8") as f:
+                f.write(json.dumps({
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "function": "ask_gpt_trader_opinion",
+                    "error": str(e),
+                    "error_type": type(e).__name__
+                }) + "\n")
+        except:
+            pass
         return {
             "gpt_decision": "error",
             "confidence": 0.0,
@@ -1064,15 +1184,36 @@ def interpret_market_as_trader(symbol: str, candles: List[List], utc_hour: int =
         return result
         
     except Exception as e:
-        print(f"⚠️ Error in interpret_market_as_trader for {symbol}: {e}")
+        error_msg = f"interpret_market_as_trader failed: {str(e)}"
+        print(f"[TREND ERROR] {symbol} - {error_msg}")
+        
+        # Log detailed error to file
+        try:
+            with open("trend_error_log.txt", "a", encoding="utf-8") as f:
+                f.write(json.dumps({
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "symbol": symbol,
+                    "function": "interpret_market_as_trader",
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                    "candles_count": len(candles) if candles else 0,
+                    "utc_hour": utc_hour,
+                    "enable_gpt": enable_gpt
+                }) + "\n")
+        except:
+            pass  # Don't fail on logging failure
+        
         return {
-            "decision": "avoid",
+            "decision": "error",
             "confidence": 0.0,
-            "reasons": ["analysis_error"],
+            "reasons": [f"ERROR: {str(e)}"],
             "market_context": "error",
             "trend_strength": 0.0,
             "entry_quality": 0.0,
-            "analysis_complete": False
+            "quality_grade": "error",
+            "analysis_complete": False,
+            "error": True,
+            "error_details": error_msg
         }
 
 

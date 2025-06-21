@@ -536,7 +536,23 @@ def scan_cycle():
                         print(f"❌ [TREND-MODE] {symbol}: AVOID - {quality_grade} setup ({market_context})")
                 
             except Exception as trend_error:
-                print(f"⚠️ Trend-Mode analysis failed for {symbol}: {trend_error}")
+                error_msg = f"Trend-Mode integration failed: {str(trend_error)}"
+                print(f"[TREND ERROR] {symbol} - {error_msg}")
+                
+                # Log integration errors
+                try:
+                    with open("trend_error_log.txt", "a", encoding="utf-8") as f:
+                        f.write(json.dumps({
+                            "timestamp": get_utc_timestamp(),
+                            "symbol": symbol,
+                            "function": "crypto_scan_service_trend_integration",
+                            "error": str(trend_error),
+                            "error_type": type(trend_error).__name__,
+                            "candles_available": len(candles_15m) if candles_15m else 0
+                        }) + "\n")
+                except:
+                    pass
+                
                 # Fallback values
                 signals.update({
                     'trend_mode_decision': 'error',

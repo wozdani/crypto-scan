@@ -112,11 +112,12 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Bug Resolution**: System nie odrzuca już wysokich PPWCS scores z powodu niskich checklist scores
 - **Enhanced Logic**: Bardzo słabe PPWCS (<15) nadal blokuje alert niezależnie od checklist
 
-### June 21, 2025 - System Cleanup & Perfect Score Threshold - PRODUCTION READY
-- **Debug Cleanup**: Usunięto wszystkie debug printy dotyczące PPWCS, pre-pump scoring, alert levels - system działa bez spamu konsoli
-- **Perfect Score Only**: Alert threshold ustawiony na PPWCS ≥97 (maximum possible score) - tylko perfekcyjne sygnały generują alerty
-- **Eliminacja False Positives**: System będzie wysyłać alerty tylko dla najbardziej pewnych, idealnych pre-pump signals
-- **Clean Operation**: System działa cicho z minimalnym logowaniem tylko dla krytycznych eventów
+### June 21, 2025 - Trend-Mode Error Handling & Debug System - PRODUCTION READY  
+- **Comprehensive Error Handling**: Dodano try/catch do wszystkich funkcji trend_mode.py - system nie może się wysypać
+- **Detailed Error Logging**: [TREND ERROR] printy w konsoli + automatyczny zapis do trend_error_log.txt z timestamp i kontekstem
+- **Safe Fallback Values**: Każda funkcja zwraca bezpieczne wartości domyślne przy błędzie (decision="error", confidence=0.0, etc.)
+- **Debug Print System**: Pełne [TREND DEBUG] logi dla każdego etapu analizy symbolu - market context, trend strength, pullback, support, bounce, scoring, final decision
+- **Production Resilience**: System kontynuuje skanowanie nawet przy błędach w trend-mode analysis
 
 ### June 21, 2025 - Advanced Trend-Mode Integration - PRODUCTION READY
 - **Professional Trader Logic**: Kompletny moduł trend_mode.py z 9 etapami analizy symulującej myślenie profesjonalnego tradera
