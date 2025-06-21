@@ -1,2 +1,4 @@
 {"timestamp": "2025-06-21T16:13:05.303048+00:00", "symbol": "TESTUSDT", "function": "compute_trend_strength", "error": "list index out of range", "candles_count": 50}
 {"timestamp": "2025-06-21T16:13:05.304874+00:00", "symbol": "TESTUSDT", "function": "detect_support_reaction", "error": "list index out of range", "candles_count": 50}
+{"timestamp": "2025-06-21T16:15:30.518914+00:00", "symbol": "MOCKUSDT", "function": "compute_trend_strength", "error": "list index out of range", "candles_count": 50}
+{"timestamp": "2025-06-21T16:15:30.519394+00:00", "symbol": "MOCKUSDT", "function": "detect_support_reaction", "error": "list index out of range", "candles_count": 50}

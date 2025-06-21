@@ -229,8 +229,8 @@ def scan_cycle():
             # Run trend-mode analysis simultaneously with pre-pump PPWCS
             try:
                 print(f"[TREND DEBUG] {symbol}: Attempting Trend-Mode analysis...")
-                from utils.data_fetchers import get_all_data
-                candles_15m = get_all_data(symbol, "15", 50)
+                # Use market data that was already fetched for PPWCS
+                candles_15m = market_data.get('candles', []) if market_data else []
                 
                 print(f"[TREND DEBUG] {symbol}: Got {len(candles_15m) if candles_15m else 0} candles for trend analysis")
                 
