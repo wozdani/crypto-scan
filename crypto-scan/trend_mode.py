@@ -1251,25 +1251,37 @@ def _calculate_ema(prices: List[float], period: int) -> List[float]:
 
 def _calculate_slope(values: List[float]) -> float:
     """Oblicz nachylenie (slope) listy wartości"""
-    if len(values) < 2:
+    if not values or len(values) < 2:
         return 0.0
     
-    n = len(values)
-    x = list(range(n))
-    y = values
-    
-    # Linear regression slope: (n*Σxy - Σx*Σy) / (n*Σx² - (Σx)²)
-    sum_x = sum(x)
-    sum_y = sum(y)
-    sum_xy = sum(x[i] * y[i] for i in range(n))
-    sum_x_squared = sum(x[i] ** 2 for i in range(n))
-    
-    denominator = n * sum_x_squared - sum_x ** 2
-    if denominator == 0:
+    try:
+        # Filter out None values and convert to float
+        clean_values = []
+        for v in values:
+            if v is not None and isinstance(v, (int, float)):
+                clean_values.append(float(v))
+        
+        if len(clean_values) < 2:
+            return 0.0
+            
+        n = len(clean_values)
+        x = list(range(n))
+        y = clean_values
+        
+        # Linear regression slope: (n*Σxy - Σx*Σy) / (n*Σx² - (Σx)²)
+        sum_x = sum(x)
+        sum_y = sum(y)
+        sum_xy = sum(x[i] * y[i] for i in range(n))
+        sum_x_squared = sum(x[i] ** 2 for i in range(n))
+        
+        denominator = n * sum_x_squared - sum_x ** 2
+        if denominator == 0:
+            return 0.0
+        
+        slope = (n * sum_xy - sum_x * sum_y) / denominator
+        return slope
+    except (IndexError, TypeError, ZeroDivisionError, ValueError):
         return 0.0
-    
-    slope = (n * sum_xy - sum_x * sum_y) / denominator
-    return slope
 
 
 def _calculate_volatility(highs: List[float], lows: List[float], closes: List[float]) -> float:
