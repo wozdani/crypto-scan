@@ -123,17 +123,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Quality Assessment**: excellent/strong/good/neutral-watch/weak/very_poor z context adjustment info
 - **Production Integration**: Pełna integracja z crypto_scan_service.py - audytowalny decision trail
 
-### June 21, 2025 - Advanced Trend-Mode Integration - PRODUCTION READY
-- **Professional Trader Logic**: Kompletny moduł trend_mode.py z 9 etapami analizy symulującej myślenie profesjonalnego tradera
-- **Full Production Integration**: Trend-Mode zintegrowany z crypto_scan_service.py - automatyczna analiza każdego symbolu w pętli głównej
-- **Advanced Alert System**: Automatyczne Telegram alerty dla "join_trend" decisions z quality ≥0.75 + cooldown 60min
-- **Session-Aware Analysis**: UTC hour detection z boostami dla London/NY overlap (1.2x), London morning (1.1x), NY afternoon (1.1x)
-- **9-Stage Pipeline**: Market context → trend strength → pullback detection → support reaction → time scoring → bounce confirmation → heuristic scoring → trader logic → GPT assistant
-- **Weighted Scoring System**: trend_strength (30%), pullback_quality (20%), support_reaction (20%), bounce_confirmation (15%), time_boost (15%)
-- **Pattern Recognition**: Engulfing patterns, wick bounce detection, consolidation patterns, higher lows analysis
-- **Alert Cache System**: Sophisticated cooldown mechanism z trend_alert_cache.py - prevents spam, tracks status
-- **Enhanced Logging**: Detailed decision breakdown z quality grades, component analysis, alert status tracking
-- **GPT Integration Ready**: Optional AI trader assistant z market description generation i opinion analysis
+### June 21, 2025 - TraderWeightedDecisionEngine - PRODUCTION READY
+- **TraderWeightedDecisionEngine**: Kompletnie przepisany system scoringu w simulate_trader_decision() - zastąpiono sztywne if/then logic ważonymi składnikami
+- **8-Component Weighted Scoring**: green_ratio (30%), higher_highs_score (20%), pullback_quality (20%), bid_wall_strength (15%), volume_decline_bonus (10%), time_of_day_boost (5%), wick_analysis_bonus (5%), orderbook_imbalance (5%)
+- **Pure Weighted Thresholds**: join_trend ≥0.75, consider_entry ≥0.55, avoid <0.55 z adaptive confidence bez złożonej logiki
+- **Feature-Based Reasoning**: Reasons budowane z top contributors + risk factors - każdy powód oparty na weighted components
+- **Enhanced Logging System**: [TRADER WEIGHTED] + [WEIGHTED BREAKDOWN] + [WEIGHTED REASONS] w terminalu, logs/trader_weighted_log.txt z pełnym JSON
+- **Context-Aware Weights**: Różne scoring dla impulse/pullback/breakout - pullback priorytetyzuje pullback_quality, impulse green_ratio
+- **Test Framework**: test_zerebro_weighted.py dla comprehensive testing ZEREBROUSDT z wynikami w logs/test_zerebro_weighted_log.jsonl
+- **Alert Assessment Integration**: Built-in alert threshold checking (score ≥0.75 + confidence ≥0.3) w decision result
+- **Production Ready**: Pełna kompatybilność z crypto_scan_service.py - symuluje podejście professional trader bez rigid rules
 
 ## User Preferences
 

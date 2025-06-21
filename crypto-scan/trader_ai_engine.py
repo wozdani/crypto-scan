@@ -562,12 +562,12 @@ def simulate_trader_decision(
     current_price: float = None
 ) -> Dict:
     """
-    🧠 Etap 4: Główna funkcja decyzyjna tradera
+    🧠 TraderWeightedDecisionEngine - Weighted Feature Scoring System
     
-    Scala wszystkie dane i podejmuje decyzję jak doświadczony trader:
-    - Nie bazuje na checklistach, ale na intuicji i doświadczeniu
-    - Szuka edge'u w rynku
-    - Jeśli nie ma przewagi, milczy
+    Nowy system scoringu oparty na ważonych składnikach zamiast sztywnych reguł:
+    - Każda cecha wnosi częściowy scoring z określoną wagą
+    - Finalna decyzja to suma ważonych składników  
+    - Symuluje podejście realnego tradera bez rigid if/then logic
     
     Args:
         symbol: Trading symbol
@@ -578,193 +578,230 @@ def simulate_trader_decision(
         
     Returns:
         dict: {
-            "decision": str,        # "join_trend", "wait", "avoid"
+            "decision": str,        # "join_trend", "consider_entry", "avoid"
             "confidence": float,    # 0.0-1.0
             "final_score": float,   # 0.0-1.0
             "reasons": List[str],   # Why this decision
-            "quality_grade": str    # "low", "medium", "high", "premium"
+            "quality_grade": str,   # "excellent", "strong", "good", etc.
+            "score_breakdown": dict # Detailed weighted feature scoring
         }
     """
     try:
-        reasons = []
-        confidence_factors = []
-        red_flags = []
-        
-        # === TRADER THINKING PROCESS ===
-        
-        # 1. Prepare features for intelligent scoring
-        features = {}
-        
-        # Context Assessment - What's the big picture?
-        if market_context == "pullback":
-            features["trend_strength"] = 0.75
-            reasons.append("pullback_in_trend")
-            confidence_factors.append(0.15)
-        elif market_context == "impulse":
-            features["trend_strength"] = 0.85
-            reasons.append("strong_impulse")
-            confidence_factors.append(0.1)
-        elif market_context == "breakout":
-            features["trend_strength"] = 0.80
-            reasons.append("breakout_detected")
-            confidence_factors.append(0.2)
-        elif market_context in ["range", "distribution"]:
-            features["trend_strength"] = 0.25
-            red_flags.append("choppy_conditions")
-        else:
-            features["trend_strength"] = 0.40
-            red_flags.append("unclear_structure")
-        
-        # 2. Candle Behavior Analysis
-        pullback_quality = 0.5  # Base
-        bounce_strength = 0.5   # Base
-        
-        if candle_behavior.get("shows_buy_pressure", False):
-            bounce_strength += 0.25
-            reasons.append("buy_pressure_visible")
-            confidence_factors.append(0.1)
-        
-        pattern = candle_behavior.get("pattern", "")
-        if pattern in ["momentum_building", "absorption_bounce"]:
-            bounce_strength += 0.25
-            pullback_quality += 0.20
-            reasons.append(f"pattern_{pattern}")
-            confidence_factors.append(0.15)
-        elif pattern == "absorbing_dip":
-            pullback_quality += 0.15
-            reasons.append("absorbing_weakness")
-            confidence_factors.append(0.1)
-        
+        # Extract raw features - handle None values safely
+        buy_pressure = candle_behavior.get("shows_buy_pressure", False)
+        pattern = candle_behavior.get("pattern", "neutral")
+        volume_behavior = candle_behavior.get("volume_behavior", "average")
         momentum = candle_behavior.get("momentum", "neutral")
-        if momentum == "building":
-            bounce_strength += 0.15
-            confidence_factors.append(0.1)
-        elif momentum == "negative":
-            bounce_strength -= 0.20
-            red_flags.append("negative_momentum")
+        wick_analysis = candle_behavior.get("wick_analysis", "neutral")
         
-        features["pullback_quality"] = max(0.0, min(1.0, pullback_quality))
-        features["bounce_confirmation_strength"] = max(0.0, min(1.0, bounce_strength))
+        bids_layered = orderbook_info.get("bids_layered", False)
+        spoofing_suspected = orderbook_info.get("spoofing_suspected", False)
+        imbalance = orderbook_info.get("imbalance", 0.0) or 0.0
+        ask_pressure = orderbook_info.get("ask_pressure", "neutral")
+        bid_strength = orderbook_info.get("bid_strength", "neutral")
         
-        # 3. Orderbook Intelligence
-        orderbook_alignment = 0.5  # Base
-        support_reaction = 0.5     # Base
+        # 📊 TraderWeightedDecisionEngine - Weighted Feature Scoring
+        trend_features = {}
         
-        if orderbook_info.get("data_available", False):
-            if orderbook_info.get("bids_layered", False):
-                orderbook_alignment += 0.25
-                support_reaction += 0.20
-                reasons.append("bid_layering")
-                confidence_factors.append(0.1)
-            
-            bid_strength = orderbook_info.get("bid_strength", "unknown")
-            if bid_strength == "strong_support":
-                orderbook_alignment += 0.25
-                support_reaction += 0.30
-                reasons.append("strong_bid_support")
-                confidence_factors.append(0.15)
-            elif bid_strength == "weak":
-                orderbook_alignment -= 0.20
-                support_reaction -= 0.15
-                red_flags.append("weak_bids")
-            
-            ask_pressure = orderbook_info.get("ask_pressure", "unknown")
-            if ask_pressure == "light":
-                orderbook_alignment += 0.15
-                reasons.append("light_ask_pressure")
-                confidence_factors.append(0.05)
-            elif ask_pressure == "heavy":
-                orderbook_alignment -= 0.15
-                red_flags.append("heavy_asks")
-            
-            if orderbook_info.get("spoofing_suspected", False):
-                orderbook_alignment -= 0.30
-                red_flags.append("spoofing_detected")
+        # 1. Green Ratio & Trend Strength (30%)
+        if market_context == "impulse":
+            green_ratio = 0.8 if buy_pressure else 0.4
+        elif market_context == "breakout":
+            green_ratio = 0.7 if buy_pressure else 0.3
+        elif market_context == "pullback":
+            green_ratio = 0.6 if buy_pressure else 0.2
+        else:
+            green_ratio = 0.3
+        trend_features["green_ratio"] = green_ratio * 0.3
         
-        features["orderbook_alignment"] = max(0.0, min(1.0, orderbook_alignment))
-        features["support_reaction_strength"] = max(0.0, min(1.0, support_reaction))
+        # 2. Higher Highs & Pattern Strength (20%)
+        if pattern in ["momentum_building", "absorption_bounce"]:
+            higher_highs = 0.8
+        elif pattern == "absorbing_dip":
+            higher_highs = 0.7
+        elif pattern == "consolidation":
+            higher_highs = 0.5
+        elif pattern == "reversal":
+            higher_highs = 0.6
+        else:
+            higher_highs = 0.3
+        trend_features["higher_highs_score"] = higher_highs * 0.2
         
-        # 4. Time boost (session quality)
+        # 3. Pullback Quality (20%)
+        if market_context == "pullback":
+            if buy_pressure and momentum == "building":
+                pullback_strength = 0.9
+            elif buy_pressure:
+                pullback_strength = 0.7
+            elif momentum == "building":
+                pullback_strength = 0.6
+            else:
+                pullback_strength = 0.3
+        elif market_context == "impulse":
+            pullback_strength = 0.4  # Still some value in impulse
+        else:
+            pullback_strength = 0.2
+        trend_features["pullback_quality"] = pullback_strength * 0.2
+        
+        # 4. Bid Wall Strength (15%)
+        if bid_strength == "strong_support" and bids_layered:
+            bid_wall_score = 0.9
+        elif bids_layered:
+            bid_wall_score = 0.7
+        elif bid_strength == "strong_support":
+            bid_wall_score = 0.6
+        elif bid_strength == "decent_support":
+            bid_wall_score = 0.4
+        elif not spoofing_suspected:
+            bid_wall_score = 0.3
+        else:
+            bid_wall_score = 0.1
+        trend_features["bid_wall_strength"] = bid_wall_score * 0.15
+        
+        # 5. Volume Decline Bonus (10%)
+        if volume_behavior == "declining" and market_context == "pullback":
+            volume_score = 0.1  # Bonus for healthy pullback
+        elif volume_behavior == "increasing" and market_context in ["impulse", "breakout"]:
+            volume_score = 0.05  # Slight bonus for momentum
+        elif volume_behavior == "increasing" and market_context == "pullback":
+            volume_score = -0.05  # Distribution concern
+        else:
+            volume_score = 0.0
+        trend_features["volume_decline_bonus"] = volume_score
+        
+        # 6. Time of Day Boost (5%)
         utc_hour = datetime.now(timezone.utc).hour
         if 13 <= utc_hour <= 16:  # London/NY overlap
-            features["time_boost"] = 0.85
+            time_score = 0.85
         elif 8 <= utc_hour <= 12:   # London session
-            features["time_boost"] = 0.70
+            time_score = 0.70
         elif 17 <= utc_hour <= 21:  # NY session
-            features["time_boost"] = 0.65
+            time_score = 0.65
         else:
-            features["time_boost"] = 0.40
+            time_score = 0.40
+        trend_features["time_of_day_boost"] = time_score * 0.05
         
-        # 5. Market context for scoring
-        features["market_context"] = market_context
+        # 7. Wick Analysis Bonus (5%)
+        if wick_analysis == "bullish_hammer":
+            wick_bonus = 0.08
+        elif wick_analysis == "rejection":
+            wick_bonus = 0.05
+        elif wick_analysis == "doji_indecision":
+            wick_bonus = -0.03
+        elif wick_analysis == "bearish_engulfing":
+            wick_bonus = -0.05
+        else:
+            wick_bonus = 0.0
+        trend_features["wick_analysis_bonus"] = wick_bonus
         
-        # 6. Use intelligent scoring system
-        scoring_result = compute_trader_score(features, symbol)
-        final_score = scoring_result["final_score"]
-        quality_grade = scoring_result["quality_grade"]
-        score_breakdown = scoring_result["score_breakdown"]
+        # 8. Orderbook Imbalance (5%)
+        if imbalance > 0.2:  # Strong bid imbalance
+            imbalance_score = 0.05
+        elif imbalance > 0.1:  # Moderate bid imbalance
+            imbalance_score = 0.03
+        elif imbalance < -0.2:  # Strong ask imbalance
+            imbalance_score = -0.03
+        else:
+            imbalance_score = 0.0
+        trend_features["orderbook_imbalance"] = imbalance_score
         
-        # Calculate confidence from factors
-        confidence = sum(confidence_factors)
+        # 📈 Final Score Calculation - Pure Weighted Sum
+        final_score = sum(trend_features.values())
+        final_score = max(0.0, min(1.0, final_score))  # Clamp to [0, 1]
         
-        # Apply red flags penalty to confidence
-        red_flag_penalty = len(red_flags) * 0.05
-        confidence = max(0.0, confidence - red_flag_penalty)
-        
-        # === DECISION LOGIC (jak myśli trader) ===
-        
-        if final_score >= 0.80 and confidence >= 0.3 and len(red_flags) == 0:
+        # 🎯 Decision Logic - Weighted Thresholds (NO if/then complexity)
+        if final_score >= 0.75:
             decision = "join_trend"
-        elif final_score >= 0.70 and confidence >= 0.25 and len(red_flags) <= 1:
-            decision = "join_trend"
-        elif final_score >= 0.60 and confidence >= 0.20:
-            decision = "join_trend"
-        elif final_score >= 0.40:
-            decision = "wait"
-            reasons.append("insufficient_edge")
+            confidence = min(0.95, final_score + 0.15)
+            quality_grade = "excellent" if final_score >= 0.85 else "strong"
+        elif final_score >= 0.55:
+            decision = "consider_entry"
+            confidence = final_score * 0.85
+            quality_grade = "good" if final_score >= 0.65 else "neutral-watch"
         else:
             decision = "avoid"
-            reasons.append("no_clear_edge")
+            confidence = max(0.1, 1.0 - final_score)
+            quality_grade = "weak" if final_score >= 0.3 else "very_poor"
         
-        # Add red flags to reasons for transparency
-        if red_flags:
-            reasons.extend([f"concern_{flag}" for flag in red_flags])
+        # 🔍 Build Comprehensive Reasons (feature-based)
+        reasons = []
+        
+        # Primary decision reasons
+        if final_score >= 0.75:
+            reasons.append(f"High-quality weighted setup - score {final_score:.3f}")
+        elif final_score >= 0.55:
+            reasons.append(f"Moderate setup - weighted score {final_score:.3f}")
+        else:
+            reasons.append(f"Weak setup - weighted score {final_score:.3f} below threshold")
+        
+        # Feature-specific reasons (top contributors)
+        feature_contributions = [(k, v) for k, v in trend_features.items() if v > 0.05]
+        feature_contributions.sort(key=lambda x: x[1], reverse=True)
+        
+        for feature_name, contribution in feature_contributions[:3]:
+            if contribution > 0.1:
+                reasons.append(f"Strong {feature_name.replace('_', ' ')} ({contribution:.3f})")
+            elif contribution > 0.05:
+                reasons.append(f"Good {feature_name.replace('_', ' ')} ({contribution:.3f})")
+        
+        # Risk factors (negative contributors)
+        risk_factors = [(k, v) for k, v in trend_features.items() if v < -0.02]
+        for risk_name, risk_value in risk_factors:
+            reasons.append(f"⚠️ {risk_name.replace('_', ' ')} concern ({risk_value:.3f})")
+        
+        # Context-specific insights
+        if market_context == "impulse" and final_score < 0.5:
+            reasons.append("Impulse lacks weighted conviction")
+        if market_context == "pullback" and final_score >= 0.7:
+            reasons.append("High-quality pullback with strong weighted components")
+        if spoofing_suspected:
+            reasons.append("⚠️ Orderbook spoofing detected in analysis")
         
         result = {
             "decision": decision,
-            "confidence": round(confidence, 3),
-            "final_score": final_score,  # Already rounded in scoring
+            "confidence": confidence,
+            "final_score": final_score,
             "reasons": reasons,
-            "quality_grade": quality_grade,  # From intelligent scoring
-            "red_flags": red_flags,
-            "score_breakdown": score_breakdown,
-            "scoring_details": {
-                "weights_used": scoring_result["weights_used"],
-                "context_adjustment": scoring_result["context_adjustment"]
-            }
+            "quality_grade": quality_grade,
+            "score_breakdown": trend_features,
+            "weights_used": {
+                "green_ratio": 0.3,
+                "higher_highs": 0.2,
+                "pullback_quality": 0.2,
+                "bid_wall_strength": 0.15,
+                "volume_bonus": 0.1,
+                "time_boost": 0.05,
+                "wick_bonus": 0.05,
+                "imbalance_bonus": 0.05
+            },
+            "context_adjustment": f"TraderWeightedDecisionEngine optimized for {market_context}"
         }
         
-        # Enhanced decision logging
-        print(f"[TRADER DECISION] {symbol}: {decision.upper()} (score={final_score:.3f}, confidence={confidence:.3f})")
-        print(f"[TRADER SCORE] {symbol} → {final_score:.3f} | Grade: {quality_grade}, Quality: {scoring_result['context_adjustment']}")
-        print(f"[REASONS] {symbol}: {', '.join(reasons[:5])}")
-        if red_flags:
-            print(f"[RED FLAGS] {symbol}: {', '.join(red_flags)}")
+        # Enhanced logging with weighted breakdown
+        print(f"[TRADER WEIGHTED] {symbol}: {decision.upper()} | Score: {final_score:.3f} | Confidence: {confidence:.3f} | Grade: {quality_grade}")
         
-        # Log comprehensive debug info
-        _log_trader_decision(symbol, result, market_context, candle_behavior, orderbook_info)
-        _log_comprehensive_debug(symbol, result, market_context, candle_behavior, orderbook_info, scoring_result, features)
+        # Score breakdown in terminal
+        breakdown_items = [f"{k}:{v:+.3f}" for k, v in trend_features.items() if abs(v) > 0.005]
+        if breakdown_items:
+            print(f"[WEIGHTED BREAKDOWN] {symbol}: {' | '.join(breakdown_items[:5])}")
+        
+        if reasons:
+            print(f"[WEIGHTED REASONS] {symbol}: {', '.join(reasons[:3])}")
+        
+        # Enhanced logging to file
+        _log_trader_decision_weighted(symbol, result, market_context, candle_behavior, orderbook_info, trend_features)
         
         return result
         
     except Exception as e:
-        print(f"[TRADER ERROR] {symbol} - simulate_trader_decision failed: {e}")
+        print(f"❌ [TRADER WEIGHTED ERROR] {symbol}: {e}")
         return {
             "decision": "avoid",
             "confidence": 0.0,
             "final_score": 0.0,
-            "reasons": ["analysis_error"],
-            "quality_grade": "low"
+            "reasons": [f"TraderWeightedDecisionEngine error: {e}"],
+            "quality_grade": "error",
+            "score_breakdown": {}
         }
 
 
