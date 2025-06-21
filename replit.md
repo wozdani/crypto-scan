@@ -112,14 +112,13 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Bug Resolution**: System nie odrzuca już wysokich PPWCS scores z powodu niskich checklist scores
 - **Enhanced Logic**: Bardzo słabe PPWCS (<15) nadal blokuje alert niezależnie od checklist
 
-### June 21, 2025 - Parallel Trend-Mode & Pre-Pump Integration - PRODUCTION READY
-- **Parallel Processing**: Trend-Mode skanowany równocześnie z pre-pump PPWCS analysis dla każdego symbolu
-- **Comprehensive Error Handling**: Pełna obsługa błędów w trend_mode.py - system nie przerywa skanowania przy awariach
-- **Detailed Error Logging**: [TREND ERROR] printy + automatyczny zapis do trend_error_log.txt z kontekstem
-- **Safe Fallback Values**: Każda funkcja zwraca bezpieczne wartości domyślne przy błędzie
-- **Debug Print System**: Pełne [TREND DEBUG] logi dla każdego etapu analizy - market context, trend strength, pullback, support, bounce, scoring, final decision
-- **Production Resilience**: System kontynuuje skanowanie nawet przy błędach w trend-mode analysis
-- **Integrated Alerts**: Trend-Mode alerty wysyłane równolegle z PPWCS alerts dla high-quality setups
+### June 21, 2025 - Bybit Direct API Integration & Advanced Trend-Mode - PRODUCTION READY
+- **Direct Bybit API**: Nowy moduł utils/bybit_symbols.py pobiera wszystkie symbole jednym zapytaniem jak w pump-analysis
+- **Smart Symbol Selection**: Automatyczne filtrowanie symboli według wolumenu, ceny, spread dla najwyższej jakości
+- **Multi-tier Fallback**: Bybit API → CoinGecko cache → Essential pairs dla maksymalnej niezawodności
+- **Parallel Trend-Mode**: CONFIRMED WORKING - pełne debug logi dla 9-stage professional trader analysis
+- **Production Error Handling**: Comprehensive error handling z automatycznym logowaniem do trend_error_log.txt
+- **Integrated Alerts**: Trend-Mode alerty wysyłane równolegle z PPWCS alerts dla high-quality setups (≥0.75)
 
 ### June 21, 2025 - Advanced Trend-Mode Integration - PRODUCTION READY
 - **Professional Trader Logic**: Kompletny moduł trend_mode.py z 9 etapami analizy symulującej myślenie profesjonalnego tradera

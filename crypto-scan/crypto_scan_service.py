@@ -290,6 +290,38 @@ def scan_cycle():
                         print(f"⏳ [TREND] {symbol}: WAIT ({quality_grade}, {entry_quality:.2f})")
                 else:
                     print(f"[TREND DEBUG] {symbol}: Insufficient candles for trend analysis ({len(candles_15m) if candles_15m else 0}/10 required)")
+                    # Try to get historical data as fallback
+                    try:
+                        from utils.data_fetchers import get_all_data
+                        fallback_candles = get_all_data(symbol)
+                        if fallback_candles and len(fallback_candles) >= 10:
+                            print(f"[TREND DEBUG] {symbol}: Using fallback data with {len(fallback_candles)} candles")
+                            from trend_mode import analyze_symbol_trend_mode
+                            trend_analysis = analyze_symbol_trend_mode(
+                                symbol=symbol,
+                                candles=fallback_candles,
+                                enable_gpt=False
+                            )
+                            
+                            decision = trend_analysis.get('decision', 'avoid')
+                            entry_quality = trend_analysis.get('entry_quality', 0.0)
+                            quality_grade = trend_analysis.get('quality_grade', 'poor')
+                            
+                            signals.update({
+                                'trend_mode_decision': decision,
+                                'trend_mode_confidence': trend_analysis.get('confidence', 0.0),
+                                'trend_mode_context': trend_analysis.get('market_context', 'unknown'),
+                                'trend_mode_strength': trend_analysis.get('trend_strength', 0.0),
+                                'trend_mode_quality': entry_quality,
+                                'trend_mode_grade': quality_grade
+                            })
+                            
+                            if decision == "join_trend":
+                                print(f"✅ [TREND FALLBACK] {symbol}: JOIN ({quality_grade}, {entry_quality:.2f})")
+                        else:
+                            print(f"[TREND DEBUG] {symbol}: No fallback data available")
+                    except Exception as fallback_error:
+                        print(f"[TREND ERROR] {symbol} - Fallback analysis failed: {str(fallback_error)}")
                 
             except Exception as trend_error:
                 # Log trend errors but don't fail pre-pump analysis
