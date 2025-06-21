@@ -39,55 +39,116 @@ except ImportError:
 from utils.telegram_bot import send_alert
 
 
-def compute_trader_score(ctx: Dict) -> Dict:
+def compute_trader_score(ctx: Dict, adaptive_engine=None, market_context: Dict = None) -> Dict:
     """
-    🧠 TJDE Core Scoring - Zastępuje wszystkie wcześniejsze funkcje scoringowe
+    🧠 TJDE Adaptive Scoring - Dynamiczny system z uczeniem się i modyfikatorami kontekstowymi
     
-    Dynamiczny system scoringu oparty na wagach kontekstowych
+    Nowa wersja wykorzystuje AdaptiveWeightEngine + ContextualModifiers
     
     Args:
         ctx: Trend context z wszystkimi analizami
+        adaptive_engine: AdaptiveWeightEngine instance (opcjonalne)
+        market_context: Kontekst rynkowy dla modyfikacji (opcjonalne)
         
     Returns:
         dict: Zaktualizowany context z final_score i grade
     """
     try:
-        weights = {
-            "trend_strength": 0.25,
-            "pullback_quality": 0.20,
-            "support_reaction": 0.15,
-            "liquidity_pattern_score": 0.10,
-            "psych_score": 0.10,  # im niższy, tym lepiej
-            "htf_supportive_score": 0.10,
-            "market_phase_modifier": 0.10
+        # Import adaptive modules
+        from utils.adaptive_weights import get_adaptive_engine
+        from utils.context_modifiers import apply_contextual_modifiers, get_market_context
+        
+        # Get adaptive engine instance
+        if adaptive_engine is None:
+            adaptive_engine = get_adaptive_engine()
+        
+        # Get market context if not provided
+        if market_context is None:
+            market_context = get_market_context()
+            # Add market phase from context
+            market_context["market_phase"] = ctx.get("market_phase", "unknown")
+        
+        # Extract raw features
+        features = {
+            "trend_strength": ctx.get("trend_strength", 0.0),
+            "pullback_quality": ctx.get("pullback_quality", 0.0),
+            "support_reaction": ctx.get("support_reaction", 0.0),
+            "liquidity_pattern_score": ctx.get("liquidity_pattern_score", 0.0),
+            "psych_score": 1.0 - ctx.get("psych_score", 1.0),  # Invert psychology score
+            "htf_supportive_score": ctx.get("htf_supportive_score", 0.0),
+            "market_phase_modifier": ctx.get("market_phase_modifier", 0.0),
         }
         
+        # Apply contextual modifiers
+        modified_features = apply_contextual_modifiers(features, market_context)
+        
+        # Get adaptive weights
+        weights = adaptive_engine.compute_weights()
+        
+        # Calculate weighted score
         score = 0.0
         score_breakdown = {}
         
-        for key, weight in weights.items():
-            val = ctx.get(key, 0.0)
-            
-            # Psychology score inversion (niższy = lepiej)
-            if key == "psych_score":
-                val = 1.0 - val
-            
-            component_score = val * weight
+        for key in modified_features:
+            feature_value = modified_features[key]
+            weight = weights.get(key, 0.0)
+            component_score = feature_value * weight
             score += component_score
             score_breakdown[key] = round(component_score, 4)
         
-        ctx["final_score"] = round(score, 3)
-        ctx["grade"] = classify_grade(score)
-        ctx["score_breakdown"] = score_breakdown
-        ctx["weights_used"] = weights
+        # Update context
+        ctx.update({
+            "final_score": round(score, 3),
+            "grade": classify_grade(score),
+            "score_breakdown": score_breakdown,
+            "adaptive_weights": weights,
+            "original_features": features,
+            "modified_features": modified_features,
+            "market_context": market_context,
+            "adaptive_stats": adaptive_engine.get_performance_stats()
+        })
+        
+        print(f"[TJDE ADAPTIVE] Score: {score:.3f}, Context: {market_context.get('session', 'unknown')}, Adaptations: {len(adaptive_engine.memory)}")
         
         return ctx
         
     except Exception as e:
-        print(f"❌ [TJDE SCORE ERROR]: {e}")
-        ctx["final_score"] = 0.0
-        ctx["grade"] = "error"
-        return ctx
+        print(f"❌ [TJDE ADAPTIVE ERROR]: {e}")
+        # Fallback to static scoring
+        return _compute_static_score(ctx)
+
+
+def _compute_static_score(ctx: Dict) -> Dict:
+    """Fallback static scoring when adaptive system fails"""
+    weights = {
+        "trend_strength": 0.25,
+        "pullback_quality": 0.20,
+        "support_reaction": 0.15,
+        "liquidity_pattern_score": 0.10,
+        "psych_score": 0.10,
+        "htf_supportive_score": 0.10,
+        "market_phase_modifier": 0.10
+    }
+    
+    score = 0.0
+    score_breakdown = {}
+    
+    for key, weight in weights.items():
+        val = ctx.get(key, 0.0)
+        if key == "psych_score":
+            val = 1.0 - val
+        component_score = val * weight
+        score += component_score
+        score_breakdown[key] = round(component_score, 4)
+    
+    ctx.update({
+        "final_score": round(score, 3),
+        "grade": classify_grade(score),
+        "score_breakdown": score_breakdown,
+        "weights_used": weights
+    })
+    
+    return ctx
 
 
 def classify_grade(score: float) -> str:
@@ -255,9 +316,9 @@ def analyze_trend_opportunity(symbol: str, candles: List[List] = None) -> Dict:
         trend_context["candle_count"] = len(candles)
         trend_context["analysis_timestamp"] = datetime.now().isoformat()
         
-        # === KROK 2: COMPUTE TRADER SCORE ===
+        # === KROK 2: ADAPTIVE TRADER SCORE ===
         
-        print(f"[TJDE] {symbol}: Computing trader score...")
+        print(f"[TJDE] {symbol}: Computing adaptive trader score...")
         trend_context = compute_trader_score(trend_context)
         
         # === KROK 3: ADVANCED DECISION ENGINE ===

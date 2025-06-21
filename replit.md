@@ -123,16 +123,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Quality Assessment**: excellent/strong/good/neutral-watch/weak/very_poor z context adjustment info
 - **Production Integration**: Pełna integracja z crypto_scan_service.py - audytowalny decision trail
 
-### June 21, 2025 - TJDE Complete Production Integration - LIVE
-- **TJDE Full Production System**: Complete AdvancedTraderWeightedDecisionEngine replacing all legacy trend-mode logic
-- **4-Layer Professional Analysis**: Market Structure → Liquidity Behavior → Psychological Traps → HTF Confirmation z wagami kontekstowymi
-- **TJDE Core Engine**: compute_trader_score() + simulate_trader_decision_advanced() + analyze_trend_opportunity() z unified production API
-- **Dynamic Weighted Scoring**: 7 components - trend_strength (25%), pullback_quality (20%), support_reaction (15%), liquidity_pattern_score (10%), psych_score (10%), htf_supportive_score (10%), market_phase_modifier (10%)
-- **Professional Decision Logic**: join ≥0.7, consider ≥0.45, avoid <0.45 z adaptive confidence levels zastępujące sztywne reguły
-- **Production Alert System**: send_tjde_alert() z 60-minute cooldown, decision="join" only, Telegram integration
-- **Comprehensive Logging**: logs/advanced_trader_log.txt z TJDE_AdvancedTraderWeightedDecisionEngine timestamp tracking
-- **Live Service Integration**: crypto_scan_service.py updated z TJDE signals (tjde_decision, tjde_final_score, tjde_grade, tjde_reasons)
-- **Import Fix Complete**: All module dependencies resolved, trend_mode_legacy.py backup maintained
+### June 21, 2025 - AdaptiveTraderScore Complete Implementation - PRODUCTION READY
+- **AdaptiveTraderScore System**: Complete self-learning TJDE z AdaptiveWeightEngine + ContextualModifiers replacing static weights
+- **Adaptive Weight Learning**: AdaptiveWeightEngine learns from historical decisions, adapts weights based on real performance (200 example memory)
+- **Contextual Modifications**: apply_contextual_modifiers() adjusts features based on market phase, BTC trend, trading session, volatility
+- **Enhanced TJDE Integration**: compute_trader_score() now uses adaptive weights + contextual modifiers for dynamic professional trader simulation
+- **Persistent Learning**: Engine saves/loads state to data/adaptive_weights.pkl, maintains performance history and success rates
+- **Session-Aware Scoring**: London (+20% liquidity), NY (+25% liquidity, +15% trend), Asia (-20% liquidity) contextual adjustments
+- **Market Phase Intelligence**: retest-confirmation (+25% support), breakout-continuation (+30% trend), exhaustion-pullback (+40% psychology)
+- **Performance Tracking**: Detailed analytics in logs/adaptive_weights_analysis.json with weight evolution and success metrics
+- **Production Demo System**: demo_adaptive_system.py demonstrates learning without live API data
 
 ## User Preferences
 
