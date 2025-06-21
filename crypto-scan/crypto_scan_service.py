@@ -434,7 +434,7 @@ def scan_cycle():
                 if alert_success:
                     print(f"📢 Comprehensive alert sent for {symbol} with all features")
                 else:
-                    print(f"❌ Failed to send comprehensive alert for {symbol}")
+
 
 
 

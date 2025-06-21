@@ -35,8 +35,6 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int
         return 0, 0, 0
 
     try:
-        print(f"[PPWCS Pre-Pump 2.0] === CORE HARD DETECTORS ONLY ===")
-        
         ppwcs_score = 0
         active_core_detectors = []
         
@@ -56,9 +54,6 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int
             if signals.get(detector) is True:
                 ppwcs_score += points
                 active_core_detectors.append(detector)
-                print(f"[CORE] ✅ {detector}: +{points}")
-            else:
-                print(f"[CORE] ❌ {detector}: not active")
         
         # Event Tags - Core scoring component
         event_tag = signals.get("event_tag")
@@ -67,7 +62,6 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int
             if tag_lower in ["listing", "partnership"]:
                 ppwcs_score += 10
                 active_core_detectors.append("event_tag")
-                print(f"[CORE] ✅ Positive event tag ({tag_lower}): +10")
         
         # Risk Tags - Core penalty component
         risk_tag = signals.get("risk_tag")
@@ -76,25 +70,15 @@ def compute_ppwcs(signals: dict, previous_score: int = 0) -> tuple[int, int, int
             if tag_lower in ["exploit", "unlock", "rug", "delisting"]:
                 penalty = -15
                 ppwcs_score += penalty
-                print(f"[CORE] ❌ Risk tag ({tag_lower}): {penalty}")
                 # Ensure score doesn't go below 0
                 if ppwcs_score < 0:
                     ppwcs_score = 0
         
         final_score = max(0, ppwcs_score)
-        print(f"[PPWCS Pre-Pump 2.0] Final CORE score: {final_score}/97 (Active: {len(active_core_detectors)}/7)")
-        
-        # Log soft detectors for context (not scored)
-        soft_detectors = ["rsi_flatline", "gas_pressure", "dominant_accumulation", "spoofing", 
-                         "heatmap_exhaustion", "vwap_pinning", "liquidity_box", "cluster_slope_up"]
-        active_soft = [d for d in soft_detectors if signals.get(d) is True]
-        if active_soft:
-            print(f"[SOFT CONTEXT] Active quality signals: {active_soft} (checklist only)")
         
         return final_score, final_score, 0
         
     except Exception as e:
-        print(f"❌ Error computing PPWCS Pre-Pump 2.0: {e}")
         return 0, 0, 0
 
 def compute_checklist_score_simplified(signals: dict) -> tuple[int, list[str]]:
@@ -254,7 +238,7 @@ def get_previous_score(symbol):
                     scores = json.load(f)
                     return scores.get(symbol, 0)
             except json.JSONDecodeError:
-                print(f"Warning: Corrupted JSON in {scores_file}, returning 0 for {symbol}")
+                pass
                 return 0
         return 0
     except Exception:
@@ -417,12 +401,6 @@ def compute_checklist_score(signals: dict):
         if signals.get(detector) is True:
             score += weight
             summary.append(detector)
-            print(f"[QUALITY] ✅ {detector}: +{weight}")
-        else:
-            print(f"[QUALITY] ❌ {detector}: not detected")
-    
-    print(f"[CHECKLIST DEBUG] Quality score: {score}")
-    print(f"[CHECKLIST DEBUG] Active quality signals: {len(summary)}/9")
     
     return score, summary
 
@@ -462,23 +440,17 @@ def get_alert_level(ppwcs: int, checklist_score: int) -> int:
     Returns:
         int: Alert level (0-3)
     """
-    print(f"[ALERT LEVEL] Evaluating: PPWCS {ppwcs}/65, Checklist {checklist_score}/85")
-    
     # Level 0: No alert - only perfect scores trigger alerts
     # Setting alert threshold to 100 points as requested by user
     if ppwcs < 100:
-        print(f"[ALERT LEVEL] Level 0: Below perfect threshold (PPWCS={ppwcs}/100 required)")
         return 0
     
     # Level 3: Only for perfect PPWCS scores (100/97 possible)
     # Since max PPWCS is 97, we'll use >= 97 for perfect scores
     if ppwcs >= 97:
         level = 3
-        print(f"[ALERT LEVEL] Level 3: Perfect score alert (PPWCS={ppwcs}/97)")
     else:
         # This shouldn't happen with current logic, but keep as fallback
         level = 0
-        print(f"[ALERT LEVEL] Level 0: Not perfect score (PPWCS={ppwcs}/97)")
     
-    print(f"[ALERT LEVEL] Final level: {level}")
     return level

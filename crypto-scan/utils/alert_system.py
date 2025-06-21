@@ -353,21 +353,12 @@ def process_alert(token, ppwcs_score, signals, gpt_analysis=None):
         checklist_score = signals.get('checklist_score', 0)
         checklist_summary = signals.get('checklist_summary', [])
         
-        # Use the enhanced alert function directly - bypass complex caching logic
-        print(f"[PROCESS ALERT] {token}: PPWCS={ppwcs_score}, Checklist={checklist_score}")
-        
         # Send alert using the working send_alert function
         alert_success = send_alert(token, ppwcs_score, checklist_score, checklist_summary, signals)
         
-        if alert_success:
-            print(f"✅ Alert sent successfully for {token}")
-            return True
-        else:
-            print(f"❌ Alert failed for {token}")
-            return False
+        return alert_success
             
     except Exception as e:
-        print(f"❌ Error processing alert for {token}: {e}")
         return False
 
 def log_to_watchlist(token, ppwcs_score, signals):
