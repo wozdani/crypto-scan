@@ -152,11 +152,17 @@ def compute_trend_strength(candles: List[List], symbol: str = None) -> float:
         lows = [float(c[3]) for c in candles[-40:]]
         
         # 1. Procent zielonych świec (20 ostatnich)
-        green_count_20 = sum(1 for i in range(-20, 0) if closes[i] > closes[i-1])
+        green_count_20 = 0
+        for i in range(len(closes)-20, len(closes)):
+            if i > 0 and i < len(closes) and closes[i] > closes[i-1]:
+                green_count_20 += 1
         green_ratio_20 = green_count_20 / 20
         
         # 2. Procent zielonych świec (40 ostatnich)  
-        green_count_40 = sum(1 for i in range(-40, -1) if closes[i] > closes[i-1])
+        green_count_40 = 0
+        for i in range(len(closes)-40, len(closes)):
+            if i > 0 and i < len(closes) and closes[i] > closes[i-1]:
+                green_count_40 += 1
         green_ratio_40 = green_count_40 / 39
         
         # 3. Nachylenie ceny (slope ostatnich 20 świec)
@@ -165,9 +171,15 @@ def compute_trend_strength(candles: List[List], symbol: str = None) -> float:
         
         # 4. Stabilność momentum (czy trend jest konsystentny?)
         ema21 = _calculate_ema(closes, 21)
-        price_above_ema = sum(1 for i, price in enumerate(closes[-20:]) 
-                             if i < len(ema21) and price > ema21[i-20])
-        stability = price_above_ema / 20 if ema21 else 0
+        stability = 0.0
+        if ema21 and len(ema21) >= 20:
+            price_above_ema = 0
+            recent_closes = closes[-20:]
+            recent_ema = ema21[-20:] if len(ema21) >= 20 else ema21
+            for i in range(min(len(recent_closes), len(recent_ema))):
+                if recent_closes[i] > recent_ema[i]:
+                    price_above_ema += 1
+            stability = price_above_ema / 20
         
         # 5. Higher highs pattern (czy robimy wyższe szczyty?)
         recent_highs = highs[-20:]
@@ -337,7 +349,7 @@ def detect_support_reaction(candles: List[List], symbol: str = None) -> Dict:
         
         # 1. Oblicz EMA21 jako dynamiczne wsparcie
         ema21 = _calculate_ema(closes, 21)
-        ema_support = ema21[-1] if ema21 else closes[-1]
+        ema_support = ema21[-1] if ema21 and len(ema21) > 0 else closes[-1]
         
         # 2. Oblicz VWAP jako alternatywne wsparcie
         vwap = _calculate_vwap(candles[-21:])
@@ -360,9 +372,11 @@ def detect_support_reaction(candles: List[List], symbol: str = None) -> Dict:
         if near_ema:
             # Sprawdź czy były niedawne testy EMA z odbiciami
             ema_tests = 0
-            for i in range(-5, 0):  # Ostatnie 5 świec
-                if (lows[i] <= ema21[i] * 1.01 and closes[i] > ema21[i]):  # Test i odbicie
-                    ema_tests += 1
+            if len(ema21) >= len(lows):
+                for i in range(max(0, len(lows) - 5), len(lows)):  # Ostatnie 5 świec
+                    if i < len(lows) and i < len(ema21) and i < len(closes):
+                        if (lows[i] <= ema21[i] * 1.01 and closes[i] > ema21[i]):  # Test i odbicie
+                            ema_tests += 1
             
             reaction_strength = min(ema_tests / 3.0, 1.0)  # Max 3 testy = 100%
             support_type = "ema21"
@@ -371,9 +385,10 @@ def detect_support_reaction(candles: List[List], symbol: str = None) -> Dict:
         elif near_vwap:
             # Sprawdź reakcję na VWAP
             vwap_tests = 0
-            for i in range(-5, 0):
-                if lows[i] <= vwap * 1.01 and closes[i] > vwap:
-                    vwap_tests += 1
+            for i in range(max(0, len(lows) - 5), len(lows)):
+                if i < len(lows) and i < len(closes):
+                    if lows[i] <= vwap * 1.01 and closes[i] > vwap:
+                        vwap_tests += 1
             
             reaction_strength = min(vwap_tests / 3.0, 1.0)
             support_type = "vwap"
