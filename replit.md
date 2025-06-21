@@ -123,16 +123,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Quality Assessment**: excellent/strong/good/neutral-watch/weak/very_poor z context adjustment info
 - **Production Integration**: Pełna integracja z crypto_scan_service.py - audytowalny decision trail
 
-### June 21, 2025 - TraderWeightedDecisionEngine - PRODUCTION READY
-- **TraderWeightedDecisionEngine**: Kompletnie przepisany system scoringu w simulate_trader_decision() - zastąpiono sztywne if/then logic ważonymi składnikami
-- **8-Component Weighted Scoring**: green_ratio (30%), higher_highs_score (20%), pullback_quality (20%), bid_wall_strength (15%), volume_decline_bonus (10%), time_of_day_boost (5%), wick_analysis_bonus (5%), orderbook_imbalance (5%)
-- **Pure Weighted Thresholds**: join_trend ≥0.75, consider_entry ≥0.55, avoid <0.55 z adaptive confidence bez złożonej logiki
-- **Feature-Based Reasoning**: Reasons budowane z top contributors + risk factors - każdy powód oparty na weighted components
-- **Enhanced Logging System**: [TRADER WEIGHTED] + [WEIGHTED BREAKDOWN] + [WEIGHTED REASONS] w terminalu, logs/trader_weighted_log.txt z pełnym JSON
-- **Context-Aware Weights**: Różne scoring dla impulse/pullback/breakout - pullback priorytetyzuje pullback_quality, impulse green_ratio
-- **Test Framework**: test_zerebro_weighted.py dla comprehensive testing ZEREBROUSDT z wynikami w logs/test_zerebro_weighted_log.jsonl
-- **Alert Assessment Integration**: Built-in alert threshold checking (score ≥0.75 + confidence ≥0.3) w decision result
-- **Production Ready**: Pełna kompatybilność z crypto_scan_service.py - symuluje podejście professional trader bez rigid rules
+### June 21, 2025 - Advanced Professional Trader System - PRODUCTION READY
+- **AdvancedTraderWeightedDecisionEngine**: Kompletny system analizy odzwierciedlający proces decyzyjny profesjonalnego tradera
+- **4-Layer Analysis Architecture**: Market Structure Phase → Liquidity Behavior → Psychological Traps → HTF Confirmation
+- **Market Phase Detection**: detect_market_phase() - pre-breakout, breakout-continuation, retest-confirmation, exhaustion-pullback, range-accumulation z HH/LL analysis
+- **Liquidity Analysis**: analyze_liquidity_behavior() - bid stacking, absorption detection, pinning behavior z orderbook + volume patterns
+- **Psychology Detection**: detect_psychological_traps() - liquidity grabs, fake breakouts, choppy behavior, manipulation detection
+- **HTF Overlay**: get_htf_confirmation() - 1h/4h trend match, EMA slope, green ratio confirmation z automatic timeframe selection
+- **Advanced Weighted Scoring**: 7 components - trend_strength (25%), pullback_quality (20%), support_reaction (15%), liquidity_pattern_score (10%), psych_score (10%), htf_supportive_score (10%), market_phase_modifier (10%)
+- **Enhanced Decision Logic**: join_trend ≥0.7, consider_entry ≥0.45, avoid <0.45 z professional trader thresholds
+- **Comprehensive Logging**: [ADVANCED TRADER] + [TREND DEBUG] + [ADVANCED BREAKDOWN] w terminalu, logs/advanced_trader_log.txt z pełną strukturą
+- **Professional Test Framework**: test_advanced_trend_mode.py dla ZEREBROUSDT/LPTUSDT z wynikami w logs/test_trend_mode_full_decision_*.txt
 
 ## User Preferences
 

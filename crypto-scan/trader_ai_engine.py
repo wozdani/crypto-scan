@@ -554,6 +554,96 @@ def compute_trader_score(features: Dict, symbol: str = None) -> Dict:
         }
 
 
+def simulate_trader_decision_advanced(
+    symbol: str,
+    candles: List[List],
+    market_data: Dict = None,
+    current_price: float = None
+) -> Dict:
+    """
+    🧠 Advanced TraderWeightedDecisionEngine with Professional Trader Logic
+    
+    Rozbudowany system analizy odzwierciedlający proces decyzyjny profesjonalnego tradera:
+    - Market Structure Phase Detection
+    - Liquidity Behavior Analysis  
+    - Psychological Traps Detection
+    - HTF Confirmation Layer
+    - Weighted Feature Scoring
+    
+    Args:
+        symbol: Trading symbol
+        candles: Lista OHLCV candles
+        market_data: Optional market data containing orderbook
+        current_price: Current price for context
+        
+    Returns:
+        dict: Comprehensive trader decision with advanced analysis
+    """
+    try:
+        from utils.market_phase import detect_market_phase
+        from utils.liquidity_analysis import analyze_liquidity_behavior
+        from utils.psychology import detect_psychological_traps
+        from utils.htf_overlay import get_htf_confirmation
+        
+        print(f"[ADVANCED TRADER] {symbol}: Starting comprehensive analysis...")
+        
+        # 1. Basic Market Structure Analysis
+        market_context = analyze_market_structure(candles, symbol)
+        candle_behavior = analyze_candle_behavior(candles, symbol)
+        orderbook_info = interpret_orderbook(symbol, market_data)
+        
+        # 2. Advanced Market Phase Detection
+        phase_analysis = detect_market_phase(candles, symbol)
+        
+        # 3. Liquidity Behavior Analysis
+        liquidity_analysis = analyze_liquidity_behavior(symbol, market_data, candles)
+        
+        # 4. Psychological Traps Detection
+        psychology_analysis = detect_psychological_traps(candles, symbol)
+        
+        # 5. HTF Confirmation Layer
+        htf_analysis = get_htf_confirmation(symbol, "15")
+        
+        # 6. Advanced Weighted Scoring
+        advanced_result = _calculate_advanced_weighted_score(
+            symbol, market_context, candle_behavior, orderbook_info,
+            phase_analysis, liquidity_analysis, psychology_analysis, htf_analysis
+        )
+        
+        # 7. Enhanced Decision Logic
+        final_decision = _make_advanced_trader_decision(advanced_result, symbol)
+        
+        # 8. Comprehensive Result
+        result = {
+            **final_decision,
+            "market_context": market_context,
+            "candle_behavior": candle_behavior,
+            "orderbook_info": orderbook_info,
+            "phase_analysis": phase_analysis,
+            "liquidity_analysis": liquidity_analysis,
+            "psychology_analysis": psychology_analysis,
+            "htf_analysis": htf_analysis,
+            "advanced_features": advanced_result["weighted_features"],
+            "analysis_quality": "advanced_professional_trader"
+        }
+        
+        # Enhanced logging
+        _log_advanced_trader_decision(symbol, result)
+        
+        return result
+        
+    except Exception as e:
+        print(f"❌ [ADVANCED TRADER ERROR] {symbol}: {e}")
+        return {
+            "decision": "avoid",
+            "confidence": 0.0,
+            "final_score": 0.0,
+            "reasons": [f"Advanced analysis error: {e}"],
+            "quality_grade": "error",
+            "analysis_quality": "error"
+        }
+
+
 def simulate_trader_decision(
     symbol: str,
     market_context: str,
@@ -803,6 +893,228 @@ def simulate_trader_decision(
             "quality_grade": "error",
             "score_breakdown": {}
         }
+
+
+def _calculate_advanced_weighted_score(
+    symbol: str,
+    market_context: str,
+    candle_behavior: Dict,
+    orderbook_info: Dict,
+    phase_analysis: Dict,
+    liquidity_analysis: Dict,
+    psychology_analysis: Dict,
+    htf_analysis: Dict
+) -> Dict:
+    """Calculate advanced weighted score with professional trader components"""
+    try:
+        weighted_features = {}
+        
+        # 1. Trend Strength (25%) - Basic market trend
+        if market_context == "impulse":
+            trend_score = 0.85
+        elif market_context == "breakout":
+            trend_score = 0.8
+        elif market_context == "pullback":
+            trend_score = 0.7
+        else:
+            trend_score = 0.4
+        weighted_features["trend_strength"] = trend_score * 0.25
+        
+        # 2. Pullback Quality (20%) - Enhanced with phase analysis
+        base_pullback = 0.5
+        if candle_behavior.get("shows_buy_pressure", False):
+            base_pullback += 0.2
+        if phase_analysis.get("market_phase") == "retest-confirmation":
+            base_pullback += 0.2
+        elif phase_analysis.get("market_phase") == "pre-breakout":
+            base_pullback += 0.1
+        weighted_features["pullback_quality"] = min(1.0, base_pullback) * 0.2
+        
+        # 3. Support Reaction (15%) - Orderbook + structure
+        support_score = 0.5
+        if orderbook_info.get("bids_layered", False):
+            support_score += 0.2
+        if orderbook_info.get("bid_strength") == "strong_support":
+            support_score += 0.2
+        if phase_analysis.get("confidence", 0) > 0.7:
+            support_score += 0.1
+        weighted_features["support_reaction"] = min(1.0, support_score) * 0.15
+        
+        # 4. Liquidity Pattern Score (10%) - New component
+        liquidity_score = liquidity_analysis.get("liquidity_pattern_score", 0.5)
+        weighted_features["liquidity_pattern_score"] = liquidity_score * 0.1
+        
+        # 5. Psychology Score (10%) - Clean move vs manipulation
+        psych_score = psychology_analysis.get("psych_score", 0.7)
+        weighted_features["psych_score"] = psych_score * 0.1
+        
+        # 6. HTF Supportive Score (10%) - Higher timeframe confirmation
+        htf_score = htf_analysis.get("htf_supportive_score", 0.5)
+        weighted_features["htf_supportive_score"] = htf_score * 0.1
+        
+        # 7. Market Phase Modifier (10%) - Phase-specific boost
+        phase_score = phase_analysis.get("phase_score", 0.5)
+        phase_modifier = 1.0
+        phase_name = phase_analysis.get("market_phase", "undefined")
+        
+        if phase_name == "breakout-continuation":
+            phase_modifier = 1.2  # 20% boost
+        elif phase_name == "pre-breakout":
+            phase_modifier = 1.15  # 15% boost
+        elif phase_name == "retest-confirmation":
+            phase_modifier = 1.1   # 10% boost
+        elif phase_name == "exhaustion-pullback":
+            phase_modifier = 0.8   # 20% penalty
+        
+        weighted_features["market_phase_modifier"] = (phase_score * phase_modifier - phase_score) * 0.1
+        
+        # Calculate final score
+        final_score = sum(weighted_features.values())
+        final_score = max(0.0, min(1.0, final_score))
+        
+        return {
+            "final_score": final_score,
+            "weighted_features": weighted_features,
+            "phase_modifier": phase_modifier,
+            "component_count": len(weighted_features)
+        }
+        
+    except Exception as e:
+        print(f"❌ Advanced scoring error for {symbol}: {e}")
+        return {"final_score": 0.5, "weighted_features": {}, "phase_modifier": 1.0}
+
+
+def _make_advanced_trader_decision(advanced_result: Dict, symbol: str) -> Dict:
+    """Make final decision based on advanced weighted scoring"""
+    try:
+        final_score = advanced_result.get("final_score", 0.5)
+        weighted_features = advanced_result.get("weighted_features", {})
+        
+        # Enhanced decision thresholds
+        if final_score >= 0.8:
+            decision = "join_trend"
+            confidence = min(0.95, final_score + 0.1)
+            quality_grade = "excellent"
+        elif final_score >= 0.7:
+            decision = "join_trend"
+            confidence = final_score * 0.9
+            quality_grade = "strong"
+        elif final_score >= 0.6:
+            decision = "consider_entry"
+            confidence = final_score * 0.8
+            quality_grade = "good"
+        elif final_score >= 0.45:
+            decision = "consider_entry"
+            confidence = final_score * 0.7
+            quality_grade = "neutral-watch"
+        else:
+            decision = "avoid"
+            confidence = max(0.1, 1.0 - final_score)
+            quality_grade = "weak" if final_score >= 0.3 else "very_poor"
+        
+        # Build comprehensive reasons
+        reasons = []
+        
+        # Primary decision reason
+        if final_score >= 0.7:
+            reasons.append(f"High-quality professional setup - advanced score {final_score:.3f}")
+        elif final_score >= 0.6:
+            reasons.append(f"Good setup with professional validation - score {final_score:.3f}")
+        elif final_score >= 0.45:
+            reasons.append(f"Moderate setup requiring careful entry - score {final_score:.3f}")
+        else:
+            reasons.append(f"Weak setup - advanced score {final_score:.3f} below threshold")
+        
+        # Feature-specific reasons (top contributors)
+        sorted_features = sorted(weighted_features.items(), key=lambda x: x[1], reverse=True)
+        for feature_name, contribution in sorted_features[:3]:
+            if contribution > 0.08:  # Significant contribution
+                clean_name = feature_name.replace('_', ' ').title()
+                reasons.append(f"Strong {clean_name} ({contribution:.3f})")
+        
+        # Risk assessment
+        psych_score = weighted_features.get("psych_score", 0.07)
+        if psych_score < 0.05:  # Low psychology score indicates manipulation
+            reasons.append("⚠️ Potential market manipulation detected")
+        
+        htf_score = weighted_features.get("htf_supportive_score", 0.05)
+        if htf_score < 0.03:  # HTF not supportive
+            reasons.append("⚠️ Higher timeframe not supportive")
+        
+        return {
+            "decision": decision,
+            "confidence": confidence,
+            "final_score": final_score,
+            "reasons": reasons,
+            "quality_grade": quality_grade,
+            "score_breakdown": weighted_features,
+            "advanced_analysis": True
+        }
+        
+    except Exception as e:
+        print(f"❌ Advanced decision error for {symbol}: {e}")
+        return {
+            "decision": "avoid",
+            "confidence": 0.0,
+            "final_score": 0.0,
+            "reasons": ["Advanced decision error"],
+            "quality_grade": "error"
+        }
+
+
+def _log_advanced_trader_decision(symbol: str, result: Dict):
+    """Enhanced logging for advanced trader decisions"""
+    try:
+        decision = result.get("decision", "unknown")
+        confidence = result.get("confidence", 0.0)
+        final_score = result.get("final_score", 0.0)
+        grade = result.get("quality_grade", "unknown")
+        
+        # Enhanced terminal output
+        print(f"[ADVANCED TRADER] {symbol}: {decision.upper()} | Score: {final_score:.3f} | Confidence: {confidence:.3f} | Grade: {grade}")
+        
+        # Component breakdown
+        phase_analysis = result.get("phase_analysis", {})
+        psychology_analysis = result.get("psychology_analysis", {})
+        htf_analysis = result.get("htf_analysis", {})
+        
+        market_phase = phase_analysis.get("market_phase", "unknown")
+        psych_flags = psychology_analysis.get("psychological_flags", [])
+        htf_match = htf_analysis.get("htf_trend_match", False)
+        
+        print(f"[TREND DEBUG] {symbol}: market_phase={market_phase} | psych_flags={len(psych_flags)} | htf_match={htf_match}")
+        
+        # Score breakdown
+        advanced_features = result.get("advanced_features", {})
+        if advanced_features:
+            breakdown_str = " | ".join([f"{k}:{v:+.3f}" for k, v in advanced_features.items() if abs(v) > 0.01])
+            print(f"[ADVANCED BREAKDOWN] {symbol}: {breakdown_str}")
+        
+        # Comprehensive log entry
+        log_entry = {
+            "timestamp": datetime.now().isoformat(),
+            "symbol": symbol,
+            "engine_version": "AdvancedTraderWeightedDecisionEngine",
+            "decision": decision,
+            "final_score": final_score,
+            "confidence": confidence,
+            "quality_grade": grade,
+            "advanced_features": advanced_features,
+            "market_context": result.get("market_context", "unknown"),
+            "phase_analysis": phase_analysis,
+            "liquidity_analysis": result.get("liquidity_analysis", {}),
+            "psychology_analysis": psychology_analysis,
+            "htf_analysis": htf_analysis,
+            "reasons": result.get("reasons", [])
+        }
+        
+        # Save to advanced log
+        os.makedirs("logs", exist_ok=True)
+        with open("logs/advanced_trader_log.txt", "a", encoding="utf-8") as f:
+            f.write(f"{json.dumps(log_entry, ensure_ascii=False)}\n")
+            
+    except Exception as e:
+        print(f"❌ Advanced log error for {symbol}: {e}")
 
 
 def describe_setup_naturally(
