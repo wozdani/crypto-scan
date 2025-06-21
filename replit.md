@@ -112,16 +112,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Bug Resolution**: System nie odrzuca już wysokich PPWCS scores z powodu niskich checklist scores
 - **Enhanced Logic**: Bardzo słabe PPWCS (<15) nadal blokuje alert niezależnie od checklist
 
-### June 21, 2025 - Trader AI Engine + Intelligent Scoring - NEXT-GEN ANALYSIS  
+### June 21, 2025 - Trader AI Engine + Advanced Debug System - PRODUCTION READY
 - **Intelligent Decision System**: Zastąpiono sztywne reguły trend-mode heurystyczną analizą symulującą myślenie tradera
 - **Multi-Layer Analysis**: analyze_market_structure() + analyze_candle_behavior() + interpret_orderbook() + simulate_trader_decision()
 - **Adaptive Scoring System**: compute_trader_score() z context-aware weights - impulse/pullback/breakout mają różne priorytety
-- **Score Breakdown**: Detailed breakdown w alertach Telegram: trend=0.85, pullback=0.70, support=0.80, bounce=0.75
-- **Quality Grading**: excellent (≥0.85), strong (≥0.75), good (≥0.65), neutral-watch (≥0.50), weak/very_poor
-- **Context Adaptation**: Range penalty (×0.7), distribution avoid (×0.3), impulse_focused vs pullback_focused weights  
-- **Enhanced Logging**: trader_score_log.txt z JSON entries, terminal scoring breakdown, alert integration
-- **Natural Language Reasoning**: describe_setup_naturally() tworzy tekstowe opisy setup'ów jak doświadczony trader
-- **Production Integration**: Pełna integracja z crypto_scan_service.py - score ≥0.75 + confidence ≥0.3 triggers alerts
+- **Comprehensive Debug Logging**: logs/trader_debug_log.txt z pełną strukturą JSON per analiza symbol
+- **Enhanced Terminal Prints**: [TRADER DEBUG] z każdym etapem, [TRADER SCORE] z breakdown, [REASONS] z decision logic
+- **Alert Logging**: logs/alerted_symbols_log.txt - osobne logi dla high-quality setups score ≥0.75
+- **Debug Symbol Tool**: debug_symbol.py dla detailed single-symbol analysis z step-by-step breakdown
+- **Quality Assessment**: excellent/strong/good/neutral-watch/weak/very_poor z context adjustment info
+- **Production Integration**: Pełna integracja z crypto_scan_service.py - audytowalny decision trail
 
 ### June 21, 2025 - Advanced Trend-Mode Integration - PRODUCTION READY
 - **Professional Trader Logic**: Kompletny moduł trend_mode.py z 9 etapami analizy symulującej myślenie profesjonalnego tradera

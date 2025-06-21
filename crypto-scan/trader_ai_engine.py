@@ -107,12 +107,12 @@ def analyze_market_structure(candles: List[List], symbol: str = None) -> str:
         else:
             context = "uncertain"
         
-        # Debug logging
+        # Enhanced debug logging
         if symbol:
-            print(f"[TRADER AI] {symbol}: Market structure = {context}")
-            print(f"[TRADER AI] {symbol}: price_slope={price_slope:.6f}, ema_slope={ema_slope:.6f}")
-            print(f"[TRADER AI] {symbol}: price_vs_ema={price_vs_ema:.2f}%, volatility_ratio={volatility_ratio:.2f}")
-            print(f"[TRADER AI] {symbol}: volume_ratio={volume_ratio:.2f}, range_size={range_size:.2f}%")
+            print(f"[TRADER DEBUG] {symbol}: Market structure = {context}")
+            print(f"[TRADER DEBUG] {symbol}: price_slope={price_slope:.6f}, ema_slope={ema_slope:.6f}")
+            print(f"[TRADER DEBUG] {symbol}: price_vs_ema={price_vs_ema:.2f}%, volatility_ratio={volatility_ratio:.2f}")
+            print(f"[TRADER DEBUG] {symbol}: volume_ratio={volume_ratio:.2f}, range_size={range_size:.2f}%")
         
         return context
         
@@ -265,11 +265,11 @@ def analyze_candle_behavior(candles: List[List], symbol: str = None) -> Dict:
             "buy_pressure_score": round(buy_pressure_signals, 2)
         }
         
-        # Debug logging
+        # Enhanced debug logging
         if symbol:
-            print(f"[TRADER AI] {symbol}: Candle behavior = {pattern}")
-            print(f"[TRADER AI] {symbol}: buy_pressure={shows_buy_pressure}, momentum={momentum}")
-            print(f"[TRADER AI] {symbol}: volume_behavior={volume_behavior}, wick_analysis={wick_analysis}")
+            print(f"[TRADER DEBUG] {symbol}: Candle pattern = {pattern}, momentum = {momentum}")
+            print(f"[TRADER DEBUG] {symbol}: buy_pressure={shows_buy_pressure}, volume_behavior={volume_behavior}")
+            print(f"[TRADER DEBUG] {symbol}: wick_analysis={wick_analysis}, buy_pressure_score={round(buy_pressure_signals, 2)}")
         
         return result
         
@@ -389,8 +389,9 @@ def interpret_orderbook(symbol: str, market_data: Dict = None) -> Dict:
             "total_ask_volume": round(total_ask_volume, 2)
         }
         
-        print(f"[TRADER AI] {symbol}: Orderbook = {bid_strength}, ask_pressure={ask_pressure}")
-        print(f"[TRADER AI] {symbol}: imbalance={imbalance:.3f}, bids_layered={bids_layered}")
+        print(f"[TRADER DEBUG] {symbol}: Orderbook bid_strength={bid_strength}, ask_pressure={ask_pressure}")
+        print(f"[TRADER DEBUG] {symbol}: imbalance={imbalance:.3f}, bids_layered={bids_layered}, spoofing={spoofing_suspected}")
+        print(f"[TRADER DEBUG] {symbol}: bid_volume={round(total_bid_volume, 2)}, ask_volume={round(total_ask_volume, 2)}")
         
         return result
         
@@ -743,14 +744,16 @@ def simulate_trader_decision(
             }
         }
         
-        # Enhanced logging
-        print(f"[TRADER AI] {symbol}: DECISION = {decision} (score={final_score:.3f}, confidence={confidence:.3f})")
-        print(f"[TRADER AI] {symbol}: Quality = {quality_grade}, Reasons = {', '.join(reasons[:3])}")
+        # Enhanced decision logging
+        print(f"[TRADER DECISION] {symbol}: {decision.upper()} (score={final_score:.3f}, confidence={confidence:.3f})")
+        print(f"[TRADER SCORE] {symbol} → {final_score:.3f} | Grade: {quality_grade}, Quality: {scoring_result['context_adjustment']}")
+        print(f"[REASONS] {symbol}: {', '.join(reasons[:5])}")
         if red_flags:
-            print(f"[TRADER AI] {symbol}: Red flags = {', '.join(red_flags)}")
+            print(f"[RED FLAGS] {symbol}: {', '.join(red_flags)}")
         
-        # Log to file for analysis
+        # Log comprehensive debug info
         _log_trader_decision(symbol, result, market_context, candle_behavior, orderbook_info)
+        _log_comprehensive_debug(symbol, result, market_context, candle_behavior, orderbook_info, scoring_result, features)
         
         return result
         
@@ -876,6 +879,89 @@ def _log_trader_score(symbol: str, scoring_result: Dict, features: Dict):
         print(f"[TRADER ERROR] Failed to log score for {symbol}: {e}")
 
 
+def _log_comprehensive_debug(
+    symbol: str,
+    decision_result: Dict,
+    market_context: str,
+    candle_behavior: Dict,
+    orderbook_info: Dict,
+    scoring_result: Dict,
+    features: Dict
+):
+    """Log comprehensive debug information per analysis"""
+    try:
+        os.makedirs("logs", exist_ok=True)
+        
+        # Create comprehensive debug entry
+        debug_entry = {
+            "symbol": symbol,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "market_context": market_context,
+            "trend_strength": features.get("trend_strength", 0.0),
+            "pullback": {
+                "quality": features.get("pullback_quality", 0.0),
+                "active": candle_behavior.get("pattern", "") in ["absorbing_dip", "absorption_bounce"],
+                "volume_behavior": candle_behavior.get("volume_behavior", "unknown")
+            },
+            "support_reaction": {
+                "strength": features.get("support_reaction_strength", 0.0),
+                "type": "support" if features.get("support_reaction_strength", 0) > 0.6 else "weak",
+                "bounce_confirmation": features.get("bounce_confirmation_strength", 0.0)
+            },
+            "candle_behavior": {
+                "pattern": candle_behavior.get("pattern", "none"),
+                "shows_buy_pressure": candle_behavior.get("shows_buy_pressure", False),
+                "momentum": candle_behavior.get("momentum", "neutral"),
+                "volume_increase": candle_behavior.get("volume_behavior", "") == "buying_volume_increase",
+                "wick_analysis": candle_behavior.get("wick_analysis", "none")
+            },
+            "orderbook_analysis": {
+                "bids_layered": orderbook_info.get("bids_layered", False),
+                "spoofing_suspected": orderbook_info.get("spoofing_suspected", False),
+                "bid_strength": orderbook_info.get("bid_strength", "unknown"),
+                "ask_pressure": orderbook_info.get("ask_pressure", "unknown"),
+                "imbalance": orderbook_info.get("imbalance", 0.0),
+                "data_available": orderbook_info.get("data_available", False)
+            },
+            "scoring_breakdown": scoring_result.get("score_breakdown", {}),
+            "weights_used": scoring_result.get("weights_used", {}),
+            "context_adjustment": scoring_result.get("context_adjustment", "unknown"),
+            "final_score": decision_result.get("final_score", 0.0),
+            "confidence": decision_result.get("confidence", 0.0),
+            "quality_grade": decision_result.get("quality_grade", "unknown"),
+            "decision": decision_result.get("decision", "unknown"),
+            "reasons": decision_result.get("reasons", []),
+            "red_flags": decision_result.get("red_flags", [])
+        }
+        
+        # Write to comprehensive debug log
+        debug_file = "logs/trader_debug_log.txt"
+        with open(debug_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(debug_entry) + "\n")
+            
+        # Log alerts separately if decision is join_trend
+        if decision_result.get("decision") == "join_trend" and decision_result.get("final_score", 0) >= 0.75:
+            alert_entry = {
+                "symbol": symbol,
+                "score": decision_result.get("final_score", 0.0),
+                "confidence": decision_result.get("confidence", 0.0),
+                "grade": decision_result.get("quality_grade", "unknown"),
+                "time": datetime.now(timezone.utc).isoformat(),
+                "reason_summary": ", ".join(decision_result.get("reasons", [])[:4]),
+                "context": market_context,
+                "scoring_breakdown": scoring_result.get("score_breakdown", {})
+            }
+            
+            alerts_file = "logs/alerted_symbols_log.txt"
+            with open(alerts_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(alert_entry) + "\n")
+                
+            print(f"[ALERT LOG] {symbol}: High-quality setup logged (score={decision_result.get('final_score', 0):.3f})")
+            
+    except Exception as e:
+        print(f"[DEBUG ERROR] Failed to log comprehensive debug for {symbol}: {e}")
+
+
 def _log_trader_decision(
     symbol: str,
     decision_result: Dict,
@@ -885,13 +971,28 @@ def _log_trader_decision(
 ):
     """Log detailed trader decision for analysis"""
     try:
+        # Create JSON-serializable copy
+        safe_candle_behavior = {}
+        for key, value in candle_behavior.items():
+            if isinstance(value, (bool, str, int, float)):
+                safe_candle_behavior[key] = value
+            else:
+                safe_candle_behavior[key] = str(value)
+        
+        safe_orderbook_info = {}
+        for key, value in orderbook_info.items():
+            if isinstance(value, (bool, str, int, float)):
+                safe_orderbook_info[key] = value
+            else:
+                safe_orderbook_info[key] = str(value)
+        
         log_entry = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "symbol": symbol,
             "decision": decision_result,
             "market_context": market_context,
-            "candle_behavior": candle_behavior,
-            "orderbook_info": orderbook_info
+            "candle_behavior": safe_candle_behavior,
+            "orderbook_info": safe_orderbook_info
         }
         
         log_file = "trader_decision_log.txt"
@@ -1045,7 +1146,15 @@ def analyze_symbol_with_trader_ai(
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
-        print(f"[TRADER AI] {symbol}: Analysis complete - {decision_result['decision']} ({decision_result['quality_grade']})")
+        print(f"[TRADER SUMMARY] {symbol}: Analysis complete - {decision_result['decision']} ({decision_result['quality_grade']})")
+        
+        # Additional debug summary
+        if decision_result.get('final_score', 0) >= 0.6:
+            print(f"[TRADER QUALITY] {symbol}: Good setup detected - monitoring for improvements")
+        elif decision_result.get('final_score', 0) >= 0.4:
+            print(f"[TRADER QUALITY] {symbol}: Decent setup - waiting for better confluence")
+        else:
+            print(f"[TRADER QUALITY] {symbol}: Weak setup - avoiding until conditions improve")
         
         return complete_analysis
         
