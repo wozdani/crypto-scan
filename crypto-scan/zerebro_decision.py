@@ -22,18 +22,14 @@ def test_zerebro_analysis():
     print("=" * 60)
     
     try:
-        # Step 1: Pobranie świeczek 15m (fallback do przykładowych danych)
+        # Step 1: Pobranie świeczek 15m
         print("📊 Fetching 15m candles...")
-        try:
-            candles = get_candles(symbol, interval="15", limit=96)
-        except:
-            candles = None
+        candles = get_candles(symbol, interval="15", limit=96)
         
         if not candles or len(candles) < 20:
-            print(f"⚠️  API unavailable, using sample ZEREBRO data for testing...")
-            # Przykładowe dane świecowe symulujące silny setup pullback dla ZEREBROUSDT
-            candles = generate_sample_zerebro_candles()
-            print(f"✅ Using {len(candles)} sample candles"
+            print(f"❌ Insufficient candle data: {len(candles) if candles else 0} candles")
+            print("⚠️  Check API keys and network connectivity")
+            return None
         
         print(f"✅ Retrieved {len(candles)} candles")
         print(f"📈 Price range: {candles[0][4]} → {candles[-1][4]}")
