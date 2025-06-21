@@ -124,3 +124,6 @@ Result:
   Description: Insufficient data
   Failure reason: trend analysis failed, no support near current price, bid pressure too low
 
+[2025-06-21 11:39:45] BTCUSDT - trend too weak (up_ratio=0.455)
+[2025-06-21 11:39:45] ETHUSDT - bid pressure too low
+[2025-06-21 11:39:46] SOLUSDT - trend too weak (up_ratio=0.545)

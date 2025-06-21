@@ -35,10 +35,22 @@ def fetch_15m_prices_extended(symbol: str, hours_back: int = 24):
             prices = [float(candle[4]) for candle in data["result"]["list"]]
             return prices
         
+        # Fallback to mock data when API fails
+        from detectors.trend_mode_mock import generate_mock_15m_prices, should_use_mock_data
+        if should_use_mock_data():
+            print(f"[API FALLBACK] Using mock 15M data for {symbol}")
+            return generate_mock_15m_prices(symbol, candles_needed)
+        
         return []
     except Exception as e:
         print(f"Error fetching extended 15M prices for {symbol}: {e}")
-        return []
+        # Use mock data as fallback
+        try:
+            from detectors.trend_mode_mock import generate_mock_15m_prices
+            print(f"[API FALLBACK] Using mock 15M data for {symbol}")
+            return generate_mock_15m_prices(symbol, candles_needed)
+        except:
+            return []
 
 
 def fetch_5m_prices_recent(symbol: str, count: int = 12):
@@ -68,10 +80,20 @@ def fetch_5m_prices_recent(symbol: str, count: int = 12):
             prices = [float(candle[4]) for candle in data["result"]["list"]]
             return prices[:count] if len(prices) >= count else prices
         
-        return []
+        # Fallback to mock data when API fails
+        from detectors.trend_mode_mock import generate_mock_5m_prices
+        print(f"[API FALLBACK] Using mock 5M data for {symbol}")
+        return generate_mock_5m_prices(symbol, count)
+        
     except Exception as e:
         print(f"Error fetching 5M prices for {symbol}: {e}")
-        return []
+        # Use mock data as fallback
+        try:
+            from detectors.trend_mode_mock import generate_mock_5m_prices
+            print(f"[API FALLBACK] Using mock 5M data for {symbol}")
+            return generate_mock_5m_prices(symbol, count)
+        except:
+            return []
 
 
 def get_current_price(symbol: str):
@@ -98,10 +120,20 @@ def get_current_price(symbol: str):
             ticker = data["result"]["list"][0]
             return float(ticker.get("lastPrice", 0))
         
-        return 0.0
+        # Fallback to mock data when API fails
+        from detectors.trend_mode_mock import generate_mock_current_price
+        print(f"[API FALLBACK] Using mock current price for {symbol}")
+        return generate_mock_current_price(symbol)
+        
     except Exception as e:
         print(f"Error fetching current price for {symbol}: {e}")
-        return 0.0
+        # Use mock data as fallback
+        try:
+            from detectors.trend_mode_mock import generate_mock_current_price
+            print(f"[API FALLBACK] Using mock current price for {symbol}")
+            return generate_mock_current_price(symbol)
+        except:
+            return 0.0
 
 
 def get_orderbook_volumes_sr(symbol: str):
@@ -139,10 +171,20 @@ def get_orderbook_volumes_sr(symbol: str):
             
             return ask_volumes, bid_volumes
         
-        return [], []
+        # Fallback to mock data when API fails
+        from detectors.trend_mode_mock import generate_mock_orderbook_volumes
+        print(f"[API FALLBACK] Using mock orderbook data for {symbol}")
+        return generate_mock_orderbook_volumes(symbol)
+        
     except Exception as e:
         print(f"Error fetching orderbook volumes for {symbol}: {e}")
-        return [], []
+        # Use mock data as fallback
+        try:
+            from detectors.trend_mode_mock import generate_mock_orderbook_volumes
+            print(f"[API FALLBACK] Using mock orderbook data for {symbol}")
+            return generate_mock_orderbook_volumes(symbol)
+        except:
+            return [], []
 
 
 def is_strong_recent_trend(prices_15m_recent: list[float]) -> bool:
