@@ -1153,11 +1153,11 @@ if __name__ == "__main__":
     test_candles = []
     base_price = 50000
     
-    # Build uptrend (30 candles)
-    for i in range(30):
+    # Build uptrend (50 candles - więcej danych dla analizy)
+    for i in range(50):
         # Progressive uptrend with some noise
-        trend_component = i * 80  # Base trend
-        noise = (i % 3 - 1) * 30  # Small noise
+        trend_component = i * 60  # Base trend
+        noise = (i % 3 - 1) * 20  # Small noise
         price = base_price + trend_component + noise
         
         candle = [
@@ -1171,13 +1171,13 @@ if __name__ == "__main__":
         test_candles.append(candle)
     
     # Add realistic pullback (4 candles)
-    high_price = base_price + 29*80
+    high_price = base_price + 49*60
     for i in range(4):
-        pullback_drop = i * 50  # Gradual pullback
+        pullback_drop = i * 40  # Gradual pullback
         price = high_price - pullback_drop
         
         candle = [
-            1640995200 + (30+i)*900,
+            1640995200 + (50+i)*900,
             price + 20,
             price + 30, 
             price - 60,
@@ -1187,11 +1187,11 @@ if __name__ == "__main__":
         test_candles.append(candle)
     
     # Add bounce attempt (2 candles)
-    bounce_price = high_price - 3*50
+    bounce_price = high_price - 3*40
     for i in range(2):
-        price = bounce_price + i*30
+        price = bounce_price + i*25
         candle = [
-            1640995200 + (34+i)*900,
+            1640995200 + (54+i)*900,
             price - 20,
             price + 50,
             price - 30,
@@ -1207,10 +1207,11 @@ if __name__ == "__main__":
     print(f"Decision: {analysis['decision']}")
     print(f"Confidence: {analysis['confidence']:.2f}")
     print(f"Market Context: {analysis['market_context']}")
-    print(f"Quality Grade: {analysis['quality_grade']}")
+    print(f"Quality Grade: {analysis.get('quality_grade', 'unknown')}")
     print(f"Trend Strength: {analysis['trend_strength']:.2f}")
     print(f"Final Score: {analysis['entry_quality']:.2f}")
     print(f"Main Reasons: {', '.join(analysis['reasons'][:4])}")
+    print(f"Analysis Complete: {analysis.get('analysis_complete', False)}")
     
     # Test individual components
     print(f"\n=== COMPONENT BREAKDOWN ===")
