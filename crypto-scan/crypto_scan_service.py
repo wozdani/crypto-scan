@@ -484,6 +484,14 @@ def scan_cycle():
                         print(f"🔍 [TREND DEBUG] Active signals: {', '.join(trend_mode_reasons)}")
                     
                     # Advanced trend mode alerting with 15M/5M analysis
+                    # Debug logging for trend mode
+                    if trend_mode_score > 0:
+                        print(f"🎯 TREND MODE DEBUG: {symbol} - Score: {trend_mode_score}, Reasons: {trend_mode_reasons}")
+                        
+                        # Check if entry is triggered for debugging
+                        if any("Entry after correction" in reason for reason in trend_mode_reasons):
+                            print(f"✅ ALERT TREND MODE dla {symbol}! Entry triggered.")
+                            
                     if trend_mode_score >= 30:  # Alert threshold
                         print(f"🚨 TREND MODE ALERT: {symbol} - Score: {trend_mode_score}/100+")
                         print(f"📋 Active signals: {', '.join(trend_mode_reasons)}")

@@ -1,0 +1,126 @@
+
+[2025-06-21 11:37:20] TREND MODE DEBUG - BTCUSDT
+============================================================
+Data Status:
+  15M candles: 0
+  5M candles: 0
+  Current price: 0.0
+  Orderbook available: False
+
+Condition Analysis:
+  Strong 3h trend: False
+  Near support: False
+  Entry after correction: False
+
+Result:
+  Score: 0/100
+  Trend Mode: False
+  Entry Triggered: False
+  Description: Insufficient data
+  Failure reason: trend analysis failed, no support near current price, bid pressure too low
+
+
+[2025-06-21 11:37:21] TREND MODE DEBUG - ETHUSDT
+============================================================
+Data Status:
+  15M candles: 0
+  5M candles: 0
+  Current price: 0.0
+  Orderbook available: False
+
+Condition Analysis:
+  Strong 3h trend: False
+  Near support: False
+  Entry after correction: False
+
+Result:
+  Score: 0/100
+  Trend Mode: False
+  Entry Triggered: False
+  Description: Insufficient data
+  Failure reason: trend analysis failed, no support near current price, bid pressure too low
+
+
+[2025-06-21 11:37:21] TREND MODE DEBUG - SOLUSDT
+============================================================
+Data Status:
+  15M candles: 0
+  5M candles: 0
+  Current price: 0.0
+  Orderbook available: False
+
+Condition Analysis:
+  Strong 3h trend: False
+  Near support: False
+  Entry after correction: False
+
+Result:
+  Score: 0/100
+  Trend Mode: False
+  Entry Triggered: False
+  Description: Insufficient data
+  Failure reason: trend analysis failed, no support near current price, bid pressure too low
+
+
+[2025-06-21 11:37:21] TREND MODE DEBUG - ADAUSDT
+============================================================
+Data Status:
+  15M candles: 0
+  5M candles: 0
+  Current price: 0.0
+  Orderbook available: False
+
+Condition Analysis:
+  Strong 3h trend: False
+  Near support: False
+  Entry after correction: False
+
+Result:
+  Score: 0/100
+  Trend Mode: False
+  Entry Triggered: False
+  Description: Insufficient data
+  Failure reason: trend analysis failed, no support near current price, bid pressure too low
+
+
+[2025-06-21 11:37:21] TREND MODE DEBUG - DOTUSDT
+============================================================
+Data Status:
+  15M candles: 0
+  5M candles: 0
+  Current price: 0.0
+  Orderbook available: False
+
+Condition Analysis:
+  Strong 3h trend: False
+  Near support: False
+  Entry after correction: False
+
+Result:
+  Score: 0/100
+  Trend Mode: False
+  Entry Triggered: False
+  Description: Insufficient data
+  Failure reason: trend analysis failed, no support near current price, bid pressure too low
+
+
+[2025-06-21 11:37:23] TREND MODE DEBUG - BTCUSDT
+============================================================
+Data Status:
+  15M candles: 0
+  5M candles: 0
+  Current price: 0.0
+  Orderbook available: False
+
+Condition Analysis:
+  Strong 3h trend: False
+  Near support: False
+  Entry after correction: False
+
+Result:
+  Score: 0/100
+  Trend Mode: False
+  Entry Triggered: False
+  Description: Insufficient data
+  Failure reason: trend analysis failed, no support near current price, bid pressure too low
+

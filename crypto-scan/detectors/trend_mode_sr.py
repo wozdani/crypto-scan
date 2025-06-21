@@ -158,14 +158,17 @@ def is_strong_recent_trend(prices_15m_recent: list[float]) -> bool:
     if len(prices_15m_recent) < 6:
         return False
     
-    # Oblicz stosunek świec wzrostowych
+    # Oblicz stosunek świec wzrostowych (tymczasowo obniżony próg do testów)
     up_ratio = sum(1 for i in range(1, len(prices_15m_recent)) 
                   if prices_15m_recent[i] > prices_15m_recent[i-1]) / (len(prices_15m_recent) - 1)
     
     # Sprawdź postęp cenowy (ostatnia > pierwsza)
     price_progress = prices_15m_recent[-1] > prices_15m_recent[0]
     
-    return up_ratio >= 0.6 and price_progress
+    # Debug logging
+    print(f"[TREND DEBUG] Recent trend analysis - up_ratio: {up_ratio:.3f}, price_progress: {price_progress}")
+    
+    return up_ratio >= 0.5 and price_progress  # Lowered from 0.6 to 0.5 for testing
 
 
 def find_support_resistance_levels(prices_15m_history: list[float], tolerance: float = 0.003) -> list[float]:
@@ -203,7 +206,7 @@ def find_support_resistance_levels(prices_15m_history: list[float], tolerance: f
     return sorted(levels)
 
 
-def is_price_near_support(current_price: float, levels: list[float], margin: float = 0.002) -> bool:
+def is_price_near_support(current_price: float, levels: list[float], margin: float = 0.004) -> bool:
     """
     Sprawdza, czy obecna cena testuje poziom wsparcia
     
@@ -225,7 +228,17 @@ def is_price_near_support(current_price: float, levels: list[float], margin: flo
         return False
     
     # Sprawdź czy cena jest blisko któregoś ze wsparć
-    return any(abs(current_price - s) / s < margin for s in supports)
+    near_any_support = any(abs(current_price - s) / s < margin for s in supports)
+    
+    # Debug logging
+    if supports:
+        closest_support = max(supports)
+        distance_pct = abs(current_price - closest_support) / closest_support * 100
+        print(f"[TREND DEBUG] Support analysis - closest: {closest_support:.2f}, distance: {distance_pct:.2f}%, near_support: {near_any_support}")
+    else:
+        print(f"[TREND DEBUG] Support analysis - no support levels below current price")
+    
+    return near_any_support
 
 
 def is_entry_after_correction(prices_5m: list[float], asks: list[float], bids: list[float]) -> bool:
@@ -298,6 +311,26 @@ def detect_sr_trend_mode(symbol: str) -> dict:
         
         print(f"📈 [SR TREND DEBUG] {symbol} - Strong trend: {strong_trend}, Near support: {near_support}, Entry signal: {entry_signal}")
         print(f"🔍 [SR TREND DEBUG] {symbol} - Support levels found: {len(support_levels)}, Current price: {current_price}")
+        
+        # Enhanced debugging with detailed logging
+        with open("trend_debug_log.txt", "a", encoding="utf-8") as f:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            f.write(f"[{timestamp}] {symbol} - ")
+            
+            if not strong_trend:
+                if len(prices_15m_recent) > 1:
+                    up_moves = sum(1 for i in range(1, len(prices_15m_recent)) 
+                                  if prices_15m_recent[i] > prices_15m_recent[i-1])
+                    up_ratio = up_moves / (len(prices_15m_recent) - 1)
+                    f.write(f"trend too weak (up_ratio={up_ratio:.3f})\n")
+                else:
+                    f.write(f"insufficient 15M data\n")
+            elif not near_support:
+                f.write(f"no support near current price (levels={len(support_levels)})\n")
+            elif not entry_signal:
+                f.write(f"bid pressure too low\n")
+            else:
+                f.write(f"all conditions met - score: {100 if entry_signal else 70}\n")
         
         # Łączenie warunków
         if strong_trend and near_support:
