@@ -31,11 +31,12 @@ def get_candles(symbol, interval="15m", limit=96):
         base_url = "https://api.bybit.com"
         endpoint = "/v5/market/kline"
         
-        # Parameters
+        # Parameters - fix interval format for Bybit API
+        bybit_interval = interval.replace("m", "")  # "15m" -> "15"
         params = {
             "category": "linear",
             "symbol": symbol,
-            "interval": interval,
+            "interval": bybit_interval,
             "limit": str(limit)
         }
         
@@ -77,7 +78,7 @@ def get_candles(symbol, interval="15m", limit=96):
                 candles_raw = data.get("result", {}).get("list", [])
                 
                 if not candles_raw:
-                    print(f"[TREND DEBUG] {symbol}: No candles returned from API")
+                    print(f"[TREND DEBUG] {symbol}: No candles returned from API (retCode: {data.get('retCode')}, retMsg: {data.get('retMsg', 'N/A')})")
                     return []
                 
                 # Convert to standard format and reverse (oldest first)
@@ -104,6 +105,9 @@ def get_candles(symbol, interval="15m", limit=96):
                 return []
         else:
             print(f"[TREND ERROR] {symbol}: HTTP {response.status_code} – {response.text[:100]}")
+            # In Replit environment, Bybit API returns 403 - this is expected
+            if response.status_code == 403:
+                print(f"[TREND DEBUG] {symbol}: Bybit API 403 (expected in Replit) - skipping to fallback")
             return []
             
     except Exception as e:
@@ -144,8 +148,10 @@ def safe_get_candles(symbol, interval="15m", limit=96):
                 return fallback_candles
             else:
                 print(f"[TREND DEBUG] {symbol}: Fallback insufficient ({len(fallback_candles) if fallback_candles else 0}/10)")
+        else:
+            print(f"[TREND DEBUG] {symbol}: Fallback data unavailable or invalid format")
         
-        print(f"[TREND DEBUG] {symbol}: No valid candle source available")
+        print(f"[TREND DEBUG] {symbol}: Skipping trend analysis - no valid candle source")
         return []
         
     except Exception as e:
