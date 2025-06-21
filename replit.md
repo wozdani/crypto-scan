@@ -98,6 +98,13 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 21, 2025 - Trailing Scoring & Alert Engine - PRODUCTION READY
+- **Trend Mode Alert Engine**: Kompletny system trailing scoring z historią 5 ostatnich wyników dla każdego symbolu
+- **Enhanced Scoring System**: Integracja pullback_flow_pattern (+10), flow_consistency (+5), bullish orderbook (+5) i innych detektorów
+- **Alert Triggers**: Score wzrost +10 punktów OR przekroczenie progu ≥70 OR pullback trigger z wysokim score ≥65
+- **Production Integration**: Pełna integracja z crypto_scan_service.py przez trend_mode_integration.py helper
+- **Real-time Processing**: Automatyczne zbieranie danych z modułów, obliczanie enhanced score i generowanie alertów
+
 ### June 21, 2025 - Pullback Flow Pattern Module - PRODUCTION READY
 - **Nowy moduł pullback_flow_pattern**: Wykrywa koniec korekty i potencjalne wejście w pozycję z analizą 15M downtrend + 5M reversal signals
 - **Integracja z Trend Mode Pipeline**: Dodano jako 10. detektor z maksymalnie 18 punktami w systemie scoringu
