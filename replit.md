@@ -112,10 +112,11 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Bug Resolution**: System nie odrzuca już wysokich PPWCS scores z powodu niskich checklist scores
 - **Enhanced Logic**: Bardzo słabe PPWCS (<15) nadal blokuje alert niezależnie od checklist
 
-### June 21, 2025 - PPWCS Alert Threshold Set to Perfect Score (100) - PRODUCTION READY
+### June 21, 2025 - System Cleanup & Perfect Score Threshold - PRODUCTION READY
+- **Debug Cleanup**: Usunięto wszystkie debug printy dotyczące PPWCS, pre-pump scoring, alert levels - system działa bez spamu konsoli
 - **Perfect Score Only**: Alert threshold ustawiony na PPWCS ≥97 (maximum possible score) - tylko perfekcyjne sygnały generują alerty
 - **Eliminacja False Positives**: System będzie wysyłać alerty tylko dla najbardziej pewnych, idealnych pre-pump signals
-- **Quality Focus**: Drastycznie zmniejszona liczba alertów, ale maksymalna jakość i precision
+- **Clean Operation**: System działa cicho z minimalnym logowaniem tylko dla krytycznych eventów
 
 ### June 21, 2025 - Advanced Trend-Mode Integration - PRODUCTION READY
 - **Professional Trader Logic**: Kompletny moduł trend_mode.py z 9 etapami analizy symulującej myślenie profesjonalnego tradera

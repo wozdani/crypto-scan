@@ -206,7 +206,6 @@ def compute_combined_scores(signals: dict) -> dict:
         }
         
     except Exception as e:
-
         return {
             "ppwcs": 0,
             "checklist_score": 0,
@@ -315,6 +314,7 @@ def log_ppwcs_score(symbol, score, signals):
             json.dump(logs, f, indent=2)
             
     except Exception as e:
+        pass
 
 
 def get_top_performers(hours=24, limit=10):
