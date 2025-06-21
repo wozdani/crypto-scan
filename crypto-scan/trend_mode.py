@@ -413,8 +413,24 @@ def detect_support_reaction(candles: List[List], symbol: str = None) -> Dict:
         }
         
     except Exception as e:
-        print(f"⚠️ Error in is_near_support: {e}")
-        return {"near_support": False, "support_type": "none", "reaction_strength": 0.0}
+        error_msg = f"detect_support_reaction failed: {str(e)}"
+        if symbol:
+            print(f"[TREND ERROR] {symbol} - {error_msg}")
+            # Log to file
+            try:
+                with open("trend_error_log.txt", "a", encoding="utf-8") as f:
+                    f.write(json.dumps({
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "symbol": symbol,
+                        "function": "detect_support_reaction",
+                        "error": str(e),
+                        "candles_count": len(candles) if candles else 0
+                    }) + "\n")
+            except:
+                pass
+        else:
+            print(f"[TREND ERROR] {error_msg}")
+        return {"support_detected": False, "support_type": "none", "reaction_strength": 0.0, "error": True}
 
 
 def market_time_score(utc_hour: int, symbol: str = None) -> Dict:
