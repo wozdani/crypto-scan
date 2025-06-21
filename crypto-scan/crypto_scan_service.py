@@ -222,12 +222,88 @@ def scan_cycle():
 
     def run_detect_stage(symbol, price_usd):
         try:
-
+            # Run pre-pump analysis
             stage2_pass, signals, inflow_usd, stage1g_active = detect_stage_minus2_1(symbol, price_usd=price_usd)
-            print(f"[DEBUG] {symbol} signals: {signals}")
+            
+            # === PARALLEL TREND-MODE ANALYSIS ===
+            # Run trend-mode analysis simultaneously with pre-pump PPWCS
+            try:
+                from utils.data_fetchers import get_all_data
+                candles_15m = get_all_data(symbol, interval="15", limit=50)
+                
+                if candles_15m and len(candles_15m) >= 10:
+                    from trend_mode import analyze_symbol_trend_mode
+                    trend_analysis = analyze_symbol_trend_mode(
+                        symbol=symbol,
+                        candles=candles_15m,
+                        enable_gpt=False  # GPT disabled for speed
+                    )
+                    
+                    # Extract trend data
+                    decision = trend_analysis.get('decision', 'avoid')
+                    confidence = trend_analysis.get('confidence', 0.0)
+                    entry_quality = trend_analysis.get('entry_quality', 0.0)
+                    quality_grade = trend_analysis.get('quality_grade', 'poor')
+                    market_context = trend_analysis.get('market_context', 'unknown')
+                    trend_strength = trend_analysis.get('trend_strength', 0.0)
+                    
+                    # Add trend data to signals for PPWCS integration
+                    signals.update({
+                        'trend_mode_decision': decision,
+                        'trend_mode_confidence': confidence,
+                        'trend_mode_context': market_context,
+                        'trend_mode_strength': trend_strength,
+                        'trend_mode_quality': entry_quality,
+                        'trend_mode_grade': quality_grade
+                    })
+                    
+                    # Send Trend-Mode alert if high-quality setup
+                    if decision == "join_trend" and entry_quality >= 0.75:
+                        from utils.trend_alert_cache import should_send_trend_alert, add_trend_alert
+                        
+                        if should_send_trend_alert(symbol):
+                            alert_message = (
+                                f"🎯 TREND-MODE ALERT\n"
+                                f"Symbol: {symbol}\n"
+                                f"Decision: {decision.upper()}\n"
+                                f"Quality: {quality_grade} ({entry_quality:.2f})\n"
+                                f"Context: {market_context}\n"
+                                f"Confidence: {confidence:.2f}\n"
+                                f"Trend Strength: {trend_strength:.2f}"
+                            )
+                            
+                            try:
+                                from utils.telegram_bot import send_alert
+                                send_alert(alert_message)
+                                add_trend_alert(symbol, decision, entry_quality, quality_grade)
+                                print(f"📈 [TREND ALERT] {symbol}: {quality_grade} entry opportunity")
+                            except Exception as telegram_error:
+                                print(f"⚠️ Trend alert send failed for {symbol}: {telegram_error}")
+                    
+                    # Compact logging for trend decisions (only for interesting decisions)
+                    if decision == "join_trend":
+                        print(f"✅ [TREND] {symbol}: JOIN ({quality_grade}, {entry_quality:.2f})")
+                    elif decision == "wait":
+                        print(f"⏳ [TREND] {symbol}: WAIT ({quality_grade}, {entry_quality:.2f})")
+                
+            except Exception as trend_error:
+                # Log trend errors but don't fail pre-pump analysis
+                print(f"[TREND ERROR] {symbol} - {str(trend_error)}")
+                
+                # Add error fallback values to signals
+                signals.update({
+                    'trend_mode_decision': 'error',
+                    'trend_mode_confidence': 0.0,
+                    'trend_mode_context': 'error',
+                    'trend_mode_strength': 0.0,
+                    'trend_mode_quality': 0.0,
+                    'trend_mode_grade': 'error'
+                })
+            
             return symbol, (stage2_pass, signals, inflow_usd, stage1g_active)
+            
         except Exception as e:
-            print(f"❌ Error in detect_stage_minus2_1 for {symbol}: {e}")
+            print(f"❌ Error processing {symbol}: {e}")
             return symbol, (False, {}, 0.0, False)
 
     futures = []
