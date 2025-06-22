@@ -174,9 +174,20 @@ class VisionPhaseClassifier:
             Dict with phase, setup, and confidence predictions
         """
         try:
-            if not VISION_AVAILABLE or not self.model:
+            if VISION_AVAILABLE == True and self.model:
+                # Advanced CLIP model analysis
+                return self._clip_analysis(image_path)
+            else:
+                # Basic heuristic analysis
                 return self._fallback_analysis(image_path)
-            
+                
+        except Exception as e:
+            print(f"[VISION] Prediction failed: {e}")
+            return self._fallback_analysis(image_path)
+    
+    def _clip_analysis(self, image_path: str) -> Dict:
+        """Advanced CLIP model analysis"""
+        try:
             # Load and process image
             image = Image.open(image_path).convert('RGB')
             
@@ -232,11 +243,11 @@ class VisionPhaseClassifier:
             # Log prediction
             self._log_vision_decision(image_path, result)
             
-            print(f"[VISION] 🎯 Prediction: {predicted_phase} ({combined_confidence:.3f} confidence)")
+            print(f"[VISION] Prediction: {predicted_phase} ({combined_confidence:.3f} confidence)")
             return result
             
         except Exception as e:
-            print(f"[VISION] ❌ Prediction failed: {e}")
+            print(f"[VISION] CLIP analysis failed: {e}")
             return self._fallback_analysis(image_path)
     
     def _fallback_analysis(self, image_path: str) -> Dict:

@@ -236,7 +236,7 @@ def simulate_trader_decision_advanced(ctx: Dict) -> Dict:
         return ctx
 
 
-def analyze_trend_opportunity(symbol: str, candles: List[List] = None) -> Dict:
+def analyze_trend_opportunity(symbol: str, candles: List[List] = None, enable_vision: bool = True) -> Dict:
     """
     🧠 TJDE Main Analysis - Pełna integracja AdvancedTraderWeightedDecisionEngine
     
