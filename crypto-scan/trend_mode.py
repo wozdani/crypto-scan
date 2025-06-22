@@ -351,7 +351,18 @@ def analyze_trend_opportunity(symbol: str, candles: List[List] = None) -> Dict:
         final_score = trend_context.get("final_score", 0.0)
         grade = trend_context.get("grade", "weak")
         
-        # === KROK 4: ALERT I LOGGING ===
+        # === KROK 4: ALERT AND LOGGING ===
+        
+        print(f"[TJDE] {symbol}: {decision.upper()} | Score: {final_score:.3f} | Grade: {grade}")
+        
+        # Send alert ONLY for join_trend decisions with high score
+        if decision == "join_trend" and final_score >= 0.7:
+            print(f"[TJDE ALERT] {symbol}: Triggering trend alert...")
+            send_tjde_alert(symbol, trend_context)
+        elif decision == "join_trend":
+            print(f"[TJDE] {symbol}: JOIN decision but score too low ({final_score:.3f} < 0.7)")
+        else:
+            print(f"[TJDE] {symbol}: No alert - decision: {decision}, score: {final_score:.3f}")
         
         decision = trend_context.get("decision", "avoid")
         final_score = trend_context.get("final_score", 0.0)
@@ -463,44 +474,74 @@ def _extract_phase_data(phase_analysis: Dict) -> Dict:
 
 def send_tjde_alert(symbol: str, ctx: Dict):
     """
-    Wysyła alert Telegram dla TJDE decision = "join"
-    Zastępuje poprzednie wywołania send_alert()
+    Wysyła alert Telegram dla TJDE decision = "join_trend"
+    Nowa wersja z context_modifiers i .jsonl logging
     """
     try:
-        # Check cooldown
-        if trend_cache and trend_cache.already_alerted_recently(symbol, "tjde"):
+        from utils.trend_alert_cache import is_trend_cooldown_active, set_trend_cooldown
+        
+        # Check cooldown (60 minutes)
+        if is_trend_cooldown_active(symbol):
             print(f"[TJDE ALERT] {symbol}: Cooldown active, skipping alert")
             return
         
-        final_score = ctx.get("final_score", 0.0)
-        grade = ctx.get("grade", "unknown")
-        reasons = ctx.get("decision_reasons", [])
-        market_phase = ctx.get("market_phase", "unknown")
-        liquidity_score = ctx.get("liquidity_pattern_score", 0.0)
+        # Prepare enhanced alert data with context_modifiers
+        alert_data = {
+            "symbol": symbol,
+            "decision": ctx.get("decision", "unknown"),
+            "final_score": ctx.get("final_score", 0.0),
+            "grade": ctx.get("grade", "unknown"),
+            "confidence": ctx.get("confidence", 0.0),
+            "context_modifiers": ctx.get("context_modifiers", []),
+            "market_phase": ctx.get("market_phase", "unknown"),
+            "adaptive_weights": ctx.get("adaptive_weights", {}),
+            "timestamp": datetime.now().isoformat(),
+            "alert_type": "TJDE_adaptive"
+        }
         
-        # Build alert message for TJDE
-        alert_message = f"""💥 TJDE Smart Trend Join Opportunity
-Symbol: {symbol}
-Score: {final_score:.3f}
-Grade: {grade}
-Phase: {market_phase}
-Liquidity: {liquidity_score:.3f}
-
-Top Reasons:
-{chr(10).join(f"• {reason}" for reason in reasons[:3])}"""
+        # Log to .jsonl file for analysis
+        _log_tjde_alert_to_jsonl(symbol, alert_data)
         
-        # Send alert
-        success = send_alert(symbol, alert_message)
+        # Enhanced Telegram message with context_modifiers
+        enhanced_message = f"""🚨 TJDE ADAPTIVE ALERT: {symbol}
+📊 Score: {alert_data['final_score']:.3f} | Grade: {alert_data['grade']}
+🎯 Decision: {alert_data['decision'].upper()}
+📈 Phase: {alert_data['market_phase']}
+🧠 Context: {', '.join(alert_data['context_modifiers']) if alert_data['context_modifiers'] else 'None'}
+⏰ {datetime.now().strftime('%H:%M:%S')}"""
+        
+        # Send enhanced alert
+        from utils.telegram_bot import send_alert
+        success = send_alert(
+            symbol=symbol,
+            signals=alert_data,
+            score=ctx.get("final_score", 0.0),
+            alert_level=3  # High priority for TJDE
+        )
         
         if success:
-            if trend_cache:
-                trend_cache.mark_alert_sent(symbol, "tjde")
-            print(f"[TJDE ALERT] {symbol}: Alert sent successfully")
+            set_trend_cooldown(symbol)
+            print(f"[TJDE ALERT] {symbol}: Enhanced alert sent with context modifiers")
         else:
             print(f"[TJDE ALERT] {symbol}: Alert failed to send")
-        
+            
     except Exception as e:
         print(f"❌ [TJDE ALERT ERROR] {symbol}: {e}")
+
+
+def _log_tjde_alert_to_jsonl(symbol: str, alert_data: Dict):
+    """Log TJDE alert to .jsonl file for analysis"""
+    try:
+        import os
+        import json
+        
+        os.makedirs("logs", exist_ok=True)
+        
+        with open("logs/tjde_alerts.jsonl", "a", encoding="utf-8") as f:
+            f.write(f"{json.dumps(alert_data, ensure_ascii=False)}\n")
+            
+    except Exception as e:
+        print(f"❌ [TJDE LOG ERROR] {symbol}: {e}")
 
 
 def log_trend_decision(symbol: str, ctx: Dict, output_path: str = "logs/advanced_trader_log.txt"):

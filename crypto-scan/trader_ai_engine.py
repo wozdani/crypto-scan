@@ -689,14 +689,6 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
             "market_phase": market_phase,
             "confidence": min(score * 1.2, 1.0)  # Confidence based on score
         }
-            "orderbook_info": orderbook_info,
-            "phase_analysis": phase_analysis,
-            "liquidity_analysis": liquidity_analysis,
-            "psychology_analysis": psychology_analysis,
-            "htf_analysis": htf_analysis,
-            "advanced_features": advanced_result["weighted_features"],
-            "analysis_quality": "advanced_professional_trader"
-        }
         
         # Enhanced logging
         _log_advanced_trader_decision(symbol, result)
