@@ -586,40 +586,36 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
         
         print(f"[TRADER ADAPTIVE] Analyzing features: phase={market_phase}, trend={trend_strength:.3f}, pullback={pullback_quality:.3f}")
         
-        # === ETAP 2: DYNAMICZNE WAŻENIE ZALEŻNE OD MARKET_PHASE ===
+        # === ETAP 2: ADAPTIVE SELF-LEARNING WEIGHTS ===
+        from utils.update_advanced_weights import get_advanced_weights
+        
+        # Get adaptive weights from self-learning system
+        base_weights = get_advanced_weights()
+        
+        # Apply phase-specific modifiers to adaptive weights
         if market_phase == "breakout-continuation":
-            weights = {
-                "trend_strength": 0.25,
-                "pullback_quality": 0.2,
-                "support_reaction": 0.15,
-                "liquidity_pattern_score": 0.1,
-                "psych_score": 0.05,
-                "htf_supportive_score": 0.15,
-                "market_phase_modifier": 0.1
-            }
-            print(f"[TRADER WEIGHTS] Breakout-continuation phase weights applied")
+            # Boost trend and liquidity for breakouts
+            weights = base_weights.copy()
+            weights["trend_strength"] *= 1.2
+            weights["liquidity_pattern_score"] *= 1.3
+            weights["psych_score"] *= 0.8  # Less important in breakouts
+            print(f"[ADAPTIVE WEIGHTS] Breakout-continuation modifiers applied to learned weights")
         elif market_phase == "range-accumulation":
-            weights = {
-                "trend_strength": 0.1,
-                "pullback_quality": 0.15,
-                "support_reaction": 0.1,
-                "liquidity_pattern_score": 0.2,
-                "psych_score": 0.2,
-                "htf_supportive_score": 0.15,
-                "market_phase_modifier": 0.1
-            }
-            print(f"[TRADER WEIGHTS] Range-accumulation phase weights applied")
+            # Boost psychology and liquidity for range trading
+            weights = base_weights.copy()
+            weights["trend_strength"] *= 0.7
+            weights["liquidity_pattern_score"] *= 1.4
+            weights["psych_score"] *= 1.5
+            print(f"[ADAPTIVE WEIGHTS] Range-accumulation modifiers applied to learned weights")
         else:
-            weights = {
-                "trend_strength": 0.2,
-                "pullback_quality": 0.2,
-                "support_reaction": 0.15,
-                "liquidity_pattern_score": 0.15,
-                "psych_score": 0.1,
-                "htf_supportive_score": 0.1,
-                "market_phase_modifier": 0.1
-            }
-            print(f"[TRADER WEIGHTS] Default phase weights applied for {market_phase}")
+            weights = base_weights.copy()
+            print(f"[ADAPTIVE WEIGHTS] Base learned weights applied for {market_phase}")
+        
+        # Normalize after phase adjustments
+        total_weight = sum(weights.values())
+        if total_weight > 0:
+            for key in weights:
+                weights[key] /= total_weight
         
         # === ETAP 3: SCORING Z DYNAMICZNYMI WAGAMI ===
         score = (

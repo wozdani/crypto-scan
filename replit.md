@@ -123,15 +123,15 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Quality Assessment**: excellent/strong/good/neutral-watch/weak/very_poor z context adjustment info
 - **Production Integration**: Pełna integracja z crypto_scan_service.py - audytowalny decision trail
 
-### June 22, 2025 - Complete Trend-Mode Scoring System Replacement - PRODUCTION READY
-- **Classical Scoring Elimination**: Completely replaced compute_trader_score() with new adaptive simulate_trader_decision_advanced() across all modules
-- **Centralized Feature Extraction**: Created utils/feature_extractor.py as single source for all trading features (trend_strength, pullback_quality, support_reaction, etc.)
-- **Dynamic Phase-Based Weights**: Market phase detection drives weight allocation - breakout-continuation (trend 25%), range-accumulation (liquidity 20%), exhaustion-pullback (psychology penalty)
-- **Context Modifier System**: Intelligent score adjustments for volume_backed_breakout (+0.07), psych_noise_penalty (-0.05), htf_alignment_boost (+0.05)
-- **Enhanced Alert Logic**: Alerts trigger ONLY for decision == "join_trend" AND final_score >= 0.7, eliminating false positives
-- **Advanced Alert System**: TJDE alerts include context_modifiers debug info and comprehensive .jsonl logging to logs/tjde_alerts.jsonl
-- **Professional Decision Thresholds**: join_trend ≥0.70 (strong), consider_entry ≥0.45 (moderate), avoid <0.45 (weak)
-- **Single Decision Point**: All trend-mode analysis now flows through simulate_trader_decision_advanced() as the sole professional trader logic engine
+### June 22, 2025 - Self-Learning Feedback Loop Implementation - PRODUCTION READY
+- **Adaptive Weight System**: Implemented self-learning feedback loop with data/scoring/advanced_weights.json storing dynamically updated weights
+- **Performance Analysis Engine**: Created utils/score_accuracy_analysis.py analyzing alert success rates and feature effectiveness from historical data
+- **Automatic Weight Updates**: utils/update_advanced_weights.py adjusts scoring weights based on real performance with configurable learning rate (1% default)
+- **Alert History Tracking**: All TJDE alerts saved to data/alerts/alerts_history.json for continuous performance monitoring and feedback analysis
+- **Smart Weight Modifiers**: simulate_trader_decision_advanced() now uses adaptive base weights + phase-specific modifiers (breakout +20% trend, range +50% psychology)
+- **Feedback Loop Automation**: run_feedback_loop.py provides scheduled daily (06:00) and weekly (Sunday 03:00) automatic weight optimization
+- **Performance Validation**: System tracks success rate (default 2% gain in 2 hours) and adjusts weights to maximize predictive accuracy
+- **Comprehensive Logging**: Complete audit trail in logs/feedback_loop_history.jsonl and logs/tjde_performance_analysis.json for system evolution tracking
 
 ## User Preferences
 

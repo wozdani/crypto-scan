@@ -502,6 +502,9 @@ def send_tjde_alert(symbol: str, ctx: Dict):
         # Log to .jsonl file for analysis
         _log_tjde_alert_to_jsonl(symbol, alert_data)
         
+        # Also save to alerts history for feedback loop
+        _save_alert_for_feedback_analysis(symbol, alert_data)
+        
         # Enhanced Telegram message with context_modifiers
         enhanced_message = f"""🚨 TJDE ADAPTIVE ALERT: {symbol}
 📊 Score: {alert_data['final_score']:.3f} | Grade: {alert_data['grade']}
@@ -542,6 +545,41 @@ def _log_tjde_alert_to_jsonl(symbol: str, alert_data: Dict):
             
     except Exception as e:
         print(f"❌ [TJDE LOG ERROR] {symbol}: {e}")
+
+
+def _save_alert_for_feedback_analysis(symbol: str, alert_data: Dict):
+    """Save alert to history file for feedback loop analysis"""
+    try:
+        import os
+        import json
+        
+        os.makedirs("data/alerts", exist_ok=True)
+        alerts_file = "data/alerts/alerts_history.json"
+        
+        # Load existing alerts
+        if os.path.exists(alerts_file):
+            with open(alerts_file, "r", encoding="utf-8") as f:
+                alerts_history = json.load(f)
+        else:
+            alerts_history = {"alerts": []}
+        
+        # Add new alert
+        alerts_history["alerts"].append(alert_data)
+        
+        # Keep only last 1000 alerts to manage file size
+        if len(alerts_history["alerts"]) > 1000:
+            alerts_history["alerts"] = alerts_history["alerts"][-1000:]
+        
+        alerts_history["last_updated"] = datetime.now().isoformat()
+        
+        # Save updated history
+        with open(alerts_file, "w", encoding="utf-8") as f:
+            json.dump(alerts_history, f, indent=2, ensure_ascii=False)
+        
+        print(f"[FEEDBACK] {symbol}: Alert saved for feedback analysis")
+        
+    except Exception as e:
+        print(f"❌ [FEEDBACK ERROR] {symbol}: {e}")
 
 
 def log_trend_decision(symbol: str, ctx: Dict, output_path: str = "logs/advanced_trader_log.txt"):
