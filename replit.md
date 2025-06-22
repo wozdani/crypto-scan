@@ -123,15 +123,15 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Quality Assessment**: excellent/strong/good/neutral-watch/weak/very_poor z context adjustment info
 - **Production Integration**: Pełna integracja z crypto_scan_service.py - audytowalny decision trail
 
-### June 22, 2025 - Feedback Loop v2 Self-Learning System - PRODUCTION READY
-- **Advanced Self-Learning Engine**: Created feedback/feedback_loop_v2.py with sophisticated analysis of alert effectiveness and automatic weight correction based on real trading outcomes
-- **Performance-Based Weight Adjustment**: Analyzes success rate (2% gain in 2h, 3% in 6h) and adjusts weights using learning rate 5% with bounds protection (0.01-0.5 range)
-- **JSONL Alert Logging**: Implemented logs/alerts_history.jsonl with comprehensive alert tracking including decision, score, features, and outcome data for continuous learning
-- **Intelligent Weight Correction**: System increases weights for undervalued features (successful alerts with low scores) and decreases for overvalued features (failed alerts with high scores)
-- **Feedback Integration Module**: Added utils/feedback_integration.py with automatic alert logging, periodic analysis scheduling, and comprehensive statistics tracking
-- **Complete Audit Trail**: Enhanced logging with feedback_v2_history.json maintaining 100 sessions of weight evolution, success rates, and learning progression
-- **Production Automation**: Integrated with trend_mode.py for automatic alert logging and daily scheduled feedback analysis at 02:00 with subprocess management
-- **Real-Time Adaptation**: System continuously learns from each alert outcome and automatically updates scoring weights to maximize prediction accuracy over time
+### June 22, 2025 - Continuous Telegram Alert System - PRODUCTION READY
+- **Automated TJDE Alert System**: Created utils/trend_summary.py with continuous Top 5 token alerts on Telegram after each scan cycle
+- **Comprehensive Alert Format**: Each alert includes symbol, final_score, confidence, grade, decision, complete score breakdown, and intelligent decision reasoning
+- **Smart Token Filtering**: System filters for join_trend/consider_entry decisions with score >0.4, sorts by final_score, and sends only high-quality opportunities
+- **Enhanced Telegram Integration**: Added send_trend_alert() function with Markdown formatting, fallback handling, and separate trend channel support (TELEGRAM_TREND_CHAT_ID)
+- **Intelligent Reasoning Engine**: Generates contextual decision reasons based on score components, context modifiers, and market phase analysis
+- **Scan Summary Reports**: Automated scan completion summaries with total analyzed, valid decisions, and alerts sent statistics
+- **Production Integration**: Full integration with crypto_scan_service.py for automatic TJDE collection and Telegram alerts after each 15-minute scan cycle
+- **Complete Logging System**: Enhanced audit trail with logs/trend_summary.jsonl tracking all scan results and alert distributions for analysis
 
 ## User Preferences
 

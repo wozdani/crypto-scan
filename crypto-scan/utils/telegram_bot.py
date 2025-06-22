@@ -40,6 +40,48 @@ def send_alert(message):
         log_alert(message, "error", str(e))
         return False
 
+
+def send_trend_alert(message: str) -> bool:
+    """Send trend-mode alert to Telegram"""
+    try:
+        token = os.getenv("TELEGRAM_BOT_TOKEN")
+        chat_id = os.getenv("TELEGRAM_TREND_CHAT_ID") or os.getenv("TELEGRAM_CHAT_ID")
+        
+        if not token or not chat_id:
+            print("⚠️ Telegram configuration missing (token/chat_id)")
+            return False
+        
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        payload = {
+            "chat_id": chat_id,
+            "text": message,
+            "parse_mode": "Markdown",
+            "disable_web_page_preview": True
+        }
+        
+        response = requests.post(url, data=payload, timeout=10)
+        
+        if response.status_code == 200:
+            print("✅ Trend alert sent successfully")
+            return True
+        elif response.status_code == 400:
+            # Try without markdown if parsing fails
+            payload["parse_mode"] = None
+            response = requests.post(url, data=payload, timeout=10)
+            if response.status_code == 200:
+                print("✅ Trend alert sent (fallback mode)")
+                return True
+            else:
+                print(f"❌ Telegram error even without markdown: {response.status_code}")
+                return False
+        else:
+            print(f"❌ Telegram error: {response.status_code}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Exception sending trend alert: {e}")
+        return False
+
 def log_alert(message, status, error=None):
     """Log alert attempts to file"""
     try:

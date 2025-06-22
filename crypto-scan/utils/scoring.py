@@ -210,6 +210,53 @@ def apply_phase_adjustments(base_weights: Dict[str, float], market_phase: str) -
 
 # === LEGACY FUNCTIONS FOR BACKWARD COMPATIBILITY ===
 
+def get_recent_alerts(hours: int = 24) -> List[Dict]:
+    """Legacy function for recent alerts"""
+    try:
+        alerts = []
+        alert_files = ["data/alerts/alerts_history.json", "logs/alerts_history.jsonl"]
+        
+        for file_path in alert_files:
+            if os.path.exists(file_path):
+                with open(file_path, "r", encoding="utf-8") as f:
+                    if file_path.endswith(".jsonl"):
+                        for line in f:
+                            if line.strip():
+                                try:
+                                    alerts.append(json.loads(line))
+                                except:
+                                    continue
+                    else:
+                        try:
+                            data = json.load(f)
+                            if isinstance(data, list):
+                                alerts.extend(data)
+                            elif isinstance(data, dict) and "alerts" in data:
+                                alerts.extend(data["alerts"])
+                        except:
+                            continue
+        
+        # Filter by time
+        cutoff_time = datetime.now() - timedelta(hours=hours)
+        recent_alerts = []
+        
+        for alert in alerts:
+            try:
+                timestamp_str = alert.get("timestamp", "")
+                if timestamp_str:
+                    alert_time = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+                    if alert_time >= cutoff_time:
+                        recent_alerts.append(alert)
+            except:
+                continue
+        
+        return recent_alerts[-50:]  # Return last 50 alerts
+        
+    except Exception as e:
+        print(f"⚠️ Error getting recent alerts: {e}")
+        return []
+
+
 def compute_ppwcs(signals: Dict, symbol: str = None) -> float:
     """Legacy PPWCS computation for backward compatibility"""
     try:
