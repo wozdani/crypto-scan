@@ -671,10 +671,11 @@ def scan_cycle():
     compress_reports_to_zip()
     print(f"✅ Scan completed. Processed {len(scan_results)} symbols.")
     
-    # Send TJDE summary to Telegram after scan completion
+    # Send enhanced TJDE alerts to Telegram after scan completion
     try:
-        from utils.trend_summary import send_top_trendmode_alerts_to_telegram, log_trend_summary, send_scan_summary
+        from utils.alerts import send_tjde_telegram_summary
         from utils.feedback_integration import run_periodic_feedback_analysis
+        from trend_mode import analyze_trend_opportunity
         
         # Collect TJDE results from this scan
         tjde_results = []
@@ -682,38 +683,42 @@ def scan_cycle():
             symbol = result.get('symbol')
             if symbol:
                 try:
-                    from trend_mode import analyze_trend_opportunity
                     trend_result = analyze_trend_opportunity(symbol)
                     if trend_result and trend_result.get("final_score", 0) > 0:
                         trend_result["symbol"] = symbol
                         tjde_results.append(trend_result)
-                except Exception:
+                except Exception as e:
+                    print(f"[TJDE] Error analyzing {symbol}: {e}")
                     continue
         
-        # Count valid decisions for summary
-        valid_decisions = len([r for r in tjde_results if r.get("decision") in ["join_trend", "consider_entry"]])
-        
-        if tjde_results:
-            print(f"[TREND SUMMARY] Found {len(tjde_results)} TJDE results")
-            log_trend_summary(tjde_results)
-            alerts_sent = send_top_trendmode_alerts_to_telegram(tjde_results, top_n=5)
-        else:
-            print("[TREND SUMMARY] No TJDE results found")
-            alerts_sent = 0
-        
-        # Run periodic feedback analysis (only adjusts weights when needed)
+        # Run periodic feedback analysis first
         feedback_data = run_periodic_feedback_analysis()
         
-        # Send scan summary with optional feedback information
-        send_scan_summary(
-            total_analyzed=len(scan_results),
-            valid_decisions=valid_decisions,
-            alerts_sent=alerts_sent,
-            feedback_data=feedback_data if feedback_data else None
-        )
+        if tjde_results:
+            # Filter for meaningful decisions and sort by score
+            valid_results = [
+                r for r in tjde_results 
+                if r.get("decision") in ["join_trend", "consider_entry"] 
+                and r.get("final_score", 0) > 0.3
+            ]
+            
+            if valid_results:
+                # Sort by final_score and get top 5
+                top5_results = sorted(valid_results, key=lambda x: x.get("final_score", 0), reverse=True)[:5]
+                
+                print(f"[TJDE ALERTS] Sending TOP {len(top5_results)} enhanced alerts")
+                send_tjde_telegram_summary(top5_results, feedback_data)
+            else:
+                print("[TJDE ALERTS] No qualifying tokens found for alerts")
+                # Send feedback summary only if weight changes occurred
+                if feedback_data and feedback_data.get("success"):
+                    from utils.alerts import send_feedback_summary
+                    send_feedback_summary(feedback_data)
+        else:
+            print("[TJDE ALERTS] No TJDE results found")
             
     except Exception as e:
-        print(f"❌ [TREND SUMMARY] Error sending summary: {e}")
+        print(f"❌ [TJDE ALERTS] Error in enhanced alert system: {e}")
     
     return scan_results
 # === Main execution ===

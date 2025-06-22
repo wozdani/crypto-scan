@@ -1,18 +1,18 @@
 {
-  "trend_strength": 0.2534,
-  "pullback_quality": 0.2029,
-  "support_reaction": 0.161,
-  "liquidity_pattern_score": 0.0957,
-  "psych_score": 0.0957,
-  "htf_supportive_score": 0.0957,
-  "market_phase_modifier": 0.0957,
-  "last_updated": "2025-06-22T20:04:41.884227+00:00",
+  "trend_strength": 0.2546,
+  "pullback_quality": 0.2038,
+  "support_reaction": 0.1645,
+  "liquidity_pattern_score": 0.0943,
+  "psych_score": 0.0943,
+  "htf_supportive_score": 0.0943,
+  "market_phase_modifier": 0.0943,
+  "last_updated": "2025-06-22T20:17:59.744985+00:00",
   "weights_version": "feedback_v2_trained",
   "source": "feedback_loop_v2",
   "feedback_info": {
     "alerts_analyzed": 5,
-    "successful_alerts": 4,
-    "success_rate": 0.8,
+    "successful_alerts": 5,
+    "success_rate": 1.0,
     "learning_rate": 0.05,
     "weight_adjustments": {
       "trend_strength": 0.0,
@@ -24,6 +24,6 @@
       "market_phase_modifier": 0.0
     },
     "explanations": {},
-    "analysis_timestamp": "2025-06-22T20:04:41.884185+00:00"
+    "analysis_timestamp": "2025-06-22T20:17:59.744915+00:00"
   }
 }

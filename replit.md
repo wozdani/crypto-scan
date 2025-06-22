@@ -123,16 +123,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Quality Assessment**: excellent/strong/good/neutral-watch/weak/very_poor z context adjustment info
 - **Production Integration**: Pełna integracja z crypto_scan_service.py - audytowalny decision trail
 
-### June 22, 2025 - Enhanced Telegram Alert System with Feedback Explanations - PRODUCTION READY ✅
-- **Automated TJDE Alert System**: Created utils/trend_summary.py with continuous Top 5 token alerts on Telegram after each scan cycle
-- **Comprehensive Alert Format**: Each alert includes symbol, final_score, confidence, grade, decision, complete score breakdown, and intelligent decision reasoning
-- **Smart Token Filtering**: System filters for join_trend/consider_entry decisions with score >0.4, sorts by final_score, and sends only high-quality opportunities
-- **Enhanced Feedback Integration**: Added get_feedback_summary_with_reasons() function with weight change explanations based on specific alert examples
-- **Weight Change Tracking**: System generates explanations for weight adjustments (e.g., "Zwiększono trend_strength - BTCUSDT miał wysoką wartość i był udany")
-- **Intelligent Feedback Analysis**: Enhanced feedback_loop_v2.py with generate_weight_update_explanations() for contextual weight adjustment reasoning
-- **Conditional Feedback Reports**: Weight changes only reported when they actually occur, with detailed explanations of why adjustments were made
-- **Telegram API Integration Fixed**: Successfully configured with working bot token and chat ID, test messages confirmed delivery
-- **Complete Production Integration**: Full integration with crypto_scan_service.py for automatic TJDE collection, feedback analysis, and Telegram alerts after each scan
+### June 22, 2025 - Professional TJDE Telegram Alert System - PRODUCTION READY ✅
+- **Enhanced Individual Token Alerts**: Created utils/alerts.py with sophisticated TOP 5 token analysis featuring numbered rankings and detailed breakdowns
+- **Professional Alert Format**: Each alert shows symbol ranking, final_score, confidence percentage, LONG/SHORT/AVOID decisions, market phase, and grade assessment
+- **Complete Scoring Analysis**: Full score breakdown showing trend_strength, pullback_quality, support_reaction components with their weighted contributions
+- **Intelligent Setup Explanations**: Automated generation of setup reasoning (momentum detection, liquidity patterns, HTF alignment, volume analysis)
+- **Adaptive Weights Display**: Shows current weights used in decision making, highlighting the self-learning system's optimization
+- **Decision Logic Transparency**: Up to 5 specific reasons explaining why each token was selected or rejected
+- **Smart Filtering Logic**: Only sends alerts for meaningful decisions (score >0.3) with join_trend/consider_entry recommendations
+- **Integrated Feedback Reporting**: Weight change notifications with performance-based explanations when adjustments occur
+- **Production Integration**: Complete replacement of basic trend summary with professional-grade individual token analysis system
 
 ## User Preferences
 
