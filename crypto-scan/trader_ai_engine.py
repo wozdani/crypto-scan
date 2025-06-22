@@ -586,36 +586,15 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
         
         print(f"[TRADER ADAPTIVE] Analyzing features: phase={market_phase}, trend={trend_strength:.3f}, pullback={pullback_quality:.3f}")
         
-        # === ETAP 2: ADAPTIVE SELF-LEARNING WEIGHTS ===
-        from utils.feedback_loop_trainer import load_weights
+        # === ETAP 2: DYNAMIC TJDE WEIGHTS LOADING ===
+        from utils.scoring import load_tjde_weights, apply_phase_adjustments
         
-        # Get adaptive weights from feedback loop trainer
-        base_weights = load_weights()
+        # Load dynamic weights from JSON file with fallback to defaults
+        base_weights = load_tjde_weights()
         
-        # Apply phase-specific modifiers to adaptive weights
-        if market_phase == "breakout-continuation":
-            # Boost trend and liquidity for breakouts
-            weights = base_weights.copy()
-            weights["trend_strength"] *= 1.2
-            weights["liquidity_pattern_score"] *= 1.3
-            weights["psych_score"] *= 0.8  # Less important in breakouts
-            print(f"[FEEDBACK WEIGHTS] Breakout-continuation modifiers applied to feedback-trained weights")
-        elif market_phase == "range-accumulation":
-            # Boost psychology and liquidity for range trading
-            weights = base_weights.copy()
-            weights["trend_strength"] *= 0.7
-            weights["liquidity_pattern_score"] *= 1.4
-            weights["psych_score"] *= 1.5
-            print(f"[FEEDBACK WEIGHTS] Range-accumulation modifiers applied to feedback-trained weights")
-        else:
-            weights = base_weights.copy()
-            print(f"[FEEDBACK WEIGHTS] Base feedback-trained weights applied for {market_phase}")
-        
-        # Normalize after phase adjustments
-        total_weight = sum(weights.values())
-        if total_weight > 0:
-            for key in weights:
-                weights[key] /= total_weight
+        # Apply intelligent phase-specific adjustments
+        weights = apply_phase_adjustments(base_weights, market_phase)
+        print(f"[TJDE WEIGHTS] Phase-adjusted weights applied for {market_phase}")
         
         # === ETAP 3: SCORING Z DYNAMICZNYMI WAGAMI ===
         score = (
