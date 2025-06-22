@@ -123,16 +123,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Quality Assessment**: excellent/strong/good/neutral-watch/weak/very_poor z context adjustment info
 - **Production Integration**: Pełna integracja z crypto_scan_service.py - audytowalny decision trail
 
-### June 22, 2025 - Professional TJDE Telegram Alert System - PRODUCTION READY ✅
-- **Enhanced Individual Token Alerts**: Created utils/alerts.py with sophisticated TOP 5 token analysis featuring numbered rankings and detailed breakdowns
-- **Professional Alert Format**: Each alert shows symbol ranking, final_score, confidence percentage, LONG/SHORT/AVOID decisions, market phase, and grade assessment
-- **Complete Scoring Analysis**: Full score breakdown showing trend_strength, pullback_quality, support_reaction components with their weighted contributions
-- **Intelligent Setup Explanations**: Automated generation of setup reasoning (momentum detection, liquidity patterns, HTF alignment, volume analysis)
-- **Adaptive Weights Display**: Shows current weights used in decision making, highlighting the self-learning system's optimization
-- **Decision Logic Transparency**: Up to 5 specific reasons explaining why each token was selected or rejected
-- **Smart Filtering Logic**: Only sends alerts for meaningful decisions (score >0.3) with join_trend/consider_entry recommendations
-- **Integrated Feedback Reporting**: Weight change notifications with performance-based explanations when adjustments occur
-- **Production Integration**: Complete replacement of basic trend summary with professional-grade individual token analysis system
+### June 22, 2025 - Computer Vision Enhanced TJDE System - PRODUCTION READY ✅
+- **Computer Vision Integration**: Added utils/vision_phase_classifier.py with CLIP-ViT model for professional chart pattern recognition
+- **Automated Chart Generation**: matplotlib-based chart creation with candlesticks, moving averages, and volume analysis for visual AI processing
+- **Vision Pattern Recognition**: AI model trained to detect breakout-continuation, pullback setups, trend exhaustion, consolidation patterns
+- **Vision-Enhanced Decisions**: High confidence vision predictions (>0.7) override traditional analysis for superior accuracy
+- **Professional Chart Analysis**: 8 chart patterns and 6 setup types with detailed descriptions and confidence scoring
+- **Enhanced Alert Format**: Telegram alerts now include Computer Vision analysis section with pattern detection and AI confidence levels
+- **Vision Priority Logic**: Breakout detection upgrades avoid decisions, exhaustion patterns downgrade bullish calls
+- **Complete Integration**: Full integration with trader_ai_engine.py and trend_mode.py for vision-enhanced decision making
+- **Production Logging**: Vision decisions logged to data/vision_decisions.json with comprehensive analysis tracking
 
 ## User Preferences
 

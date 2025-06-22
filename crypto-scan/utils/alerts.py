@@ -32,6 +32,10 @@ def send_tjde_telegram_summary(top5_results: List[Dict[str, Any]], feedback_data
             market_context = result.get('market_context', {})
             market_phase = market_context.get('phase', 'unknown') if isinstance(market_context, dict) else str(market_context)
             
+            # Get vision analysis if available
+            vision_analysis = result.get('vision_analysis', {})
+            vision_confidence = vision_analysis.get('confidence', 0) if vision_analysis else 0
+            
             # Format decision reasons
             reasons = result.get("decision_reasons", [])
             reasons_str = "→ " + "\n→ ".join(reasons[:5]) if reasons else "→ Standard analysis applied"
@@ -66,12 +70,25 @@ def send_tjde_telegram_summary(top5_results: List[Dict[str, Any]], feedback_data
             
             decision_display = decision_emoji.get(decision, f"❓ {decision.upper()}")
             
+            # Add vision analysis if available
+            vision_section = ""
+            if vision_analysis and vision_confidence > 0.3:
+                vision_phase = vision_analysis.get('phase', 'unknown')
+                vision_setup = vision_analysis.get('setup', 'unknown')
+                vision_section = f"""
+
+🎯 Computer Vision Analysis:
+• Pattern: {vision_phase.replace('-', ' ').title()}
+• Setup: {vision_setup.replace('-', ' ').title()}  
+• AI Confidence: {round(vision_confidence*100, 1)}%
+• Description: {vision_analysis.get('phase_description', 'Visual pattern detected')}"""
+
             # Compose main alert message
             message = f"""#{i} ⚡️ TJDE Alert: {symbol}
 
 📊 Score: {round(score, 3)} | Confidence: {round(confidence*100, 1)}%
 {decision_display} | Grade: {grade.upper()}
-📈 Phase: {market_phase}
+📈 Phase: {market_phase}{vision_section}
 
 🧠 Score Breakdown:
 {breakdown_str}
