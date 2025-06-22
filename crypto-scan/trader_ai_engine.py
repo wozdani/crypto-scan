@@ -587,10 +587,10 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
         print(f"[TRADER ADAPTIVE] Analyzing features: phase={market_phase}, trend={trend_strength:.3f}, pullback={pullback_quality:.3f}")
         
         # === ETAP 2: ADAPTIVE SELF-LEARNING WEIGHTS ===
-        from utils.update_advanced_weights import get_advanced_weights
+        from utils.feedback_loop_trainer import load_weights
         
-        # Get adaptive weights from self-learning system
-        base_weights = get_advanced_weights()
+        # Get adaptive weights from feedback loop trainer
+        base_weights = load_weights()
         
         # Apply phase-specific modifiers to adaptive weights
         if market_phase == "breakout-continuation":
@@ -599,17 +599,17 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
             weights["trend_strength"] *= 1.2
             weights["liquidity_pattern_score"] *= 1.3
             weights["psych_score"] *= 0.8  # Less important in breakouts
-            print(f"[ADAPTIVE WEIGHTS] Breakout-continuation modifiers applied to learned weights")
+            print(f"[FEEDBACK WEIGHTS] Breakout-continuation modifiers applied to feedback-trained weights")
         elif market_phase == "range-accumulation":
             # Boost psychology and liquidity for range trading
             weights = base_weights.copy()
             weights["trend_strength"] *= 0.7
             weights["liquidity_pattern_score"] *= 1.4
             weights["psych_score"] *= 1.5
-            print(f"[ADAPTIVE WEIGHTS] Range-accumulation modifiers applied to learned weights")
+            print(f"[FEEDBACK WEIGHTS] Range-accumulation modifiers applied to feedback-trained weights")
         else:
             weights = base_weights.copy()
-            print(f"[ADAPTIVE WEIGHTS] Base learned weights applied for {market_phase}")
+            print(f"[FEEDBACK WEIGHTS] Base feedback-trained weights applied for {market_phase}")
         
         # Normalize after phase adjustments
         total_weight = sum(weights.values())

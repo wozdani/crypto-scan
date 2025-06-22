@@ -123,15 +123,15 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Quality Assessment**: excellent/strong/good/neutral-watch/weak/very_poor z context adjustment info
 - **Production Integration**: Pełna integracja z crypto_scan_service.py - audytowalny decision trail
 
-### June 22, 2025 - Self-Learning Feedback Loop Implementation - PRODUCTION READY
-- **Adaptive Weight System**: Implemented self-learning feedback loop with data/scoring/advanced_weights.json storing dynamically updated weights
-- **Performance Analysis Engine**: Created utils/score_accuracy_analysis.py analyzing alert success rates and feature effectiveness from historical data
-- **Automatic Weight Updates**: utils/update_advanced_weights.py adjusts scoring weights based on real performance with configurable learning rate (1% default)
-- **Alert History Tracking**: All TJDE alerts saved to data/alerts/alerts_history.json for continuous performance monitoring and feedback analysis
-- **Smart Weight Modifiers**: simulate_trader_decision_advanced() now uses adaptive base weights + phase-specific modifiers (breakout +20% trend, range +50% psychology)
-- **Feedback Loop Automation**: run_feedback_loop.py provides scheduled daily (06:00) and weekly (Sunday 03:00) automatic weight optimization
-- **Performance Validation**: System tracks success rate (default 2% gain in 2 hours) and adjusts weights to maximize predictive accuracy
-- **Comprehensive Logging**: Complete audit trail in logs/feedback_loop_history.jsonl and logs/tjde_performance_analysis.json for system evolution tracking
+### June 22, 2025 - Advanced Feedback Loop Trainer Implementation - PRODUCTION READY
+- **Feedback Loop Trainer**: Created utils/feedback_loop_trainer.py with manual feedback labeling system and automatic weight adjustment based on good/bad alert outcomes
+- **Weight Management System**: Implemented data/weights/tjde_weights.json for storing feedback-trained weights with complete training history and metadata
+- **Manual Feedback Tools**: Added utils/feedback_manual_tool.py for interactive feedback labeling and sample data generation for system training
+- **Integrated Training Pipeline**: simulate_trader_decision_advanced() now uses feedback-trained weights via load_weights() function with real-time learning capabilities
+- **Training Commands**: Full CLI interface with 'python -m utils.feedback_loop_trainer train/show/reset' for weight management and training execution
+- **Smart Weight Adjustments**: Learning rate-based adjustments (10% default) with feature impact analysis and normalization to prevent weight drift
+- **Training History Tracking**: Complete audit trail in logs/feedback_training_history.json with session tracking and weight evolution monitoring
+- **Production Integration**: All TJDE decisions now use feedback-trained weights with automatic fallback to defaults and comprehensive error handling
 
 ## User Preferences
 
