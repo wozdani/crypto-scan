@@ -670,6 +670,51 @@ def scan_cycle():
     save_conditional_reports()
     compress_reports_to_zip()
     print(f"✅ Scan completed. Processed {len(scan_results)} symbols.")
+    
+    # Send TJDE summary to Telegram after scan completion
+    try:
+        from utils.trend_summary import send_top_trendmode_alerts_to_telegram, log_trend_summary, send_scan_summary
+        from utils.feedback_integration import run_periodic_feedback_analysis
+        
+        # Collect TJDE results from this scan
+        tjde_results = []
+        for result in scan_results:
+            symbol = result.get('symbol')
+            if symbol:
+                try:
+                    from trend_mode import analyze_trend_opportunity
+                    trend_result = analyze_trend_opportunity(symbol)
+                    if trend_result and trend_result.get("final_score", 0) > 0:
+                        trend_result["symbol"] = symbol
+                        tjde_results.append(trend_result)
+                except Exception:
+                    continue
+        
+        # Count valid decisions for summary
+        valid_decisions = len([r for r in tjde_results if r.get("decision") in ["join_trend", "consider_entry"]])
+        
+        if tjde_results:
+            print(f"[TREND SUMMARY] Found {len(tjde_results)} TJDE results")
+            log_trend_summary(tjde_results)
+            alerts_sent = send_top_trendmode_alerts_to_telegram(tjde_results, top_n=5)
+        else:
+            print("[TREND SUMMARY] No TJDE results found")
+            alerts_sent = 0
+        
+        # Run periodic feedback analysis (only adjusts weights when needed)
+        feedback_data = run_periodic_feedback_analysis()
+        
+        # Send scan summary with optional feedback information
+        send_scan_summary(
+            total_analyzed=len(scan_results),
+            valid_decisions=valid_decisions,
+            alerts_sent=alerts_sent,
+            feedback_data=feedback_data if feedback_data else None
+        )
+            
+    except Exception as e:
+        print(f"❌ [TREND SUMMARY] Error sending summary: {e}")
+    
     return scan_results
 # === Main execution ===
 if __name__ == "__main__":
