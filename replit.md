@@ -123,15 +123,15 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Quality Assessment**: excellent/strong/good/neutral-watch/weak/very_poor z context adjustment info
 - **Production Integration**: Pełna integracja z crypto_scan_service.py - audytowalny decision trail
 
-### June 22, 2025 - Dynamic TJDE Weight Loading System - PRODUCTION READY
-- **Dynamic Weight Management**: Created utils/scoring.py with sophisticated load_tjde_weights() function and automatic fallback to defaults for robust operation
-- **JSON Weight Storage**: Enhanced data/weights/tjde_weights.json with metadata, versioning, and validation system for production-grade weight management
-- **Phase-Specific Adjustments**: Implemented apply_phase_adjustments() with intelligent weight modifiers - breakout (+20% trend), range (+50% psychology), exhaustion (+60% psychology)
-- **Weight Validation System**: Built-in validate_tjde_weights() with sum validation (0.8-1.2 range), type checking, and comprehensive error handling
-- **Seamless Integration**: simulate_trader_decision_advanced() now uses dynamic weight loading with automatic phase adjustments and normalization
-- **Robust Error Handling**: Complete fallback system ensuring system operation even with corrupted or missing weight files
-- **Production Features**: Automatic weight normalization, metadata tracking, and comprehensive logging for all weight operations
-- **Backward Compatibility**: Maintains compatibility with existing feedback loop trainer while providing enhanced weight management capabilities
+### June 22, 2025 - Feedback Loop v2 Self-Learning System - PRODUCTION READY
+- **Advanced Self-Learning Engine**: Created feedback/feedback_loop_v2.py with sophisticated analysis of alert effectiveness and automatic weight correction based on real trading outcomes
+- **Performance-Based Weight Adjustment**: Analyzes success rate (2% gain in 2h, 3% in 6h) and adjusts weights using learning rate 5% with bounds protection (0.01-0.5 range)
+- **JSONL Alert Logging**: Implemented logs/alerts_history.jsonl with comprehensive alert tracking including decision, score, features, and outcome data for continuous learning
+- **Intelligent Weight Correction**: System increases weights for undervalued features (successful alerts with low scores) and decreases for overvalued features (failed alerts with high scores)
+- **Feedback Integration Module**: Added utils/feedback_integration.py with automatic alert logging, periodic analysis scheduling, and comprehensive statistics tracking
+- **Complete Audit Trail**: Enhanced logging with feedback_v2_history.json maintaining 100 sessions of weight evolution, success rates, and learning progression
+- **Production Automation**: Integrated with trend_mode.py for automatic alert logging and daily scheduled feedback analysis at 02:00 with subprocess management
+- **Real-Time Adaptation**: System continuously learns from each alert outcome and automatically updates scoring weights to maximize prediction accuracy over time
 
 ## User Preferences
 

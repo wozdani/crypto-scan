@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """
-Scoring Utilities - Dynamiczne ładowanie wag scoringowych dla TJDE
+Scoring Utilities - Dynamiczne ładowanie wag scoringowych dla TJDE + Legacy Functions
 
 Zarządza wagami scoringowymi dla simulate_trader_decision_advanced()
 z automatycznym fallback do domyślnych wartości.
+Zawiera także legacy functions dla backward compatibility.
 """
 
 import json
 import os
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
+from datetime import datetime, timedelta
 
 
 DEFAULT_TJDE_WEIGHTS = {
@@ -206,6 +208,147 @@ def apply_phase_adjustments(base_weights: Dict[str, float], market_phase: str) -
     return adjusted_weights
 
 
+# === LEGACY FUNCTIONS FOR BACKWARD COMPATIBILITY ===
+
+def compute_ppwcs(signals: Dict, symbol: str = None) -> float:
+    """Legacy PPWCS computation for backward compatibility"""
+    try:
+        base_score = 0.0
+        
+        # Simple scoring based on available signals
+        if signals.get("volume_spike", False):
+            base_score += 15
+        if signals.get("price_movement", False):
+            base_score += 10
+        if signals.get("whale_activity", False):
+            base_score += 20
+        if signals.get("dex_inflow", False):
+            base_score += 15
+        if signals.get("social_momentum", False):
+            base_score += 10
+        
+        return min(base_score, 100.0)
+        
+    except Exception as e:
+        print(f"⚠️ Error in compute_ppwcs: {e}")
+        return 0.0
+
+
+def should_alert(score: float, symbol: str = None) -> bool:
+    """Legacy alert logic for backward compatibility"""
+    return score >= 50.0
+
+
+def log_ppwcs_score(symbol: str, score: float, signals: Dict) -> bool:
+    """Legacy score logging for backward compatibility"""
+    try:
+        os.makedirs("data/scores", exist_ok=True)
+        
+        log_entry = {
+            "symbol": symbol,
+            "score": score,
+            "signals": signals,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        with open("data/scores/ppwcs_log.json", "a", encoding="utf-8") as f:
+            f.write(f"{json.dumps(log_entry)}\n")
+        
+        return True
+        
+    except Exception as e:
+        print(f"⚠️ Error logging score: {e}")
+        return False
+
+
+def get_previous_score(symbol: str) -> Optional[float]:
+    """Legacy function to get previous score"""
+    try:
+        score_file = "data/scores/ppwcs_log.json"
+        if not os.path.exists(score_file):
+            return None
+        
+        with open(score_file, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+        
+        for line in reversed(lines):
+            if line.strip():
+                try:
+                    data = json.loads(line)
+                    if data.get("symbol") == symbol:
+                        return data.get("score", 0.0)
+                except:
+                    continue
+        
+        return None
+        
+    except Exception:
+        return None
+
+
+def save_score(symbol: str, score: float, data: Dict) -> bool:
+    """Legacy score saving function"""
+    return log_ppwcs_score(symbol, score, data)
+
+
+def get_top_performers(hours: int = 24, limit: int = 10) -> List[Dict]:
+    """Legacy top performers function"""
+    try:
+        performers = []
+        score_file = "data/scores/ppwcs_log.json"
+        
+        if not os.path.exists(score_file):
+            return performers
+        
+        cutoff_time = datetime.now() - timedelta(hours=hours)
+        symbol_scores = {}
+        
+        with open(score_file, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    try:
+                        data = json.loads(line)
+                        timestamp = datetime.fromisoformat(data.get("timestamp", ""))
+                        
+                        if timestamp >= cutoff_time:
+                            symbol = data.get("symbol", "")
+                            score = data.get("score", 0.0)
+                            
+                            if symbol not in symbol_scores or score > symbol_scores[symbol]["score"]:
+                                symbol_scores[symbol] = {
+                                    "symbol": symbol,
+                                    "score": score,
+                                    "timestamp": data.get("timestamp")
+                                }
+                    except:
+                        continue
+        
+        # Sort by score and return top performers
+        sorted_performers = sorted(symbol_scores.values(), key=lambda x: x["score"], reverse=True)
+        return sorted_performers[:limit]
+        
+    except Exception as e:
+        print(f"⚠️ Error getting top performers: {e}")
+        return []
+
+
+def get_symbol_stats(symbol: str) -> Dict:
+    """Legacy symbol statistics function"""
+    try:
+        stats = {
+            "symbol": symbol,
+            "recent_score": get_previous_score(symbol) or 0.0,
+            "alert_count": 0,
+            "last_alert": None
+        }
+        
+        return stats
+        
+    except Exception as e:
+        print(f"⚠️ Error getting symbol stats: {e}")
+        return {"symbol": symbol, "recent_score": 0.0, "alert_count": 0}
+
+
 if __name__ == "__main__":
     # Test weight loading and saving
     print("🧪 Testing TJDE Weight Management...")
@@ -226,4 +369,10 @@ if __name__ == "__main__":
     save_success = save_tjde_weights(weights)
     print(f"Save test: {'✅ SUCCESS' if save_success else '❌ FAILED'}")
     
-    print("✅ TJDE Weight Management test complete")
+    # Test legacy functions
+    print("\n🧪 Testing Legacy Functions...")
+    test_signals = {"volume_spike": True, "whale_activity": True}
+    test_score = compute_ppwcs(test_signals, "TESTUSDT")
+    print(f"Legacy PPWCS: {test_score}")
+    
+    print("✅ TJDE Weight Management + Legacy test complete")
