@@ -406,7 +406,21 @@ def scan_cycle():
             compressed = stage_minus1_detected
             
             previous_score = get_previous_score(symbol)
-            final_score, ppwcs_structure, ppwcs_quality = compute_ppwcs(signals, previous_score)
+            try:
+                # Handle legacy compute_ppwcs return value
+                ppwcs_result = compute_ppwcs(signals, symbol)
+                if isinstance(ppwcs_result, tuple) and len(ppwcs_result) == 3:
+                    final_score, ppwcs_structure, ppwcs_quality = ppwcs_result
+                else:
+                    # Handle single float return
+                    final_score = float(ppwcs_result) if ppwcs_result else 0.0
+                    ppwcs_structure = {}
+                    ppwcs_quality = "basic"
+            except Exception as ppwcs_error:
+                print(f"❌ PPWCS error for {symbol}: {ppwcs_error}")
+                final_score = 0.0
+                ppwcs_structure = {}
+                ppwcs_quality = "error"
             
             # 🐋 WHALE BOOST SCORING - Dodaj punkty za priorytet whale
             whale_boost = get_whale_boost_for_symbol(symbol, priority_info)
@@ -415,8 +429,18 @@ def scan_cycle():
                 print(f"🔥 {symbol}: Whale boost +{whale_boost} points (total: {final_score})")
             
             # Integrate checklist scoring with scan cycle
-            from utils.scoring import compute_checklist_score
-            checklist_score, checklist_summary = compute_checklist_score(signals)
+            try:
+                from utils.scoring import compute_checklist_score
+                checklist_result = compute_checklist_score(signals)
+                if isinstance(checklist_result, tuple) and len(checklist_result) == 2:
+                    checklist_score, checklist_summary = checklist_result
+                else:
+                    checklist_score = float(checklist_result) if checklist_result else 0.0
+                    checklist_summary = {}
+            except Exception as checklist_error:
+                print(f"❌ Checklist error for {symbol}: {checklist_error}")
+                checklist_score = 0.0
+                checklist_summary = {}
             
             # Add checklist data to signals for downstream processing
             signals["checklist_score"] = checklist_score
