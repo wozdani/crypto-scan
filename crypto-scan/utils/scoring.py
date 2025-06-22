@@ -483,6 +483,33 @@ def compute_checklist_score(signals: Dict) -> Tuple[float, Dict]:
         return 0.0, {"error": str(e)}
 
 
+def get_alert_level(ppwcs_score: float, checklist_score: float) -> int:
+    """
+    Legacy alert level function for backward compatibility
+    
+    Args:
+        ppwcs_score: PPWCS score (0-100)
+        checklist_score: Checklist score (0-100)
+        
+    Returns:
+        int: Alert level (0=no alert, 1=low, 2=medium, 3=high)
+    """
+    try:
+        # Combined scoring logic
+        if ppwcs_score >= 65:
+            return 3  # High alert
+        elif ppwcs_score >= 50 or (ppwcs_score >= 35 and checklist_score >= 35):
+            return 2  # Medium alert
+        elif ppwcs_score >= 35 or checklist_score >= 50:
+            return 1  # Low alert
+        else:
+            return 0  # No alert
+            
+    except Exception as e:
+        print(f"⚠️ Error in get_alert_level: {e}")
+        return 0
+
+
 if __name__ == "__main__":
     # Test weight loading and saving
     print("🧪 Testing TJDE Weight Management...")
