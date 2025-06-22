@@ -448,7 +448,7 @@ def scan_cycle():
             signals["whale_boost"] = whale_boost
             signals["whale_priority"] = symbol in priority_symbols
             
-            save_score(symbol, final_score)
+            save_score(symbol, final_score, signals)
             log_ppwcs_score(symbol, final_score, signals)
 
 
