@@ -554,70 +554,141 @@ def compute_trader_score(features: Dict, symbol: str = None) -> Dict:
         }
 
 
-def simulate_trader_decision_advanced(
-    symbol: str,
-    candles: List[List],
-    market_data: Dict = None,
-    current_price: float = None
-) -> Dict:
+def simulate_trader_decision_advanced(features: dict) -> dict:
     """
-    🧠 Advanced TraderWeightedDecisionEngine with Professional Trader Logic
+    🧠 Nowa Generacja Adaptacyjnego Scoringu - Profesjonalna, kontekstowa wersja decyzyjna
     
-    Rozbudowany system analizy odzwierciedlający proces decyzyjny profesjonalnego tradera:
-    - Market Structure Phase Detection
-    - Liquidity Behavior Analysis  
-    - Psychological Traps Detection
-    - HTF Confirmation Layer
-    - Weighted Feature Scoring
+    Wykorzystuje adaptacyjne ważenie scoringu oraz modyfikatory zależne od fazy rynku i psychologii.
+    Bez sztywnych reguł - myśli jak profesjonalny trader oceniając sytuację wielowarstwowo.
     
     Args:
-        symbol: Trading symbol
-        candles: Lista OHLCV candles
-        market_data: Optional market data containing orderbook
-        current_price: Current price for context
+        features: Dict z cechami rynku i kontekstem
         
     Returns:
-        dict: Comprehensive trader decision with advanced analysis
+        dict: Adaptacyjna decyzja tradera z dynamicznym scoringiem
     """
     try:
-        from utils.market_phase import detect_market_phase
-        from utils.liquidity_analysis import analyze_liquidity_behavior
-        from utils.psychology import detect_psychological_traps
-        from utils.htf_overlay import get_htf_confirmation
+        score_breakdown = {}
+        context_modifiers = []
         
-        print(f"[ADVANCED TRADER] {symbol}: Starting comprehensive analysis...")
+        # === ETAP 1: WYCIĄGANIE CECH Z WEJŚCIA ===
+        trend_strength = features.get("trend_strength", 0.0)
+        pullback_quality = features.get("pullback_quality", 0.0)
+        support_reaction = features.get("support_reaction", 0.0)
+        liquidity_pattern_score = features.get("liquidity_pattern_score", 0.0)
+        psych_score = features.get("psych_score", 0.0)
+        htf_supportive_score = features.get("htf_supportive_score", 0.0)
+        market_phase = features.get("market_phase", "unknown")
+        market_phase_modifier = features.get("market_phase_modifier", 0.0)
+        price_action_pattern = features.get("price_action_pattern", "none")
+        volume_behavior = features.get("volume_behavior", "neutral")
+        htf_trend_match = features.get("htf_trend_match", False)
         
-        # 1. Basic Market Structure Analysis
-        market_context = analyze_market_structure(candles, symbol)
-        candle_behavior = analyze_candle_behavior(candles, symbol)
-        orderbook_info = interpret_orderbook(symbol, market_data)
+        print(f"[TRADER ADAPTIVE] Analyzing features: phase={market_phase}, trend={trend_strength:.3f}, pullback={pullback_quality:.3f}")
         
-        # 2. Advanced Market Phase Detection
-        phase_analysis = detect_market_phase(candles, symbol)
+        # === ETAP 2: DYNAMICZNE WAŻENIE ZALEŻNE OD MARKET_PHASE ===
+        if market_phase == "breakout-continuation":
+            weights = {
+                "trend_strength": 0.25,
+                "pullback_quality": 0.2,
+                "support_reaction": 0.15,
+                "liquidity_pattern_score": 0.1,
+                "psych_score": 0.05,
+                "htf_supportive_score": 0.15,
+                "market_phase_modifier": 0.1
+            }
+            print(f"[TRADER WEIGHTS] Breakout-continuation phase weights applied")
+        elif market_phase == "range-accumulation":
+            weights = {
+                "trend_strength": 0.1,
+                "pullback_quality": 0.15,
+                "support_reaction": 0.1,
+                "liquidity_pattern_score": 0.2,
+                "psych_score": 0.2,
+                "htf_supportive_score": 0.15,
+                "market_phase_modifier": 0.1
+            }
+            print(f"[TRADER WEIGHTS] Range-accumulation phase weights applied")
+        else:
+            weights = {
+                "trend_strength": 0.2,
+                "pullback_quality": 0.2,
+                "support_reaction": 0.15,
+                "liquidity_pattern_score": 0.15,
+                "psych_score": 0.1,
+                "htf_supportive_score": 0.1,
+                "market_phase_modifier": 0.1
+            }
+            print(f"[TRADER WEIGHTS] Default phase weights applied for {market_phase}")
         
-        # 3. Liquidity Behavior Analysis
-        liquidity_analysis = analyze_liquidity_behavior(symbol, market_data, candles)
-        
-        # 4. Psychological Traps Detection
-        psychology_analysis = detect_psychological_traps(candles, symbol)
-        
-        # 5. HTF Confirmation Layer
-        htf_analysis = get_htf_confirmation(symbol, "15")
-        
-        # 6. Advanced Weighted Scoring
-        advanced_result = _calculate_advanced_weighted_score(
-            symbol, market_context, candle_behavior, orderbook_info,
-            phase_analysis, liquidity_analysis, psychology_analysis, htf_analysis
+        # === ETAP 3: SCORING Z DYNAMICZNYMI WAGAMI ===
+        score = (
+            trend_strength * weights["trend_strength"] +
+            pullback_quality * weights["pullback_quality"] +
+            support_reaction * weights["support_reaction"] +
+            liquidity_pattern_score * weights["liquidity_pattern_score"] +
+            psych_score * weights["psych_score"] +
+            htf_supportive_score * weights["htf_supportive_score"] +
+            market_phase_modifier * weights["market_phase_modifier"]
         )
         
-        # 7. Enhanced Decision Logic
-        final_decision = _make_advanced_trader_decision(advanced_result, symbol)
+        print(f"[TRADER SCORE] Base score: {score:.3f}")
         
-        # 8. Comprehensive Result
-        result = {
-            **final_decision,
-            "market_context": market_context,
-            "candle_behavior": candle_behavior,
+        # === ETAP 4: KONTEKSTOWE MODYFIKATORY SCORINGU ===
+        if volume_behavior == "supporting" and price_action_pattern in ["impulse", "continuation"]:
+            score += 0.07
+            context_modifiers.append("volume_backed_breakout")
+            print(f"[CONTEXT MODIFIER] +0.07 for volume_backed_breakout")
+        
+        if psych_score < 0.3:
+            score -= 0.05
+            context_modifiers.append("psych_noise_penalty")
+            print(f"[CONTEXT MODIFIER] -0.05 for psych_noise_penalty")
+        
+        if market_phase == "exhaustion-pullback":
+            score -= 0.08
+            context_modifiers.append("phase_exhaustion_penalty")
+            print(f"[CONTEXT MODIFIER] -0.08 for phase_exhaustion_penalty")
+        
+        if htf_trend_match and htf_supportive_score > 0.5:
+            score += 0.05
+            context_modifiers.append("htf_alignment_boost")
+            print(f"[CONTEXT MODIFIER] +0.05 for htf_alignment_boost")
+        
+        # === ETAP 5: INTERPRETACJA KOŃCOWA ===
+        if score >= 0.70:
+            decision = "join_trend"
+            grade = "strong"
+        elif score >= 0.45:
+            decision = "consider_entry"
+            grade = "moderate"
+        else:
+            decision = "avoid"
+            grade = "weak"
+        
+        print(f"[TRADER DECISION] Final: {decision.upper()} | Score: {score:.3f} | Grade: {grade}")
+        if context_modifiers:
+            print(f"[CONTEXT MODIFIERS] Applied: {', '.join(context_modifiers)}")
+        
+        # === ETAP 6: ZWRACANIE WYNIKÓW ===
+        return {
+            "decision": decision,
+            "final_score": round(score, 3),
+            "quality_grade": grade,
+            "context_modifiers": context_modifiers,
+            "weights": weights,
+            "used_features": {
+                "trend_strength": trend_strength,
+                "pullback_quality": pullback_quality,
+                "support_reaction": support_reaction,
+                "liquidity_pattern_score": liquidity_pattern_score,
+                "psych_score": psych_score,
+                "htf_supportive_score": htf_supportive_score,
+                "market_phase_modifier": market_phase_modifier
+            },
+            "market_phase": market_phase,
+            "confidence": min(score * 1.2, 1.0)  # Confidence based on score
+        }
             "orderbook_info": orderbook_info,
             "phase_analysis": phase_analysis,
             "liquidity_analysis": liquidity_analysis,

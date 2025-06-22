@@ -316,15 +316,40 @@ def analyze_trend_opportunity(symbol: str, candles: List[List] = None) -> Dict:
         trend_context["candle_count"] = len(candles)
         trend_context["analysis_timestamp"] = datetime.now().isoformat()
         
-        # === KROK 2: ADAPTIVE TRADER SCORE ===
+        # === KROK 2: NEW ADAPTIVE DECISION ENGINE ===
         
-        print(f"[TJDE] {symbol}: Computing adaptive trader score...")
-        trend_context = compute_trader_score(trend_context)
+        print(f"[TJDE] {symbol}: Extracting features for adaptive decision engine...")
         
-        # === KROK 3: ADVANCED DECISION ENGINE ===
+        # Extract all features for new decision system
+        from utils.feature_extractor import extract_all_features_for_token
+        features = extract_all_features_for_token(symbol, candles)
         
-        print(f"[TJDE] {symbol}: Making trader decision...")
-        trend_context = simulate_trader_decision_advanced(trend_context)
+        # Use new adaptive trader decision engine
+        from trader_ai_engine import simulate_trader_decision_advanced
+        adaptive_result = simulate_trader_decision_advanced(features)
+        
+        # Map result to trend_context format
+        trend_context.update({
+            "final_score": adaptive_result["final_score"],
+            "grade": adaptive_result["quality_grade"],
+            "decision": adaptive_result["decision"],
+            "confidence": adaptive_result.get("confidence", 0.0),
+            "context_modifiers": adaptive_result.get("context_modifiers", []),
+            "adaptive_weights": adaptive_result.get("weights", {}),
+            "market_phase": adaptive_result.get("market_phase", "unknown"),
+            "used_features": adaptive_result.get("used_features", {})
+        })
+        
+        print(f"[TJDE] {symbol}: Adaptive decision: {adaptive_result['decision'].upper()}, Score: {adaptive_result['final_score']:.3f}")
+        
+        # === KROK 3: FINAL DECISION VALIDATION ===
+        
+        print(f"[TJDE] {symbol}: Validating final decision...")
+        
+        # Decision already made by adaptive engine, just validate
+        decision = trend_context.get("decision", "avoid")
+        final_score = trend_context.get("final_score", 0.0)
+        grade = trend_context.get("grade", "weak")
         
         # === KROK 4: ALERT I LOGGING ===
         

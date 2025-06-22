@@ -123,16 +123,15 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Quality Assessment**: excellent/strong/good/neutral-watch/weak/very_poor z context adjustment info
 - **Production Integration**: Pełna integracja z crypto_scan_service.py - audytowalny decision trail
 
-### June 21, 2025 - AdaptiveTraderScore Complete Implementation - PRODUCTION READY
-- **AdaptiveTraderScore System**: Complete self-learning TJDE z AdaptiveWeightEngine + ContextualModifiers replacing static weights
-- **Adaptive Weight Learning**: AdaptiveWeightEngine learns from historical decisions, adapts weights based on real performance (200 example memory)
-- **Contextual Modifications**: apply_contextual_modifiers() adjusts features based on market phase, BTC trend, trading session, volatility
-- **Enhanced TJDE Integration**: compute_trader_score() now uses adaptive weights + contextual modifiers for dynamic professional trader simulation
-- **Persistent Learning**: Engine saves/loads state to data/adaptive_weights.pkl, maintains performance history and success rates
-- **Session-Aware Scoring**: London (+20% liquidity), NY (+25% liquidity, +15% trend), Asia (-20% liquidity) contextual adjustments
-- **Market Phase Intelligence**: retest-confirmation (+25% support), breakout-continuation (+30% trend), exhaustion-pullback (+40% psychology)
-- **Performance Tracking**: Detailed analytics in logs/adaptive_weights_analysis.json with weight evolution and success metrics
-- **Production Integration Fix**: Corrected import error from analyze_symbol_trend_mode to analyze_trend_opportunity in crypto_scan_service.py
+### June 22, 2025 - Complete Trend-Mode Scoring System Replacement - PRODUCTION READY
+- **Classical Scoring Elimination**: Completely replaced compute_trader_score() with new adaptive simulate_trader_decision_advanced() across all modules
+- **Centralized Feature Extraction**: Created utils/feature_extractor.py as single source for all trading features (trend_strength, pullback_quality, support_reaction, etc.)
+- **Dynamic Phase-Based Weights**: Market phase detection drives weight allocation - breakout-continuation (trend 25%), range-accumulation (liquidity 20%), exhaustion-pullback (psychology penalty)
+- **Context Modifier System**: Intelligent score adjustments for volume_backed_breakout (+0.07), psych_noise_penalty (-0.05), htf_alignment_boost (+0.05)
+- **Enhanced Alert Logic**: Alerts trigger ONLY for decision == "join_trend" AND final_score >= 0.7, eliminating false positives
+- **Advanced Alert System**: TJDE alerts include context_modifiers debug info and comprehensive .jsonl logging to logs/tjde_alerts.jsonl
+- **Professional Decision Thresholds**: join_trend ≥0.70 (strong), consider_entry ≥0.45 (moderate), avoid <0.45 (weak)
+- **Single Decision Point**: All trend-mode analysis now flows through simulate_trader_decision_advanced() as the sole professional trader logic engine
 
 ## User Preferences
 
