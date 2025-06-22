@@ -9,7 +9,7 @@ Zawiera także legacy functions dla backward compatibility.
 
 import json
 import os
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timedelta
 
 
@@ -394,6 +394,93 @@ def get_symbol_stats(symbol: str) -> Dict:
     except Exception as e:
         print(f"⚠️ Error getting symbol stats: {e}")
         return {"symbol": symbol, "recent_score": 0.0, "alert_count": 0}
+
+
+def compute_combined_scores(signals: Dict, symbol: str = None) -> Tuple[float, Dict, str]:
+    """
+    Legacy compute_combined_scores function for backward compatibility with stage_minus2_1
+    
+    Args:
+        signals: Dictionary of detected signals
+        symbol: Trading symbol (optional)
+        
+    Returns:
+        Tuple[final_score, structure_dict, quality_assessment]
+    """
+    try:
+        # Basic PPWCS-style scoring
+        base_score = compute_ppwcs(signals, symbol)
+        
+        # Structure analysis
+        structure = {
+            "whale_detected": signals.get("whale_activity", False),
+            "dex_flow": signals.get("dex_inflow", False),
+            "volume_spike": signals.get("volume_spike", False),
+            "compression": signals.get("stage_minus1_detected", False),
+            "shadow_sync": signals.get("shadow_sync_active", False)
+        }
+        
+        # Quality assessment
+        active_signals = sum(1 for v in structure.values() if v)
+        
+        if active_signals >= 4:
+            quality = "excellent"
+        elif active_signals >= 3:
+            quality = "strong"
+        elif active_signals >= 2:
+            quality = "moderate"
+        else:
+            quality = "weak"
+        
+        # Adjust score based on structure
+        structure_bonus = active_signals * 5
+        final_score = min(base_score + structure_bonus, 100.0)
+        
+        return final_score, structure, quality
+        
+    except Exception as e:
+        print(f"⚠️ Error in compute_combined_scores: {e}")
+        return 0.0, {}, "error"
+
+
+def compute_checklist_score(signals: Dict) -> Tuple[float, Dict]:
+    """
+    Legacy checklist scoring function for backward compatibility
+    
+    Args:
+        signals: Dictionary of signals
+        
+    Returns:
+        Tuple[checklist_score, summary_dict]
+    """
+    try:
+        checklist_items = {
+            "whale_activity": signals.get("whale_activity", False),
+            "dex_inflow": signals.get("dex_inflow", False),
+            "volume_spike": signals.get("volume_spike", False),
+            "compression": signals.get("stage_minus1_detected", False),
+            "shadow_sync": signals.get("shadow_sync_active", False),
+            "heatmap_exhaustion": signals.get("heatmap_exhaustion", False),
+            "spoofing": signals.get("spoofing_suspected", False)
+        }
+        
+        # Calculate score
+        active_count = sum(1 for v in checklist_items.values() if v)
+        total_possible = len(checklist_items)
+        checklist_score = (active_count / total_possible) * 100
+        
+        summary = {
+            "active_signals": active_count,
+            "total_signals": total_possible,
+            "percentage": checklist_score,
+            "items": checklist_items
+        }
+        
+        return checklist_score, summary
+        
+    except Exception as e:
+        print(f"⚠️ Error in compute_checklist_score: {e}")
+        return 0.0, {"error": str(e)}
 
 
 if __name__ == "__main__":
