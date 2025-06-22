@@ -41,8 +41,51 @@ def send_alert(message):
         return False
 
 
-def send_trend_alert(message: str) -> bool:
-    """Send trend-mode alert to Telegram"""
+def get_feedback_summary_with_reasons(weights_before: dict, weights_after: dict, reasons: dict) -> str:
+    """
+    Generate formatted feedback summary with weight change explanations
+    
+    Args:
+        weights_before: Original weights
+        weights_after: Updated weights
+        reasons: Explanations for changes
+        
+    Returns:
+        Formatted string for Telegram
+    """
+    try:
+        summary_lines = []
+        
+        for key in weights_after:
+            before = weights_before.get(key, 0)
+            after = weights_after[key]
+            delta = after - before
+            
+            if abs(delta) >= 0.01:  # Only show significant changes
+                arrow = "🔼" if delta > 0 else "🔽"
+                reason = reasons.get(key, "Automatyczna korekta na podstawie analizy")
+                
+                # Format feature name for display
+                display_name = key.replace("_", " ").title()
+                
+                summary_lines.append(
+                    f"- {arrow} *{display_name}*: {before:.3f} → {after:.3f}\n   _{reason}_"
+                )
+        
+        if summary_lines:
+            from datetime import datetime
+            header = f"\n📊 *Feedback Loop - Aktualizacja Wag* ({datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}):"
+            return header + "\n" + "\n".join(summary_lines)
+        
+        return ""
+        
+    except Exception as e:
+        print(f"❌ Error generating feedback summary: {e}")
+        return ""
+
+
+def send_trend_alert(message: str, feedback_summary: str = "") -> bool:
+    """Send trend-mode alert to Telegram with optional feedback summary"""
     try:
         token = os.getenv("TELEGRAM_BOT_TOKEN")
         chat_id = os.getenv("TELEGRAM_TREND_CHAT_ID") or os.getenv("TELEGRAM_CHAT_ID")
@@ -51,10 +94,15 @@ def send_trend_alert(message: str) -> bool:
             print("⚠️ Telegram configuration missing (token/chat_id)")
             return False
         
+        # Combine message with feedback summary
+        full_message = message
+        if feedback_summary:
+            full_message += f"\n\n{feedback_summary}"
+        
         url = f"https://api.telegram.org/bot{token}/sendMessage"
         payload = {
             "chat_id": chat_id,
-            "text": message,
+            "text": full_message,
             "parse_mode": "Markdown",
             "disable_web_page_preview": True
         }

@@ -54,35 +54,29 @@ def log_tjde_alert_for_feedback(symbol: str, decision_result: Dict, features: Di
         return False
 
 
-def run_periodic_feedback_analysis() -> bool:
+def run_periodic_feedback_analysis() -> dict:
     """
     Uruchamia okresową analizę feedback
     
     Returns:
-        bool: True jeśli analiza się powiodła
+        dict: Feedback results with weight changes and explanations
     """
     try:
-        import subprocess
+        from feedback.feedback_loop_v2 import analyze_and_adjust
         
-        # Run feedback_loop_v2 analysis
-        result = subprocess.run(
-            ["python", "feedback/feedback_loop_v2.py", "analyze"],
-            capture_output=True,
-            text=True,
-            cwd="."
-        )
+        # Run feedback analysis directly
+        feedback_results = analyze_and_adjust()
         
-        if result.returncode == 0:
+        if feedback_results.get("success"):
             print("[FEEDBACK INTEGRATION] Periodic feedback analysis completed successfully")
-            print(result.stdout)
-            return True
+            return feedback_results
         else:
-            print(f"[FEEDBACK INTEGRATION] Feedback analysis failed: {result.stderr}")
-            return False
+            print("[FEEDBACK INTEGRATION] No weight adjustments made")
+            return {}
             
     except Exception as e:
         print(f"[FEEDBACK INTEGRATION] Error running feedback analysis: {e}")
-        return False
+        return {}
 
 
 def schedule_daily_feedback():

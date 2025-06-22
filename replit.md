@@ -123,15 +123,15 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Quality Assessment**: excellent/strong/good/neutral-watch/weak/very_poor z context adjustment info
 - **Production Integration**: Pełna integracja z crypto_scan_service.py - audytowalny decision trail
 
-### June 22, 2025 - Continuous Telegram Alert System - PRODUCTION READY
+### June 22, 2025 - Enhanced Telegram Alert System with Feedback Explanations - PRODUCTION READY
 - **Automated TJDE Alert System**: Created utils/trend_summary.py with continuous Top 5 token alerts on Telegram after each scan cycle
 - **Comprehensive Alert Format**: Each alert includes symbol, final_score, confidence, grade, decision, complete score breakdown, and intelligent decision reasoning
 - **Smart Token Filtering**: System filters for join_trend/consider_entry decisions with score >0.4, sorts by final_score, and sends only high-quality opportunities
-- **Enhanced Telegram Integration**: Added send_trend_alert() function with Markdown formatting, fallback handling, and separate trend channel support (TELEGRAM_TREND_CHAT_ID)
-- **Intelligent Reasoning Engine**: Generates contextual decision reasons based on score components, context modifiers, and market phase analysis
-- **Scan Summary Reports**: Automated scan completion summaries with total analyzed, valid decisions, and alerts sent statistics
-- **Production Integration**: Full integration with crypto_scan_service.py for automatic TJDE collection and Telegram alerts after each 15-minute scan cycle
-- **Complete Logging System**: Enhanced audit trail with logs/trend_summary.jsonl tracking all scan results and alert distributions for analysis
+- **Enhanced Feedback Integration**: Added get_feedback_summary_with_reasons() function with weight change explanations based on specific alert examples
+- **Weight Change Tracking**: System generates explanations for weight adjustments (e.g., "Zwiększono trend_strength - BTCUSDT miał wysoką wartość i był udany")
+- **Intelligent Feedback Analysis**: Enhanced feedback_loop_v2.py with generate_weight_update_explanations() for contextual weight adjustment reasoning
+- **Conditional Feedback Reports**: Weight changes only reported when they actually occur, with detailed explanations of why adjustments were made
+- **Production Integration**: Full integration with crypto_scan_service.py for automatic TJDE collection, feedback analysis, and enhanced Telegram alerts
 
 ## User Preferences
 

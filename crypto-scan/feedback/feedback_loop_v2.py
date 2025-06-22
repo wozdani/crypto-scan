@@ -10,7 +10,7 @@ import json
 import os
 import sys
 from datetime import datetime, timezone
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Any
 
 
 # Configuration
@@ -344,12 +344,70 @@ def save_feedback_history(analysis_data: Dict):
         print(f"[FEEDBACK V2] Error saving feedback history: {e}")
 
 
-def analyze_and_adjust() -> bool:
+def generate_weight_update_explanations(alerts: List[Dict], weight_adjustments: Dict[str, float]) -> Dict[str, str]:
+    """
+    Generate explanations for weight adjustments based on alert analysis
+    
+    Args:
+        alerts: List of analyzed alerts
+        weight_adjustments: Dictionary of weight changes
+        
+    Returns:
+        Dict with explanations for each weight change
+    """
+    explanations = {}
+    
+    try:
+        # Analyze specific examples from alerts
+        successful_alerts = [a for a in alerts if a.get("result_after_2h", 0) >= SUCCESS_THRESHOLD_2H or a.get("result_after_6h", 0) >= SUCCESS_THRESHOLD_6H]
+        failed_alerts = [a for a in alerts if a.get("result_after_2h", 0) < SUCCESS_THRESHOLD_2H and a.get("result_after_6h", 0) < SUCCESS_THRESHOLD_6H]
+        
+        for feature, adjustment in weight_adjustments.items():
+            if abs(adjustment) < 0.005:  # Skip minimal changes
+                continue
+                
+            if adjustment > 0:
+                # Weight increased - find successful alerts with high feature value
+                best_example = None
+                for alert in successful_alerts:
+                    feature_value = alert.get("used_features", {}).get(feature, 0)
+                    if feature_value > 0.6:
+                        best_example = alert
+                        break
+                
+                if best_example:
+                    symbol = best_example.get("symbol", "unknown")
+                    explanations[feature] = f"Zwiększono - {symbol} miał wysoką wartość {feature} ({feature_value:.2f}) i był udany"
+                else:
+                    explanations[feature] = f"Zwiększono - analiza wskazuje na niedoszacowanie składnika"
+            else:
+                # Weight decreased - find failed alerts with high feature value
+                worst_example = None
+                for alert in failed_alerts:
+                    feature_value = alert.get("used_features", {}).get(feature, 0)
+                    final_score = alert.get("final_score", 0)
+                    if feature_value > 0.6 and final_score > 0.7:
+                        worst_example = alert
+                        break
+                
+                if worst_example:
+                    symbol = worst_example.get("symbol", "unknown")
+                    explanations[feature] = f"Zmniejszono - {symbol} miał wysoki {feature}, ale był false positive"
+                else:
+                    explanations[feature] = f"Zmniejszono - składnik generował za dużo false positives"
+    
+    except Exception as e:
+        print(f"[FEEDBACK V2] Error generating explanations: {e}")
+        
+    return explanations
+
+
+def analyze_and_adjust() -> Dict[str, Any]:
     """
     Główna funkcja analizy i dostosowania wag
     
     Returns:
-        bool: True jeśli weights zostały zaktualizowane
+        Dict: Results including weights changes and explanations, or empty dict if failed
     """
     try:
         print(f"\n[FEEDBACK V2] Starting advanced feedback analysis...")
@@ -358,7 +416,7 @@ def analyze_and_adjust() -> bool:
         alerts = load_alert_logs()
         if not alerts:
             print("[FEEDBACK V2] No alert logs found.")
-            return False
+            return {}
         
         current_weights = load_current_weights()
         
@@ -367,7 +425,7 @@ def analyze_and_adjust() -> bool:
         
         if total_analyzed == 0:
             print("[FEEDBACK V2] No valid alerts found for analysis.")
-            return False
+            return {}
         
         print(f"[FEEDBACK V2] Performance Analysis:")
         print(f"  Total alerts analyzed: {total_analyzed}")
@@ -376,6 +434,9 @@ def analyze_and_adjust() -> bool:
         
         # Calculate adjustments
         weight_adjustments = calculate_weight_adjustments(alerts, current_weights)
+        
+        # Generate explanations
+        explanations = generate_weight_update_explanations(alerts, weight_adjustments)
         
         # Apply adjustments
         new_weights = apply_weight_adjustments(current_weights, weight_adjustments)
@@ -387,6 +448,7 @@ def analyze_and_adjust() -> bool:
             "success_rate": round(success_rate, 4),
             "learning_rate": LEARNING_RATE,
             "weight_adjustments": weight_adjustments,
+            "explanations": explanations,
             "analysis_timestamp": datetime.now(timezone.utc).isoformat()
         }
         
@@ -404,13 +466,25 @@ def analyze_and_adjust() -> bool:
         # Print summary
         print_adjustment_summary(current_weights, new_weights, weight_adjustments, feedback_info)
         
-        return save_success
+        # Return results for Telegram integration
+        return {
+            "success": save_success,
+            "weights_before": current_weights,
+            "weights_after": new_weights,
+            "explanations": explanations,
+            "adjustments": weight_adjustments,
+            "performance": {
+                "total_analyzed": total_analyzed,
+                "successful": successful,
+                "success_rate": success_rate
+            }
+        }
         
     except Exception as e:
         print(f"[FEEDBACK V2] Error in analysis: {e}")
         import traceback
         traceback.print_exc()
-        return False
+        return {}
 
 
 def print_adjustment_summary(old_weights: Dict, new_weights: Dict, adjustments: Dict, feedback_info: Dict):

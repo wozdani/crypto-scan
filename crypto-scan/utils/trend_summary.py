@@ -52,11 +52,7 @@ def send_top_trendmode_alerts_to_telegram(results: List[Dict], top_n: int = 5) -
             if send_single_trend_alert(result, rank=i):
                 success_count += 1
         
-        # Wyślij podsumowanie skanu
-        if success_count > 0:
-            send_scan_summary(len(results), len(valid_results), success_count)
-        
-        return success_count > 0
+        return success_count
         
     except Exception as e:
         print(f"❌ [TREND SUMMARY] Error sending alerts: {e}")
@@ -132,14 +128,15 @@ def send_single_trend_alert(result: Dict, rank: int = 1) -> bool:
         return False
 
 
-def send_scan_summary(total_analyzed: int, valid_decisions: int, alerts_sent: int) -> bool:
+def send_scan_summary(total_analyzed: int, valid_decisions: int, alerts_sent: int, feedback_data: dict = None) -> bool:
     """
-    Wysyła podsumowanie skanu na Telegram
+    Wysyła podsumowanie skanu na Telegram z opcjonalnymi informacjami o feedback
     
     Args:
         total_analyzed: Całkowita liczba analizowanych tokenów
         valid_decisions: Liczba tokenów z pozytywnymi decyzjami
         alerts_sent: Liczba wysłanych alertów
+        feedback_data: Opcjonalne dane z feedback loop
         
     Returns:
         bool: True jeśli wysłanie się powiodło
@@ -152,9 +149,19 @@ def send_scan_summary(total_analyzed: int, valid_decisions: int, alerts_sent: in
 📤 Alerts sent: `{alerts_sent}` tokens
 
 Next scan: `15 minutes`"""
+
+        # Add feedback information if available
+        feedback_summary = ""
+        if feedback_data and feedback_data.get("success"):
+            from utils.telegram_bot import get_feedback_summary_with_reasons
+            feedback_summary = get_feedback_summary_with_reasons(
+                feedback_data.get("weights_before", {}),
+                feedback_data.get("weights_after", {}),
+                feedback_data.get("explanations", {})
+            )
         
         from utils.telegram_bot import send_trend_alert
-        return send_trend_alert(summary_message)
+        return send_trend_alert(summary_message, feedback_summary)
         
     except Exception as e:
         print(f"❌ [TREND SUMMARY] Error sending summary: {e}")
