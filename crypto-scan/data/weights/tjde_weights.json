@@ -1,0 +1,12 @@
+{
+  "trend_strength": 0.2512,
+  "pullback_quality": 0.201,
+  "support_reaction": 0.1537,
+  "liquidity_pattern_score": 0.0985,
+  "psych_score": 0.0985,
+  "htf_supportive_score": 0.0985,
+  "market_phase_modifier": 0.0985,
+  "last_updated": "2025-06-22T19:25:00Z",
+  "weights_version": "tjde_v1.0",
+  "source": "scoring_utilities"
+}
