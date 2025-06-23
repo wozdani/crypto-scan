@@ -645,62 +645,133 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
         if context_modifiers:
             print(f"[CONTEXT MODIFIERS] Applied: {', '.join(context_modifiers)}")
         
-        # === ETAP 6: CLIP VISUAL ENHANCEMENT ===
+        # === ETAP 6: CLIP CHART ANALYSIS INTEGRATION ===
+        clip_modifier = 0.0
+        clip_predicted_phase = ""
+        clip_info = {}
+        
         try:
-            from vision_ai.tjde_clip_integration import integrate_clip_with_tjde
+            from ai.clip_predictor import predict_clip_chart
             
-            # Create base result for CLIP enhancement
-            base_result = {
-                "decision": decision,
-                "final_score": round(score, 3),
-                "quality_grade": grade,
-                "context_modifiers": context_modifiers,
-                "weights": weights,
-                "used_features": {
-                    "trend_strength": trend_strength,
-                    "pullback_quality": pullback_quality,
-                    "support_reaction": support_reaction,
-                    "liquidity_pattern_score": liquidity_pattern_score,
-                    "psych_score": psych_score,
-                    "htf_supportive_score": htf_supportive_score,
-                    "market_phase_modifier": market_phase_modifier
-                },
-                "market_phase": market_phase,
-                "confidence": min(score * 1.2, 1.0)
-            }
-            
-            # Get symbol from features if available
+            # Get symbol from features
             symbol = features.get("symbol", "UNKNOWN")
             
-            # Enhance with CLIP if available
-            enhanced_result = integrate_clip_with_tjde(symbol, base_result)
+            # Find chart for symbol
+            chart_locations = [
+                f"charts/{symbol}_*.png",
+                f"exports/{symbol}_*.png", 
+                f"training_data/clip/{symbol}_*.png"
+            ]
             
-            if enhanced_result.get("clip_enhanced"):
-                print(f"[CLIP ENHANCED] {symbol}: Score adjusted by {enhanced_result.get('clip_adjustment', 0):+.3f}")
+            chart_path = None
+            from pathlib import Path
+            import glob
             
-            return enhanced_result
+            for pattern in chart_locations:
+                matches = glob.glob(pattern)
+                if matches:
+                    chart_path = sorted(matches, reverse=True)[0]  # Most recent
+                    break
             
+            if chart_path:
+                # Define candidate phases for TJDE integration
+                candidate_phases = [
+                    "breakout-continuation",
+                    "pullback-in-trend", 
+                    "range-accumulation",
+                    "trend-reversal",
+                    "consolidation",
+                    "fakeout",
+                    "bullish momentum",
+                    "bearish momentum"
+                ]
+                
+                # Get CLIP prediction
+                chart_phase_prediction = predict_clip_chart(chart_path, candidate_phases)
+                
+                if chart_phase_prediction.get("success"):
+                    clip_predicted_phase = chart_phase_prediction["predicted_label"]
+                    clip_confidence = chart_phase_prediction["confidence"]
+                    
+                    # Calculate clip_predicted_phase_modifier
+                    phase_modifiers = {
+                        "breakout-continuation": 0.08,
+                        "pullback-in-trend": 0.05,
+                        "bullish momentum": 0.06,
+                        "range-accumulation": 0.03,
+                        "consolidation": 0.00,
+                        "fakeout": -0.10,
+                        "trend-reversal": -0.08,
+                        "bearish momentum": -0.06
+                    }
+                    
+                    base_modifier = phase_modifiers.get(clip_predicted_phase, 0.0)
+                    
+                    # Apply confidence weighting (only if confidence > 0.4)
+                    if clip_confidence > 0.4:
+                        confidence_weight = min(clip_confidence * 1.2, 1.0)
+                        clip_modifier = base_modifier * confidence_weight
+                        # Cap modifier
+                        clip_modifier = max(-0.12, min(0.12, clip_modifier))
+                    
+                    clip_info = {
+                        "predicted_phase": clip_predicted_phase,
+                        "confidence": clip_confidence,
+                        "modifier": clip_modifier,
+                        "chart_path": chart_path,
+                        "raw_scores": chart_phase_prediction.get("raw_scores", {}),
+                        "top_3": chart_phase_prediction.get("top_3_predictions", [])
+                    }
+                    
+                    print(f"[CLIP CHART] {symbol}: {clip_predicted_phase} (conf: {clip_confidence:.3f}, modifier: {clip_modifier:+.3f})")
+                    
+                else:
+                    print(f"[CLIP CHART] {symbol}: Prediction failed for {chart_path}")
+            else:
+                print(f"[CLIP CHART] {symbol}: No chart found")
+                
         except Exception as clip_error:
-            print(f"[CLIP ERROR] CLIP enhancement failed: {clip_error}")
-            # Return base result if CLIP fails
-            return {
-                "decision": decision,
-                "final_score": round(score, 3),
-                "quality_grade": grade,
-                "context_modifiers": context_modifiers,
-                "weights": weights,
-                "used_features": {
-                    "trend_strength": trend_strength,
-                    "pullback_quality": pullback_quality,
-                    "support_reaction": support_reaction,
-                    "liquidity_pattern_score": liquidity_pattern_score,
-                    "psych_score": psych_score,
-                    "htf_supportive_score": htf_supportive_score,
-                    "market_phase_modifier": market_phase_modifier
-                },
-                "market_phase": market_phase,
-                "confidence": min(score * 1.2, 1.0)
-            }
+            print(f"[CLIP CHART ERROR] {symbol}: {clip_error}")
+        
+        # Apply CLIP modifier to final score
+        enhanced_score = score + clip_modifier
+        
+        # Update decision if CLIP significantly changes score
+        if clip_modifier != 0:
+            if enhanced_score >= 0.70 and decision != "join_trend":
+                decision = "join_trend"
+                grade = "strong"
+                print(f"[CLIP BOOST] {symbol}: Decision upgraded to JOIN_TREND due to CLIP enhancement")
+            elif enhanced_score < 0.45 and decision == "consider_entry":
+                decision = "avoid"
+                grade = "weak"
+                print(f"[CLIP DOWNGRADE] {symbol}: Decision downgraded to AVOID due to CLIP warnings")
+        
+        # === ETAP 7: FINAL RESULT ASSEMBLY ===
+        final_result = {
+            "decision": decision,
+            "final_score": round(enhanced_score, 3),
+            "quality_grade": grade,
+            "context_modifiers": context_modifiers,
+            "weights": weights,
+            "used_features": {
+                "trend_strength": trend_strength,
+                "pullback_quality": pullback_quality,
+                "support_reaction": support_reaction,
+                "liquidity_pattern_score": liquidity_pattern_score,
+                "psych_score": psych_score,
+                "htf_supportive_score": htf_supportive_score,
+                "market_phase_modifier": market_phase_modifier
+            },
+            "market_phase": market_phase,
+            "confidence": min(enhanced_score * 1.2, 1.0),
+            "clip_enhanced": clip_modifier != 0,
+            "clip_info": clip_info,
+            "clip_modifier": clip_modifier,
+            "base_score_before_clip": score
+        }
+        
+        return final_result
         
         # Enhanced logging
         _log_advanced_trader_decision(symbol, result)
