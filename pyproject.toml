@@ -13,6 +13,10 @@ dependencies = [
     "pillow>=11.2.1",
     "matplotlib>=3.10.3",
     "mplfinance>=0.12.10b0",
+    "ftfy>=6.3.1",
+    "regex>=2024.11.6",
+    "tqdm>=4.67.1",
+    "clip",
 ]
 
 [[tool.uv.index]]
@@ -1136,3 +1140,4 @@ yta-general-utils = [{ index = "pytorch-cpu", marker = "platform_system == 'Linu
 zensvi = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
 zetascale = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
 zuko = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
+clip = { git = "https://github.com/openai/CLIP.git" }
