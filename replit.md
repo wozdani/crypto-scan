@@ -123,16 +123,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Quality Assessment**: excellent/strong/good/neutral-watch/weak/very_poor z context adjustment info
 - **Production Integration**: Pełna integracja z crypto_scan_service.py - audytowalny decision trail
 
-### June 22, 2025 - Computer Vision Enhanced TJDE System - PRODUCTION READY ✅
-- **Computer Vision Integration**: Added utils/vision_phase_classifier.py with CLIP-ViT model for professional chart pattern recognition
-- **Automated Chart Generation**: matplotlib-based chart creation with candlesticks, moving averages, and volume analysis for visual AI processing
-- **Vision Pattern Recognition**: AI model trained to detect breakout-continuation, pullback setups, trend exhaustion, consolidation patterns
-- **Vision-Enhanced Decisions**: High confidence vision predictions (>0.7) override traditional analysis for superior accuracy
-- **Professional Chart Analysis**: 8 chart patterns and 6 setup types with detailed descriptions and confidence scoring
-- **Enhanced Alert Format**: Telegram alerts now include Computer Vision analysis section with pattern detection and AI confidence levels
-- **Vision Priority Logic**: Breakout detection upgrades avoid decisions, exhaustion patterns downgrade bullish calls
-- **Complete Integration**: Full integration with trader_ai_engine.py and trend_mode.py for vision-enhanced decision making
-- **Production Logging**: Vision decisions logged to data/vision_decisions.json with comprehensive analysis tracking
+### June 23, 2025 - Advanced Chart Export Module for CV Training - PRODUCTION READY ✅
+- **Professional Chart Exporter**: Created utils/chart_exporter.py with 3 chart styles (professional, clean, detailed) for Computer Vision training data
+- **Multiple Chart Formats**: Support for candlestick charts with volume, EMA indicators, RSI analysis, and customizable timeframes
+- **Training Data Pipeline**: Automated export of high-quality PNG images optimized for machine learning pattern recognition
+- **Batch Export Functionality**: export_multiple_charts() for generating training datasets across multiple symbols and timeframes  
+- **Enhanced Vision Integration**: Updated vision_phase_classifier.py to use chart_exporter for consistent training data generation
+- **Production Testing**: Comprehensive test suite with test_chart_export.py validating all export styles and configurations
+- **Chart Style Variations**: Professional (colorful), Clean (minimal), Detailed (with RSI/multiple EMAs) for diverse training data
+- **Export Statistics**: Built-in monitoring of exported files, sizes, and generation success rates
+- **Training Data Quality**: 150 DPI, optimized dimensions, consistent styling for reliable Computer Vision model training
 
 ## User Preferences
 

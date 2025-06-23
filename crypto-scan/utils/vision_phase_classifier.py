@@ -74,7 +74,7 @@ class VisionPhaseClassifier:
             self.model = None
             self.processor = None
     
-    def generate_chart_image(self, symbol: str, candles: List[List], save_path: str = None) -> str:
+    def generate_chart_image(self, symbol: str, candles: List[List], save_path: str = None, style: str = "vision") -> str:
         """
         Generate chart image from candle data using matplotlib
         
@@ -319,27 +319,49 @@ class VisionPhaseClassifier:
         except Exception as e:
             print(f"[VISION] ⚠️ Logging failed: {e}")
     
-    def analyze_symbol_with_vision(self, symbol: str, candles: List[List]) -> Optional[Dict]:
+    def analyze_symbol_with_vision(self, symbol: str, candles: List[List], export_for_training: bool = False) -> Optional[Dict]:
         """
         Complete vision analysis pipeline for a symbol
         
         Args:
             symbol: Trading symbol
             candles: OHLCV candle data
+            export_for_training: Whether to also export with chart_exporter for training data
             
         Returns:
             Vision analysis result or None if failed
         """
         try:
-            # Generate chart image
-            image_path = self.generate_chart_image(symbol, candles)
+            # Generate chart image for vision analysis
+            image_path = self.generate_chart_image(symbol, candles, style="vision")
             if not image_path:
                 return None
+            
+            # Export additional training data if requested
+            training_paths = []
+            if export_for_training:
+                try:
+                    from utils.chart_exporter import export_chart_image
+                    
+                    # Export in multiple styles for training
+                    for style in ["professional", "clean", "detailed"]:
+                        training_path = export_chart_image(
+                            symbol=symbol,
+                            timeframe="15m",
+                            chart_style=style,
+                            save_as=f"training_{symbol}_{style}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+                        )
+                        if training_path:
+                            training_paths.append(training_path)
+                            
+                except ImportError:
+                    print("[VISION] Chart exporter not available for training data")
             
             # Analyze chart pattern
             vision_result = self.predict_chart_setup(image_path)
             vision_result["image_path"] = image_path
             vision_result["symbol"] = symbol
+            vision_result["training_exports"] = training_paths
             
             return vision_result
             
