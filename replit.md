@@ -202,6 +202,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Fallback Integration**: Seamless fallback from file-based predictions to real-time chart analysis when prediction files unavailable
 - **Production Scoring Logic**: Enhanced TJDE with CLIP boosts: breakout-continuation (+1.2x trend), pullback-in-trend (+1.2x pullback), trend-reversal (-1.0x phase_modifier)
 
+### June 23, 2025 - Complete Embedding Pipeline with CLIP + TJDE + GPT Integration - PRODUCTION READY ✅
+- **Combined Embedding System**: Implemented generate_embeddings.py creating unified ~2060D vectors combining CLIP image (512D) + GPT text (1536D) + TJDE score (12D) embeddings
+- **GPT Text Embedding**: Created utils/gpt_embedding.py using OpenAI text-embedding-3-small model for GPT commentary processing with batch support
+- **Score Vector Embedding**: Built utils/score_embedding.py converting 12 TJDE features to normalized vectors with MinMaxScaler and automatic feature extraction
+- **CLIP Image Integration**: Enhanced ai/clip_model.py with get_image_embedding() method for seamless chart image processing in embedding pipeline
+- **Automatic Data Discovery**: Smart detection of chart images, GPT comments from session history, and CLIP predictions with multi-location fallback support
+- **Production Integration**: Automatic embedding generation for TOP 5 performers after each scan cycle in crypto_scan_service.py with comprehensive error handling
+- **Embedding Persistence**: Saves embeddings as .npy files with metadata.json in data/embeddings/ using SYMBOL_TIMESTAMP naming convention
+- **Future-Ready Architecture**: Foundation for clustering similar setups, similarity search, zero-shot matching, and recommendation model training
+- **Comprehensive Statistics**: Real-time embedding statistics tracking with symbol counts, generation success rates, and historical analysis capabilities
+
 ## User Preferences
 
 - Language: Polish for user-facing messages and alerts

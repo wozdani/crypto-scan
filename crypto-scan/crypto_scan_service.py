@@ -461,7 +461,7 @@ def scan_cycle():
                 'stage2_pass': stage2_pass,
                 'compressed': compressed,
                 'stage1g_active': stage1g_active,
-
+                'tjde_result': signals.get('tjde_result')  # Add TJDE result for embedding generation
             })
 
             from utils.take_profit_engine import forecast_take_profit_levels
