@@ -711,6 +711,31 @@ def scan_cycle():
                                 if sample_id:
                                     training_samples_collected += 1
                                     print(f"[TRAINING] Collected sample: {sample_id}")
+                                
+                                # Generate CV prediction for high-quality signals
+                                try:
+                                    from utils.chart_exporter import save_candlestick_chart
+                                    from vision_ai.predict_cv_setup import predict_setup_from_chart
+                                    
+                                    # Export chart for CV analysis
+                                    chart_path = save_candlestick_chart(symbol, candles, "temp_cv_charts")
+                                    
+                                    if chart_path:
+                                        # Generate CV prediction
+                                        cv_prediction = predict_setup_from_chart(chart_path, symbol)
+                                        
+                                        if cv_prediction and "error" not in cv_prediction:
+                                            print(f"[CV PREDICTION] {symbol}: {cv_prediction.get('setup', 'unknown')} ({cv_prediction.get('confidence', 0):.2f})")
+                                        
+                                        # Clean up temp chart
+                                        import os
+                                        try:
+                                            os.remove(chart_path)
+                                        except:
+                                            pass
+                                            
+                                except Exception as cv_error:
+                                    print(f"[CV PREDICTION] Failed for {symbol}: {cv_error}")
                         
                 except Exception as e:
                     print(f"[TJDE] Error analyzing {symbol}: {e}")
@@ -749,6 +774,27 @@ def scan_cycle():
             # Get training stats
             stats = training_manager.get_training_stats()
             print(f"[TRAINING] Total dataset: {stats.get('total_samples', 0)} samples")
+            
+            # Run CV feedback analysis for recent predictions
+            try:
+                from vision_ai.feedback_loop_cv import CVFeedbackLoop
+                
+                feedback_loop = CVFeedbackLoop()
+                analysis = feedback_loop.analyze_pending_predictions(hours_back=12)
+                
+                if "error" not in analysis:
+                    summary = analysis["summary"]
+                    if summary["predictions_analyzed"] > 0:
+                        print(f"[CV FEEDBACK] Analyzed {summary['predictions_analyzed']} predictions, {summary['success_rate']:.1%} success rate")
+                        
+                        # Update model weights if we have enough data
+                        if len(analysis["results"]) >= 3:
+                            weight_updates = feedback_loop.update_cv_model_weights(analysis["results"])
+                            if "error" not in weight_updates:
+                                print(f"[CV FEEDBACK] Model performance analysis completed")
+                                
+            except Exception as feedback_error:
+                print(f"[CV FEEDBACK] Feedback analysis failed: {feedback_error}")
             
     except Exception as e:
         print(f"❌ [TJDE ALERTS] Error in enhanced alert system: {e}")

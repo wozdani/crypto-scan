@@ -123,16 +123,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Quality Assessment**: excellent/strong/good/neutral-watch/weak/very_poor z context adjustment info
 - **Production Integration**: Pełna integracja z crypto_scan_service.py - audytowalny decision trail
 
-### June 23, 2025 - Advanced Vision-AI Training Pipeline - PRODUCTION READY ✅
-- **Professional Chart Export**: Created utils/chart_exporter.py with mplfinance for standardized candlestick charts with volume and indicators
-- **GPT Label Generator**: Implemented ai/label_generator.py using GPT-4o Vision API for automatic setup_type and phase_type classification
-- **Training Data Manager**: Built utils/training_data_manager.py for organized collection of charts, metadata, and labels during live scans
-- **Dataset Preparation**: Created prepare_training_dataset.py supporting PyTorch, TensorFlow, and CSV formats for Computer Vision model training
-- **Automated Collection**: Integrated training data collection into crypto_scan_service.py for selective sample gathering during high-quality signals
-- **Structured Storage**: Organized training_data/ with charts/, metadata/, labels/ directories as specified in requirements
-- **Multiple Export Formats**: Support for PyTorch datasets, CSV analysis, and custom formats with train/validation splits
-- **Production Integration**: Real-time training sample collection during TJDE analysis with confidence-based filtering
-- **Comprehensive Pipeline**: Complete workflow from chart generation to dataset preparation for Vision-AI model development
+### June 23, 2025 - Complete Vision-AI System with CLIP Embeddings and Feedback Loop - PRODUCTION READY ✅
+- **CLIP Training System**: Implemented vision_ai/train_cv_model.py with CLIP embeddings for image-text understanding using openai/clip-vit-base-patch16
+- **CV Setup Prediction**: Created vision_ai/predict_cv_setup.py for real-time chart pattern classification with similarity matching against training embeddings  
+- **Feedback Loop System**: Built vision_ai/feedback_loop_cv.py for analyzing prediction success rates and automated model performance tracking
+- **TJDE Integration**: Enhanced trader_ai_engine.py with CV prediction integration, providing score adjustments based on setup confidence
+- **Production Deployment**: Complete integration into crypto_scan_service.py with automatic CV predictions during high-quality signal detection
+- **Intelligent Scoring**: CV model provides +/- score adjustments for breakouts (+0.1), fakeouts (-0.1), trend continuations (+0.08) based on confidence levels
+- **Performance Analytics**: Automated feedback analysis tracks success rates per setup type and generates model weight recommendations
+- **Real-time Processing**: Vision-AI analyzes charts during token scans and saves predictions to data/vision_ai/predictions/ for feedback analysis
+- **Professional Architecture**: Complete system mimics expert trader visual analysis with embeddings stored in data/vision_ai/embeddings/ and feedback logs in data/cv_feedback_logs/
 
 ## User Preferences
 
