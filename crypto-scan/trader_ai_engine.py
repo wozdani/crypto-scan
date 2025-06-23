@@ -869,7 +869,35 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
         except Exception as cluster_error:
             print(f"[CLUSTER ERROR] {features.get('symbol', 'UNKNOWN')}: {cluster_error}")
         
-        # === ETAP 8: FINAL RESULT ASSEMBLY WITH CLIP + CLUSTER DEBUG INFO ===
+        # === ETAP 8: AI HEURISTIC PATTERN CHECKING ===
+        ai_pattern_matched = False
+        ai_pattern_info = {}
+        
+        try:
+            from utils.ai_heuristic_pattern_checker import check_known_success_patterns
+            
+            # Check for AI heuristic patterns that override low scoring
+            heuristic_alert = check_known_success_patterns(features, enhanced_score)
+            
+            if heuristic_alert:
+                # Override decision with heuristic pattern
+                original_decision = decision
+                decision = "heuristic_alert"
+                ai_pattern_matched = True
+                ai_pattern_info = heuristic_alert
+                
+                # Add AI pattern reasoning
+                pattern_reason = f"AI Pattern: {heuristic_alert['label']} ({heuristic_alert['confidence']:.2f} confidence)"
+                context_modifiers.append(pattern_reason)
+                
+                print(f"[AI PATTERN] {features.get('symbol', 'UNKNOWN')}: {heuristic_alert['label']}")
+                print(f"[AI PATTERN] Confidence: {heuristic_alert['confidence']:.2f}, Score: {enhanced_score:.3f} -> HEURISTIC ALERT")
+                print(f"[AI PATTERN] Features: {', '.join(heuristic_alert['features_matched'])}")
+                
+        except Exception as ai_error:
+            print(f"[AI PATTERN ERROR] {features.get('symbol', 'UNKNOWN')}: {ai_error}")
+        
+        # === ETAP 9: FINAL RESULT ASSEMBLY WITH ALL ENHANCEMENTS ===
         
         # Prepare enhanced debug info for alerts and logging
         debug_info = {
@@ -883,6 +911,8 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
             "cluster_enhanced": cluster_enhanced,
             "cluster_modifier": round(cluster_modifier, 3),
             "cluster_info": cluster_info,
+            "ai_pattern_matched": ai_pattern_matched,
+            "ai_pattern_info": ai_pattern_info,
             "decision_change": original_decision != decision,
             "original_decision": original_decision
         }
@@ -936,6 +966,15 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
                     print(f"     • {boost}")
         else:
             print(f"[CLIP INTEGRATION] {symbol}: No enhancement applied")
+        
+        # Enhanced logging for AI pattern matching
+        if ai_pattern_matched:
+            print(f"[AI PATTERN MATCH] {symbol} Heuristic Override:")
+            print(f"   Pattern: {ai_pattern_info.get('label', 'unknown')}")
+            print(f"   Confidence: {ai_pattern_info.get('confidence', 0):.2f}")
+            print(f"   Description: {ai_pattern_info.get('description', 'N/A')}")
+            print(f"   Original Score: {enhanced_score:.3f} (below {ai_pattern_info.get('min_score', 0):.2f} threshold)")
+            print(f"   Decision Override: {original_decision.upper()} → HEURISTIC_ALERT")
         
         return final_result
         
