@@ -170,6 +170,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Phase Scoring**: Confidence-weighted phase modifiers for breakout-continuation (+0.08), pullback-in-trend (+0.05), fakeout (-0.10), trend-reversal (-0.08)
 - **Production Ready**: Complete system with error handling, logging, and backward compatibility maintaining existing TJDE functionality
 
+### June 23, 2025 - Advanced CLIP-TJDE Integration with Vision-Enhanced Decision Making - PRODUCTION READY ✅
+- **CANDIDATE_PHASES System**: Implemented 12 comprehensive market phases for CLIP prediction including breakout-continuation, pullback-in-trend, range-accumulation, trend-reversal, consolidation, fake-breakout, trending-up/down, bullish/bearish momentum, exhaustion pattern, volume-backed breakout
+- **Enhanced Phase Modifiers**: Advanced scoring system with confidence-weighted modifiers ranging from +0.10 (volume-backed breakout) to -0.12 (fake-breakout)
+- **Intelligent Decision Updates**: CLIP predictions can upgrade/downgrade TJDE decisions (AVOID → CONSIDER_ENTRY → JOIN_TREND) based on visual analysis
+- **Comprehensive Debug Integration**: Full debug_info tracking with base_score, enhanced_score, clip_phase_prediction, clip_confidence, clip_modifier, and decision_change information
+- **Telegram Alert Enhancement**: Integrated CLIP Vision analysis into alert messages showing predicted phase, confidence, score impact, and decision changes
+- **Score Impact Visualization**: Clear before/after scoring display showing base score → enhanced score with CLIP modifier breakdown
+- **Production Decision Logic**: CLIP-enhanced scores trigger decision upgrades at 0.75+ (JOIN_TREND) and downgrades below 0.40 (AVOID) with quality grade adjustments
+- **Chart Path Integration**: Automatic chart discovery across multiple directories (charts/, exports/, training_data/clip/) with timestamp-based selection
+
 ## User Preferences
 
 - Language: Polish for user-facing messages and alerts

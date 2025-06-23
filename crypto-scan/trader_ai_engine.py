@@ -674,61 +674,59 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
                     break
             
             if chart_path:
-                # Define candidate phases for TJDE integration
-                candidate_phases = [
-                    "breakout-continuation",
-                    "pullback-in-trend", 
-                    "range-accumulation",
-                    "trend-reversal",
-                    "consolidation",
-                    "fakeout",
-                    "bullish momentum",
-                    "bearish momentum"
-                ]
-                
-                # Get CLIP prediction
-                chart_phase_prediction = predict_clip_chart(chart_path, candidate_phases)
+                # Get CLIP prediction using global candidate phases
+                chart_phase_prediction = predict_clip_chart(chart_path, CANDIDATE_PHASES)
                 
                 if chart_phase_prediction.get("success"):
                     clip_predicted_phase = chart_phase_prediction["predicted_label"]
                     clip_confidence = chart_phase_prediction["confidence"]
                     
-                    # Calculate clip_predicted_phase_modifier
+                    # Enhanced phase modifiers based on trading psychology
                     phase_modifiers = {
                         "breakout-continuation": 0.08,
-                        "pullback-in-trend": 0.05,
+                        "volume-backed breakout": 0.10,
                         "bullish momentum": 0.06,
+                        "trending-up": 0.05,
+                        "pullback-in-trend": 0.05,
                         "range-accumulation": 0.03,
                         "consolidation": 0.00,
-                        "fakeout": -0.10,
+                        "trending-down": -0.04,
+                        "bearish momentum": -0.06,
                         "trend-reversal": -0.08,
-                        "bearish momentum": -0.06
+                        "exhaustion pattern": -0.10,
+                        "fake-breakout": -0.12
                     }
                     
                     base_modifier = phase_modifiers.get(clip_predicted_phase, 0.0)
                     
-                    # Apply confidence weighting (only if confidence > 0.4)
-                    if clip_confidence > 0.4:
+                    # Apply confidence weighting with enhanced logic
+                    clip_phase_modifier = 0.0
+                    if clip_confidence > 0.4:  # Minimum confidence threshold
                         confidence_weight = min(clip_confidence * 1.2, 1.0)
-                        clip_modifier = base_modifier * confidence_weight
-                        # Cap modifier
-                        clip_modifier = max(-0.12, min(0.12, clip_modifier))
+                        clip_phase_modifier = base_modifier * confidence_weight
+                        
+                        # Cap modifier to reasonable range
+                        clip_phase_modifier = max(-0.15, min(0.15, clip_phase_modifier))
                     
                     clip_info = {
                         "predicted_phase": clip_predicted_phase,
                         "confidence": clip_confidence,
-                        "modifier": clip_modifier,
+                        "modifier": clip_phase_modifier,
                         "chart_path": chart_path,
                         "raw_scores": chart_phase_prediction.get("raw_scores", {}),
                         "top_3": chart_phase_prediction.get("top_3_predictions", [])
                     }
                     
-                    print(f"[CLIP CHART] {symbol}: {clip_predicted_phase} (conf: {clip_confidence:.3f}, modifier: {clip_modifier:+.3f})")
+                    # Update clip_modifier for final scoring
+                    clip_modifier = clip_phase_modifier
+                    
+                    print(f"[CLIP VISION] {symbol}: {clip_predicted_phase} (conf: {clip_confidence:.3f})")
+                    print(f"[CLIP MODIFIER] Applied: {clip_modifier:+.3f} from base {base_modifier:+.3f} * confidence {clip_confidence:.2f}")
                     
                 else:
-                    print(f"[CLIP CHART] {symbol}: Prediction failed for {chart_path}")
+                    print(f"[CLIP VISION] {symbol}: Prediction failed for {chart_path}")
             else:
-                print(f"[CLIP CHART] {symbol}: No chart found")
+                print(f"[CLIP VISION] {symbol}: No chart found")
                 
         except Exception as clip_error:
             print(f"[CLIP CHART ERROR] {symbol}: {clip_error}")
@@ -736,18 +734,39 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
         # Apply CLIP modifier to final score
         enhanced_score = score + clip_modifier
         
-        # Update decision if CLIP significantly changes score
+        # Update decision based on CLIP enhancement
+        original_decision = decision
         if clip_modifier != 0:
-            if enhanced_score >= 0.70 and decision != "join_trend":
+            if enhanced_score >= 0.75 and decision != "join_trend":
                 decision = "join_trend"
-                grade = "strong"
-                print(f"[CLIP BOOST] {symbol}: Decision upgraded to JOIN_TREND due to CLIP enhancement")
-            elif enhanced_score < 0.45 and decision == "consider_entry":
+                grade = "excellent" if enhanced_score >= 0.85 else "strong"
+                print(f"[CLIP BOOST] {symbol}: Decision upgraded from {original_decision.upper()} to JOIN_TREND")
+            elif enhanced_score >= 0.65 and decision == "avoid":
+                decision = "consider_entry"
+                grade = "moderate"
+                print(f"[CLIP RECOVERY] {symbol}: Decision upgraded from AVOID to CONSIDER_ENTRY")
+            elif enhanced_score < 0.40 and decision == "consider_entry":
                 decision = "avoid"
                 grade = "weak"
-                print(f"[CLIP DOWNGRADE] {symbol}: Decision downgraded to AVOID due to CLIP warnings")
+                print(f"[CLIP WARNING] {symbol}: Decision downgraded to AVOID due to negative visual signals")
+            elif enhanced_score < 0.25:
+                decision = "avoid"
+                grade = "very_poor"
+                print(f"[CLIP DANGER] {symbol}: Strong avoid signal from visual analysis")
         
-        # === ETAP 7: FINAL RESULT ASSEMBLY ===
+        # === ETAP 7: FINAL RESULT ASSEMBLY WITH CLIP DEBUG INFO ===
+        
+        # Prepare debug info for alerts and logging
+        debug_info = {
+            "base_score": round(score, 3),
+            "enhanced_score": round(enhanced_score, 3),
+            "clip_phase_prediction": clip_info.get("predicted_phase", "unknown"),
+            "clip_confidence": round(clip_info.get("confidence", 0), 3),
+            "clip_modifier": round(clip_modifier, 3),
+            "decision_change": original_decision != decision,
+            "original_decision": original_decision
+        }
+        
         final_result = {
             "decision": decision,
             "final_score": round(enhanced_score, 3),
@@ -768,8 +787,16 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
             "clip_enhanced": clip_modifier != 0,
             "clip_info": clip_info,
             "clip_modifier": clip_modifier,
-            "base_score_before_clip": score
+            "base_score_before_clip": score,
+            "debug_info": debug_info
         }
+        
+        # Enhanced logging for CLIP integration
+        if clip_modifier != 0:
+            print(f"[CLIP INTEGRATION] {symbol} Final Impact:")
+            print(f"   Base Score: {score:.3f} → Enhanced: {enhanced_score:.3f}")
+            print(f"   Phase: {clip_info.get('predicted_phase', 'unknown')} (conf: {clip_info.get('confidence', 0):.3f})")
+            print(f"   Decision: {original_decision.upper()} → {decision.upper()}")
         
         return final_result
         
