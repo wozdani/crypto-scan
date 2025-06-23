@@ -1,0 +1,3 @@
+symbol,timestamp,chart_file,setup_type,phase_type,confidence,labeler,feature_trend_strength,feature_pullback_quality,feature_phase_score,feature_liquidity_score
+BTCUSDT,20250623_144133,BTCUSDT_20250623_144133_chart.png,trend_continuation,trend-acceleration,0.8,gpt-4o-vision,0.7,0.6,0.75,0.8
+ETHUSDT,20250623_144136,ETHUSDT_20250623_144136_chart.png,trend_continuation,exhaustion-pullback,0.75,gpt-4o-vision,0.7999999999999999,0.65,0.75,0.8
