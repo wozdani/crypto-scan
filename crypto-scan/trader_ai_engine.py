@@ -645,25 +645,62 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
         if context_modifiers:
             print(f"[CONTEXT MODIFIERS] Applied: {', '.join(context_modifiers)}")
         
-        # === ETAP 6: ZWRACANIE WYNIKÓW ===
-        return {
-            "decision": decision,
-            "final_score": round(score, 3),
-            "quality_grade": grade,
-            "context_modifiers": context_modifiers,
-            "weights": weights,
-            "used_features": {
-                "trend_strength": trend_strength,
-                "pullback_quality": pullback_quality,
-                "support_reaction": support_reaction,
-                "liquidity_pattern_score": liquidity_pattern_score,
-                "psych_score": psych_score,
-                "htf_supportive_score": htf_supportive_score,
-                "market_phase_modifier": market_phase_modifier
-            },
-            "market_phase": market_phase,
-            "confidence": min(score * 1.2, 1.0)  # Confidence based on score
-        }
+        # === ETAP 6: CLIP VISUAL ENHANCEMENT ===
+        try:
+            from vision_ai.tjde_clip_integration import integrate_clip_with_tjde
+            
+            # Create base result for CLIP enhancement
+            base_result = {
+                "decision": decision,
+                "final_score": round(score, 3),
+                "quality_grade": grade,
+                "context_modifiers": context_modifiers,
+                "weights": weights,
+                "used_features": {
+                    "trend_strength": trend_strength,
+                    "pullback_quality": pullback_quality,
+                    "support_reaction": support_reaction,
+                    "liquidity_pattern_score": liquidity_pattern_score,
+                    "psych_score": psych_score,
+                    "htf_supportive_score": htf_supportive_score,
+                    "market_phase_modifier": market_phase_modifier
+                },
+                "market_phase": market_phase,
+                "confidence": min(score * 1.2, 1.0)
+            }
+            
+            # Get symbol from features if available
+            symbol = features.get("symbol", "UNKNOWN")
+            
+            # Enhance with CLIP if available
+            enhanced_result = integrate_clip_with_tjde(symbol, base_result)
+            
+            if enhanced_result.get("clip_enhanced"):
+                print(f"[CLIP ENHANCED] {symbol}: Score adjusted by {enhanced_result.get('clip_adjustment', 0):+.3f}")
+            
+            return enhanced_result
+            
+        except Exception as clip_error:
+            print(f"[CLIP ERROR] CLIP enhancement failed: {clip_error}")
+            # Return base result if CLIP fails
+            return {
+                "decision": decision,
+                "final_score": round(score, 3),
+                "quality_grade": grade,
+                "context_modifiers": context_modifiers,
+                "weights": weights,
+                "used_features": {
+                    "trend_strength": trend_strength,
+                    "pullback_quality": pullback_quality,
+                    "support_reaction": support_reaction,
+                    "liquidity_pattern_score": liquidity_pattern_score,
+                    "psych_score": psych_score,
+                    "htf_supportive_score": htf_supportive_score,
+                    "market_phase_modifier": market_phase_modifier
+                },
+                "market_phase": market_phase,
+                "confidence": min(score * 1.2, 1.0)
+            }
         
         # Enhanced logging
         _log_advanced_trader_decision(symbol, result)
