@@ -259,6 +259,7 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Alert System Debug**: Added comprehensive alert preparation and sending logs with message content, CLIP info, and success/failure tracking
 - **Training Data Debug**: Enhanced auto_label_runner.py and training_data_manager.py with step-by-step processing logs and training pair creation tracking
 - **Weight Loading Debug**: Added detailed TJDE weight loading logs showing file status, phase adjustments, and component modifications
+- **Chart Export Data Integrity**: Fixed chart_exporter.py to maintain data integrity - system skips chart creation when authentic API data unavailable, preventing synthetic data usage
 - **Production Integration**: All debug logs visible in console and automatically saved to logs/debug.log for comprehensive system monitoring
 
 ## User Preferences

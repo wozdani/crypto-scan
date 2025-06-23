@@ -90,28 +90,29 @@ def save_chart_snapshot(
                     except Exception as binance_error:
                         print(f"[CHART EXPORT] Binance fallback failed for {symbol}: {binance_error}")
                 
-                # If still no data, try getting recent market data
+                # Try using data from main scanner's cache
                 if not candles:
                     try:
-                        from utils.safe_candles import get_market_data
-                        market_data = get_market_data(symbol)
-                        if market_data and "price" in market_data:
-                            print(f"[CHART EXPORT] Using recent market data for {symbol}")
-                            # Create minimal candle data from current price
-                            current_price = float(market_data["price"])
-                            base_time = int(datetime.now().timestamp() * 1000)
-                            candles = []
-                            for i in range(20):  # Minimum required
-                                variation = 1 + (i % 3 - 1) * 0.001  # Very small realistic variation
-                                price = current_price * variation
-                                candles.append([
-                                    base_time - (i * 15 * 60 * 1000),  # 15min intervals backwards
-                                    price, price * 1.001, price * 0.999, price,
-                                    1000 + (i * 10)  # Basic volume
-                                ])
-                            candles.reverse()  # Chronological order
+                        # Check if we have recent data from main scanning service
+                        import json
+                        import glob
+                        
+                        # Look for recent PPWCS data that might have candles
+                        ppwcs_files = glob.glob("data/ppwcs_scores.json")
+                        if ppwcs_files:
+                            with open(ppwcs_files[0], 'r') as f:
+                                ppwcs_data = json.load(f)
+                            if symbol in ppwcs_data:
+                                print(f"[CHART EXPORT] Found {symbol} in PPWCS cache, but no candles stored")
+                        
+                        # Try alternative data source from safe_candles module  
+                        from utils.safe_candles import get_candles
+                        candles = get_candles(symbol, "15m", 100)
+                        if candles:
+                            print(f"[CHART EXPORT] Retrieved {symbol} data from safe_candles module")
+                        
                     except Exception as e:
-                        print(f"[CHART EXPORT] Market data fallback failed for {symbol}: {e}")
+                        print(f"[CHART EXPORT] Cache/alternative data source failed for {symbol}: {e}")
                 
                 # If all authentic data sources fail, skip this symbol - no mock data allowed
                 if not candles:
