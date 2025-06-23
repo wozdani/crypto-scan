@@ -123,16 +123,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Quality Assessment**: excellent/strong/good/neutral-watch/weak/very_poor z context adjustment info
 - **Production Integration**: Pełna integracja z crypto_scan_service.py - audytowalny decision trail
 
-### June 23, 2025 - Complete Chart Learning Pipeline with PyTorch CV Model - PRODUCTION READY ✅
-- **Chart Snapshot Generator**: Created generate_chart_snapshot.py with standardized SYMBOL_TIMESTAMP.png format for ML training
-- **GPT Labeling with Auto-Rename**: Implemented label_charts_with_gpt.py that classifies charts and renames files to SYMBOL_TIMESTAMP_LABEL.png format
-- **PyTorch Model Training**: Built train_chart_model.py with ResNet18 backbone for 6-class pattern recognition (breakout_continuation, pullback_setup, range, fakeout, exhaustion, retest_confirmation)
-- **Production CV Classifier**: Created trend_cv_classifier.py for real-time chart classification in simulate_trader_decision_advanced()
-- **Complete Training Pipeline**: Structured data/chart_training/ with charts/, labels/, training_data/ directories as specified
-- **TJDE Integration**: Enhanced trader_ai_engine.py with CV model support, providing confidence boosts for high-accuracy classifications
-- **Automated File Management**: GPT automatically renames charts with detected patterns, skipping already-labeled files
-- **Professional Training Dataset**: Generated labeled training data with market features and JSON metadata for supervised learning
-- **Real-time Classification**: CV model provides predicted_phase and confidence scores for integration with existing trading algorithms
+### June 23, 2025 - Advanced Vision-AI Training Pipeline - PRODUCTION READY ✅
+- **Professional Chart Export**: Created utils/chart_exporter.py with mplfinance for standardized candlestick charts with volume and indicators
+- **GPT Label Generator**: Implemented ai/label_generator.py using GPT-4o Vision API for automatic setup_type and phase_type classification
+- **Training Data Manager**: Built utils/training_data_manager.py for organized collection of charts, metadata, and labels during live scans
+- **Dataset Preparation**: Created prepare_training_dataset.py supporting PyTorch, TensorFlow, and CSV formats for Computer Vision model training
+- **Automated Collection**: Integrated training data collection into crypto_scan_service.py for selective sample gathering during high-quality signals
+- **Structured Storage**: Organized training_data/ with charts/, metadata/, labels/ directories as specified in requirements
+- **Multiple Export Formats**: Support for PyTorch datasets, CSV analysis, and custom formats with train/validation splits
+- **Production Integration**: Real-time training sample collection during TJDE analysis with confidence-based filtering
+- **Comprehensive Pipeline**: Complete workflow from chart generation to dataset preparation for Vision-AI model development
 
 ## User Preferences
 

@@ -676,9 +676,12 @@ def scan_cycle():
         from utils.alerts import send_tjde_telegram_summary
         from utils.feedback_integration import run_periodic_feedback_analysis
         from trend_mode import analyze_trend_opportunity
+        from utils.training_data_manager import training_manager
         
-        # Collect TJDE results from this scan
+        # Collect TJDE results from this scan and gather training data
         tjde_results = []
+        training_samples_collected = 0
+        
         for result in scan_results:
             symbol = result.get('symbol')
             if symbol:
@@ -687,6 +690,28 @@ def scan_cycle():
                     if trend_result and trend_result.get("final_score", 0) > 0:
                         trend_result["symbol"] = symbol
                         tjde_results.append(trend_result)
+                        
+                        # Collect training data for Vision-AI (selective collection)
+                        if (trend_result.get("final_score", 0) > 0.6 or 
+                            trend_result.get("decision") in ["join_trend", "consider_entry"]):
+                            
+                            # Get candles for this symbol
+                            from utils.api_utils import get_bybit_candles
+                            candles = get_bybit_candles(symbol, "15", 100)
+                            
+                            if candles and len(candles) >= 50:
+                                # Collect training sample
+                                sample_id = training_manager.collect_sample_during_scan(
+                                    symbol=symbol,
+                                    candles=candles,
+                                    scoring_context=result,
+                                    trend_decision=trend_result
+                                )
+                                
+                                if sample_id:
+                                    training_samples_collected += 1
+                                    print(f"[TRAINING] Collected sample: {sample_id}")
+                        
                 except Exception as e:
                     print(f"[TJDE] Error analyzing {symbol}: {e}")
                     continue
@@ -716,6 +741,14 @@ def scan_cycle():
                     send_feedback_summary(feedback_data)
         else:
             print("[TJDE ALERTS] No TJDE results found")
+        
+        # Log training data collection summary
+        if training_samples_collected > 0:
+            print(f"[TRAINING] Collected {training_samples_collected} training samples this scan")
+            
+            # Get training stats
+            stats = training_manager.get_training_stats()
+            print(f"[TRAINING] Total dataset: {stats.get('total_samples', 0)} samples")
             
     except Exception as e:
         print(f"❌ [TJDE ALERTS] Error in enhanced alert system: {e}")

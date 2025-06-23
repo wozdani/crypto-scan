@@ -12,6 +12,7 @@ dependencies = [
     "schedule>=1.2.2",
     "pillow>=11.2.1",
     "matplotlib>=3.10.3",
+    "mplfinance>=0.12.10b0",
 ]
 
 [[tool.uv.index]]
