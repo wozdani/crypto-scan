@@ -645,91 +645,149 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
         if context_modifiers:
             print(f"[CONTEXT MODIFIERS] Applied: {', '.join(context_modifiers)}")
         
-        # === ETAP 6: CLIP CHART ANALYSIS INTEGRATION ===
+        # === ETAP 6: ADVANCED CLIP INTEGRATION WITH CONTEXTUAL BOOSTS ===
         clip_modifier = 0.0
         clip_predicted_phase = ""
         clip_info = {}
+        clip_boost_applied = False
         
         try:
-            from ai.clip_predictor import predict_clip_chart
+            from utils.clip_prediction_loader import load_clip_prediction
             
             # Get symbol from features
             symbol = features.get("symbol", "UNKNOWN")
             
-            # Find chart for symbol
-            chart_locations = [
-                f"charts/{symbol}_*.png",
-                f"exports/{symbol}_*.png", 
-                f"training_data/clip/{symbol}_*.png"
-            ]
+            # Load CLIP prediction
+            clip_prediction = load_clip_prediction(symbol)
             
-            chart_path = None
-            from pathlib import Path
-            import glob
-            
-            for pattern in chart_locations:
-                matches = glob.glob(pattern)
-                if matches:
-                    chart_path = sorted(matches, reverse=True)[0]  # Most recent
-                    break
-            
-            if chart_path:
-                # Get CLIP prediction using global candidate phases
-                chart_phase_prediction = predict_clip_chart(chart_path, CANDIDATE_PHASES)
+            if clip_prediction:
+                prediction_str = clip_prediction.lower()
                 
-                if chart_phase_prediction.get("success"):
-                    clip_predicted_phase = chart_phase_prediction["predicted_label"]
-                    clip_confidence = chart_phase_prediction["confidence"]
+                # Apply contextual boosts based on CLIP prediction
+                if "breakout-continuation" in prediction_str:
+                    # Core boosts
+                    trend_strength *= 1.2
+                    liquidity_pattern_score *= 1.15
                     
-                    # Enhanced phase modifiers based on trading psychology
-                    phase_modifiers = {
-                        "breakout-continuation": 0.08,
-                        "volume-backed breakout": 0.10,
-                        "bullish momentum": 0.06,
-                        "trending-up": 0.05,
-                        "pullback-in-trend": 0.05,
-                        "range-accumulation": 0.03,
-                        "consolidation": 0.00,
-                        "trending-down": -0.04,
-                        "bearish momentum": -0.06,
-                        "trend-reversal": -0.08,
-                        "exhaustion pattern": -0.10,
-                        "fake-breakout": -0.12
-                    }
+                    # Contextual volume behavior boost
+                    volume_behavior = features.get('volume_behavior', '')
+                    if 'buying_volume_increase' in volume_behavior or 'volume_spike' in volume_behavior:
+                        trend_strength *= 1.1
+                        context_modifiers.append("CLIP: volume-backed breakout → trend boost")
                     
-                    base_modifier = phase_modifiers.get(clip_predicted_phase, 0.0)
+                    context_modifiers.append("CLIP: breakout-continuation → liquidity/trend boost")
+                    clip_modifier = 0.08
                     
-                    # Apply confidence weighting with enhanced logic
-                    clip_phase_modifier = 0.0
-                    if clip_confidence > 0.4:  # Minimum confidence threshold
-                        confidence_weight = min(clip_confidence * 1.2, 1.0)
-                        clip_phase_modifier = base_modifier * confidence_weight
-                        
-                        # Cap modifier to reasonable range
-                        clip_phase_modifier = max(-0.15, min(0.15, clip_phase_modifier))
+                elif "pullback-in-trend" in prediction_str:
+                    # Core boosts
+                    pullback_quality *= 1.2
+                    support_reaction *= 1.1
                     
-                    clip_info = {
-                        "predicted_phase": clip_predicted_phase,
-                        "confidence": clip_confidence,
-                        "modifier": clip_phase_modifier,
-                        "chart_path": chart_path,
-                        "raw_scores": chart_phase_prediction.get("raw_scores", {}),
-                        "top_3": chart_phase_prediction.get("top_3_predictions", [])
-                    }
+                    # Contextual psych_flags boost
+                    psych_flags = features.get('psych_flags', {})
+                    if psych_flags.get('fakeout_rejection') or psych_flags.get('bounce_confirmed'):
+                        psych_score *= 1.2
+                        context_modifiers.append("CLIP: rejection pullback → psych_score boost")
                     
-                    # Update clip_modifier for final scoring
-                    clip_modifier = clip_phase_modifier
+                    context_modifiers.append("CLIP: pullback-in-trend → pullback/support boost")
+                    clip_modifier = 0.05
                     
-                    print(f"[CLIP VISION] {symbol}: {clip_predicted_phase} (conf: {clip_confidence:.3f})")
-                    print(f"[CLIP MODIFIER] Applied: {clip_modifier:+.3f} from base {base_modifier:+.3f} * confidence {clip_confidence:.2f}")
+                elif "trend-reversal" in prediction_str:
+                    # Reversal caution
+                    market_phase_modifier *= -1.0
                     
-                else:
-                    print(f"[CLIP VISION] {symbol}: Prediction failed for {chart_path}")
+                    # Contextual psych penalty
+                    psych_flags = features.get('psych_flags', {})
+                    if psych_flags.get('liquidity_grab') or psych_flags.get('trap_pattern'):
+                        psych_score *= 0.5
+                        context_modifiers.append("CLIP: liquidity trap in reversal → psych penalized")
+                    
+                    context_modifiers.append("CLIP: trend-reversal → caution bias")
+                    clip_modifier = -0.08
+                    
+                elif "volume-backed breakout" in prediction_str:
+                    # Strong volume breakout
+                    trend_strength *= 1.3
+                    liquidity_pattern_score *= 1.25
+                    clip_modifier = 0.10
+                    context_modifiers.append("CLIP: volume-backed breakout → strong boost")
+                    
+                elif "fake-breakout" in prediction_str or "fakeout" in prediction_str:
+                    # Fakeout warning
+                    trend_strength *= 0.7
+                    support_reaction *= 0.8
+                    clip_modifier = -0.12
+                    context_modifiers.append("CLIP: fake-breakout → strong caution")
+                    
+                elif "exhaustion pattern" in prediction_str:
+                    # Exhaustion warning
+                    trend_strength *= 0.6
+                    psych_score *= 0.7
+                    clip_modifier = -0.10
+                    context_modifiers.append("CLIP: exhaustion pattern → trend weakness")
+                    
+                elif "consolidation" in prediction_str or "range-accumulation" in prediction_str:
+                    # Range bound
+                    pullback_quality *= 1.1
+                    support_reaction *= 1.05
+                    clip_modifier = 0.03
+                    context_modifiers.append("CLIP: consolidation → range trading bias")
+                
+                # Store CLIP info
+                clip_info = {
+                    "predicted_phase": prediction_str,
+                    "confidence": 0.75,  # Default confidence from file
+                    "modifier": clip_modifier,
+                    "prediction_source": "file_loader",
+                    "boosts_applied": [mod for mod in context_modifiers if "CLIP:" in mod]
+                }
+                
+                clip_boost_applied = True
+                
+                print(f"[CLIP INTEGRATION] {symbol}: {prediction_str}")
+                print(f"[CLIP BOOSTS] Applied: {clip_modifier:+.3f} with contextual modifiers")
+                
             else:
-                print(f"[CLIP VISION] {symbol}: No chart found")
+                # Fallback to chart-based prediction
+                from ai.clip_predictor import predict_clip_chart
+                import glob
+                
+                chart_locations = [
+                    f"charts/{symbol}_*.png",
+                    f"exports/{symbol}_*.png", 
+                    f"training_data/clip/{symbol}_*.png"
+                ]
+                
+                chart_path = None
+                for pattern in chart_locations:
+                    matches = glob.glob(pattern)
+                    if matches:
+                        chart_path = sorted(matches, reverse=True)[0]
+                        break
+                
+                if chart_path:
+                    chart_prediction = predict_clip_chart(chart_path, CANDIDATE_PHASES)
+                    
+                    if chart_prediction.get("success"):
+                        clip_predicted_phase = chart_prediction["predicted_label"]
+                        clip_confidence = chart_prediction["confidence"]
+                        
+                        if clip_confidence > 0.4:
+                            clip_modifier = 0.05 * clip_confidence  # Conservative chart-based boost
+                            clip_info = {
+                                "predicted_phase": clip_predicted_phase,
+                                "confidence": clip_confidence,
+                                "modifier": clip_modifier,
+                                "prediction_source": "chart_analysis"
+                            }
+                            context_modifiers.append(f"CLIP: chart-based {clip_predicted_phase}")
+                
+                if not clip_boost_applied:
+                    context_modifiers.append("CLIP: No prediction available")
                 
         except Exception as clip_error:
-            print(f"[CLIP CHART ERROR] {symbol}: {clip_error}")
+            print(f"[CLIP INTEGRATION ERROR] {symbol}: {clip_error}")
+            context_modifiers.append("CLIP: Integration error")
         
         # Apply CLIP modifier to final score
         enhanced_score = score + clip_modifier
@@ -756,13 +814,15 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
         
         # === ETAP 7: FINAL RESULT ASSEMBLY WITH CLIP DEBUG INFO ===
         
-        # Prepare debug info for alerts and logging
+        # Prepare enhanced debug info for alerts and logging
         debug_info = {
             "base_score": round(score, 3),
             "enhanced_score": round(enhanced_score, 3),
             "clip_phase_prediction": clip_info.get("predicted_phase", "unknown"),
             "clip_confidence": round(clip_info.get("confidence", 0), 3),
             "clip_modifier": round(clip_modifier, 3),
+            "clip_boost_applied": clip_boost_applied,
+            "contextual_boosts": [mod for mod in context_modifiers if "CLIP:" in mod],
             "decision_change": original_decision != decision,
             "original_decision": original_decision
         }
@@ -782,6 +842,16 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
                 "htf_supportive_score": htf_supportive_score,
                 "market_phase_modifier": market_phase_modifier
             },
+            "score_breakdown": {
+                "trend_strength": round(trend_strength, 3),
+                "pullback_quality": round(pullback_quality, 3),
+                "support_reaction": round(support_reaction, 3),
+                "liquidity_pattern_score": round(liquidity_pattern_score, 3),
+                "psych_score": round(psych_score, 3),
+                "htf_supportive_score": round(htf_supportive_score, 3),
+                "market_phase_modifier": round(market_phase_modifier, 3),
+                "clip_prediction": clip_info.get("predicted_phase", "none")
+            },
             "market_phase": market_phase,
             "confidence": min(enhanced_score * 1.2, 1.0),
             "clip_enhanced": clip_modifier != 0,
@@ -795,8 +865,17 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
         if clip_modifier != 0:
             print(f"[CLIP INTEGRATION] {symbol} Final Impact:")
             print(f"   Base Score: {score:.3f} → Enhanced: {enhanced_score:.3f}")
-            print(f"   Phase: {clip_info.get('predicted_phase', 'unknown')} (conf: {clip_info.get('confidence', 0):.3f})")
+            print(f"   Phase: {clip_info.get('predicted_phase', 'unknown')}")
             print(f"   Decision: {original_decision.upper()} → {decision.upper()}")
+            
+            # Log contextual boosts
+            contextual_boosts = debug_info.get('contextual_boosts', [])
+            if contextual_boosts:
+                print(f"   Contextual Boosts Applied:")
+                for boost in contextual_boosts:
+                    print(f"     • {boost}")
+        else:
+            print(f"[CLIP INTEGRATION] {symbol}: No enhancement applied")
         
         return final_result
         

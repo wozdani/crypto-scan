@@ -191,6 +191,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Corrected Sample Generation**: Creates new training pairs from incorrect predictions with proper label corrections based on actual market outcomes
 - **Model Persistence**: Automatically saves improved CLIP models to models/clip_model_latest.pt after successful retraining sessions
 
+### June 23, 2025 - Advanced CLIP-TJDE Integration with Contextual Boosts - PRODUCTION READY ✅
+- **CLIP Prediction Loader**: Implemented utils/clip_prediction_loader.py for loading predictions from data/clip_predictions/ with automatic fallback to session history
+- **Contextual Volume Boosts**: CLIP "breakout-continuation" + volume_behavior="buying_volume_increase" triggers 1.1x trend_strength multiplier with specialized logging
+- **Psychological Flag Integration**: CLIP "pullback-in-trend" + psych_flags="fakeout_rejection" applies 1.2x psych_score boost for rejection confirmation patterns
+- **Reversal Trap Detection**: CLIP "trend-reversal" + psych_flags="liquidity_grab" penalizes psych_score by 0.5x to detect market manipulation
+- **Enhanced Score Breakdown**: Added comprehensive score_breakdown to TJDE results showing all feature values and CLIP prediction integration details
+- **Contextual Boost Logging**: Detailed logging of applied contextual modifiers with specific reasoning (volume-backed breakout, rejection pullback, liquidity trap)
+- **File-Based Prediction System**: Supports loading CLIP predictions from timestamped files (SYMBOL_YYYYMMDD_HHMM.txt) with automatic age validation
+- **Fallback Integration**: Seamless fallback from file-based predictions to real-time chart analysis when prediction files unavailable
+- **Production Scoring Logic**: Enhanced TJDE with CLIP boosts: breakout-continuation (+1.2x trend), pullback-in-trend (+1.2x pullback), trend-reversal (-1.0x phase_modifier)
+
 ## User Preferences
 
 - Language: Polish for user-facing messages and alerts
