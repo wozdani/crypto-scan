@@ -180,6 +180,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Production Decision Logic**: CLIP-enhanced scores trigger decision upgrades at 0.75+ (JOIN_TREND) and downgrades below 0.40 (AVOID) with quality grade adjustments
 - **Chart Path Integration**: Automatic chart discovery across multiple directories (charts/, exports/, training_data/clip/) with timestamp-based selection
 
+### June 23, 2025 - CLIP Feedback Loop with Automatic Model Improvement - PRODUCTION READY ✅
+- **CLIPFeedbackLoop Implementation**: Comprehensive feedback system analyzing CLIP prediction accuracy against TJDE decisions with automatic model fine-tuning
+- **Prediction Accuracy Analysis**: Maps CLIP labels to expected TJDE decisions (breakout→consider_entry/join_trend, trend-reversal→avoid) and tracks success rates
+- **Automatic Retraining**: Identifies incorrect predictions and creates corrected training samples for model fine-tuning with minimum 3 samples threshold
+- **Comprehensive Data Integration**: Loads prediction history from auto_label_session_history.json and TJDE results from data/results/ for accuracy comparison
+- **Scheduled Execution**: Daily (02:00 UTC) and weekly (Sunday 03:00 UTC) automatic feedback loops with run_clip_feedback.py scheduler
+- **Feedback Logging**: Maintains logs/clip_feedback_log.json with accuracy metrics, retraining sessions, and model improvement tracking
+- **Production Integration**: Seamless integration with crypto_scan_service.py automatically saving TJDE results for feedback loop analysis
+- **Corrected Sample Generation**: Creates new training pairs from incorrect predictions with proper label corrections based on actual market outcomes
+- **Model Persistence**: Automatically saves improved CLIP models to models/clip_model_latest.pt after successful retraining sessions
+
 ## User Preferences
 
 - Language: Polish for user-facing messages and alerts
