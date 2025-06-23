@@ -1,31 +1,66 @@
-"""
-CLIP Chart Predictor for AI Module
-Provides chart phase prediction using CLIP model integration
-"""
+# ai/clip_predictor.py
 
 import os
-import numpy as np
+import torch
+from PIL import Image
+import clip
 import logging
-from typing import Dict, Any, Optional, List
-from pathlib import Path
+from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
-# Market phase labels for CLIP prediction
-CANDIDATE_PHASES = [
-    "breakout-continuation",
-    "pullback-in-trend", 
-    "range-accumulation",
-    "trend-reversal",
-    "consolidation",
-    "fake-breakout",
-    "trending-up",
-    "trending-down",
-    "bullish-momentum",
-    "bearish-momentum",
-    "exhaustion-pattern",
-    "volume-backed-breakout"
-]
+class CLIPPredictor:
+    def __init__(self, device=None):
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self.model, self.preprocess = clip.load("ViT-B/32", device=self.device)
+
+        self.label_texts = [
+            "breakout-continuation",
+            "pullback-in-trend",
+            "trend-reversal",
+            "range-accumulation",
+            "consolidation",
+            "fakeout",
+            "volume-backed",
+            "low-volume",
+            "trending-up",
+            "trending-down"
+        ]
+        self.tokenized_labels = clip.tokenize(self.label_texts).to(self.device)
+
+    def predict(self, image_path):
+        if not os.path.exists(image_path):
+            raise FileNotFoundError(f"Image not found: {image_path}")
+
+        image = self.preprocess(Image.open(image_path)).unsqueeze(0).to(self.device)
+
+        with torch.no_grad():
+            image_features = self.model.encode_image(image)
+            text_features = self.model.encode_text(self.tokenized_labels)
+
+            image_features /= image_features.norm(dim=-1, keepdim=True)
+            text_features /= text_features.norm(dim=-1, keepdim=True)
+
+            similarities = (image_features @ text_features.T).squeeze(0)
+
+        probs = similarities.softmax(dim=0)
+        top_index = torch.argmax(probs).item()
+
+        return {
+            "label": self.label_texts[top_index],
+            "confidence": round(probs[top_index].item(), 4),
+            "all_scores": dict(zip(self.label_texts, [round(p.item(), 4) for p in probs]))
+        }
+
+# Global predictor instance
+_global_predictor = None
+
+def get_clip_predictor():
+    """Get global CLIP predictor instance"""
+    global _global_predictor
+    if _global_predictor is None:
+        _global_predictor = CLIPPredictor()
+    return _global_predictor
 
 def predict_clip_chart(chart_path: str, confidence_threshold: float = 0.3) -> Optional[Dict[str, Any]]:
     """
@@ -39,85 +74,29 @@ def predict_clip_chart(chart_path: str, confidence_threshold: float = 0.3) -> Op
         Dictionary with prediction results or None if failed
     """
     try:
-        # Import CLIP model from local ai module
-        from ai.clip_model import CLIPWrapper
-        
-        # Initialize CLIP model
-        clip_model = CLIPWrapper()
-        
-        # Validate chart file exists
-        if not os.path.exists(chart_path):
-            logger.warning(f"Chart file not found: {chart_path}")
-            return None
-            
-        # Load and process image
-        try:
-            image_embedding = clip_model.get_image_embedding(chart_path)
-            if image_embedding is None:
-                logger.warning(f"Failed to generate image embedding for {chart_path}")
-                return None
-                
-        except Exception as e:
-            logger.error(f"Error processing image {chart_path}: {e}")
-            return None
-            
-        # Generate text embeddings for all candidate phases
-        text_embeddings = []
-        for phase in CANDIDATE_PHASES:
-            text_prompt = f"A cryptocurrency chart showing {phase.replace('-', ' ')} pattern"
-            text_embedding = clip_model.get_text_embedding(text_prompt)
-            if text_embedding is not None:
-                text_embeddings.append(text_embedding)
-            else:
-                text_embeddings.append(np.zeros_like(image_embedding))
-                
-        if not text_embeddings:
-            logger.warning("Failed to generate any text embeddings")
-            return None
-            
-        # Calculate similarities
-        text_embeddings = np.array(text_embeddings)
-        similarities = []
-        
-        for text_emb in text_embeddings:
-            # Normalize embeddings
-            image_norm = image_embedding / np.linalg.norm(image_embedding)
-            text_norm = text_emb / np.linalg.norm(text_emb)
-            
-            # Calculate cosine similarity
-            similarity = np.dot(image_norm, text_norm)
-            similarities.append(similarity)
-            
-        # Find best match
-        similarities = np.array(similarities)
-        best_idx = np.argmax(similarities)
-        best_similarity = similarities[best_idx]
-        best_phase = CANDIDATE_PHASES[best_idx]
+        predictor = get_clip_predictor()
+        result = predictor.predict(chart_path)
         
         # Apply confidence threshold
-        if best_similarity < confidence_threshold:
-            logger.info(f"Low confidence prediction: {best_similarity:.3f} < {confidence_threshold}")
+        if result["confidence"] < confidence_threshold:
+            logger.info(f"Low confidence prediction: {result['confidence']:.3f} < {confidence_threshold}")
             return {
                 "label": "no-clear-pattern",
-                "confidence": float(best_similarity),
+                "confidence": result["confidence"],
                 "chart_path": chart_path,
-                "method": "clip_zero_shot",
-                "all_scores": {phase: float(sim) for phase, sim in zip(CANDIDATE_PHASES, similarities)}
+                "method": "clip_optimized",
+                "all_scores": result["all_scores"]
             }
             
-        logger.info(f"CLIP prediction: {best_phase} (confidence: {best_similarity:.3f})")
+        logger.info(f"CLIP prediction: {result['label']} (confidence: {result['confidence']:.3f})")
         
         return {
-            "label": best_phase,
-            "confidence": float(best_similarity),
+            "label": result["label"],
+            "confidence": result["confidence"], 
             "chart_path": chart_path,
-            "method": "clip_zero_shot",
-            "all_scores": {phase: float(sim) for phase, sim in zip(CANDIDATE_PHASES, similarities)}
+            "method": "clip_optimized",
+            "all_scores": result["all_scores"]
         }
-        
-    except ImportError as e:
-        logger.warning(f"CLIP model not available: {e}")
-        return _fallback_prediction(chart_path)
         
     except Exception as e:
         logger.error(f"Error in CLIP prediction: {e}")

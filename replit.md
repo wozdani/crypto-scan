@@ -224,13 +224,13 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Production Pipeline**: Full integration with trader_ai_engine.py providing cluster-enhanced decision making with comprehensive debug information
 - **Model Management**: Automatic model saving/loading with metadata tracking, preprocessing pipeline persistence, and performance metrics logging
 
-### June 23, 2025 - Complete CLIP Integration and Missing Module Fix - PRODUCTION READY ✅
-- **ai/clip_predictor.py Created**: Resolved "No module named 'ai.clip_predictor'" error with complete implementation
-- **CLIP Chart Prediction**: 12 market phases supported (breakout-continuation, pullback-in-trend, trend-reversal, etc.)
-- **Text Embedding Support**: Added get_text_embedding to CLIPWrapper for complete CLIP functionality
-- **Fallback Integration**: Graceful fallback to heuristic predictions when CLIP unavailable
-- **TJDE Enhancement**: Full integration with trader_ai_engine.py providing visual chart analysis
-- **Production Ready**: Complete Vision-AI system operational with robust error handling
+### June 23, 2025 - Optimized CLIP Integration with Direct Implementation - PRODUCTION READY ✅
+- **Optimized ai/clip_predictor.py**: Replaced with user's efficient implementation using direct CLIP model loading
+- **Enhanced Performance**: Direct torch operations with normalized features and softmax probability calculations
+- **10 Core Labels**: Focused on essential market phases (breakout-continuation, pullback-in-trend, trend-reversal, etc.)
+- **Efficient Architecture**: Single CLIPPredictor class with global instance management and lazy loading
+- **Production Integration**: Seamless integration with trader_ai_engine.py using optimized prediction pipeline
+- **Robust Error Handling**: Comprehensive fallback mechanisms while maintaining high-performance CLIP operations
 
 ### June 23, 2025 - AI Heuristic Pattern Detection System - PRODUCTION READY ✅
 - **Heuristic Pattern Checker**: Implemented utils/ai_heuristic_pattern_checker.py enabling alerts for low-scoring setups with historically successful feature combinations
