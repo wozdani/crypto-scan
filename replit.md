@@ -251,6 +251,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Pattern Management**: Support for adding new patterns dynamically with success rates, minimum score thresholds, and detailed descriptions
 - **Graceful Fallbacks**: Added comprehensive error handling and fallback mechanisms for missing dependencies (sklearn, CLIP modules) ensuring core functionality remains operational
 
+### June 23, 2025 - Complete Debug Logging System - PRODUCTION READY ✅
+- **Centralized Debug Config**: Created debug_config.py with unified logging setup writing to logs/debug.log with timestamped entries
+- **CLIP Predictor Debug**: Added detailed logging showing symbol prediction process, confidence checks, and accepted/rejected predictions
+- **TJDE Engine Debug**: Enhanced trader_ai_engine.py with comprehensive decision logging including final scores, phases, CLIP confidence, and context modifiers
+- **Feedback Loop Debug**: Enhanced feedback_loop_v2.py with detailed alert loading, filtering statistics, and weight adjustment tracking
+- **Alert System Debug**: Added comprehensive alert preparation and sending logs with message content, CLIP info, and success/failure tracking
+- **Training Data Debug**: Enhanced auto_label_runner.py and training_data_manager.py with step-by-step processing logs and training pair creation tracking
+- **Weight Loading Debug**: Added detailed TJDE weight loading logs showing file status, phase adjustments, and component modifications
+- **Production Integration**: All debug logs visible in console and automatically saved to logs/debug.log for comprehensive system monitoring
+
 ## User Preferences
 
 - Language: Polish for user-facing messages and alerts

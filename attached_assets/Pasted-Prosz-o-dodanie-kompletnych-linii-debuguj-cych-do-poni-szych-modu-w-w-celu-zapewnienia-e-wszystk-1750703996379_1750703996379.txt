@@ -1,0 +1,74 @@
+Proszę o dodanie kompletnych linii debugujących do poniższych modułów w celu zapewnienia, że wszystkie procesy trenowania, predykcji, feedbacku i alertów działają poprawnie. Linie mają być widoczne w konsoli oraz logowane do logs/debug.log.
+
+✅ 1. ai/clip_predictor.py
+Dodaj:
+
+python
+Kopiuj
+Edytuj
+print(f"[CLIP DEBUG] Predicting phase/setup for {symbol}...")
+print(f"[CLIP DEBUG] CLIP prediction: {phase}, confidence: {confidence}")
+✅ 2. ai/clip_trainer.py
+Dodaj:
+
+python
+Kopiuj
+Edytuj
+print(f"[CLIP TRAIN] Starting training on dataset of size: {len(dataset)}")
+print(f"[CLIP TRAIN] Training complete. Accuracy: {accuracy:.2f}")
+✅ 3. auto_label_runner.py
+Dodaj:
+
+python
+Kopiuj
+Edytuj
+print(f"[AUTO LABEL] Processing {symbol} for training set generation")
+print(f"[AUTO LABEL] Generated label: {label} for {symbol}")
+✅ 4. feedback_loop_v2.py
+Dodaj:
+
+python
+Kopiuj
+Edytuj
+print(f"[FEEDBACK DEBUG] Loaded {len(alerts)} alerts for evaluation")
+print(f"[FEEDBACK DEBUG] Weight update for {feature}: {old:.4f} → {new:.4f}")
+✅ 5. simulate_trader_decision_advanced.py
+Dodaj:
+
+python
+Kopiuj
+Edytuj
+print(f"[TJDE DEBUG] Final decision for {symbol}: {decision}, Score: {final_score:.3f}")
+print(f"[TJDE DEBUG] Phase: {features.get('phase')} | CLIP Confidence: {features.get('clip_confidence')}")
+✅ 6. tjde_weights_loader (tam, gdzie ładowane są wagi)
+Dodaj:
+
+python
+Kopiuj
+Edytuj
+print(f"[TJDE WEIGHTS] Loaded adaptive weights for phase: {phase}")
+✅ 7. telegram_alerts.py
+Dodaj:
+
+python
+Kopiuj
+Edytuj
+print(f"[ALERT DEBUG] Sending alert for {symbol}: score={score:.3f}, decision={decision}")
+✅ 8. train_data_collector (tam, gdzie zapisywane są pary treningowe)
+Dodaj:
+
+python
+Kopiuj
+Edytuj
+print(f"[TRAINING DEBUG] Saved training pair: {symbol}_{timestamp}")
+📝 BONUS: Logowanie do pliku
+Dodaj do __init__.py lub pliku głównego logowania:
+
+python
+Kopiuj
+Edytuj
+import logging
+logging.basicConfig(filename='logs/debug.log', level=logging.DEBUG)
+Zastępuj print() → logging.debug() gdzie to możliwe.
+
+Dajcie znać po wdrożeniu – to nam pomoże szybko zweryfikować, czy CLIP i feedback działają tak, jak zakładaliśmy.

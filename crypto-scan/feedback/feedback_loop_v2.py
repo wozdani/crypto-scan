@@ -9,8 +9,17 @@ Analizuje wyniki po 2h, 4h, 6h i dostosowuje wagi komponentów systemu.
 import json
 import os
 import sys
+import logging
 from datetime import datetime, timezone
 from typing import Dict, List, Tuple, Optional, Any
+
+# Configure logging
+logging.basicConfig(
+    filename='logs/debug.log',
+    level=logging.DEBUG,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 
 # Configuration

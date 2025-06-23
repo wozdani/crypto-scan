@@ -641,9 +641,14 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
             decision = "avoid"
             grade = "weak"
         
-        print(f"[TRADER DECISION] Final: {decision.upper()} | Score: {score:.3f} | Grade: {grade}")
+        symbol = features.get("symbol", "UNKNOWN")
+        print(f"[TJDE DEBUG] Final decision for {symbol}: {decision}, Score: {score:.3f}")
+        print(f"[TJDE DEBUG] Phase: {features.get('market_phase')} | CLIP Confidence: {features.get('clip_confidence', 'N/A')}")
+        logging.debug(f"[TJDE DEBUG] Complete decision for {symbol}: decision={decision}, score={score:.3f}, grade={grade}, phase={features.get('market_phase')}")
+        
         if context_modifiers:
             print(f"[CONTEXT MODIFIERS] Applied: {', '.join(context_modifiers)}")
+            logging.debug(f"[TJDE DEBUG] Context modifiers for {symbol}: {context_modifiers}")
         
         # === ETAP 6: ADVANCED CLIP INTEGRATION WITH CONTEXTUAL BOOSTS ===
         clip_modifier = 0.0

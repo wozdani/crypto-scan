@@ -74,12 +74,26 @@ def predict_clip_chart(chart_path: str, confidence_threshold: float = 0.3) -> Op
         Dictionary with prediction results or None if failed
     """
     try:
+        # Extract symbol from chart path for debugging
+        symbol = "UNKNOWN"
+        if "/" in chart_path:
+            filename = chart_path.split("/")[-1]
+            if "_" in filename:
+                symbol = filename.split("_")[0]
+        
+        print(f"[CLIP DEBUG] Predicting phase/setup for {symbol}...")
+        logging.debug(f"[CLIP DEBUG] Starting prediction for {symbol} using chart: {chart_path}")
+        
         predictor = get_clip_predictor()
         result = predictor.predict(chart_path)
         
+        print(f"[CLIP DEBUG] CLIP prediction: {result['label']}, confidence: {result['confidence']:.4f}")
+        logging.debug(f"[CLIP DEBUG] Full prediction result for {symbol}: {result}")
+        
         # Apply confidence threshold
         if result["confidence"] < confidence_threshold:
-            logger.info(f"Low confidence prediction: {result['confidence']:.3f} < {confidence_threshold}")
+            print(f"[CLIP DEBUG] Low confidence prediction rejected: {result['confidence']:.3f} < {confidence_threshold}")
+            logging.debug(f"[CLIP DEBUG] Low confidence prediction for {symbol}: {result['confidence']:.3f} < {confidence_threshold}")
             return {
                 "label": "no-clear-pattern",
                 "confidence": result["confidence"],
@@ -88,7 +102,8 @@ def predict_clip_chart(chart_path: str, confidence_threshold: float = 0.3) -> Op
                 "all_scores": result["all_scores"]
             }
             
-        logger.info(f"CLIP prediction: {result['label']} (confidence: {result['confidence']:.3f})")
+        print(f"[CLIP DEBUG] Valid prediction accepted for {symbol}: {result['label']} ({result['confidence']:.3f})")
+        logging.debug(f"[CLIP DEBUG] Accepted prediction for {symbol}: {result['label']} with confidence {result['confidence']:.3f}")
         
         return {
             "label": result["label"],
@@ -99,7 +114,8 @@ def predict_clip_chart(chart_path: str, confidence_threshold: float = 0.3) -> Op
         }
         
     except Exception as e:
-        logger.error(f"Error in CLIP prediction: {e}")
+        print(f"[CLIP DEBUG] Error in CLIP prediction: {e}")
+        logging.error(f"[CLIP DEBUG] Prediction error for chart {chart_path}: {e}")
         return _fallback_prediction(chart_path)
 
 
