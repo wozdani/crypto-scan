@@ -124,3 +124,10 @@ logs/
 data/cache/
 temp/
 tmp/
+
+# Large backup files
+*.zip
+CRYPTOSCAN1337*
+backup/
+backups/
+archives/
