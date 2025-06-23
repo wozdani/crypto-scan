@@ -795,6 +795,47 @@ def scan_cycle():
                                 
             except Exception as feedback_error:
                 print(f"[CV FEEDBACK] Feedback analysis failed: {feedback_error}")
+        
+        # Save TJDE results for auto-labeling system
+        if tjde_results:
+            try:
+                import json
+                from pathlib import Path
+                
+                # Save current TJDE results
+                results_dir = Path("data/tjde_results")
+                results_dir.mkdir(parents=True, exist_ok=True)
+                
+                timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+                results_file = results_dir / f"tjde_results_{timestamp}.json"
+                
+                with open(results_file, 'w') as f:
+                    json.dump({
+                        "timestamp": timestamp,
+                        "scan_completed": datetime.now(timezone.utc).isoformat(),
+                        "total_results": len(tjde_results),
+                        "results": tjde_results
+                    }, f, indent=2)
+                
+                print(f"[TJDE RESULTS] Saved {len(tjde_results)} results to {results_file.name}")
+                
+                # Run auto-labeling for top tokens
+                try:
+                    from vision_ai.auto_label_runner import run_auto_labeling_for_tjde
+                    
+                    # Process top 5 tokens for training data
+                    auto_label_summary = run_auto_labeling_for_tjde(top_count=5)
+                    
+                    if "error" not in auto_label_summary:
+                        pairs_created = auto_label_summary["processing_stats"]["training_pairs_created"]
+                        if pairs_created > 0:
+                            print(f"[AUTO LABEL] Created {pairs_created} training pairs from top tokens")
+                    
+                except Exception as auto_label_error:
+                    print(f"[AUTO LABEL] Auto-labeling failed: {auto_label_error}")
+                
+            except Exception as save_error:
+                print(f"[TJDE RESULTS] Failed to save results: {save_error}")
             
     except Exception as e:
         print(f"❌ [TJDE ALERTS] Error in enhanced alert system: {e}")

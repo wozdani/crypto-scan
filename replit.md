@@ -123,16 +123,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Quality Assessment**: excellent/strong/good/neutral-watch/weak/very_poor z context adjustment info
 - **Production Integration**: Pełna integracja z crypto_scan_service.py - audytowalny decision trail
 
-### June 23, 2025 - Complete Vision-AI System with CLIP Embeddings and Feedback Loop - PRODUCTION READY ✅
-- **CLIP Training System**: Implemented vision_ai/train_cv_model.py with CLIP embeddings for image-text understanding using openai/clip-vit-base-patch16
-- **CV Setup Prediction**: Created vision_ai/predict_cv_setup.py for real-time chart pattern classification with similarity matching against training embeddings  
-- **Feedback Loop System**: Built vision_ai/feedback_loop_cv.py for analyzing prediction success rates and automated model performance tracking
-- **TJDE Integration**: Enhanced trader_ai_engine.py with CV prediction integration, providing score adjustments based on setup confidence
-- **Production Deployment**: Complete integration into crypto_scan_service.py with automatic CV predictions during high-quality signal detection
-- **Intelligent Scoring**: CV model provides +/- score adjustments for breakouts (+0.1), fakeouts (-0.1), trend continuations (+0.08) based on confidence levels
-- **Performance Analytics**: Automated feedback analysis tracks success rates per setup type and generates model weight recommendations
-- **Real-time Processing**: Vision-AI analyzes charts during token scans and saves predictions to data/vision_ai/predictions/ for feedback analysis
-- **Professional Architecture**: Complete system mimics expert trader visual analysis with embeddings stored in data/vision_ai/embeddings/ and feedback logs in data/cv_feedback_logs/
+### June 23, 2025 - Complete Auto-Labeling Training Data Collection System - PRODUCTION READY ✅
+- **Chart Export Module**: Created vision_ai/chart_exporter.py for automatic export of charts in SYMBOL_YYYYMMDD_HHMM.png format after TJDE scans
+- **GPT Chart Labeler**: Implemented vision_ai/gpt_chart_labeler.py using GPT-4o Vision API to generate setup descriptions in format: "breakout-continuation | trending-up | volume-backed"
+- **Auto Label Runner**: Built vision_ai/auto_label_runner.py for complete automation - captures top 5 TJDE tokens, exports charts, generates GPT labels, creates training pairs
+- **Training Data Pairs**: Automatic creation of chart.png + description.txt pairs in data/vision_ai/train_data/ with enhanced TJDE context metadata
+- **Production Integration**: Full integration into crypto_scan_service.py - saves TJDE results and automatically runs training data collection after each scan
+- **Intelligent Descriptions**: GPT generates technical setup descriptions combining visual analysis with TJDE context (scores, decisions, market structure)
+- **Data Management**: Automatic cleanup of old files, statistics tracking, and session summaries for training data quality monitoring
+- **Seamless Workflow**: Complete end-to-end pipeline from token scanning → chart export → GPT labeling → training pair creation for Vision-AI model development
+- **Robust Architecture**: Error handling, fallback descriptions, and comprehensive logging ensure reliable training data collection in production environment
 
 ## User Preferences
 
