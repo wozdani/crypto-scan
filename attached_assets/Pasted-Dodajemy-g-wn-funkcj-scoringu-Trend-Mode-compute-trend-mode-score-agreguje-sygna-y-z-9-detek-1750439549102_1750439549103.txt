@@ -1,0 +1,67 @@
+Dodajemy główną funkcję scoringu Trend Mode:
+compute_trend_mode_score() – agreguje sygnały z 9 detektorów i zwraca score (0–100) + reasons.
+
+✅ Funkcja:
+python
+Kopiuj
+Edytuj
+def compute_trend_mode_score(symbol: str, prices_5m: list[float], prices_1m: list[float], orderbook_data: dict) -> tuple[int, list[str]]:
+    score = 0
+    reasons = []
+
+    from detectors.pullback import detect_trend_pullback
+    if detect_trend_pullback(prices_5m):
+        score += 10
+        reasons.append("trend pullback – continuation entry")
+
+    from detectors.echo import detect_local_fractal_echo
+    if detect_local_fractal_echo(prices_5m):
+        score += 10
+        reasons.append("local echo – repeated pattern")
+
+    from detectors.liquidity_behavior import detect_liquidity_behavior
+    if detect_liquidity_behavior(orderbook_data):
+        score += 10
+        reasons.append("layered liquidity behavior – whale control")
+
+    from detectors.bid_ask_sentiment import detect_bid_ask_sentiment
+    if detect_bid_ask_sentiment(orderbook_data):
+        score += 10
+        reasons.append("aggressive bid/ask ratio – buyer dominance")
+
+    from detectors.heatmap import detect_ghost_walls
+    if detect_ghost_walls(orderbook_data):
+        score += 10
+        reasons.append("heatmap ghost wall removed – no resistance")
+
+    from detectors.volume_slope import detect_volume_cluster_slope
+    if detect_volume_cluster_slope(prices_5m):
+        score += 10
+        reasons.append("volume cluster slope upward")
+
+    from detectors.micro_echo import detect_micro_echo
+    if detect_micro_echo(prices_1m):
+        score += 10
+        reasons.append("micro-timeframe echo – LTF confirms trend")
+
+    from detectors.human_flow import detect_human_like_flow
+    if detect_human_like_flow(prices_5m):
+        score += 15
+        reasons.append("human-like flow – psychological structure")
+
+    from detectors.calm_before_trend import detect_calm_before_trend
+    if detect_calm_before_trend(prices_5m):
+        score += 15
+        reasons.append("calm before trend – low volatility breakout")
+
+    return score, reasons
+🔧 Integracja:
+Dodajcie to do pliku trend_mode_pipeline.py.
+Użycie w systemie:
+
+python
+Kopiuj
+Edytuj
+score, reasons = compute_trend_mode_score(symbol, prices_5m, prices_1m, orderbook)
+if score >= 30:
+    send_alert(symbol, reason="Trend Mode Active", score=score, reasons=reasons)

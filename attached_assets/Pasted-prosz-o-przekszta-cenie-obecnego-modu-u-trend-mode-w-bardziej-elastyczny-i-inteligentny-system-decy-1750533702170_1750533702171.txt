@@ -1,0 +1,115 @@
+proszę o przekształcenie obecnego modułu trend-mode w bardziej elastyczny i inteligentny system decyzyjny, który nie bazuje na sztywnych regułach typu „10 świec, 3 zielone itd.”, ale na heurystycznej ocenie sytuacji rynkowej – podobnie jak robi to realny, doświadczony trader.
+
+System ma symulować myślenie tradera analizującego wykres, świece i order book, a nie wykonywać reguły typu if A and B and C.
+
+✅ Nowa architektura modułu – trader_ai_engine.py
+Poniżej opisuję, jakie funkcje powinny zostać wdrożone w pliku trader_ai_engine.py, który zastąpi dotychczasowy trend_mode.py lub będzie jego rozszerzeniem.
+
+📊 1. analyze_market_structure(candles) -> str
+Rozpoznaje kontekst: "impulse", "pullback", "range", "breakout", "distribution"
+
+Bada nachylenie ceny, zmienność, układ świec, relację do EMA
+
+Przykład:
+
+python
+Kopiuj
+Edytuj
+context = analyze_market_structure(candles_15m)
+📉 2. analyze_candle_behavior(candles) -> dict
+Ocena zachowania ceny: agresja, pauza, absorpcja, panika
+
+Wyłapywanie: bullish wicks, małe korpusy, równowaga
+
+Zwraca np.:
+
+python
+Kopiuj
+Edytuj
+{
+  "shows_buy_pressure": True,
+  "pattern": "absorbing_dip",
+  "volume_behavior": "declining_then_spike"
+}
+🧾 3. interpret_orderbook(orderbook_data) -> dict
+Analiza intencji z bid/ask:
+
+Czy są warstwy bidów?
+
+Spoofing?
+
+Zmiana siły po jednej stronie?
+
+Zwraca np.:
+
+python
+Kopiuj
+Edytuj
+{
+  "bids_layered": True,
+  "spoofing_suspected": False,
+  "ask_pressure": "light"
+}
+🧠 4. simulate_trader_decision(...) -> dict
+Główna funkcja scalająca wszystkie dane:
+
+python
+Kopiuj
+Edytuj
+def simulate_trader_decision(symbol, market_context, candle_behavior, orderbook_info):
+Na bazie danych podejmuje decyzję:
+
+python
+Kopiuj
+Edytuj
+{
+  "decision": "join_trend",
+  "confidence": 0.82,
+  "final_score": 0.81,
+  "reasons": ["trend intact", "pullback confirmed", "bid layering"],
+  "quality_grade": "high"
+}
+🗣️ 5. (Opcjonalnie) describe_setup_naturally(...) -> str
+Tworzy naturalny tekst opisujący sytuację:
+
+"Rynek utrzymuje trend wzrostowy z lekką korektą, wsparcie broni EMA21, widoczne warstwy bidów."
+
+🧪 6. Logowanie reasoningów + debug
+Zapisywać final_score, confidence, reasons, context oraz decision do:
+
+terminala (print)
+
+oraz pliku trader_decision_log.txt
+
+⚙️ Integracja z crypto_scan_service.py
+Po stronie głównego skanera:
+
+python
+Kopiuj
+Edytuj
+from trader_ai_engine import simulate_trader_decision
+
+result = simulate_trader_decision(
+    symbol,
+    analyze_market_structure(candles),
+    analyze_candle_behavior(candles),
+    interpret_orderbook(orderbook_data)
+)
+Jeśli result["decision"] == "join_trend" i score >= 0.75, wysyła alert.
+
+🎯 Czego oczekuję:
+Stworzenia nowego pliku trader_ai_engine.py z powyższymi funkcjami
+
+Integracji z istniejącym systemem
+
+Debug printów i zapisów reasoningów
+
+(opcjonalnie) integracji z GPT feedbackem tekstowym
+
+Alerty pojawiają się tylko, gdy system ma rzeczywisty powód ("jak trader")
+
+System ma myśleć jak trader, nie działać jak bot z checklistą.
+Jeśli nie ma edge, ma milczeć.
+Jeśli widzi przewagę, niech powie: „To jest ten moment.”
+
+Dzięki! 🚀

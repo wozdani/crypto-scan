@@ -1,0 +1,89 @@
+Proszę również o wdrożenie inteligentnego, heurystycznego scoringu, który działa jak trader — czyli:
+
+ważone punkty, ale z kontekstem i adaptacją
+
+wynik 0.0 – 1.0 jako confidence / siła sytuacji
+
+możliwość pokazania breakdownu scoringu w logach i alertach
+
+✅ Funkcja: compute_trader_score(features: dict) -> float
+Przykładowe wejście:
+python
+Kopiuj
+Edytuj
+features = {
+  "trend_strength": 0.72,
+  "pullback_quality": 0.65,
+  "support_reaction_strength": 0.8,
+  "bounce_confirmation_strength": 0.6,
+  "orderbook_alignment": 0.7,
+  "time_boost": 0.9,
+  "market_context": "impulse"  # ← kluczowe dla wagi
+}
+🧠 Przykład wag (dostosowywane dynamicznie wg kontekstu):
+python
+Kopiuj
+Edytuj
+base_weights = {
+    "trend_strength": 0.25,
+    "pullback_quality": 0.2,
+    "support_reaction_strength": 0.2,
+    "bounce_confirmation_strength": 0.15,
+    "orderbook_alignment": 0.1,
+    "time_boost": 0.1
+}
+➡️ Jeśli market_context == "range" → time_boost i bounce tracą na znaczeniu
+➡️ Jeśli market_context == "impulse" → trend_strength, support, orderbook mają większe znaczenie
+
+⚙️ Final score:
+python
+Kopiuj
+Edytuj
+score = sum([
+    features["trend_strength"] * weights["trend_strength"],
+    features["pullback_quality"] * weights["pullback_quality"],
+    ...
+])
+🔠 Dodatkowo: Grade
+python
+Kopiuj
+Edytuj
+if score >= 0.8: grade = "excellent"
+elif score >= 0.7: grade = "strong"
+elif score >= 0.6: grade = "neutral-watch"
+else: grade = "very_poor"
+✅ Output scoringu:
+Funkcja simulate_trader_decision() ma zwracać:
+
+python
+Kopiuj
+Edytuj
+{
+  "decision": "join_trend",
+  "confidence": 0.82,
+  "final_score": 0.81,
+  "quality_grade": "strong",
+  "reasons": [...],
+  "score_breakdown": {
+    "trend_strength": 0.72,
+    "pullback_quality": 0.65,
+    ...
+  }
+}
+🧾 Proszę też, by scoring był:
+logowany w terminalu:
+
+python
+Kopiuj
+Edytuj
+print(f"[TRADER SCORE] {symbol} → {final_score:.2f} (trend={t:.2f}, pullback={p:.2f}, support={s:.2f}, bounce={b:.2f}, orderbook={o:.2f}, time={tm:.2f})")
+dodawany do alertu Telegram jako breakdown
+
+zapisywany do pliku np. trader_score_log.txt jako JSON
+
+Dzięki temu system zyska inteligencję decyzyjną, która wie nie tylko co widzi, ale jak bardzo to jest dobre.
+To będzie jak trader, który sam powie:
+
+„Ten setup ma 81% edge – wchodzę.”
+
+Daj znać, jeśli chcesz cały szkielet scoringu jako kod Python do własnego pliku.

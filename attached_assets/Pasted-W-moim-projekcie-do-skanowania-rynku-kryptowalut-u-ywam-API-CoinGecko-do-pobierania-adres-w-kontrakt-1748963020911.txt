@@ -1,0 +1,58 @@
+W moim projekcie do skanowania rynku kryptowalut używam API CoinGecko do pobierania adresów kontraktów tokenów (ETH, BSC itd.).
+Wcześniej system wykonywał osobne zapytanie dla każdego tokena, co prowadziło do błędu 429 Too Many Requests.
+
+✅ Teraz zoptymalizowałem ten mechanizm — robię tylko jedno zapytanie do CoinGecko:
+
+bash
+Kopiuj
+Edytuj
+https://api.coingecko.com/api/v3/coins/list?include_platform=true
+Pobieram całą listę tokenów z ich kontraktami i tworzę lokalny cache (token_contract_map.json). Następnie filtruję tylko te symbole, które są dostępne na Bybit Perpetual Futures (z API Bybit).
+
+Oto kod używany do zbudowania cache (plik utils/coingecko.py):
+
+python
+Kopiuj
+Edytuj
+import requests, json, os
+from utils.bybit import get_perpetual_symbols
+
+CACHE_FILE = "token_contract_map.json"
+COINGECKO_URL = "https://api.coingecko.com/api/v3/coins/list?include_platform=true"
+
+def build_contract_cache():
+    print("📥 Pobieram dane z CoinGecko...")
+    try:
+        response = requests.get(COINGECKO_URL, timeout=15)
+        if response.status_code == 200:
+            data = response.json()
+            bybit_symbols = set(get_perpetual_symbols())
+            result = {}
+
+            for item in data:
+                symbol = item.get("symbol", "").upper()
+                if symbol in bybit_symbols:
+                    address = item.get("platforms", {}).get("ethereum")
+                    if address:
+                        result[symbol] = {"address": address, "chain": "ethereum"}
+
+            with open(CACHE_FILE, "w") as f:
+                json.dump(result, f, indent=2)
+            print(f"✅ Zapisano {len(result)} kontraktów w cache.")
+        else:
+            print(f"❌ Błąd CoinGecko: {response.status_code}")
+    except Exception as e:
+        print(f"❌ Wyjątek przy pobieraniu: {e}")
+
+def get_contract(symbol):
+    if not os.path.exists(CACHE_FILE):
+        build_contract_cache()
+    try:
+        with open(CACHE_FILE, "r") as f:
+            cache = json.load(f)
+        return cache.get(symbol.upper(), None)
+    except Exception as e:
+        print(f"❌ Błąd przy odczycie cache: {e}")
+        return None
+✅ Dzięki temu aplikacja działa stabilnie, nie przekracza limitów API CoinGecko, i analizuje tylko tokeny z futuresów Bybit.
+Jeśli są jakieś zalecenia lub uwagi dot. Replit dotyczące cache’owania plików lub ochrony przed timeoutem API, chętnie je wdrożę.

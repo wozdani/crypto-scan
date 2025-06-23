@@ -1,0 +1,77 @@
+Wdrażamy punkt 8 systemu Vision-AI – rozszerzamy cały pipeline o embeddingi, które łączą:
+
+Embedding wykresu (z CLIP)
+
+Embedding scoringu TJDE
+
+Embedding komentarza GPT
+
+Dzięki temu przygotowujemy fundamenty pod przyszłe zastosowania:
+
+clustering podobnych setupów
+
+wyszukiwanie podobnych przypadków
+
+zero-shot matching przyszłych wykresów
+
+🧱 Co do zrobienia:
+🔹 1. Nowy skrypt: generate_embeddings.py
+Ten moduł przetwarza każdy symbol z TOP 5 po skanie i tworzy embedding:
+
+python
+Kopiuj
+Edytuj
+from utils.clip_model import get_clip_image_embedding
+from utils.gpt_embedding import get_gpt_text_embedding
+from utils.score_embedding import embed_score_vector
+
+def generate_combined_embedding(symbol, image_path, score_dict, gpt_comment):
+    image_embed = get_clip_image_embedding(image_path)
+    score_embed = embed_score_vector(score_dict)
+    gpt_embed = get_gpt_text_embedding(gpt_comment)
+
+    combined = np.concatenate([image_embed, score_embed, gpt_embed])
+    save_path = f"data/embeddings/{symbol}_{timestamp}.npy"
+    np.save(save_path, combined)
+    print(f"[EMBEDDING] Saved combined embedding for {symbol}")
+🔹 2. Potrzebne pliki:
+clip_model.py: funkcja get_clip_image_embedding(img_path)
+
+gpt_embedding.py: funkcja get_gpt_text_embedding(text)
+
+score_embedding.py: funkcja embed_score_vector(score_dict) – zamienia scoring na wektor np. 7D, normalizowany
+
+🔹 3. Pliki docelowe:
+Embeddingi zapisujemy w data/embeddings/
+
+Nazwa: {SYMBOL}_{timestamp}.npy
+
+🔍 Przykład integracji:
+Po każdej sesji skanu:
+
+System eksportuje wykres do PNG
+
+GPT tworzy komentarz: "pullback-in-trend | trending-up | volume-backed"
+
+TJDE scoring zawiera 7 cech
+
+generate_embeddings.py tworzy embedding łącznie ~900-1000D
+
+📦 Potencjał:
+Embeddingi mogą być użyte do trenowania nowego modelu rekomendacyjnego lub podobieństw między setupami
+
+Można je wizualizować (np. t-SNE) lub kategoryzować
+
+W przyszłości: fine-tune modelu na danych z realnych wyników (win/loss)
+
+✅ Podsumowanie:
+✔️ Nowy moduł generate_embeddings.py
+✔️ Funkcje do tworzenia wektorów CLIP + scoring + GPT
+✔️ Zapisujemy embeddingi dla każdego z top5 po skanie
+✔️ Przyszłościowe zastosowania: clustering, wyszukiwanie, model rekomendacyjny
+
+Gotowe do wdrożenia 💡
+Po tym module zostaje nam tylko etap trenowania i feedback na embeddingach.
+
+Szefir 🚀📊
+

@@ -1,0 +1,82 @@
+Cześć,
+
+Proszę o aktualizację funkcji detect_dex_inflow() w moim projekcie skanera rynku kryptowalut. Nowa wersja powinna:
+
+Dynamicznie wyznaczać próg inflow jako max(market_cap * 0.0005, 3000 USD)
+
+Zliczać łączną wartość inflow z transakcji do znanych adresów DEX dla danego chaina (korzystając z DEX_ADDRESSES)
+
+Filtrować mikroskopijne transakcje poniżej $50
+
+Zwracać status True i "strong_inflow" jeśli inflow_total ≥ threshold
+
+Zwracać "moderate_inflow" jeśli inflow_total ≥ 0.5 * threshold i ≥ 3 transakcje
+
+W przeciwnym razie zwracać False i "below_threshold"
+
+Obsługiwać błędy i sytuacje wyjątkowe: brak kontraktu, brak danych, brak transakcji itd.
+
+Poniżej pełna treść funkcji do wklejenia:
+
+python
+Kopiuj
+Edytuj
+import time
+from utils.token import get_contract_from_cache
+from utils.dex import get_token_transfers
+from utils.pricing import get_market_cap, get_price_usd
+from data.known_dex_addresses import DEX_ADDRESSES
+
+def detect_dex_inflow(symbol, price_usd):
+    try:
+        contract_info = get_contract_from_cache(symbol)
+        if not contract_info:
+            print(f"⚠️ Brak kontraktu dla {symbol}")
+            return False, "no_contract"
+
+        address = contract_info["address"]
+        chain = contract_info["chain"].lower()
+
+        # 1. Pobierz transakcje tokenów
+        txs = get_token_transfers(address, chain)
+        if not txs:
+            return False, "no_transactions"
+
+        # 2. Ustal próg inflow dynamicznie
+        market_cap = get_market_cap(symbol)
+        base_threshold = market_cap * 0.0005  # 0.05% market cap
+        min_usd = 3000
+        threshold = max(base_threshold, min_usd)
+
+        inflow_total = 0
+        inflow_tx_count = 0
+
+        for tx in txs:
+            to_addr = tx.get("to", "").lower()
+            if to_addr in DEX_ADDRESSES.get(chain, []):
+                amount = float(tx["value"]) / (10 ** int(tx.get("decimals", 18)))
+                usd_value = amount * price_usd
+
+                if usd_value >= 50:
+                    inflow_total += usd_value
+                    inflow_tx_count += 1
+
+        # 3. Zdecyduj czy uznać inflow
+        if inflow_total >= threshold:
+            print(f"✅ DEX inflow wykryty dla {symbol}: {inflow_total:.2f} USD > próg {threshold:.2f}")
+            return True, "strong_inflow"
+
+        elif inflow_tx_count >= 3 and inflow_total >= threshold * 0.5:
+            print(f"🟡 Umiarkowany inflow dla {symbol}: {inflow_total:.2f} USD")
+            return True, "moderate_inflow"
+
+        else:
+            print(f"❌ Brak istotnego inflow dla {symbol}")
+            return False, "below_threshold"
+
+    except Exception as e:
+        print(f"❌ Błąd w detect_dex_inflow dla {symbol}: {e}")
+        return False, "error"
+Jeśli będzie potrzeba — prześlę także instrukcje do stealth inflow detection jako kolejny etap.
+
+Dzięki! 🚀

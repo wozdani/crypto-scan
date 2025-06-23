@@ -1,0 +1,22 @@
+{
+  "report_type": "alert_frequency",
+  "period": "7_days",
+  "generated_at": "2025-06-01T12:00:07.120495",
+  "total_alerts": 8,
+  "unique_symbols": 3,
+  "symbol_frequencies": [
+    [
+      "BTC",
+      2
+    ],
+    [
+      "ETH",
+      2
+    ],
+    [
+      "DOGE",
+      1
+    ]
+  ],
+  "high_frequency_symbols": []
+}

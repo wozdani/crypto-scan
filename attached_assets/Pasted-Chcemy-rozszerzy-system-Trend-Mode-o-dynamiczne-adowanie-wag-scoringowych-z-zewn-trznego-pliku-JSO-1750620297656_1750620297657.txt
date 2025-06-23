@@ -1,0 +1,88 @@
+Chcemy rozszerzyć system Trend Mode o dynamiczne ładowanie wag scoringowych z zewnętrznego pliku JSON. Będzie to część fundamentu pod system auto-korekcji scoringu (feedback loop), który dostraja wagi na podstawie skuteczności alertów.
+
+✅ Co trzeba zrobić:
+Utworzyć plik tjde_weights.json z domyślnymi wagami
+
+Zintegrować ładowanie tych wag w simulate_trader_decision_advanced()
+
+W razie braku pliku – stosować fallback do domyślnych wag
+
+📁 Lokalizacja pliku:
+bash
+Kopiuj
+Edytuj
+crypto-scan/data/weights/tjde_weights.json
+📄 Zawartość pliku:
+json
+Kopiuj
+Edytuj
+{
+  "trend_strength": 0.25,
+  "pullback_quality": 0.2,
+  "support_reaction": 0.15,
+  "liquidity_pattern_score": 0.1,
+  "psych_score": 0.1,
+  "htf_supportive_score": 0.1,
+  "market_phase_modifier": 0.1
+}
+📂 Kod do utworzenia pliku (bash):
+bash
+Kopiuj
+Edytuj
+mkdir -p data/weights && cat <<EOF > data/weights/tjde_weights.json
+{
+  "trend_strength": 0.25,
+  "pullback_quality": 0.2,
+  "support_reaction": 0.15,
+  "liquidity_pattern_score": 0.1,
+  "psych_score": 0.1,
+  "htf_supportive_score": 0.1,
+  "market_phase_modifier": 0.1
+}
+EOF
+🧠 Kod w Pythonie: load_tjde_weights()
+Dodaj funkcję np. do utils/scoring.py:
+
+python
+Kopiuj
+Edytuj
+import json
+import os
+
+DEFAULT_TJDE_WEIGHTS = {
+    "trend_strength": 0.25,
+    "pullback_quality": 0.2,
+    "support_reaction": 0.15,
+    "liquidity_pattern_score": 0.1,
+    "psych_score": 0.1,
+    "htf_supportive_score": 0.1,
+    "market_phase_modifier": 0.1
+}
+
+def load_tjde_weights(filepath="data/weights/tjde_weights.json"):
+    if not os.path.exists(filepath):
+        print(f"[TJDE WEIGHTS] No file found at {filepath}, using default weights.")
+        return DEFAULT_TJDE_WEIGHTS
+    try:
+        with open(filepath, "r") as f:
+            weights = json.load(f)
+            print(f"[TJDE WEIGHTS] Loaded weights from file: {weights}")
+            return weights
+    except Exception as e:
+        print(f"[TJDE WEIGHTS] Error loading weights, fallback to default. Reason: {e}")
+        return DEFAULT_TJDE_WEIGHTS
+✅ W simulate_trader_decision_advanced()
+Dodaj:
+
+python
+Kopiuj
+Edytuj
+from utils.scoring import load_tjde_weights
+
+weights = load_tjde_weights()
+i użyj weights[...] zamiast hardcoded wartości.
+
+Daj znać, gdy będzie gotowe – wtedy przygotuję auto-update wag przez feedback_loop_v2.
+
+Pozdrawiam!
+Szefir 🚀🧠📈

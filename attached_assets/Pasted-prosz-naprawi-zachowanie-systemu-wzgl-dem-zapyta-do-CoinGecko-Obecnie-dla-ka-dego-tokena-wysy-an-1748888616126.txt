@@ -1,0 +1,66 @@
+proszę naprawić zachowanie systemu względem zapytań do CoinGecko. Obecnie dla każdego tokena wysyłane jest osobne zapytanie (co prowadzi do błędu 429: Too Many Requests). Zamiast tego, system miał wykonywać jedno zapytanie do CoinGecko dla wielu tokenów naraz (np. /coins/list lub /coins/markets), a następnie dopasować dane lokalnie.
+
+Proszę zaimplementować poniższą funkcję get_multiple_token_contracts_from_coingecko() oraz zmodyfikować detect_whale_tx(), tak aby nie było pojedynczych zapytań na każdy token:
+
+🧠 Kod do wklejenia w utils/coingecko.py:
+python
+Kopiuj
+Edytuj
+import requests
+import time
+
+# Cache ID list for performance
+COINGECKO_TOKEN_LIST = []
+
+def fetch_coingecko_token_list():
+    global COINGECKO_TOKEN_LIST
+    if COINGECKO_TOKEN_LIST:
+        return COINGECKO_TOKEN_LIST
+    try:
+        response = requests.get("https://api.coingecko.com/api/v3/coins/list", timeout=10)
+        COINGECKO_TOKEN_LIST = response.json()
+        return COINGECKO_TOKEN_LIST
+    except Exception as e:
+        print(f"❌ Błąd pobierania listy tokenów z CoinGecko: {e}")
+        return []
+
+def get_multiple_token_contracts_from_coingecko(symbols):
+    token_list = fetch_coingecko_token_list()
+    result = {}
+
+    for symbol in symbols:
+        match = next((t for t in token_list if t["symbol"].lower() == symbol.lower().replace("usdt", "")), None)
+        if not match:
+            result[symbol] = None
+            continue
+
+        try:
+            data = requests.get(f"https://api.coingecko.com/api/v3/coins/{match['id']}", timeout=10).json()
+            platforms = data.get("platforms", {})
+            for chain, address in platforms.items():
+                if address:
+                    result[symbol] = {
+                        "address": address,
+                        "chain": chain.lower()
+                    }
+                    break
+            if symbol not in result:
+                result[symbol] = None
+        except Exception as e:
+            print(f"❌ Błąd pobierania danych dla {symbol}: {e}")
+            result[symbol] = None
+            time.sleep(1)  # Optional backoff
+
+    return result
+🔁 Następnie: w detect_stage_minus2_1() lub scan_cycle(), dodaj:
+python
+Kopiuj
+Edytuj
+symbols = get_symbols_cached()
+coingecko_contracts = get_multiple_token_contracts_from_coingecko(symbols)
+
+for symbol in symbols:
+    token_info = token_map.get(symbol)
+    if not token_info and symbol in coingecko_contracts:
+        token_info = coingecko_contracts[symbol]
+💡 Dzięki temu system nie będzie spamował CoinGecko, a zamiast tego zrobi 1 zapytanie do /coins/list, a potem tylko konkretne szczegóły pobierze dla trafionych symboli.

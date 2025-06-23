@@ -1,0 +1,74 @@
+Kolejny moduł do systemu Trend Mode:
+Heatmap Vacuum Detector – wykrywa, gdy z poziomów powyżej ceny znikają zlecenia ask, co tworzy próżnię likwidacyjną → tzw. vacuum zone.
+
+🧠 Cel:
+Jeśli zlecenia sprzedaży (ask) znikają z heatmapy, mimo że cena się zbliża, to znaczy:
+Whale lub smart money "czyści drogę" pod przyszły ruch w górę.
+Rynek staje się „leki”, łatwo go popchnąć.
+
+📊 Dane potrzebne:
+2–3 snapshoty orderbooka z heatmap (np. poziomy +1% do +2% powyżej ceny)
+
+Zmniejszająca się ilość zleceń ask na tych poziomach
+
+✅ Funkcja: detect_heatmap_vacuum(orderbook_snapshots: list[dict])
+python
+Kopiuj
+Edytuj
+def detect_heatmap_vacuum(orderbook_snapshots: list[dict]) -> bool:
+    """
+    Wykrywa zanik zleceń ask 1–2% powyżej ceny (tworzenie vacuum).
+    """
+    if len(orderbook_snapshots) < 3:
+        return False
+
+    disappearance_ratio_threshold = 0.4
+    price = orderbook_snapshots[-1]["price"]
+
+    vacuum_counts = 0
+    total_levels = 0
+
+    for level in orderbook_snapshots[0]["asks"]:
+        ask_price = level[0]
+        if 1.01 * price <= ask_price <= 1.02 * price:
+            total_levels += 1
+            initial_volume = level[1]
+
+            # znajdź końcową objętość tego poziomu w ostatnim snapshot
+            final_volume = next(
+                (v[1] for v in orderbook_snapshots[-1]["asks"] if abs(v[0] - ask_price) < 0.0001),
+                0
+            )
+
+            if final_volume < initial_volume * (1 - disappearance_ratio_threshold):
+                vacuum_counts += 1
+
+    if total_levels >= 3 and vacuum_counts >= 2:
+        return True
+
+    return False
+🔧 Integracja z trend_mode_pipeline.py:
+python
+Kopiuj
+Edytuj
+from detectors.heatmap_vacuum import detect_heatmap_vacuum
+
+if orderbook_snapshots and detect_heatmap_vacuum(orderbook_snapshots):
+    score += 10
+    reasons.append("heatmap vacuum above price – probable lift-off zone")
+📁 Plik:
+detectors/heatmap_vacuum.py
+
+🔍 Wartości domyślne:
+Próg: zanik ≥ 40% wolumenu ask na poziomach +1–2%
+
+Przynajmniej 2 poziomy muszą się „wyczyścić” z min. 3
+
+💡 Efekt:
+Jeśli cena się zbliża, a zlecenia ask znikają – ktoś przygotowuje rampę
+
+Detektor ten dodaje +10 do scoringu Trend Mode
+
+Działa tylko na porządnych danych z orderbooka
+
+Proszę o wdrożenie tego detektora i podłączenie do pipeline’u Trend Mode.

@@ -1,0 +1,131 @@
+Chcemy wdrożyć moduł trenowania modelu CLIP w naszym systemie trend-mode. Nasz pipeline już generuje pary (obraz wykresu + opis wygenerowany przez GPT), np.:
+
+charts/ETHUSDT_20250623_1652.png
+
+labels/ETHUSDT_20250623_1652.txt → "pullback-in-trend | trending-up | volume-backed"
+
+🎯 Cel:
+Użyć modelu CLIP (Contrastive Language–Image Pretraining), aby wytrenować system, który rozpoznaje fazy rynku i setupy na podstawie obrazu wykresu i opisu od GPT. Model będzie później wykorzystywany do:
+
+automatycznej predykcji: phase, setup, confidence
+
+integracji z simulate_trader_decision_advanced()
+
+porównywania obrazów z opisami bez klasycznego treningu (zero-shot / similarity)
+
+✅ Do zrobienia – krok po kroku:
+1. 📁 Struktura plików treningowych:
+Każda para = (image, label)
+
+obrazy: data/training/charts/*.png
+
+opisy: data/training/labels/*.txt
+
+nazwa wspólna: SYMBOL_YYYYMMDD_HHMM
+
+✅ Przykład:
+
+bash
+Kopiuj
+Edytuj
+data/training/charts/XAUTUSDT_20250623_1652.png
+data/training/labels/XAUTUSDT_20250623_1652.txt  # np. "pullback-in-trend | trending-up | volume-backed"
+2. ⚙️ Skrypt treningowy train_clip_model.py
+python
+Kopiuj
+Edytuj
+# train_clip_model.py
+
+import os
+import torch
+import clip
+from PIL import Image
+from tqdm import tqdm
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model, preprocess = clip.load("ViT-B/32", device=device)
+
+def load_data(charts_path, labels_path):
+    images, texts = [], []
+    for file in os.listdir(charts_path):
+        if not file.endswith(".png"): continue
+        name = file.replace(".png", "")
+        image_path = os.path.join(charts_path, file)
+        label_path = os.path.join(labels_path, f"{name}.txt")
+        if not os.path.exists(label_path): continue
+
+        image = preprocess(Image.open(image_path)).unsqueeze(0).to(device)
+        with open(label_path, "r") as f:
+            text = f.read().strip()
+        images.append(image)
+        texts.append(text)
+    return images, texts
+
+def train_clip_embedding(charts_path, labels_path):
+    images, texts = load_data(charts_path, labels_path)
+    print(f"[CLIP TRAIN] Loaded {len(images)} training pairs")
+
+    text_tokens = clip.tokenize(texts).to(device)
+    image_input = torch.cat(images)
+
+    with torch.no_grad():
+        image_features = model.encode_image(image_input)
+        text_features = model.encode_text(text_tokens)
+
+    # Save embeddings for future similarity analysis
+    torch.save(image_features, "data/clip/image_embeddings.pt")
+    torch.save(text_features, "data/clip/text_embeddings.pt")
+    torch.save(texts, "data/clip/text_labels.pt")
+    print("[CLIP TRAIN] Embeddings saved.")
+
+if __name__ == "__main__":
+    train_clip_embedding("data/training/charts", "data/training/labels")
+3. 🧠 Przykład predykcji: predict_clip_similarity.py
+python
+Kopiuj
+Edytuj
+# predict_clip_similarity.py
+
+import torch
+import clip
+from PIL import Image
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model, preprocess = clip.load("ViT-B/32", device=device)
+
+def predict_clip(image_path, candidate_labels):
+    image = preprocess(Image.open(image_path)).unsqueeze(0).to(device)
+    text = clip.tokenize(candidate_labels).to(device)
+
+    with torch.no_grad():
+        image_features = model.encode_image(image)
+        text_features = model.encode_text(text)
+
+        logits_per_image, _ = model(image, text)
+        probs = logits_per_image.softmax(dim=-1).cpu().numpy()
+
+    for label, prob in zip(candidate_labels, probs[0]):
+        print(f"{label}: {prob:.4f}")
+
+if __name__ == "__main__":
+    labels = ["pullback-in-trend", "breakout-continuation", "fakeout", "range", "accumulation", "exhaustion"]
+    predict_clip("data/training/charts/XAUTUSDT_20250623_1652.png", labels)
+🗂 Potrzebne katalogi:
+data/training/charts/
+
+data/training/labels/
+
+data/clip/ – tu zapisujemy embeddingi
+
+📌 Uwagi:
+Model nie wymaga klasycznego trenowania – działa jako zero-shot classifier.
+
+Na późniejszym etapie planujemy dodać integrację z simulate_trader_decision_advanced() w stylu:
+
+python
+Kopiuj
+Edytuj
+if "breakout-continuation" in clip_prediction:
+    final_score += 0.1
+Dajcie znać, jeśli potrzebujecie dodatkowych detali! 🔥
+Szefir 🚀

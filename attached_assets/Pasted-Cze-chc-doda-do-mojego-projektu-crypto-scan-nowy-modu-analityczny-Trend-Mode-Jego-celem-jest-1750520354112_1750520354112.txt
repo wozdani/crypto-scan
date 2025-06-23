@@ -1,0 +1,70 @@
+Cześć, chcę dodać do mojego projektu crypto-scan nowy moduł analityczny: Trend-Mode.
+Jego celem jest symulacja myślenia profesjonalnego tradera, który dołącza do istniejącego trendu wzrostowego w momencie korekty (pullbacku), a nie na breakoutcie czy odwróceniu.
+
+Trend-Mode ma być podzielony na etapy decyzyjne, zbudowane tak, by oddać sposób analizy najlepszych traderów:
+
+🧩 Etap 1: Analiza Kontekstu Rynkowego (market_context)
+Klasyfikacja aktualnej struktury:
+
+impuls, pullback, range, breakout, redistribucja
+
+Bazuje na analizie: slope, zmienności, układów świec i zmian trendu na EMA.
+
+Funkcja: determine_market_context(candles) → "pullback" / "impulse" / "range" itd.
+
+📈 Etap 2: Ocena Siły Trendu (trend_strength)
+Oblicza score siły trendu (0.0 – 1.0)
+
+Na podstawie:
+
+% świec zielonych w ostatnich 20–40
+
+nachylenie ceny (slope)
+
+stabilność wybicia / momentum
+
+Funkcja: compute_trend_strength(candles)
+
+🔁 Etap 3: Wykrycie Korekty (pullback_detection)
+Sprawdza, czy cena cofnęła się od lokalnego high o 1–2% (pullback)
+
+Dodatkowo sprawdza, czy wolumen maleje (brak dystrybucji)
+
+Funkcja: detect_pullback(candles) → True/False
+
+📍 Etap 4: Reakcja na wsparcie (support_reaction)
+Sprawdza, czy cena utrzymuje się nad dynamicznym wsparciem (EMA21 / VWAP)
+
+Obserwuje reakcję świec (czy była obrona poziomu?)
+
+Funkcja: is_near_support(candles) → True/False
+
+🧠 Etap 5: Logika Decyzyjna Tradera (trader_decision_logic)
+Łączy wszystko w jedno logiczne „myślenie” tradera:
+
+Jeśli trend_score wysoki + pullback aktywny + near_support = sygnał wejścia
+
+Zwraca:
+
+python
+Kopiuj
+Edytuj
+{
+  "decision": "join_trend", 
+  "confidence": 0.84,
+  "reasons": ["clean pullback", "support held", "momentum intact"]
+}
+Funkcja: interpret_market_as_trader(symbol, candles)
+
+🛠 Integracja
+Trend-Mode może być osobnym plikiem trend_mode.py z wywołaniem:
+
+python
+Kopiuj
+Edytuj
+from trend_mode import interpret_market_as_trader
+Output może wpływać na scoring alertu lub działać jako niezależny filtr.
+
+✅ Proszę o wdrożenie każdego etapu w osobnych funkcjach, wszystko w jednym module.
+Potem zrobimy integrację z resztą systemu crypto-scan.
+

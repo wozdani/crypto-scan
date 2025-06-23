@@ -1,0 +1,119 @@
+ Cel:
+Zautomatyzować dostrajanie wag scoringowych w funkcji simulate_trader_decision_advanced() w zależności od skuteczności wcześniejszych alertów (czy były trafne czy nietrafne).
+
+🔍 Jak to działa:
+Mamy system scoringowy, który oblicza finalny score na podstawie różnych cech (np. trend_strength, pullback_quality itp.).
+
+Każda z tych cech ma swoją wagę.
+
+Ten system generuje alerty.
+
+My zapisujemy te alerty do logów (logs/advanced_trader_log.txt) wraz z etykietą label: good lub label: bad, która mówi czy alert był skuteczny.
+
+Nowy moduł feedback_loop_trainer.py analizuje te logi i automatycznie dostraja wagi scoringowe, ucząc się które cechy mają większe znaczenie dla skutecznych alertów.
+
+✅ Co należy zrobić:
+Dodaj plik utils/feedback_loop_trainer.py z poniższym kodem (gotowy poniżej).
+
+W funkcji simulate_trader_decision_advanced() podmień wczytywanie wag na dynamiczne – przez load_weights() z nowego pliku.
+
+Wagi są trzymane w pliku data/weights/tjde_weights.json.
+
+Trening uruchamiamy poleceniem:
+
+bash
+Kopiuj
+Edytuj
+python3 -m utils.feedback_loop_trainer
+📁 Kod pliku: utils/feedback_loop_trainer.py
+python
+Kopiuj
+Edytuj
+import json
+from collections import defaultdict
+import os
+
+WEIGHTS_FILE = "data/weights/tjde_weights.json"
+FEEDBACK_LOG = "logs/advanced_trader_log.txt"
+
+# Domyślne wagi (jeśli plik nie istnieje)
+DEFAULT_WEIGHTS = {
+    "trend_strength": 0.25,
+    "pullback_quality": 0.2,
+    "support_reaction": 0.15,
+    "liquidity_pattern_score": 0.1,
+    "psych_score": 0.1,
+    "htf_supportive_score": 0.1,
+    "market_phase_modifier": 0.1
+}
+
+def load_weights():
+    if os.path.exists(WEIGHTS_FILE):
+        with open(WEIGHTS_FILE, "r") as f:
+            return json.load(f)
+    else:
+        return DEFAULT_WEIGHTS.copy()
+
+def save_weights(weights):
+    with open(WEIGHTS_FILE, "w") as f:
+        json.dump(weights, f, indent=2)
+
+def update_weights_based_on_feedback():
+    try:
+        with open(FEEDBACK_LOG, "r") as f:
+            lines = f.readlines()
+    except FileNotFoundError:
+        print("⚠️ Log file not found.")
+        return
+
+    weights = load_weights()
+    deltas = defaultdict(float)
+    count = 0
+
+    for line in lines:
+        if '"final_score"' not in line:
+            continue
+        try:
+            data = json.loads(line)
+        except:
+            continue
+
+        label = data.get("label", "unknown")  # manual tag: "good" or "bad"
+        if label not in ("good", "bad"):
+            continue
+
+        multiplier = 1 if label == "good" else -1
+        for key, value in data.get("score_breakdown", {}).items():
+            deltas[key] += multiplier * value
+        count += 1
+
+    if count == 0:
+        print("ℹ️ No usable feedback data found.")
+        return
+
+    # Adjust weights
+    for key in weights:
+        adjustment = deltas[key] / count
+        weights[key] += adjustment * 0.1  # learning rate
+
+    # Normalize
+    total = sum(weights.values())
+    for key in weights:
+        weights[key] = round(weights[key] / total, 4)
+
+    save_weights(weights)
+    print("[TJDE Trainer] Weights updated.")
+🔧 W simulate_trader_decision_advanced():
+Zamień stałe wagi na:
+
+python
+Kopiuj
+Edytuj
+from utils.feedback_loop_trainer import load_weights
+
+weights = load_weights()
+I używaj ich przy obliczaniu finalnego score (tak jak dotąd, tylko zamiast hardkodowanych wag).
+
+Dzięki wielkie! Jakby były pytania – mogę wyjaśnić szczegóły scoringu, struktur danych lub logiki.
+
+Pozdrawiam 🚀

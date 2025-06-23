@@ -1,0 +1,96 @@
+Hej!
+
+Chcemy dodać moduł eksportu wykresów świecowych do obrazów, które później będą używane jako dane treningowe dla systemu Computer Vision (AI). Celem jest stworzenie modelu rozpoznającego fazy rynku i typy setupów tylko na podstawie obrazu wykresu (np. „breakout z cofką”, „fakeout”, „wyczerpanie trendu”).
+
+🛠️ Proszę wdrożyć poniższy moduł chart_exporter.py w folderze utils/ oraz przetestować funkcję export_chart_image(symbol).
+
+📁 Plik: utils/chart_exporter.py
+
+python
+Kopiuj
+Edytuj
+import os
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from utils.safe_candles import get_candles
+from datetime import datetime
+
+EXPORT_FOLDER = "data/chart_exports"
+os.makedirs(EXPORT_FOLDER, exist_ok=True)
+
+def export_chart_image(symbol, timeframe="15m", limit=96, save_as="auto"):
+    try:
+        # Pobierz świece
+        candles = get_candles(symbol, tf=timeframe, limit=limit)
+        if not candles or len(candles) < limit:
+            print(f"[CHART EXPORT] ❌ Brak wystarczających danych dla {symbol}")
+            return None
+
+        # Przetwarzanie danych
+        times = [datetime.fromtimestamp(c[0] / 1000) for c in candles]
+        opens = [float(c[1]) for c in candles]
+        highs = [float(c[2]) for c in candles]
+        lows = [float(c[3]) for c in candles]
+        closes = [float(c[4]) for c in candles]
+        volumes = [float(c[5]) for c in candles]
+
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 6), height_ratios=[4, 1], sharex=True)
+        fig.subplots_adjust(hspace=0.1)
+
+        # Rysuj świece
+        for i in range(len(times)):
+            color = 'green' if closes[i] >= opens[i] else 'red'
+            ax1.plot([times[i], times[i]], [lows[i], highs[i]], color=color)
+            ax1.plot([times[i], times[i]], [opens[i], closes[i]], color=color, linewidth=4)
+
+        # EMA jako bonus
+        try:
+            ema_period = 20
+            ema = [sum(closes[i - ema_period + 1:i + 1]) / ema_period for i in range(ema_period - 1, len(closes))]
+            ax1.plot(times[ema_period - 1:], ema, label="EMA20", color='blue', linestyle='--')
+        except:
+            pass
+
+        # Volumen
+        ax2.bar(times, volumes, width=0.01, color='grey')
+
+        ax1.set_title(f"{symbol} - {timeframe} candles")
+        ax1.grid(True)
+        ax2.grid(True)
+
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H:%M'))
+        fig.autofmt_xdate()
+
+        if save_as == "auto":
+            filename = f"{symbol}_{timeframe}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+        else:
+            filename = save_as
+
+        full_path = os.path.join(EXPORT_FOLDER, filename)
+        plt.savefig(full_path, dpi=150)
+        plt.close(fig)
+        print(f"[CHART EXPORT] ✅ Wykres zapisany: {full_path}")
+        return full_path
+
+    except Exception as e:
+        print(f"[CHART EXPORT] ❌ Błąd dla {symbol}: {e}")
+        return None
+🧪 Jak przetestować:
+
+Dodaj np. do test_chart_export.py:
+
+python
+Kopiuj
+Edytuj
+from utils.chart_exporter import export_chart_image
+export_chart_image("ETHUSDT", "15m")
+Powinno wygenerować obraz PNG w data/chart_exports/.
+
+🎯 Czego oczekujemy:
+
+Integracja tego modułu
+
+Możliwość eksportu obrazów w trakcie skanów/testów
+
+Będzie to część większego pipeline’u AI do rozpoznawania wykresów (CV → klasyfikator faz/setupów)
+

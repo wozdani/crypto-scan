@@ -1,0 +1,82 @@
+🔧 Problem:
+System skanuje tokeny i dla każdego osobno wywołuje https://api.coingecko.com/api/v3/coins/{id}, co bardzo szybko prowadzi do błędu CoinGecko API error 429 (rate limit exceeded).
+To spowalnia skanowanie i powoduje utratę danych (brak kontraktów, brak PPWCS).
+
+🛠️ Cel:
+Zminimalizować liczbę zapytań do CoinGecko API przez:
+
+Jednorazowe pobranie pełnej listy tokenów (/coins/list)
+
+Zbudowanie lokalnej mapy {symbol: id}
+
+Wysyłanie zapytań /coins/{id} tylko gdy symbol znajduje się na liście i tylko raz na symbol (cache)
+
+📦 Propozycja implementacji (Python):
+
+python
+Kopiuj
+Edytuj
+import requests
+import json
+import time
+
+# Cache dla symbol -> coingecko_id
+coingecko_symbol_map = {}
+
+def load_coingecko_symbol_map():
+    global coingecko_symbol_map
+    try:
+        response = requests.get("https://api.coingecko.com/api/v3/coins/list", timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            # Tworzymy mapę symbol -> id, np. {"PEPEUSDT": "pepe", ...}
+            coingecko_symbol_map = {
+                f"{item['symbol'].upper()}USDT": item["id"]
+                for item in data
+            }
+            print(f"✅ Załadowano {len(coingecko_symbol_map)} tokenów z CoinGecko")
+        else:
+            print(f"❌ Błąd ładowania listy CoinGecko: {response.status_code}")
+    except Exception as e:
+        print(f"❌ Wyjątek podczas ładowania listy CoinGecko: {e}")
+
+def get_token_contract_from_coingecko(symbol):
+    if not coingecko_symbol_map:
+        load_coingecko_symbol_map()
+
+    coingecko_id = coingecko_symbol_map.get(symbol)
+    if not coingecko_id:
+        print(f"⚠️ Brak CoinGecko ID dla {symbol}")
+        return None
+
+    try:
+        url = f"https://api.coingecko.com/api/v3/coins/{coingecko_id}"
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            platforms = data.get("platforms", {})
+            for chain, address in platforms.items():
+                if address:
+                    return {
+                        "chain": chain.lower(),
+                        "address": address
+                    }
+        else:
+            print(f"⚠️ CoinGecko API error {response.status_code} for {symbol}")
+    except Exception as e:
+        print(f"❌ CoinGecko exception for {symbol}: {e}")
+
+    return None
+✅ Korzyści po wdrożeniu:
+
+Zamiast kilkudziesięciu lub setek zapytań – tylko 1 duże zapytanie + kilka konkretnych
+
+Brak błędów 429 i większa stabilność
+
+Szybsze skanowanie
+
+Nie trzeba wycinać tokenów z listy tylko dlatego, że nie mają kontraktu – system sam ich pominie, ale bez błędu
+
+Proszę o pomoc z wdrożeniem powyższej logiki do projektu crypto_scan_service.py. Można zintegrować load_coingecko_symbol_map() przy starcie skanowania, a get_token_contract_from_coingecko() już jest w systemie i wymaga tylko aktualizacji zgodnie z powyższą wersją.
+
+Dzięki!

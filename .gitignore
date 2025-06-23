@@ -1,8 +1,12 @@
-# Python
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
+
+# C extensions
 *.so
+
+# Distribution / packaging
 .Python
 build/
 develop-eggs/
@@ -16,14 +20,73 @@ parts/
 sdist/
 var/
 wheels/
-pip-wheel-metadata/
-share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
 MANIFEST
 
-# Environment variables
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# celery beat schedule file
+celerybeat-schedule
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
 .env
 .venv
 env/
@@ -32,83 +95,32 @@ ENV/
 env.bak/
 venv.bak/
 
-# Data and logs - selective exclusion
-data/cache/
-data/orderbooks/
-data/chart_exports/
-data/chart_training/
-data/charts/
-data/vision_snapshots/
-reports/daily/
-reports/frequency/
-reports/high_scores/
-reports/signals/
-logs/*.log
-logs/trader_debug_log.txt
-logs/trend_error_log.txt
-*.log
+# Spyder project settings
+.spyderproject
+.spyproject
 
-# Cache
-.cache/
-*.cache
+# Rope project settings
+.ropeproject
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Temporary files
-*.tmp
-*.temp
-temp/
-tmp/
-
-# Test files
-test_*.py
-*_test.py
-tests/
-
-# Backup files
-*.bak
-*.backup
-
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
-# Jupyter Notebooks
-.ipynb_checkpoints
-
-# pytest
-.pytest_cache/
-
-# Coverage
-htmlcov/
-.coverage
-.coverage.*
-coverage.xml
-*.cover
-.hypothesis/
+# mkdocs documentation
+/site
 
 # mypy
 .mypy_cache/
 .dmypy.json
 dmypy.json
 
-# Crypto Scan - selective exclusion
-missing_contracts_log.txt
-out.log
-*.zip
-scan_output/
-attached_assets/
-# Keep these important JSON/PKL files:
-# data/ai_successful_patterns.json
-# data/adaptive_weights.pkl
-# logs/auto_label_session_history.json
-# All other essential config and AI files
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+*.log
+logs/
+data/cache/
+temp/
+tmp/

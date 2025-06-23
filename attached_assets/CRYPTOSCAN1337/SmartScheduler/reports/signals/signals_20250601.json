@@ -1,0 +1,3642 @@
+[
+  {
+    "symbol": "WIFUSDT",
+    "timestamp": "2025-06-01T11:55:13.493086",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "DOGEUSDT",
+    "timestamp": "2025-06-01T11:55:14.766025",
+    "ppwcs_score": 14,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 28.57142857142857,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "DOGEUSDT",
+    "timestamp": "2025-06-01T12:00:07.118633",
+    "ppwcs_score": 20,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 28.57142857142857,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000000BABYDOGEUSDT",
+    "timestamp": "2025-06-01T12:20:26.781847",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000000CHEEMSUSDT",
+    "timestamp": "2025-06-01T12:20:27.893852",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000000MOGUSDT",
+    "timestamp": "2025-06-01T12:20:29.330834",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000000PEIPEIUSDT",
+    "timestamp": "2025-06-01T12:20:30.457679",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "10000COQUSDT",
+    "timestamp": "2025-06-01T12:20:31.541673",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "10000ELONUSDT",
+    "timestamp": "2025-06-01T12:20:32.623729",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "10000LADYSUSDT",
+    "timestamp": "2025-06-01T12:20:33.716693",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "10000QUBICUSDT",
+    "timestamp": "2025-06-01T12:20:34.797588",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "10000SATSUSDT",
+    "timestamp": "2025-06-01T12:20:35.883442",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "10000WENUSDT",
+    "timestamp": "2025-06-01T12:20:37.017319",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "10000WHYUSDT",
+    "timestamp": "2025-06-01T12:20:38.100682",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000APUUSDT",
+    "timestamp": "2025-06-01T12:20:39.184269",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000BONKUSDT",
+    "timestamp": "2025-06-01T12:20:40.582054",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000BTTUSDT",
+    "timestamp": "2025-06-01T12:20:41.670110",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000CATSUSDT",
+    "timestamp": "2025-06-01T12:20:42.758709",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000CATUSDT",
+    "timestamp": "2025-06-01T12:20:43.842663",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000FLOKIUSDT",
+    "timestamp": "2025-06-01T12:20:44.937235",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000LUNCUSDT",
+    "timestamp": "2025-06-01T12:20:46.022787",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000MUMUUSDT",
+    "timestamp": "2025-06-01T12:20:47.109320",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000NEIROCTOUSDT",
+    "timestamp": "2025-06-01T12:20:48.192953",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000PEPEUSDT",
+    "timestamp": "2025-06-01T12:20:49.279523",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000RATSUSDT",
+    "timestamp": "2025-06-01T12:20:50.361785",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000TOSHIUSDT",
+    "timestamp": "2025-06-01T12:20:51.442662",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000TURBOUSDT",
+    "timestamp": "2025-06-01T12:20:52.841354",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000XECUSDT",
+    "timestamp": "2025-06-01T12:20:53.936515",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000XUSDT",
+    "timestamp": "2025-06-01T12:20:55.021787",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1INCHUSDT",
+    "timestamp": "2025-06-01T12:20:56.104273",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "A8USDT",
+    "timestamp": "2025-06-01T12:20:57.182987",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "AAVEUSDT",
+    "timestamp": "2025-06-01T12:20:58.273637",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ACEUSDT",
+    "timestamp": "2025-06-01T12:20:59.358968",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ACHUSDT",
+    "timestamp": "2025-06-01T12:21:00.455030",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ACTUSDT",
+    "timestamp": "2025-06-01T12:21:01.545061",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ACXUSDT",
+    "timestamp": "2025-06-01T12:21:02.629730",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ADAUSDT",
+    "timestamp": "2025-06-01T12:21:03.732064",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "AERGOUSDT",
+    "timestamp": "2025-06-01T12:21:04.814383",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "AEROUSDT",
+    "timestamp": "2025-06-01T12:21:06.530440",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "AEVOUSDT",
+    "timestamp": "2025-06-01T12:21:08.557510",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "AGIUSDT",
+    "timestamp": "2025-06-01T12:21:09.640326",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "AGLDUSDT",
+    "timestamp": "2025-06-01T12:21:11.367025",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "AGTUSDT",
+    "timestamp": "2025-06-01T12:21:12.773717",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "AI16ZUSDT",
+    "timestamp": "2025-06-01T12:21:13.867710",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "AIOZUSDT",
+    "timestamp": "2025-06-01T12:21:14.957626",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "AIUSDT",
+    "timestamp": "2025-06-01T12:21:16.040252",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "AIXBTUSDT",
+    "timestamp": "2025-06-01T12:21:17.127097",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "AKTUSDT",
+    "timestamp": "2025-06-01T12:21:18.214038",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ALCHUSDT",
+    "timestamp": "2025-06-01T12:21:19.297231",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ALEOUSDT",
+    "timestamp": "2025-06-01T12:21:20.394470",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ALGOUSDT",
+    "timestamp": "2025-06-01T12:21:21.481511",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ALICEUSDT",
+    "timestamp": "2025-06-01T12:21:22.567532",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ALPHAUSDT",
+    "timestamp": "2025-06-01T12:21:23.659601",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ALTUSDT",
+    "timestamp": "2025-06-01T12:21:24.752593",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ALUUSDT",
+    "timestamp": "2025-06-01T12:21:25.842518",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ANIMEUSDT",
+    "timestamp": "2025-06-01T12:21:26.928476",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ANKRUSDT",
+    "timestamp": "2025-06-01T12:21:28.011971",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "APEUSDT",
+    "timestamp": "2025-06-01T12:21:29.101417",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "API3USDT",
+    "timestamp": "2025-06-01T12:21:30.187046",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "APTUSDT",
+    "timestamp": "2025-06-01T12:21:31.274738",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ARBUSDT",
+    "timestamp": "2025-06-01T12:21:32.365147",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ARCUSDT",
+    "timestamp": "2025-06-01T12:21:33.452335",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ARKMUSDT",
+    "timestamp": "2025-06-01T12:21:34.543115",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ARKUSDT",
+    "timestamp": "2025-06-01T12:21:35.632846",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ARPAUSDT",
+    "timestamp": "2025-06-01T12:21:36.721757",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ARUSDT",
+    "timestamp": "2025-06-01T12:21:37.812210",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ASTRUSDT",
+    "timestamp": "2025-06-01T12:21:38.896720",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ATAUSDT",
+    "timestamp": "2025-06-01T12:21:39.979088",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ATHUSDT",
+    "timestamp": "2025-06-01T12:21:41.067860",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ATOMUSDT",
+    "timestamp": "2025-06-01T12:21:42.469782",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "AUCTIONUSDT",
+    "timestamp": "2025-06-01T12:21:43.557369",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "AUDIOUSDT",
+    "timestamp": "2025-06-01T12:21:44.651616",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "AUSDT",
+    "timestamp": "2025-06-01T12:21:45.736612",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "AVAAIUSDT",
+    "timestamp": "2025-06-01T12:21:46.836579",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "AVAILUSDT",
+    "timestamp": "2025-06-01T12:21:47.925704",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "AVAUSDT",
+    "timestamp": "2025-06-01T12:21:49.021780",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "AVAXUSDT",
+    "timestamp": "2025-06-01T12:21:50.417952",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "AVLUSDT",
+    "timestamp": "2025-06-01T12:21:51.816094",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "AWEUSDT",
+    "timestamp": "2025-06-01T12:21:52.906626",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "AXLUSDT",
+    "timestamp": "2025-06-01T12:21:53.992059",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "AXSUSDT",
+    "timestamp": "2025-06-01T12:21:55.077666",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "B3USDT",
+    "timestamp": "2025-06-01T12:21:56.170066",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BABYUSDT",
+    "timestamp": "2025-06-01T12:21:57.268049",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BADGERUSDT",
+    "timestamp": "2025-06-01T12:21:58.368138",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BAKEUSDT",
+    "timestamp": "2025-06-01T12:21:59.473467",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BALUSDT",
+    "timestamp": "2025-06-01T12:22:00.873513",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BANANAS31USDT",
+    "timestamp": "2025-06-01T12:22:01.961904",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BANANAUSDT",
+    "timestamp": "2025-06-01T12:22:03.371374",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BANDUSDT",
+    "timestamp": "2025-06-01T12:22:05.093849",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BANKUSDT",
+    "timestamp": "2025-06-01T12:22:06.182012",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BANUSDT",
+    "timestamp": "2025-06-01T12:22:07.287071",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BATUSDT",
+    "timestamp": "2025-06-01T12:22:08.688638",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BBUSDT",
+    "timestamp": "2025-06-01T12:22:09.775341",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BCHUSDT",
+    "timestamp": "2025-06-01T12:22:10.856107",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BEAMUSDT",
+    "timestamp": "2025-06-01T12:22:11.942642",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BELUSDT",
+    "timestamp": "2025-06-01T12:22:13.029454",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BERAUSDT",
+    "timestamp": "2025-06-01T12:22:14.110457",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BICOUSDT",
+    "timestamp": "2025-06-01T12:22:15.197360",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BIGTIMEUSDT",
+    "timestamp": "2025-06-01T12:22:16.288968",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BIOUSDT",
+    "timestamp": "2025-06-01T12:22:17.373417",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BLASTUSDT",
+    "timestamp": "2025-06-01T12:22:18.464860",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BLURUSDT",
+    "timestamp": "2025-06-01T12:22:19.866441",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BMTUSDT",
+    "timestamp": "2025-06-01T12:22:20.950251",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BNBUSDT",
+    "timestamp": "2025-06-01T12:22:22.039790",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BNTUSDT",
+    "timestamp": "2025-06-01T12:22:23.129444",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BOBAUSDT",
+    "timestamp": "2025-06-01T12:22:24.226208",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BOMEUSDT",
+    "timestamp": "2025-06-01T12:22:25.317688",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BRETTUSDT",
+    "timestamp": "2025-06-01T12:22:26.411223",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BROCCOLIUSDT",
+    "timestamp": "2025-06-01T12:22:27.499728",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BRUSDT",
+    "timestamp": "2025-06-01T12:22:28.586337",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BSVUSDT",
+    "timestamp": "2025-06-01T12:22:29.687487",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BSWUSDT",
+    "timestamp": "2025-06-01T12:22:31.092923",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timestamp": "2025-06-01T12:22:32.183392",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BTCUSDT-06JUN25",
+    "timestamp": "2025-06-01T12:22:33.268980",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BTCUSDT-13JUN25",
+    "timestamp": "2025-06-01T12:22:34.368663",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BTCUSDT-20JUN25",
+    "timestamp": "2025-06-01T12:22:35.459486",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BTCUSDT-25JUL25",
+    "timestamp": "2025-06-01T12:22:36.861528",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BTCUSDT-26DEC25",
+    "timestamp": "2025-06-01T12:22:37.950245",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BTCUSDT-26SEP25",
+    "timestamp": "2025-06-01T12:22:39.053669",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BTCUSDT-27JUN25",
+    "timestamp": "2025-06-01T12:22:40.161349",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BTCUSDT-27MAR26",
+    "timestamp": "2025-06-01T12:22:41.559401",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "BUSDT",
+    "timestamp": "2025-06-01T12:22:42.651460",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "C98USDT",
+    "timestamp": "2025-06-01T12:22:43.748984",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "CAKEUSDT",
+    "timestamp": "2025-06-01T12:22:44.851806",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "CARVUSDT",
+    "timestamp": "2025-06-01T12:22:45.963466",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "CATIUSDT",
+    "timestamp": "2025-06-01T12:22:47.051495",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "CELOUSDT",
+    "timestamp": "2025-06-01T12:22:48.139739",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "CELRUSDT",
+    "timestamp": "2025-06-01T12:22:49.226665",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "CETUSUSDT",
+    "timestamp": "2025-06-01T12:22:50.318326",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "CFXUSDT",
+    "timestamp": "2025-06-01T12:22:51.418031",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "CGPTUSDT",
+    "timestamp": "2025-06-01T12:22:52.507138",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "CHESSUSDT",
+    "timestamp": "2025-06-01T12:22:53.596099",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "CHILLGUYUSDT",
+    "timestamp": "2025-06-01T12:22:54.687791",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "CHRUSDT",
+    "timestamp": "2025-06-01T12:22:56.091857",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "CHZUSDT",
+    "timestamp": "2025-06-01T12:22:57.812592",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "CKBUSDT",
+    "timestamp": "2025-06-01T12:22:59.221283",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "CLANKERUSDT",
+    "timestamp": "2025-06-01T12:23:00.628999",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "CLOUDUSDT",
+    "timestamp": "2025-06-01T12:23:01.724157",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "COMPUSDT",
+    "timestamp": "2025-06-01T12:23:02.821915",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "COOKIEUSDT",
+    "timestamp": "2025-06-01T12:23:03.908481",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "COOKUSDT",
+    "timestamp": "2025-06-01T12:23:05.000655",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "COREUSDT",
+    "timestamp": "2025-06-01T12:23:06.407488",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "COSUSDT",
+    "timestamp": "2025-06-01T12:23:07.499139",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "COTIUSDT",
+    "timestamp": "2025-06-01T12:23:08.587634",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "COWUSDT",
+    "timestamp": "2025-06-01T12:23:09.688856",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "CPOOLUSDT",
+    "timestamp": "2025-06-01T12:23:10.781734",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "CROUSDT",
+    "timestamp": "2025-06-01T12:23:12.185706",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "CRVUSDT",
+    "timestamp": "2025-06-01T12:23:13.272137",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "CTCUSDT",
+    "timestamp": "2025-06-01T12:23:14.363707",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "CTKUSDT",
+    "timestamp": "2025-06-01T12:23:15.447423",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "CTSIUSDT",
+    "timestamp": "2025-06-01T12:23:16.530548",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "CVCUSDT",
+    "timestamp": "2025-06-01T12:23:17.614890",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "CVXUSDT",
+    "timestamp": "2025-06-01T12:23:18.704442",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "CYBERUSDT",
+    "timestamp": "2025-06-01T12:23:19.800472",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "DARKUSDT",
+    "timestamp": "2025-06-01T12:23:20.894547",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "DASHUSDT",
+    "timestamp": "2025-06-01T12:23:21.979223",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "DBRUSDT",
+    "timestamp": "2025-06-01T12:23:23.070072",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "DEEPUSDT",
+    "timestamp": "2025-06-01T12:23:24.160212",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "DEGENUSDT",
+    "timestamp": "2025-06-01T12:23:25.255955",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "DENTUSDT",
+    "timestamp": "2025-06-01T12:23:26.973301",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "DEXEUSDT",
+    "timestamp": "2025-06-01T12:23:28.064078",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "DGBUSDT",
+    "timestamp": "2025-06-01T12:23:29.152956",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "DODOUSDT",
+    "timestamp": "2025-06-01T12:23:30.248041",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "DOGEUSDT",
+    "timestamp": "2025-06-01T12:23:31.347370",
+    "ppwcs_score": 20,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 28.57142857142857,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "DOGSUSDT",
+    "timestamp": "2025-06-01T12:23:32.440846",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "DOGUSDT",
+    "timestamp": "2025-06-01T12:23:33.524311",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "DOODUSDT",
+    "timestamp": "2025-06-01T12:23:34.630551",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "DOTUSDT",
+    "timestamp": "2025-06-01T12:23:35.723473",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "DRIFTUSDT",
+    "timestamp": "2025-06-01T12:23:36.828024",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "DUCKUSDT",
+    "timestamp": "2025-06-01T12:23:37.912615",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "DUSKUSDT",
+    "timestamp": "2025-06-01T12:23:39.004979",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "DYDXUSDT",
+    "timestamp": "2025-06-01T12:23:40.101232",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "DYMUSDT",
+    "timestamp": "2025-06-01T12:23:41.195068",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "EDUUSDT",
+    "timestamp": "2025-06-01T12:23:42.287005",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "EGLDUSDT",
+    "timestamp": "2025-06-01T12:23:43.376456",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "EIGENUSDT",
+    "timestamp": "2025-06-01T12:23:44.459450",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ELXUSDT",
+    "timestamp": "2025-06-01T12:23:45.547288",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ENAUSDT",
+    "timestamp": "2025-06-01T12:23:46.638078",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ENJUSDT",
+    "timestamp": "2025-06-01T12:23:47.732224",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ENSUSDT",
+    "timestamp": "2025-06-01T12:23:49.169352",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "EPICUSDT",
+    "timestamp": "2025-06-01T12:23:50.584687",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "EPTUSDT",
+    "timestamp": "2025-06-01T12:23:52.308237",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ETCUSDT",
+    "timestamp": "2025-06-01T12:23:53.708933",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ETHBTCUSDT",
+    "timestamp": "2025-06-01T12:23:55.112451",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ETHFIUSDT",
+    "timestamp": "2025-06-01T12:23:56.832559",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ETHUSDT",
+    "timestamp": "2025-06-01T12:23:57.921098",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ETHUSDT-06JUN25",
+    "timestamp": "2025-06-01T12:23:59.020049",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ETHUSDT-13JUN25",
+    "timestamp": "2025-06-01T12:24:00.109727",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ETHUSDT-20JUN25",
+    "timestamp": "2025-06-01T12:24:01.518824",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ETHUSDT-25JUL25",
+    "timestamp": "2025-06-01T12:24:02.610208",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ETHUSDT-26DEC25",
+    "timestamp": "2025-06-01T12:24:03.713101",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ETHUSDT-26SEP25",
+    "timestamp": "2025-06-01T12:24:04.812730",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ETHUSDT-27JUN25",
+    "timestamp": "2025-06-01T12:24:05.903739",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ETHUSDT-27MAR26",
+    "timestamp": "2025-06-01T12:24:06.996661",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "ETHWUSDT",
+    "timestamp": "2025-06-01T12:24:08.086204",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "FARTCOINUSDT",
+    "timestamp": "2025-06-01T12:24:09.175754",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "FBUSDT",
+    "timestamp": "2025-06-01T12:24:10.575828",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "FHEUSDT",
+    "timestamp": "2025-06-01T12:24:11.664107",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "FIDAUSDT",
+    "timestamp": "2025-06-01T12:24:12.756014",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "FILUSDT",
+    "timestamp": "2025-06-01T12:24:14.158740",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "FIOUSDT",
+    "timestamp": "2025-06-01T12:24:15.249876",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "FLMUSDT",
+    "timestamp": "2025-06-01T12:24:16.349122",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "FLOCKUSDT",
+    "timestamp": "2025-06-01T12:24:17.436725",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "FLOWUSDT",
+    "timestamp": "2025-06-01T12:24:18.528163",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "FLRUSDT",
+    "timestamp": "2025-06-01T12:24:19.629017",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "FLUXUSDT",
+    "timestamp": "2025-06-01T12:24:21.034246",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "FORMUSDT",
+    "timestamp": "2025-06-01T12:24:22.476970",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "FORTHUSDT",
+    "timestamp": "2025-06-01T12:24:23.569990",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "FTNUSDT",
+    "timestamp": "2025-06-01T12:24:24.661107",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "FUELUSDT",
+    "timestamp": "2025-06-01T12:24:25.754401",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "FUSDT",
+    "timestamp": "2025-06-01T12:24:27.161783",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "FWOGUSDT",
+    "timestamp": "2025-06-01T12:24:28.254967",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "FXSUSDT",
+    "timestamp": "2025-06-01T12:24:29.347503",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "GALAUSDT",
+    "timestamp": "2025-06-01T12:24:30.443314",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "GASUSDT",
+    "timestamp": "2025-06-01T12:24:31.533960",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "GIGAUSDT",
+    "timestamp": "2025-06-01T12:24:32.624320",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "GLMRUSDT",
+    "timestamp": "2025-06-01T12:24:33.718081",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000000BABYDOGEUSDT",
+    "timestamp": "2025-06-01T14:23:09.761199",
+    "ppwcs_score": 21,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000000CHEEMSUSDT",
+    "timestamp": "2025-06-01T14:23:10.954295",
+    "ppwcs_score": 21,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000000MOGUSDT",
+    "timestamp": "2025-06-01T14:23:12.096910",
+    "ppwcs_score": 21,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000000PEIPEIUSDT",
+    "timestamp": "2025-06-01T14:23:13.569388",
+    "ppwcs_score": 21,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "10000COQUSDT",
+    "timestamp": "2025-06-01T14:23:14.717418",
+    "ppwcs_score": 21,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "10000ELONUSDT",
+    "timestamp": "2025-06-01T14:23:15.874299",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 21.428571428571427,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "10000LADYSUSDT",
+    "timestamp": "2025-06-01T14:23:17.013969",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "10000QUBICUSDT",
+    "timestamp": "2025-06-01T14:23:18.153963",
+    "ppwcs_score": 21,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "10000SATSUSDT",
+    "timestamp": "2025-06-01T14:23:19.296736",
+    "ppwcs_score": 21,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000000BABYDOGEUSDT",
+    "timestamp": "2025-06-01T14:25:06.075459",
+    "ppwcs_score": 21,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000000CHEEMSUSDT",
+    "timestamp": "2025-06-01T14:25:07.471128",
+    "ppwcs_score": 21,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000000MOGUSDT",
+    "timestamp": "2025-06-01T14:25:08.823318",
+    "ppwcs_score": 21,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 14.285714285714285,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000000BABYDOGEUSDT",
+    "timestamp": "2025-06-01T14:37:34.277195",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 23.076923076923077,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000000CHEEMSUSDT",
+    "timestamp": "2025-06-01T14:37:35.757593",
+    "ppwcs_score": 21,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 15.384615384615385,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000000MOGUSDT",
+    "timestamp": "2025-06-01T14:37:36.907201",
+    "ppwcs_score": 21,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 15.384615384615385,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000000PEIPEIUSDT",
+    "timestamp": "2025-06-01T14:37:38.062646",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 23.076923076923077,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "10000COQUSDT",
+    "timestamp": "2025-06-01T14:37:39.207907",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 23.076923076923077,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "10000ELONUSDT",
+    "timestamp": "2025-06-01T14:37:40.350688",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 23.076923076923077,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "10000LADYSUSDT",
+    "timestamp": "2025-06-01T14:37:41.507543",
+    "ppwcs_score": 11,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 15.384615384615385,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "10000QUBICUSDT",
+    "timestamp": "2025-06-01T14:37:42.658133",
+    "ppwcs_score": 21,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 15.384615384615385,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "10000SATSUSDT",
+    "timestamp": "2025-06-01T14:37:43.800600",
+    "ppwcs_score": 21,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 15.384615384615385,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000000BABYDOGEUSDT",
+    "timestamp": "2025-06-01T15:00:16.587424",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 23.076923076923077,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000000CHEEMSUSDT",
+    "timestamp": "2025-06-01T15:00:17.736077",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 23.076923076923077,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000000MOGUSDT",
+    "timestamp": "2025-06-01T15:00:18.904118",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 23.076923076923077,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000000PEIPEIUSDT",
+    "timestamp": "2025-06-01T15:00:20.104527",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 23.076923076923077,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "10000COQUSDT",
+    "timestamp": "2025-06-01T15:00:21.252952",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 23.076923076923077,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "10000ELONUSDT",
+    "timestamp": "2025-06-01T15:00:22.393828",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 23.076923076923077,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "10000LADYSUSDT",
+    "timestamp": "2025-06-01T15:00:23.541338",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 23.076923076923077,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "10000QUBICUSDT",
+    "timestamp": "2025-06-01T15:00:24.688556",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 23.076923076923077,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000000BABYDOGEUSDT",
+    "timestamp": "2025-06-01T15:05:45.714956",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 23.076923076923077,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000000CHEEMSUSDT",
+    "timestamp": "2025-06-01T15:05:46.870470",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 23.076923076923077,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000000MOGUSDT",
+    "timestamp": "2025-06-01T15:05:48.043584",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 23.076923076923077,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000000PEIPEIUSDT",
+    "timestamp": "2025-06-01T15:05:49.190795",
+    "ppwcs_score": 21,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 15.384615384615385,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "10000COQUSDT",
+    "timestamp": "2025-06-01T15:05:50.336388",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 23.076923076923077,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "10000ELONUSDT",
+    "timestamp": "2025-06-01T15:05:51.478659",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 23.076923076923077,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "10000LADYSUSDT",
+    "timestamp": "2025-06-01T15:05:52.623953",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 23.076923076923077,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000000BABYDOGEUSDT",
+    "timestamp": "2025-06-01T15:23:36.182839",
+    "ppwcs_score": 21,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 15.384615384615385,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000000CHEEMSUSDT",
+    "timestamp": "2025-06-01T15:23:37.341679",
+    "ppwcs_score": 21,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 15.384615384615385,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000000MOGUSDT",
+    "timestamp": "2025-06-01T15:23:38.492269",
+    "ppwcs_score": 21,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 15.384615384615385,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "1000000PEIPEIUSDT",
+    "timestamp": "2025-06-01T15:23:39.642731",
+    "ppwcs_score": 21,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 15.384615384615385,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "10000COQUSDT",
+    "timestamp": "2025-06-01T15:23:40.787150",
+    "ppwcs_score": 21,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 15.384615384615385,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "10000ELONUSDT",
+    "timestamp": "2025-06-01T15:23:41.938393",
+    "ppwcs_score": 21,
+    "stage_minus2": true,
+    "stage_minus1": {
+      "strength": 23.076923076923077,
+      "confidence": 50.0,
+      "momentum": false,
+      "volume_confirmed": true,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  },
+  {
+    "symbol": "10000LADYSUSDT",
+    "timestamp": "2025-06-01T15:23:43.099651",
+    "ppwcs_score": 21,
+    "stage_minus2": false,
+    "stage_minus1": {
+      "strength": 15.384615384615385,
+      "confidence": 0.0,
+      "momentum": false,
+      "volume_confirmed": false,
+      "technical_alignment": false
+    },
+    "stage_1g": false
+  }
+]

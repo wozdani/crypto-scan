@@ -1,0 +1,84 @@
+Wdrażamy punkt 9 roadmapy Vision-AI: trening modelu embeddingowego do rozpoznawania podobieństw między wykresami i setupami. Będziemy wykorzystywać wcześniej zapisane embeddingi CLIP + scoring + GPT z data/embeddings/.
+
+🧠 Cel:
+Trenować model AI (np. KMeans, HDBSCAN, AutoEncoder lub SimCLR), który:
+
+grupuje podobne setupy (np. breakouty z cofką, fakeouty),
+
+umożliwia przyszłe rekomendacje na podstawie podobieństwa do wcześniejszych „dobrych” setupów,
+
+klasyfikuje typ setupu i jakość na podstawie sąsiednich przypadków.
+
+📦 Wymagane komponenty:
+🔹 1. Nowy skrypt: train_embedding_model.py
+python
+Kopiuj
+Edytuj
+import numpy as np
+import os
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
+
+def load_embeddings(path="data/embeddings"):
+    embeddings, labels = [], []
+    for file in os.listdir(path):
+        if file.endswith(".npy"):
+            emb = np.load(os.path.join(path, file))
+            embeddings.append(emb)
+            labels.append(file.replace(".npy", ""))
+    return np.array(embeddings), labels
+
+def train_kmeans(n_clusters=10):
+    X, labels = load_embeddings()
+    print(f"[EMBEDDING TRAIN] Loaded {len(X)} embeddings")
+
+    pca = PCA(n_components=64)
+    X_reduced = pca.fit_transform(X)
+
+    model = KMeans(n_clusters=n_clusters, random_state=42)
+    model.fit(X_reduced)
+
+    np.save("models/embedding_cluster_centers.npy", model.cluster_centers_)
+    print(f"[EMBEDDING TRAIN] Trained KMeans on reduced embeddings")
+
+if __name__ == "__main__":
+    train_kmeans()
+🔹 2. Predykcja z embeddingów – predict_cluster.py
+python
+Kopiuj
+Edytuj
+def predict_cluster(embedding, model_path="models/embedding_cluster_centers.npy"):
+    centers = np.load(model_path)
+    distances = np.linalg.norm(centers - embedding, axis=1)
+    return int(np.argmin(distances))
+📌 Integracja z TJDE (opcjonalnie):
+Dla nowego wykresu, system może przewidzieć „klaster” i dodać np. bonus/penalty do końcowego scoringu.
+
+Przykład: „Jeśli embedding pasuje do klastra #3 (high winrate setups) → +0.05 do final_score”.
+
+📂 Struktura plików:
+markdown
+Kopiuj
+Edytuj
+/data/embeddings/
+  - CROUSDT_20250623_1652.npy
+/models/
+  - embedding_cluster_centers.npy
+/utils/
+  - clip_model.py
+  - score_embedding.py
+  - gpt_embedding.py
+train_embedding_model.py
+predict_cluster.py
+✅ Rezultat:
+✔️ Trenujemy model do grupowania podobnych setupów
+✔️ Baza pod system rekomendacyjny i memory bank setupów
+✔️ Możliwość automatycznego wykrywania wykresów o wysokim podobieństwie do wygrywających przypadków
+✔️ Fundament do rozszerzenia o retraining i dynamiczną adaptację klas
+
+Gotowe do wdrożenia.
+
+Po tym mamy pełny pipeline:
+→ wykresy → embeddingi → clustering → analiza podobieństwa → integracja z TJDE i przyszłe zero-shot predykcje.
+
+Szefir 💥📈

@@ -1,0 +1,85 @@
+Chcemy wdrożyć ciągły system alertów na Telegramie po każdym skanie, który:
+
+Pobiera i sortuje wszystkie wyniki simulate_trader_decision_advanced()
+
+Wybiera Top 5 tokenów wg final_score
+
+Wysyła formatowany alert na Telegrama zawierający:
+
+Symbol
+
+Final Score + Confidence
+
+Grade
+
+Decision
+
+Każdy składnik score (trend_strength, pullback_quality, itd.)
+
+Krótkie uzasadnienie decyzji
+
+📦 Wymagane zmiany:
+🔁 1. W pliku skanera (np. crypto_scan_service.py):
+Po zakończeniu jednego cyklu skanu:
+
+python
+Kopiuj
+Edytuj
+from utils.trend_summary import send_top_trendmode_alerts_to_telegram
+
+# all_results → lista wyników TJDE z simulate_trader_decision_advanced()
+send_top_trendmode_alerts_to_telegram(all_results)
+🧠 2. Nowy plik: utils/trend_summary.py
+python
+Kopiuj
+Edytuj
+from utils.telegram_bot import send_trend_alert
+from operator import itemgetter
+
+def send_top_trendmode_alerts_to_telegram(results, top_n=5):
+    sorted_results = sorted(results, key=itemgetter("final_score"), reverse=True)
+    top_results = sorted_results[:top_n]
+
+    for res in top_results:
+        symbol = res.get("symbol")
+        score = res.get("final_score", 0.0)
+        confidence = res.get("confidence", 0.0)
+        grade = res.get("grade", "N/A")
+        decision = res.get("decision", "N/A")
+        breakdown = res.get("score_breakdown", {})
+        reasons = res.get("decision_reasons", [])
+
+        text = f"""🚀 *Trend-Mode Alert* [{symbol}]
+🔹 *Score:* `{score:.3f}` | *Confidence:* `{confidence:.3f}`
+🔹 *Grade:* `{grade}` | *Decision:* `{decision}`
+
+🧠 *Score Breakdown:*
+{chr(10).join([f"• {k}: {v:.3f}" for k, v in breakdown.items()])}
+
+💡 *Reasons:*
+{chr(10).join([f"→ {r}" for r in reasons])}
+"""
+        send_trend_alert(text)
+📮 3. W utils/telegram_bot.py:
+Upewnij się, że masz funkcję:
+
+python
+Kopiuj
+Edytuj
+def send_trend_alert(message):
+    import requests
+    import os
+
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    chat_id = os.getenv("TELEGRAM_TREND_CHAT_ID")
+
+    payload = {
+        "chat_id": chat_id,
+        "text": message,
+        "parse_mode": "Markdown"
+    }
+
+    try:
+        requests.post(f"https://api.telegram.org/bot{token}/sendMessage", data=payload)
+    except Exception as e:
+        print(f"❌ Telegram error: {e}")

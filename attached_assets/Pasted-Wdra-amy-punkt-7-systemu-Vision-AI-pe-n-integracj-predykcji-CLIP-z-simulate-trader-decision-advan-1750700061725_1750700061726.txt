@@ -1,0 +1,89 @@
+Wdrażamy punkt 7 systemu Vision-AI: pełną integrację predykcji CLIP z simulate_trader_decision_advanced(), rozszerzoną o kontekstowe boosty na volume_behavior oraz psych_flags.
+
+✅ Cel:
+Nie tylko wpływ na trend_strength / pullback_quality, ale również na psychologiczne i wolumenowe aspekty decyzji tradingowej.
+
+🧠 Logika integracji CLIP:
+Wczytaj predykcję CLIP dla danego symbolu z folderu data/clip_predictions/, np. FETUSDT_20250623_1600.txt.
+
+Zamień predykcję na tekst i sprawdź frazy:
+
+"breakout-continuation"
+
+"pullback-in-trend"
+
+"trend-reversal"
+
+Na tej podstawie zmodyfikuj:
+
+scoring trend_strength, pullback_quality, support_reaction, liquidity_pattern_score, market_phase_modifier
+
+oraz dodatkowo: volume_behavior i psych_flags
+
+Dodaj do decision_reasons opis wpływu CLIP.
+
+🧱 Kod integracyjny – simulate_trader_decision_advanced()
+python
+Kopiuj
+Edytuj
+from utils.clip_prediction_loader import load_clip_prediction
+
+clip_prediction = load_clip_prediction(symbol)
+
+if clip_prediction:
+    prediction_str = clip_prediction.lower()
+
+    if "breakout-continuation" in prediction_str:
+        trend_strength *= 1.2
+        liquidity_pattern_score *= 1.15
+        if volume_behavior == "buying_volume_increase":
+            trend_strength *= 1.1
+            decision_reasons.append("CLIP: volume-backed breakout → boosted trend_strength")
+        decision_reasons.append("CLIP: breakout-continuation → liquidity/trend boost")
+
+    elif "pullback-in-trend" in prediction_str:
+        pullback_quality *= 1.2
+        support_reaction *= 1.1
+        if psych_flags.get("fakeout_rejection"):
+            psych_score *= 1.2
+            decision_reasons.append("CLIP: rejection pullback → psych_score boost")
+        decision_reasons.append("CLIP: pullback-in-trend → boosted pullback/support")
+
+    elif "trend-reversal" in prediction_str:
+        market_phase_modifier *= -1.0
+        if psych_flags.get("liquidity_grab"):
+            psych_score *= 0.5
+            decision_reasons.append("CLIP: liquidity trap in reversal → psych_score penalized")
+        decision_reasons.append("CLIP: trend-reversal → caution bias")
+
+    score_breakdown["clip_prediction"] = prediction_str
+    clip_boost_applied = True
+else:
+    decision_reasons.append("CLIP: No prediction found")
+    clip_boost_applied = False
+📊 Przykład końcowego scoringu:
+json
+Kopiuj
+Edytuj
+"score_breakdown": {
+  "trend_strength": 0.502,
+  "pullback_quality": 0.390,
+  "support_reaction": 0.110,
+  "liquidity_pattern_score": 0.470,
+  "psych_score": 0.420,
+  "htf_supportive_score": 0.290,
+  "market_phase_modifier": -0.080,
+  "clip_prediction": "trend-reversal | trending-down | volume-backed"
+}
+✅ Efekt:
+Decyzje uwzględniają nie tylko klasyczne scoringi, ale wzorce wizualne z wykresów
+
+Predykcje CLIP mają realny wpływ na adaptacyjne cechy, w tym psychologię i wolumen
+
+Używamy prostych fraz jak „pullback-in-trend” lub „breakout” do uruchamiania boostów
+
+W decision_reasons system tłumaczy, co zostało wzmocnione i dlaczego
+
+Gotowe do wdrożenia – punkt 7 zamknięty. Następnie przechodzimy do punktu 8: embeddingi CLIP + scoring + GPT commentary.
+
+Szefir 🧠📈

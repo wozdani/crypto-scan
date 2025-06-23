@@ -1,0 +1,76 @@
+proszę o wdrożenie pełnego systemu debug logów w ramach trend-mode / Trader AI Engine, który umożliwia wgląd w każdy etap decyzji — od interpretacji rynku, przez analizę świec i orderbooka, po finalny scoring i decyzję.
+
+✅ 1. Terminal Debug Prints (czytelne)
+Dodaj printy w czasie działania dla każdego etapu analizy:
+
+python
+Kopiuj
+Edytuj
+print(f"[TRADER DEBUG] {symbol}: Market={market_context}, Trend={trend_strength:.2f}, Pullback={pullback_strength:.2f}, Support={support_strength:.2f}")
+print(f"[TRADER DEBUG] {symbol}: Orderbook: layered={bids_layered}, spoofing={spoofing}, bid_strength={bid_strength:.2f}")
+print(f"[TRADER SCORE] {symbol} → {score:.3f} | Grade: {grade}, Decision: {decision}")
+print(f"[REASONS] {symbol}: {', '.join(reasons)}")
+✅ 2. Pełny JSON log per analiza
+Stwórz plik logs/trader_debug_log.txt, do którego będą zapisywane obiekty JSON dla każdego symbolu.
+
+Przykład struktury:
+
+json
+Kopiuj
+Edytuj
+{
+  "symbol": "IOTXUSDT",
+  "timestamp": "2025-06-21T19:17:00Z",
+  "market_context": "range",
+  "trend_strength": 0.127,
+  "pullback": {
+    "active": false,
+    "magnitude": 1.98,
+    "volume_declining": false
+  },
+  "support_reaction": {
+    "type": "none",
+    "ema_distance": 1.12,
+    "vwap_distance": 1.17,
+    "strength": 0.0
+  },
+  "candle_behavior": {
+    "pattern": "none",
+    "last_candle_bullish": false,
+    "volume_increase": false
+  },
+  "orderbook_analysis": {
+    "bids_layered": true,
+    "spoofing": false,
+    "bid_strength": 0.7
+  },
+  "final_score": 0.207,
+  "grade": "very_poor",
+  "decision": "avoid",
+  "reasons": ["range_market", "weak_trend", "poor_setup"]
+}
+✅ Zapisuj w trybie append (każda analiza osobna linia JSON)
+✅ Ułatwia przeszukiwanie, analizę i trening przyszłych modeli AI
+
+✅ 3. Log alertów: logs/alerted_symbols_log.txt
+Jeśli simulate_trader_decision() zwraca decision = "join_trend" i alert zostanie wysłany, zapisuj osobno:
+
+json
+Kopiuj
+Edytuj
+{
+  "symbol": "CYBERUSDT",
+  "score": 0.84,
+  "confidence": 0.84,
+  "grade": "strong",
+  "time": "2025-06-21T15:45:00Z",
+  "reason_summary": "strong trend, healthy pullback, bid support, bounce confirmed"
+}
+✅ 4. (Opcjonalnie) tryb --debug-symbol SYMBOL
+Dodaj możliwość debugowania tylko jednego symbolu z pełnym logiem krok po kroku zapisywanym w debug_symbol_log.txt – do analizy edge case'ów.
+
+🧠 Cel
+Chcemy, aby każde simulate_trader_decision() generowało przejrzysty, audytowalny log, tak jakby trader sam tłumaczył swoje decyzje.
+Dzięki temu możemy testować, poprawiać, trenować GPT lub ML na realnych danych decyzyjnych.
+
+Dzięki! 🚀

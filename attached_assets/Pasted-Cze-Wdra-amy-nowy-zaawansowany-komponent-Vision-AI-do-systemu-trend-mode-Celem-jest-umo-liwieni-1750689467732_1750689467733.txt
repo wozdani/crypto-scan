@@ -1,0 +1,89 @@
+Cześć! Wdrażamy nowy, zaawansowany komponent Vision-AI do systemu trend-mode. Celem jest umożliwienie modelowi komputerowego widzenia wykresów, trenowanego na realnych danych (obraz + kontekst + etykieta od GPT), który automatycznie oceni fazę rynku i typ setupu.
+
+✅ Zakres prac – wdrażamy punkty 1, 2, 3, 5:
+📌 1. Eksport wykresów
+Dodaj moduł chart_exporter.py, który eksportuje wykresy tokenów w czasie skanu jako obrazy (np. charts/JSTUSDT_20250623_1400.png) przy użyciu matplotlib lub snapshot API z Bybit/TV.
+
+python
+Kopiuj
+Edytuj
+# utils/chart_exporter.py
+import matplotlib.pyplot as plt
+import os
+
+def save_candlestick_chart(symbol, candles, output_dir="charts"):
+    import mplfinance as mpf
+    import pandas as pd
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    df = pd.DataFrame(candles)
+    df.columns = ["timestamp", "open", "high", "low", "close", "volume"]
+    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+    df.set_index("timestamp", inplace=True)
+
+    fname = f"{symbol}_chart.png"
+    mpf.plot(df, type='candle', volume=True, style='charles', savefig=f"{output_dir}/{fname}")
+    return f"{output_dir}/{fname}"
+📌 2. Automatyczna etykieta od GPT
+Dodaj do label_generator.py funkcję, która bierze obraz wykresu i kontekst scoringu, i wysyła zapytanie do GPT (lub lokalnie generuje etykietę – np. setup_type, phase_type) i zapisuje jako labels.jsonl.
+
+python
+Kopiuj
+Edytuj
+# ai/label_generator.py
+def generate_label_gpt(image_path, context_features) -> dict:
+    """
+    Wysyła do GPT opis wykresu + scoring i zwraca etykiety:
+    - setup_type: breakout_with_pullback, exhaustion, fakeout, range_accumulation...
+    - phase_type: breakout-continuation, exhaustion-pullback...
+    - confidence: 0.0 - 1.0
+    """
+    prompt = f"""
+    Na podstawie wykresu ({image_path}) i scoringu {context_features}, podaj tylko:
+    - phase_type: ...
+    - setup_type: ...
+    - confidence: ...
+
+    Bez wyjaśnień.
+    """
+    response = call_gpt_model(prompt)
+    return parse_labels(response)
+📌 3. Zapis danych treningowych
+Po każdej analizie tokenu zapisuj do folderu training_data/:
+
+obraz wykresu (np. JSTUSDT_chart.png)
+
+kontekst scoringu (JSTUSDT_meta.json)
+
+etykieta (JSTUSDT_label.json)
+
+bash
+Kopiuj
+Edytuj
+training_data/
+├── JSTUSDT_chart.png
+├── JSTUSDT_meta.json
+├── JSTUSDT_label.json
+📌 5. Przygotowanie datasetu treningowego
+Dodaj skrypt prepare_training_dataset.py, który zbiera wszystkie dane z training_data/, łączy je w dataset (np. CSV + obrazy) do trenowania modelu CV (CLIP, ViT, CNN).
+
+bash
+Kopiuj
+Edytuj
+python prepare_training_dataset.py --output vision_dataset/
+📦 Foldery do utworzenia:
+
+charts/
+
+training_data/
+
+ai/
+
+📣 Cel końcowy:
+Zbudujemy model AI, który będzie widział wykresy jak trader, i klasyfikował setup + phase. W przyszłości model zostanie wpięty do TJDE i będzie wspomagał scoring.
+
+Dajcie znać jak coś niejasne – to ważna część całego systemu "inteligentnego tradera" 🚀
+Gotowy do kolejnych kroków: trenowanie modelu, integracja predykcji i feedback loop oparty na wynikach modelu.
+

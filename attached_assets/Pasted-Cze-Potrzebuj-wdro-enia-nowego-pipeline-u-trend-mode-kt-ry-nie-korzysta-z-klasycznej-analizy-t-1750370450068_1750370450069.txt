@@ -1,0 +1,111 @@
+Cześć,
+
+Potrzebuję wdrożenia nowego pipeline’u trend_mode, który nie korzysta z klasycznej analizy technicznej ani z pre-pumpów. Składa się z dwóch modułów:
+
+🧱 1. detect_stage_minus1(data)
+Detektor napięcia rynkowego – działa na zachowaniu rynku, nie wskaźnikach.
+Nie używa scoringu ani twardych warunków.
+
+Zachowanie:
+
+Cena nie cofnęła się głęboko
+
+Świece są rytmiczne (ciała podobne)
+
+Brak wicków paniki
+
+Trend trwa, ale chwilowo pauzuje bez chaosu
+
+✅ Gdy True, uruchamiamy detekcję presji bid/ask.
+
+📄 Kod:
+
+python
+Kopiuj
+Edytuj
+def detect_stage_minus1(data):
+    if len(data) < 6:
+        return False, \"Za mało świec do analizy rytmu\"
+
+    def body(c): return abs(c[4] - c[1])
+    def wick_down(c): return c[1] - c[3]
+    def total_range(c): return c[2] - c[3]
+
+    last = data[-1]
+    three_back = data[-4]
+
+    if last[4] < three_back[4]:
+        return False, \"Cena cofnęła się za głęboko względem poprzedniego impulsu\"
+
+    if last[4] < last[1]:
+        wick_ratio = wick_down(last) / total_range(last) if total_range(last) else 0
+        if wick_ratio < 0.2:
+            return False, \"Korekta bez odbicia – możliwa panika\"
+
+    body_now = body(last)
+    body_prev = body(three_back)
+    if body_now == 0 or body_prev == 0:
+        return False, \"Brak wyraźnych ciał świec\"
+
+    similarity = min(body_now, body_prev) / max(body_now, body_prev)
+    if similarity < 0.6:
+        return False, \"Zaburzony rytm ciał świec – brak harmonii\"
+
+    if last[4] < data[-4][4]:
+        return False, \"Trend się załamał – kierunek nieutrzymany\"
+
+    return True, \"Ruch wstrzymany, rytm utrzymany, brak paniki – możliwe wybicie\"
+🧱 2. detect_orderbook_sentiment(orderbook)
+Ocenia nastroje rynkowe przez bid/ask. Nie używa klasycznych wskaźników ani twardych filtrów.
+
+Zachowanie:
+
+Bidy dominują wolumenowo
+
+Ask cofają się (spread wąski)
+
+Te same bidy pojawiają się ponownie (reloading)
+
+📄 Kod:
+
+python
+Kopiuj
+Edytuj
+def detect_orderbook_sentiment(orderbook):
+    bids = orderbook.get(\"bids\", [])[:10]
+    asks = orderbook.get(\"asks\", [])[:10]
+
+    if not bids or not asks:
+        return False, \"Brak danych orderbook\"
+
+    total_bid = sum(float(b[1]) for b in bids)
+    total_ask = sum(float(a[1]) for a in asks)
+    if total_bid < total_ask * 0.8:
+        return False, \"Brak przewagi popytu\"
+
+    ask_prices = [float(a[0]) for a in asks]
+    bid_prices = [float(b[0]) for b in bids]
+    if ask_prices[0] - bid_prices[0] > bid_prices[0] * 0.003:
+        return False, \"Spread zbyt szeroki – brak gotowości do transakcji\"
+
+    bid_levels = [round(float(b[0]), 4) for b in bids]
+    level_counts = {lvl: bid_levels.count(lvl) for lvl in bid_levels}
+    reloaded = any(count > 1 for count in level_counts.values())
+    if not reloaded:
+        return False, \"Brak sygnałów re-akumulacji na bidach\"
+
+    return True, \"Ask cofają się, bidy stabilne, presja popytu aktywna\"
+🔁 Integracja:
+W detect_trend_mode(symbol):
+
+python
+Kopiuj
+Edytuj
+active, reason = detect_stage_minus1(data)
+if active:
+    orderbook = get_orderbook_from_bybit(symbol)
+    sentiment, orderbook_reason = detect_orderbook_sentiment(orderbook)
+    if sentiment:
+        return True, f\"Trend aktywny + {reason} + {orderbook_reason}\"
+Dzięki,
+Szefir

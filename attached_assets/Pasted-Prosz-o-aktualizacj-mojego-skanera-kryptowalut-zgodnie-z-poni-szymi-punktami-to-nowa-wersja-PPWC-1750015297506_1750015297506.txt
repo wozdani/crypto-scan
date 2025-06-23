@@ -1,0 +1,112 @@
+Proszę o aktualizację mojego skanera kryptowalut zgodnie z poniższymi punktami – to nowa wersja PPWCS 2.6 + Stage 1g 2.0, która ma poprawić detekcję pre-pump sygnałów.
+
+🔧 Zmiany do wprowadzenia:
+1. Stage –2.1 (micro-anomalie): scoring zależny od liczby detektorów
+python
+Kopiuj
+Edytuj
+def score_stage_minus2_1(data):
+    count = sum([
+        data.get("whale_activity", False),
+        data.get("dex_inflow", False),
+        data.get("orderbook_anomaly", False),
+        data.get("volume_spike", False),
+        data.get("vwap_pinning", False),
+        data.get("spoofing", False),
+        data.get("cluster_slope", False),
+        data.get("heatmap_exhaustion", False),
+        data.get("social_spike", False),
+    ])
+
+    score = 0
+    if count == 1:
+        score += 6
+    elif count == 2:
+        score += 14
+    elif count == 3:
+        score += 20
+    elif count >= 4:
+        score += 25
+
+    # Bonusy za combo
+    if data.get("whale_activity") and data.get("dex_inflow"):
+        score += 5
+    if data.get("volume_spike") and data.get("spoofing"):
+        score += 4
+    if data.get("vwap_pinning") and data.get("orderbook_anomaly"):
+        score += 4
+
+    return score
+2. Stage –2.2 (news/tag scoring)
+Zaktualizować tagi:
+
+listing, partnership = +10
+
+presale, cex_listed = +5
+
+airdrop = pomocniczy (do Stage 1g)
+
+mint, burn, lock = neutralne
+
+exploit, rug, delisting = –15 lub full block
+
+drama, unlock = –10
+
+3. Stage –1 (compression filter)
+Aktywuje się, gdy ≥2 sygnały z Stage –2.1 pojawiły się w tej samej godzinie.
+→ Dodaje +10 do PPWCS
+
+4. Stage 1g (wersja 2.0 – uproszczona aktywacja + filtr jakości)
+✅ Nowa aktywacja Stage 1g:
+
+python
+Kopiuj
+Edytuj
+if (
+    (data.get("squeeze") and data.get("volume_spike")) or
+    (data.get("stealth_acc") and data.get("vwap_pinning")) or
+    (data.get("liquidity_box") and data.get("RSI_flatline")) or
+    (data.get("news_boost") and any([
+        data.get("vwap_pinning"), data.get("liquidity_box"),
+        data.get("RSI_flatline"), data.get("fractal_echo")
+    ]))
+):
+    data["stage_1g_active"] = True
+✅ Filtr jakości Stage 1g:
+
+python
+Kopiuj
+Edytuj
+def score_stage_1g(data):
+    score = 0
+    if data.get("squeeze"):
+        score += 6
+    if data.get("stealth_acc"):
+        score += 6
+    if data.get("fake_reject"):
+        score -= 4
+    if data.get("vwap_pinning"):
+        score += 3
+    if data.get("liquidity_box"):
+        score += 3
+    if data.get("RSI_flatline") and data.get("inflow"):
+        score += 3
+    if data.get("fractal_echo"):
+        score += 2
+    return score
+Jeśli quality > 12 i Stage –2.1 aktywny → alert może być wysłany nawet przy PPWCS 60–69
+
+5. compute_ppwcs(data):
+Zaktualizować główną funkcję scoringową, by korzystała z:
+
+score_stage_minus2_1(data)
+
+tag scoring
+
+compression (jeśli data["compressed"] == True)
+
+score_stage_1g(data) jeśli data["stage_1g_active"] == True
+
+pure accumulation bonus +5 (jeśli whale/inflow bez social)
+
+Dzięki! To powinno znacząco poprawić jakość scoringu i alertów 🚀

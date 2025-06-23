@@ -1,0 +1,112 @@
+Proszę o rozbudowę funkcji trend-mode w systemie crypto-scan tak, aby odzwierciedlała proces decyzyjny profesjonalnego tradera. Nie chcemy sztywnych reguł „3 świeczki zielone” – chcemy logikę opartą na intencji rynku, kontekście i edge'u.
+
+🧠 Główne założenie:
+Trend-mode powinien analizować nie tylko "czy jest trend", ale:
+
+W jakiej fazie struktury rynku jesteśmy?
+
+Czy jest edge, by dołączyć?
+
+Czy LTF potwierdza HTF?
+
+Czy są oznaki manipulacji lub czystego ruchu?
+
+✅ Czego oczekuję:
+1. Market Structure Phase Detection (detect_market_phase)
+Dodaj nową funkcję, która analizuje ostatnie 20–40 świec i klasyfikuje ruch jako:
+
+pre-breakout
+
+breakout-continuation
+
+retest-confirmation
+
+exhaustion-pullback
+
+range-accumulation
+
+Na podstawie:
+
+HH/LL
+
+price vs EMA
+
+volatility
+
+compression
+
+Zwracany market_phase trafia do scoringu.
+
+2. Liquidity Behavior Analysis (liquidity_pattern)
+Dodać analizę orderbooka i zachowania wolumenu:
+
+stacking bidów
+
+pinning pod EMA
+
+buy pressure / absorpcja
+Zwracany liquidity_pattern_score (0.0–1.0)
+
+3. Psychological Traps Detector (psychological_flags)
+Nowa funkcja wykrywająca sygnały:
+
+liquidity grab / SL sweep (long wick z szybkim powrotem)
+
+fake breakout
+
+choppy behavior
+Zwracane flagi oraz psych_score
+
+4. HTF Confirmation Layer (htf_trend_match)
+Dodaj pobieranie danych z 1h (lub 4h) i oceniaj:
+
+slope EMA
+
+green_ratio
+
+trend match z 15m
+Zwraca htf_trend_match = True/False, htf_supportive_score
+
+🧮 Integracja scoringowa:
+Zbierz powyższe w nowym komponencie scoringu w trend-mode jako:
+
+python
+Kopiuj
+Edytuj
+weighted_features = {
+    "trend_strength": trend_score * 0.25,
+    "pullback_quality": pullback_score * 0.2,
+    "support_reaction": support_score * 0.15,
+    "liquidity_pattern_score": liquidity_score * 0.1,
+    "psych_score": psych_score * 0.1,
+    "htf_supportive_score": htf_score * 0.1,
+    "market_phase_modifier": phase_score * 0.1
+}
+
+final_score = sum(weighted_features.values())
+📊 Logi:
+W logach TREND DEBUG dodać wypisywanie:
+
+market_phase
+
+liquidity_pattern_score
+
+psych_score
+
+htf_trend_match
+
+breakdown weighted_features
+
+📁 Pliki do modyfikacji:
+trend_mode.py
+
+simulate_trader_decision()
+
+nowe utils: market_phase.py, liquidity_analysis.py, htf_overlay.py, psychology.py
+
+🧪 Test:
+Na koniec proszę o test tego na ZEREBROUSDT i LPTUSDT, zapisanie wyniku do logs/test_trend_mode_full_decision.txt.
+
+Zależy mi, żeby system naprawdę rozumiał kontekst i intencję rynku, a nie tylko tickował warunki.
+Dziękuję!
+Szefir

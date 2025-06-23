@@ -1,0 +1,113 @@
+Chcę rozbudować mój moduł trend-mode w systemie crypto-scan, aby odwzorowywał analizę profesjonalnego tradera — takiego, który dołącza do silnego trendu w czasie korekty (pullbacku), a nie wchodzi przypadkowo.
+
+Nowa wersja trend_mode.py ma zawierać wszystkie poprzednie etapy, ale teraz rozdzielone modularnie i z dodatkowymi funkcjami opisanymi poniżej.
+
+✅ Plan funkcjonalny modułu trend_mode.py
+🧩 Etap 1 – Analiza kontekstu rynkowego (market_context)
+Funkcja: determine_market_context(candles)
+
+Zwraca: "impulse", "pullback", "range", "breakout", "redistribution"
+
+Używa slope, EMA, candle body ratio, volatility
+
+📈 Etap 2 – Ocena siły trendu (trend_strength)
+Funkcja: compute_trend_strength(candles)
+
+Zwraca wynik 0.0 – 1.0
+
+Oparty o % zielonych świec, slope, momentum świec
+
+🔁 Etap 3 – Detekcja korekty (pullback_detection)
+Funkcja: detect_pullback(candles)
+
+Zwraca True/False + wartość pullbacku (w %)
+
+Obserwuje spadek o 1–2% od szczytu + spadek wolumenu
+
+📍 Etap 4 – Reakcja na wsparciu (support_reaction)
+Funkcja: detect_support_reaction(candles)
+
+Zwraca True/False
+
+Bazuje na: EMA21/VWAP, formacje świec (np. engulfing), wick bounce
+
+⏱️ Etap 5 – Czas + dynamika (market_time_score)
+Funkcja: market_time_score(utc_hour)
+
+Zwraca boost jeśli:
+
+Ruch odbywa się rano/wieczorem (większa płynność)
+
+W środku dnia – neutralny
+
+W nocy – redukcja scoringu
+
+🎥 Etap 6 – Potwierdzenie bounce’a (detect_bounce_confirmation)
+Funkcja: detect_bounce_confirmation(candles)
+
+Obserwuje zakończenie pullbacku, mniejsze świece, odbicie od wsparcia
+
+📊 Etap 7 – Scoring heurystyczny (compute_trend_score)
+Łączy wszystkie czynniki w jedno:
+
+python
+Kopiuj
+Edytuj
+weights = {
+    "trend_strength": 0.3,
+    "pullback_quality": 0.2,
+    "support_reaction": 0.2,
+    "bounce_confirmation": 0.15,
+    "time_boost": 0.15
+}
+Final score > 0.75 → sygnał wejścia
+
+🧠 Etap 8 – Trader logic (interpret_market_as_trader)
+Łączy wszystkie warstwy w logiczną decyzję:
+
+python
+Kopiuj
+Edytuj
+{
+  "decision": "join_trend",
+  "confidence": 0.82,
+  "reasons": ["clean pullback", "support held", "momentum intact"]
+}
+💬 🧠 Etap 9 – Opcjonalny GPT-Feedback jako trader-asystent
+Funkcja: gpt_infer_market_description(symbol, candles)
+
+Generuje opis wykresu tekstem, np.:
+
+"Strong uptrend, price pulled back 1.2% to EMA21, low-volume correction, support held, current candle with bullish wick"
+
+Potem:
+
+python
+Kopiuj
+Edytuj
+ask_gpt(f"Is this a good point to join the trend? {description}")
+Zwraca:
+
+python
+Kopiuj
+Edytuj
+{
+  "gpt_decision": "Yes – ideal pullback entry",
+  "confidence": 0.9,
+  "explanation": "Pullback to dynamic support confirmed with low volume"
+}
+📦 Plik: trend_mode.py
+Struktura funkcji:
+
+python
+Kopiuj
+Edytuj
+def interpret_market_as_trader(symbol, candles, utc_hour) -> dict
+Zwraca pełną decyzję, scoring, uzasadnienie oraz (opcjonalnie) GPT feedback.
+Wszystkie funkcje pomocnicze mogą być wewnętrzne lub rozdzielone na osobne klasy zgodnie z preferencją.
+
+✅ Proszę o przygotowanie kompletnego pliku trend_mode.py z powyższymi funkcjami + gotowego do importu z głównego pliku skanera.
+
+Gotowy do dalszej integracji z alertami i scoringiem PPWCS.
+
+Dzięki! 🚀

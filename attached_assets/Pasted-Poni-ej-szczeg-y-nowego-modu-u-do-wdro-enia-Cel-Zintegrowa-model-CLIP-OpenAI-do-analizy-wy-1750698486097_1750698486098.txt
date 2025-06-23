@@ -1,0 +1,92 @@
+Poniżej szczegóły nowego modułu do wdrożenia:
+
+📦 Cel:
+Zintegrować model CLIP (OpenAI) do analizy wykresów cenowych, w celu wykrywania typu setupu, fazy rynku i oceny zaufania – jako rozszerzenie systemu TJDE (simulate_trader_decision_advanced).
+
+✅ Etap 1: Integracja CLIP jako predyktora wizualnego
+Zintegrować gotowy model CLIP (ViT-B/32) przez bibliotekę open_clip lub transformers.
+
+Input: obraz wykresu (z charts/*.png)
+
+Output: najbardziej pasujący opis (prompt z listy etykiet typu: "breakout-continuation", "pullback-in-trend", "range-accumulation", "fakeout", "trend-reversal"...)
+
+✅ Etap 2: Wprowadzenie listy promptów
+python
+Kopiuj
+Edytuj
+CLIP_LABELS = [
+    "breakout-continuation",
+    "pullback-in-trend",
+    "range-accumulation",
+    "trend-reversal",
+    "consolidation",
+    "fakeout",
+    "volume-backed breakout",
+    "exhaustion pattern",
+    "no-trend / noise"
+]
+✅ Etap 3: Funkcja predict_chart_clip(image_path)
+python
+Kopiuj
+Edytuj
+def predict_chart_clip(image_path):
+    import torch
+    import open_clip
+    from PIL import Image
+
+    model, _, preprocess = open_clip.create_model_and_transforms('ViT-B-32', pretrained='openai')
+    tokenizer = open_clip.get_tokenizer('ViT-B-32')
+    
+    image = preprocess(Image.open(image_path)).unsqueeze(0)
+    text = tokenizer(CLIP_LABELS)
+
+    with torch.no_grad():
+        image_features = model.encode_image(image)
+        text_features = model.encode_text(text)
+        logits_per_image, _ = model(image, text)
+        probs = logits_per_image.softmax(dim=-1).cpu().numpy()[0]
+
+    top_index = probs.argmax()
+    return CLIP_LABELS[top_index], float(probs[top_index])
+✅ Etap 4: Integracja z TJDE (simulate_trader_decision_advanced)
+W funkcji simulate_trader_decision_advanced(symbol, ...):
+
+Pobierz ścieżkę wykresu z f"charts/{symbol}_{timestamp}.png"
+
+Uruchom predict_chart_clip(image_path)
+
+Wynik zapisz jako:
+
+python
+Kopiuj
+Edytuj
+clip_result = {
+    "predicted_label": label,
+    "confidence": confidence
+}
+Użyj tego jako dodatkowy boost/modifier w scoringu, np.:
+
+python
+Kopiuj
+Edytuj
+if clip_result["predicted_label"] == "breakout-continuation" and clip_result["confidence"] > 0.7:
+    final_score += 0.05
+    decision_reasons.append("CLIP confirms breakout-continuation")
+✅ Etap 5: Zapis predykcji CLIP
+Dodaj do tjde_results.json:
+
+json
+Kopiuj
+Edytuj
+"clip_prediction": {
+    "label": "breakout-continuation",
+    "confidence": 0.74
+}
+📥 Wymagania:
+pip install open_clip_torch
+
+charts/*.png muszą być dostępne dla każdego symbolu po skanie
+
+Alternatywnie dodać fallback na mock wykres przy testach
+
+Daj znać, jakby trzeba było przetestować lokalnie lub dorzucić więcej etykiet do promptów 🧠

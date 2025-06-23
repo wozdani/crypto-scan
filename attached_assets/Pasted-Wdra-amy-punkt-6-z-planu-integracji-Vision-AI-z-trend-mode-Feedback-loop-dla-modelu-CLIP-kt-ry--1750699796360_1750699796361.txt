@@ -1,0 +1,103 @@
+Wdrażamy punkt 6 z planu integracji Vision-AI z trend-mode:
+🧠 Feedback loop dla modelu CLIP, który automatycznie analizuje skuteczność predykcji na podstawie rzeczywistych wyników rynku i dostraja model pod kątem rozpoznawania właściwych faz rynku.
+
+✅ Cel:
+Analiza trafności predykcji fazy rynku (np. breakout, pullback, accumulation) wygenerowanej przez CLIP.
+
+Jeśli predykcja była nietrafna, system oznacza ją jako błąd i używa tego jako próbki treningowej do fine-tune modelu CLIP.
+
+📂 Plik: clip_feedback_loop.py (NOWY)
+python
+Kopiuj
+Edytuj
+import os
+import json
+import torch
+from clip_model import load_clip_model, preprocess_image
+from clip_trainer import train_clip_on_sample
+
+HISTORY_PATH = "logs/auto_label_session_history.json"
+MODEL_PATH = "models/clip_model.pt"
+
+def load_feedback_history():
+    if not os.path.exists(HISTORY_PATH):
+        return []
+    with open(HISTORY_PATH, "r") as f:
+        return json.load(f)
+
+def analyze_prediction_success(training_data, tjde_results):
+    # Porównaj predykcję CLIP z faktyczną etykietą (np. z GPT lub wyniku rynku)
+    incorrect = []
+    for item in training_data:
+        symbol = item["symbol"]
+        label = item["label"]  # np. "pullback-in-trend"
+        actual_result = tjde_results.get(symbol)
+
+        if actual_result:
+            actual_decision = actual_result.get("decision")
+            if label == "breakout-continuation" and actual_decision != "consider_entry":
+                incorrect.append(item)
+            elif label == "trend-reversal" and actual_decision != "avoid":
+                incorrect.append(item)
+            # Dodaj inne reguły interpretacji w zależności od strategii
+
+    return incorrect
+
+def feedback_loop_clip():
+    print("[CLIP FEEDBACK] Starting feedback analysis...")
+    model, preprocess = load_clip_model()
+
+    feedback_data = load_feedback_history()
+    tjde_results_path = sorted([
+        f for f in os.listdir("data/results") if f.startswith("tjde_results_")
+    ])[-1]  # Najnowszy wynik TJDE
+
+    with open(f"data/results/{tjde_results_path}", "r") as f:
+        tjde_results = {entry["symbol"]: entry for entry in json.load(f)}
+
+    incorrect_samples = analyze_prediction_success(feedback_data, tjde_results)
+
+    if not incorrect_samples:
+        print("[CLIP FEEDBACK] No incorrect predictions found.")
+        return
+
+    print(f"[CLIP FEEDBACK] Found {len(incorrect_samples)} incorrect predictions. Retraining...")
+
+    for sample in incorrect_samples:
+        img_path = f"data/training/charts/{sample['filename']}.png"
+        labels = sample["label"].split(" | ")
+        train_clip_on_sample(model, preprocess_image(img_path), labels)
+
+    torch.save(model.state_dict(), MODEL_PATH)
+    print("[CLIP FEEDBACK] Model fine-tuned and saved.")
+
+🔁 Wymagane powiązania:
+clip_model.py: ładowanie modelu i tokenizerów CLIP.
+
+clip_trainer.py: musi zawierać funkcję train_clip_on_sample(model, image_tensor, labels).
+
+logs/auto_label_session_history.json: zawiera listę predykcji CLIP wraz z nazwą pliku i etykietą np.:
+
+json
+Kopiuj
+Edytuj
+[
+  {
+    "symbol": "XAUTUSDT",
+    "filename": "XAUTUSDT_20250623_1652",
+    "label": "pullback-in-trend | trending-up | volume-backed"
+  },
+  ...
+]
+✅ Checklist:
+ Analiza skuteczności CLIP na podstawie najnowszych wyników TJDE
+
+ Trening CLIP na błędnych predykcjach
+
+ Zapisywanie nowego modelu
+
+ Możliwość cyklicznego uruchamiania np. raz dziennie
+
+Daj znać, jeśli są potrzebne dodatkowe funkcje typu: logowanie błędnych etykiet do pliku lub wsparcie dla wandb/logginga.
+
+Dzięki!

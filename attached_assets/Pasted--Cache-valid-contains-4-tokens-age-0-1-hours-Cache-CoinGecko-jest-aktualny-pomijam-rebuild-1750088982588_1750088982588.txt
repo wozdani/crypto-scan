@@ -1,0 +1,39 @@
+✅ Cache valid - contains 4 tokens, age: 0.1 hours
+✅ Cache CoinGecko jest aktualny - pomijam rebuild
+🕒 Cache age: 19:30:18.956063, expired: False
+⛔ Token 1000000BABYDOGEUSDT nie istnieje w cache CoinGecko
+⚠️ Brak danych chain w token_info dla 1000000BABYDOGEUSDT
+⛔ Token 1000000CHEEMSUSDT nie istnieje w cache CoinGecko
+⚠️ Brak danych chain w token_info dla 1000000CHEEMSUSDT
+⛔ Token 1000000MOGUSDT nie istnieje w cache CoinGecko
+⚠️ Brak danych chain w token_info dla 1000000MOGUSDT
+⛔ Token 1000000PEIPEIUSDT nie istnieje w cache CoinGecko
+⚠️ Brak danych chain w token_info dla 1000000PEIPEIUSDT
+⛔ Token 10000COQUSDT nie istnieje w cache CoinGecko
+⚠️ Brak danych chain w token_info dla 10000COQUSDT
+⛔ Token 10000ELONUSDT nie istnieje w cache CoinGecko
+⚠️ Brak danych chain w token_info dla 10000ELONUSDT
+⛔ Token 10000LADYSUSDT nie istnieje w cache CoinGecko
+⚠️ Brak danych chain w token_info dla 10000LADYSUSDT
+⛔ Token 10000QUBICUSDT nie istnieje w cache CoinGecko
+⚠️ Brak danych chain w token_info dla 10000QUBICUSDT
+⛔ Token 10000SATSUSDT nie istnieje w cache CoinGecko
+⚠️ Brak danych chain w token_info dla 10000SATSUSDT
+⛔ Token 10000WENUSDT nie istnieje w cache CoinGecko
+⚠️ Brak danych chain w token_info dla 10000WENUSDT
+⛔ Token 10000WHYUSDT nie istnieje w cache CoinGecko
+⚠️ Brak danych chain w token_info dla 10000WHYUSDT
+⛔ Token 1000APUUSDT nie istnieje w cache CoinGecko
+⚠️ Brak danych chain w token_info dla 1000APUUSDT
+⚠️ Brak kontraktu dla 1000BONKUSDT
+⚠️ Brak danych chain w token_info dla 1000BONKUSDT
+⚠️ Brak kontraktu dla 1000BTTUSDT
+⚠️ Brak danych chain w token_info dla 1000BTTUSDT
+⛔ Token 1000CATSUSDT nie istnieje w cache CoinGecko
+⚠️ Brak danych chain w token_info dla 1000CATSUSDT
+⚠️ Brak kontraktu dla 1000CATUSDT
+⚠️ Brak danych chain w token_info dla 1000CATUSDT
+⛔ Token 1000FLOKIUSDT nie istnieje w cache CoinGecko
+⚠️ Brak danych chain w token_info dla 1000FLOKIUSDT
+⛔ Token 1000LUNCUSDT nie istnieje w cache CoinGecko
+⚠️ Brak danych chain w token_info dla 1000LUNCUSDT

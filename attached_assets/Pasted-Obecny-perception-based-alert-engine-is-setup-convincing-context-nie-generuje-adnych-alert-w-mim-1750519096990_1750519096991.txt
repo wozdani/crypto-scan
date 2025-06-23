@@ -1,0 +1,79 @@
+Obecny perception-based alert engine (is_setup_convincing(context)) nie generuje żadnych alertów mimo aktywnych detektorów. Poniżej znajduje się pełna checklista diagnostyczna, którą proszę przeanalizować linia po linii.
+
+✅ Checklist: Czemu alert nie przechodzi?
+Trend nie jest potwierdzony
+
+python
+Kopiuj
+Edytuj
+context["trend_confirmed"] == False
+🔍 Proszę sprawdzić, czy trend_up_15m i price_progress=True faktycznie występują. Jeśli tak, ale trend_confirmed=False, oznacza to, że filtr trendu nie działa jak powinien.
+
+Flow jest zbyt chaotyczny
+
+python
+Kopiuj
+Edytuj
+context["flow_consistent"] == False
+🔍 Jeśli flow_consistency < 60%, może blokować sygnał. Sugeruję dopuścić flow_consistency ≥ 50%.
+
+Orderbook nie wykazuje przewagi byków
+
+python
+Kopiuj
+Edytuj
+context["orderbook_behavior"] != "bullish_control"
+🔍 Jeśli jest "balanced" lub "slightly_bullish", alert jest blokowany. Propozycja: dopuścić bid_ask_ratio > 1.2.
+
+Pullback nie jest klasyfikowany jako weak
+
+python
+Kopiuj
+Edytuj
+context["pullback_detected"] == True and context["pullback_strength"] == "weak"
+🔍 Obecnie akceptowana jest tylko wartość "weak". Propozycja: dopuścić też "medium".
+
+Nie spełniony warunek strefy wsparcia
+
+python
+Kopiuj
+Edytuj
+context["near_support"] == False
+🔍 Jeśli obecna cena znajduje się dalej niż 1% od poziomu wsparcia – warunek jest blokowany. Propozycja: zwiększyć tolerancję do 2–2.5%.
+
+Inne detektory nie wpływają na decyzję
+🔍 Nawet jeśli mamy aktywne:
+
+heatmap_vacuum == True
+
+vwap_pinning == True
+
+orderbook_freeze == True
+...ale nie ma "perfect match", alert nie jest emitowany. Potrzebujemy systemu decyzyjnego punktowego lub wagowego, nie binarnego.
+
+✅ Propozycja logiki warunkowej (przykład refaktoryzacji):
+python
+Kopiuj
+Edytuj
+def is_setup_convincing(ctx):
+    if not ctx["trend_confirmed"]:
+        return False
+
+    if not ctx["pullback_detected"]:
+        return False
+
+    if ctx["pullback_strength"] not in ["weak", "medium"]:
+        return False
+
+    # Elastyczne warunki wejścia
+    flow_ok = ctx["flow_consistent"] or ctx["heatmap_vacuum"] or ctx["orderbook_freeze"]
+    orderbook_ok = ctx["orderbook_behavior"] in ["bullish_control", "slightly_bullish"]
+    support_ok = ctx["near_support"]
+
+    if flow_ok and orderbook_ok and support_ok:
+        return True
+
+    return False
+🔁 Cel: zwiększyć liczbę alertów bez psucia jakości — system powinien przypominać ocenę tradera, a nie twarde filtry.
+
+Dzięki,

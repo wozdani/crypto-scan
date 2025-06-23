@@ -1,0 +1,98 @@
+Chciałbym wdrożyć nowy moduł do trend_mode_pipeline.py, który nie opiera się na klasycznej analizie świec, tylko na zachowaniu ceny w czasie – tak, jakby system „patrzył” na wykres jak trader z intuicją.
+
+🧠 Cel:
+Detekcja sytuacji, gdzie cena:
+
+powoli i rytmicznie podchodzi
+
+robi lekką korektę
+
+i znów podbija
+
+Bez nagłych spadków, bez hype'u – trend zbudowany falowo.
+
+✅ Składa się z dwóch funkcji:
+1. get_price_series_bybit()
+📦 Pobiera dane 5-minutowe z ostatnich 3h (36 punktów) jednym zapytaniem API:
+
+python
+Kopiuj
+Edytuj
+import requests
+
+def get_price_series_bybit(symbol: str) -> list[float]:
+    url = "https://api.bybit.com/v5/market/kline"
+    params = {
+        "interval": "5",
+        "limit": 36,
+        "category": "linear",
+        "symbol": symbol
+    }
+
+    try:
+        resp = requests.get(url, params=params, timeout=10)
+        data = resp.json()
+        if data["retCode"] != 0:
+            print(f"❌ Bybit API error for {symbol}: {data['retMsg']}")
+            return []
+
+        # używamy ceny close z każdej świecy
+        prices = [float(item[4]) for item in data["result"]["list"]]
+        return prices
+
+    except Exception as e:
+        print(f"❌ Exception fetching price series for {symbol}: {e}")
+        return []
+2. detect_rhythmic_price_flow()
+🧠 Analizuje serię cen i wykrywa podejście → cofka → podejście (rytmiczny flow):
+
+python
+Kopiuj
+Edytuj
+def detect_rhythmic_price_flow(prices: list[float]) -> bool:
+    """
+    prices: lista cen z 3h (np. 36 punktów co 5 minut)
+    Detekcja falowego podejścia bez świec – tylko zachowanie ceny.
+    """
+    if len(prices) < 20:
+        return False
+
+    moves = []
+    for i in range(1, len(prices)):
+        delta = (prices[i] - prices[i-1]) / prices[i-1]
+        moves.append(round(delta, 5))  # np. 0.00123 = +0.123%
+
+    for i in range(5, len(moves) - 5):
+        leg1 = sum(moves[i:i+3])
+        pullback = sum(moves[i+3:i+5])
+        leg2 = sum(moves[i+5:i+8])
+
+        if (
+            leg1 > 0.001     # np. +0.10%
+            and pullback < 0
+            and abs(pullback) < leg1 * 0.7
+            and leg2 > 0.001
+        ):
+            return True
+
+    return False
+🔁 Integracja w trend_mode_pipeline.py:
+python
+Kopiuj
+Edytuj
+from detectors.wave_flow_detector import detect_rhythmic_price_flow, get_price_series_bybit
+
+prices = get_price_series_bybit(symbol)
+
+if prices and detect_rhythmic_price_flow(prices):
+    score += 25
+    reasons.append("wave pattern detected – price rhythm")
+🔐 Bezpieczeństwo:
+Tylko 1 zapytanie API na token per skan
+
+W pełni odporny na error – fallback to []
+
+Nie przeciąża Bybit API
+
+Gotowe do rozszerzenia o cache, jeśli potrzebne
+

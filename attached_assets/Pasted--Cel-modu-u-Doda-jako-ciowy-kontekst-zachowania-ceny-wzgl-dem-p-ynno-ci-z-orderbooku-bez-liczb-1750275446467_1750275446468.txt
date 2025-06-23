@@ -1,0 +1,100 @@
+🧠 Cel modułu:
+Dodać jakościowy kontekst zachowania ceny względem płynności z orderbooku – bez liczbowych progów, tylko detekcje oparte na strukturze i interpretacji.
+
+🔍 Wymagane zapytania API (na każdy token):
+GET /v5/market/kline – 15M świece, ostatnie 50
+
+GET /v5/market/kline – 1M świece, ostatnie 50
+
+GET /v5/market/orderbook?limit=25 – aktualny orderbook (25 bidów, 25 asków)
+
+🧪 Moduł heatmap_detectors.py – kod do implementacji
+python
+Kopiuj
+Edytuj
+import numpy as np
+from utils.bybit_api import get_klines, get_orderbook
+
+def walls_disappear(symbol):
+    ob = get_orderbook(symbol)
+    bids = [b[1] for b in ob['bids']]
+    asks = [a[1] for a in ob['asks']]
+    if not bids or not asks:
+        return "❌"
+
+    bid_median = np.median(bids)
+    ask_median = np.median(asks)
+    large_bid = any(b > 10 * bid_median for b in bids)
+    large_ask = any(a > 10 * ask_median for a in asks)
+    return "✅" if not (large_bid or large_ask) else "❌"
+
+def pinning(symbol):
+    klines = get_klines(symbol, interval="1", limit=30)
+    ob = get_orderbook(symbol)
+    if not klines or not ob:
+        return "❌"
+
+    prices = [float(c[4]) for c in klines]  # close price
+    mid_price = (float(ob['bids'][0][0]) + float(ob['asks'][0][0])) / 2
+    pinned = all(abs(p - mid_price) / mid_price < 0.003 for p in prices)  # 0.3% range
+    return "✅" if pinned else "❌"
+
+def void_reaction(symbol):
+    klines = get_klines(symbol, interval="1", limit=5)
+    if not klines:
+        return "❌"
+    
+    closes = [float(k[4]) for k in klines]
+    ranges = [abs(float(k[2]) - float(k[3])) for k in klines]
+    mean_range = np.mean(ranges)
+    recent_range = ranges[-1]
+
+    if recent_range > 1.5 * mean_range:
+        return "✅"
+    return "❌"
+
+def cluster_slope(symbol):
+    ob = get_orderbook(symbol)
+    bids = [(float(p), float(q)) for p, q in ob['bids']]
+    asks = [(float(p), float(q)) for p, q in ob['asks']]
+    if not bids or not asks:
+        return "neutral"
+
+    bid_qs = np.array([q for _, q in bids])
+    ask_qs = np.array([q for _, q in asks])
+    bid_trend = np.polyfit(range(len(bid_qs)), bid_qs, 1)[0]
+    ask_trend = np.polyfit(range(len(ask_qs)), ask_qs, 1)[0]
+
+    if bid_trend > 0 and ask_trend < 0:
+        return "bullish"
+    elif bid_trend < 0 and ask_trend > 0:
+        return "bearish"
+    else:
+        return "neutral"
+📤 Prompt do GPT – przykład integracji z outputem detektorów
+W main_analysis.py dopisz:
+
+python
+Kopiuj
+Edytuj
+from detectors.heatmap_detectors import walls_disappear, pinning, void_reaction, cluster_slope
+
+heatmap_analysis = f"""=== ANALIZA HEATMAPY ORDERBOOKU ===
+• Zniknięcie ścian: {walls_disappear(symbol)}
+• Pinning płynności: {pinning(symbol)}
+• Reakcja na void: {void_reaction(symbol)}
+• Nachylenie klastrów: {cluster_slope(symbol)}
+"""
+I dodaj to do full_prompt:
+
+python
+Kopiuj
+Edytuj
+full_prompt += "\n" + heatmap_analysis
+📦 Dodatkowe uwagi:
+Proszę skopiować brakujące funkcje z crypto-scan do utils/, np. get_klines() i get_orderbook(), jeśli nie są jeszcze obecne.
+
+Nie używamy zewnętrznego Bookmapa ani płatnych API – tylko Bybit.
+
+System działa z 3 zapytaniami na token.
+

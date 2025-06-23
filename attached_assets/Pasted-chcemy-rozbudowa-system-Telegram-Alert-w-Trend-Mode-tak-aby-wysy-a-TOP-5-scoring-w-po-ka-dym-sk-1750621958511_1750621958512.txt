@@ -1,0 +1,61 @@
+chcemy rozbudować system Telegram Alert w Trend Mode, tak aby:
+
+wysyłał TOP 5 scoringów po każdym skanie,
+
+dodawał informacje o zmianach wag scoringu dokonanych przez feedback loop,
+
+zawierał powody, dlaczego waga została zmodyfikowana (np. "pullback_quality zwiększono, bo PAXG miał silny pullback, ale nie przeszedł progu").
+
+Poniżej podajemy aktualizacje kodu.
+
+1. 🔧 feedback_loop_v2.py: dodaj przechwytywanie powodów zmian wag
+python
+Kopiuj
+Edytuj
+weight_update_explanations = {
+    "pullback_quality": "Zwiększono, bo missed alert na PAXG zawierał czysty pullback",
+    "trend_strength": "Zmniejszono, bo AAVE miał wysoki trend score, ale był false positive",
+    "support_reaction": "Zwiększono – dobre reakcje w poprawnych alertach (np. PEPE)"
+}
+2. 📊 telegram_bot.py: nowa funkcja do generowania pełnej informacji:
+python
+Kopiuj
+Edytuj
+def get_feedback_summary_with_reasons(weights_before: dict, weights_after: dict, reasons: dict) -> str:
+    summary_lines = []
+    for key in weights_after:
+        before = weights_before.get(key, 0)
+        after = weights_after[key]
+        delta = after - before
+        if abs(delta) >= 0.01:
+            arrow = "🔼" if delta > 0 else "🔽"
+            reason = reasons.get(key, "Brak powodu.")
+            summary_lines.append(
+                f"- {arrow} *{key}*: {before:.2f} → {after:.2f}\n   _Powód_: {reason}"
+            )
+    if summary_lines:
+        header = f"\n📊 *Feedback loop – aktualizacja wag* ({datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}):"
+        return header + "\n" + "\n".join(summary_lines)
+    return ""
+3. 📬 Użycie:
+python
+Kopiuj
+Edytuj
+feedback_summary = get_feedback_summary_with_reasons(
+    weights_before,
+    weights_after,
+    weight_update_explanations
+)
+send_trend_alert(..., feedback_summary=feedback_summary)
+🟢 Efekt końcowy w Telegramie:
+vbnet
+Kopiuj
+Edytuj
+📊 Feedback loop – aktualizacja wag (2025-06-22 18:30 UTC):
+
+- 🔼 pullback_quality: 0.18 → 0.22  
+   _Powód_: Zwiększono, bo missed alert na PAXG zawierał czysty pullback
+
+- 🔽 trend_strength: 0.25 → 0.18  
+   _Powód_: Zmniejszono, bo AAVE miał wysoki trend score, ale był false positive
+✅ To wszystko jest w pełni kompatybilne z TJDE i alertami po skanie.

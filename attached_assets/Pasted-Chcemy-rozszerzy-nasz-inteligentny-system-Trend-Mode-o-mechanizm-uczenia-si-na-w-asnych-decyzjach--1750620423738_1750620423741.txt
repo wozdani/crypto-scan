@@ -1,0 +1,105 @@
+Chcemy rozszerzyć nasz inteligentny system Trend Mode o mechanizm uczenia się na własnych decyzjach. Wprowadzamy feedback_loop_v2, czyli moduł automatycznej korekcji wag scoringowych TJDE, bazujący na skuteczności alertów.
+
+🎯 Cele modułu:
+Analiza alertów wygenerowanych przez simulate_trader_decision_advanced()
+
+Ocena, czy alert był skuteczny po 2h, 4h, 6h (czy był zysk ≥ +X%)
+
+Automatyczna aktualizacja wag scoringowych, jeśli dany komponent przewartościowuje lub niedowartościowuje decyzje
+
+Aktualizacja pliku data/weights/tjde_weights.json na podstawie rzeczywistej skuteczności
+
+📁 Pliki i struktura:
+feedback/feedback_loop_v2.py – nowy plik z systemem uczenia
+
+logs/alerts_history.jsonl – log alertów (decyzja + final_score + wynik po 2h/6h)
+
+data/weights/tjde_weights.json – docelowy plik do aktualizacji
+
+🧠 Kod: feedback_loop_v2.py
+Utwórz plik feedback/feedback_loop_v2.py:
+
+python
+Kopiuj
+Edytuj
+import json
+import os
+
+WEIGHTS_FILE = "data/weights/tjde_weights.json"
+ALERT_LOG = "logs/alerts_history.jsonl"
+
+LEARNING_RATE = 0.05
+SUCCESS_THRESHOLD = 0.03  # np. zysk 3% po 2h oznacza sukces
+
+def load_current_weights():
+    with open(WEIGHTS_FILE, "r") as f:
+        return json.load(f)
+
+def save_new_weights(weights):
+    with open(WEIGHTS_FILE, "w") as f:
+        json.dump(weights, f, indent=2)
+        print("[FEEDBACK LOOP] Weights updated.")
+
+def load_alert_logs():
+    if not os.path.exists(ALERT_LOG):
+        return []
+    with open(ALERT_LOG, "r") as f:
+        return [json.loads(line) for line in f.readlines()]
+
+def analyze_and_adjust():
+    logs = load_alert_logs()
+    if not logs:
+        print("[FEEDBACK LOOP] No logs found.")
+        return
+
+    weights = load_current_weights()
+    weight_adjustments = {k: 0.0 for k in weights}
+
+    for entry in logs:
+        if entry.get("engine") != "TJDE_AdvancedTraderWeightedDecisionEngine":
+            continue
+
+        score = entry.get("final_score", 0)
+        result_2h = entry.get("result_after_2h", 0)
+        result_6h = entry.get("result_after_6h", 0)
+        success = result_2h >= SUCCESS_THRESHOLD or result_6h >= SUCCESS_THRESHOLD
+
+        breakdown = entry.get("score_breakdown", {})
+        for k in weights:
+            weight_contrib = breakdown.get(k, 0.0)
+            if success and score < 0.6:
+                # Alert był niedoszacowany
+                weight_adjustments[k] += LEARNING_RATE * weight_contrib
+            elif not success and score > 0.7:
+                # Alert był błędny
+                weight_adjustments[k] -= LEARNING_RATE * weight_contrib
+
+    for k in weights:
+        weights[k] += weight_adjustments[k]
+        weights[k] = max(0.01, min(weights[k], 1.0))  # clamp 0.01 – 1.0
+
+    # Normalize
+    total = sum(weights.values())
+    for k in weights:
+        weights[k] = round(weights[k] / total, 4)
+
+    save_new_weights(weights)
+
+if __name__ == "__main__":
+    analyze_and_adjust()
+✅ Jak to działa:
+Działa na bazie logów alerts_history.jsonl
+
+Ocena skuteczności decyzji (czy po alercie był realny zysk)
+
+Modyfikacja wag komponentów w zależności od ich wpływu
+
+Automatyczne zapisanie nowych wag do tjde_weights.json
+
+🧪 Przykładowe wywołanie z terminala:
+bash
+Kopiuj
+Edytuj
+python3 feedback/feedback_loop_v2.py
+Można też dodać to jako regularny cronjob lub callback co 24h.
+

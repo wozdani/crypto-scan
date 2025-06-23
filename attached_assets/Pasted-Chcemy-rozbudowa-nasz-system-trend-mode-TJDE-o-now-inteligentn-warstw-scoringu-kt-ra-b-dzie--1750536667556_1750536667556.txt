@@ -1,0 +1,104 @@
+Chcemy rozbudować nasz system trend-mode (TJDE) o nową, inteligentną warstwę scoringu, która będzie się adaptować do rynku i dynamicznie zmieniać wagi oceny. Nowy moduł nazywa się AdaptiveTraderScore i będzie działać w parze z ContextualModifiers.
+
+🔧 1. AdaptiveTraderScore (Uczenie wag scoringu)
+Plik: utils/adaptive_weights.py
+Tworzymy klasę, która zapamiętuje historię decyzji (cechy + wynik), i oblicza wagi dla compute_trader_score():
+
+python
+Kopiuj
+Edytuj
+class AdaptiveWeightEngine:
+    def __init__(self, memory_size=200):
+        self.memory = []
+
+    def add_example(self, features: dict, outcome: bool):
+        self.memory.append((features, outcome))
+        if len(self.memory) > self.memory_size:
+            self.memory.pop(0)
+
+    def compute_weights(self):
+        importance = defaultdict(float)
+        count = defaultdict(int)
+
+        for features, outcome in self.memory:
+            for k, v in features.items():
+                importance[k] += v * (1 if outcome else -0.5)
+                count[k] += 1
+
+        weights = {}
+        for k in importance:
+            weights[k] = max(0.0, importance[k] / count[k])
+
+        total = sum(weights.values())
+        if total > 0:
+            for k in weights:
+                weights[k] /= total
+
+        return weights
+📦 Klasa powinna być trzymana globalnie jako singleton lub przekazywana do compute_trader_score().
+
+🧠 2. ContextualModifiers
+Plik: utils/context_modifiers.py
+Tworzymy funkcję apply_contextual_modifiers(features, market_context) – modyfikuje feature’y w zależności od kontekstu:
+
+python
+Kopiuj
+Edytuj
+def apply_contextual_modifiers(features: dict, market_context: dict) -> dict:
+    modified = features.copy()
+
+    if market_context.get("market_phase") == "retest-confirmation":
+        modified["support_reaction"] *= 1.25
+
+    if market_context.get("btc_global_trend") == "strong_up":
+        modified["trend_strength"] *= 1.2
+        modified["htf_supportive_score"] *= 1.1
+
+    if market_context.get("session") == "asia":
+        modified["liquidity_pattern_score"] *= 0.8
+
+    return modified
+⚙️ 3. Aktualizacja compute_trader_score() w trader_ai_engine.py
+Nowa wersja wykorzystuje AdaptiveWeightEngine + ContextualModifiers:
+
+python
+Kopiuj
+Edytuj
+def compute_trader_score(ctx, adaptive_engine=None, market_context={}):
+    features = {
+        "trend_strength": ctx.get("trend_strength", 0.0),
+        "pullback_quality": ctx.get("pullback_quality", 0.0),
+        "support_reaction": ctx.get("support_reaction", 0.0),
+        "liquidity_pattern_score": ctx.get("liquidity_pattern_score", 0.0),
+        "psych_score": 1.0 - ctx.get("psych_score", 1.0),
+        "htf_supportive_score": ctx.get("htf_supportive_score", 0.0),
+        "market_phase_modifier": ctx.get("market_phase_modifier", 0.0),
+    }
+
+    features = apply_contextual_modifiers(features, market_context)
+
+    weights = adaptive_engine.compute_weights() if adaptive_engine else default_weights()
+    score = sum(features[k] * weights.get(k, 0.0) for k in features)
+
+    ctx["final_score"] = round(score, 3)
+    ctx["grade"] = classify_grade(score)
+    ctx["weighted_features"] = features
+    ctx["applied_weights"] = weights
+    return ctx
+🧪 4. Testy
+Dodaj osobny testowy plik test_adaptive_score.py, który:
+
+uruchamia test na ZEREBROUSDT
+
+dodaje przykładowe wyniki do AdaptiveWeightEngine
+
+wypisuje aktualne dynamiczne wagi
+
+📤 Efekt końcowy
+System uczy się z poprzednich decyzji i dostosowuje się do rynku jak profesjonalny trader.
+To wszystko działa bez sztywnych reguł – elastycznie, kontekstowo, dynamicznie.
+
+Gotowi na testy. Dajcie znać jak wgryziecie się w kod i zrobimy ewaluację wyników!
+
+Pozdro,
+Szefir 🚀

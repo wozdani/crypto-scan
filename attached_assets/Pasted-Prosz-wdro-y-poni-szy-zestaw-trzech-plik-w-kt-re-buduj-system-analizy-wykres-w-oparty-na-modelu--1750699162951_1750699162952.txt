@@ -1,0 +1,109 @@
+Proszę wdrożyć poniższy zestaw trzech plików, które budują system analizy wykresów oparty na modelu CLIP w projekcie crypto-scan. System ten pozwala na:
+
+trenowanie modelu CLIP na parach (obraz wykresu + opis GPT),
+
+przewidywanie etykiet fazy rynku i typu setupu na podstawie wykresów,
+
+integrację z systemem TJDE (simulate_trader_decision_advanced).
+
+📁 Struktura plików i ich funkcje:
+1. clip_model.py – definicja architektury CLIP (ViT-B/32 lub RN50)
+python
+Kopiuj
+Edytuj
+from transformers import CLIPProcessor, CLIPModel
+
+class CLIPWrapper:
+    def __init__(self, model_name="openai/clip-vit-base-patch32"):
+        self.model = CLIPModel.from_pretrained(model_name)
+        self.processor = CLIPProcessor.from_pretrained(model_name)
+
+    def encode_image(self, image):
+        return self.model.get_image_features(**self.processor(images=image, return_tensors="pt"))
+
+    def encode_text(self, texts):
+        return self.model.get_text_features(**self.processor(text=texts, return_tensors="pt", padding=True, truncation=True))
+
+    def similarity(self, image, texts):
+        inputs = self.processor(text=texts, images=image, return_tensors="pt", padding=True)
+        outputs = self.model(**inputs)
+        logits_per_image = outputs.logits_per_image
+        return logits_per_image.softmax(dim=1)
+2. clip_trainer.py – trening modelu na parach (image + label)
+python
+Kopiuj
+Edytuj
+import os
+import torch
+from PIL import Image
+from tqdm import tqdm
+from clip_model import CLIPWrapper
+
+def train_clip_on_dataset(dataset_dir="training_data/clip/", epochs=3):
+    model = CLIPWrapper()
+    image_files = [f for f in os.listdir(dataset_dir) if f.endswith(".png")]
+
+    for epoch in range(epochs):
+        print(f"🧠 Epoch {epoch + 1}")
+        for img_file in tqdm(image_files):
+            label_file = img_file.replace(".png", ".txt")
+            try:
+                image = Image.open(os.path.join(dataset_dir, img_file)).convert("RGB")
+                with open(os.path.join(dataset_dir, label_file), "r") as f:
+                    labels = f.read().strip().split("|")
+                labels = [label.strip() for label in labels if label.strip()]
+                if not labels:
+                    continue
+
+                sim = model.similarity(image, labels)
+                print(f"{img_file} → {labels[torch.argmax(sim)]} (conf: {sim.max().item():.2f})")
+            except Exception as e:
+                print(f"❌ Error processing {img_file}: {e}")
+3. clip_predictor.py – użycie wytrenowanego modelu do klasyfikacji nowego wykresu
+python
+Kopiuj
+Edytuj
+from clip_model import CLIPWrapper
+from PIL import Image
+
+def predict_clip_chart(image_path, candidate_labels):
+    model = CLIPWrapper()
+    image = Image.open(image_path).convert("RGB")
+    probs = model.similarity(image, candidate_labels)
+    top_idx = probs.argmax().item()
+    return {
+        "predicted_label": candidate_labels[top_idx],
+        "confidence": round(probs[0][top_idx].item(), 3),
+        "raw_scores": {label: round(p.item(), 3) for label, p in zip(candidate_labels, probs[0])}
+    }
+
+# Example usage:
+if __name__ == "__main__":
+    result = predict_clip_chart("training_data/clip/FHEUSDT_20250623_1652.png", [
+        "breakout-continuation", "pullback-in-trend", "range-accumulation", "trend-reversal", "consolidation"
+    ])
+    print(result)
+✅ Co należy zrobić:
+Stworzyć folder training_data/clip/ jeśli nie istnieje.
+
+Umieścić pliki clip_model.py, clip_trainer.py i clip_predictor.py w folderze ai/ lub utils/ (zależnie od organizacji).
+
+Do requirements.txt dodać:
+
+nginx
+Kopiuj
+Edytuj
+transformers
+torchvision
+Pillow
+Upewnić się, że środowisko ma GPU (opcjonalnie) oraz dostęp do Internetu (dla openai/clip-vit-base-patch32).
+
+Później możliwa będzie integracja do simulate_trader_decision_advanced() w formie:
+
+chart_phase_prediction = predict_clip_chart(image_path, CANDIDATE_PHASES)
+
+uwzględnienie tej predykcji jako element scoringu (np. jako clip_predicted_phase_modifier)
+
+Dzięki temu, system TJDE otrzyma zupełnie nową warstwę predykcyjną – widzenie wykresów jak profesjonalny trader! 💹🧠
+
+Daj znać, jak tylko zostanie wdrożone – mogę pomóc z dalszą integracją lub testami predykcji na realnych danych.

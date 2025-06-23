@@ -1,0 +1,64 @@
+Zadanie: Zastąpienie klasycznego scoringu nową inteligentną logiką we wszystkich modułach trend-mode
+Cześć Replit 👋
+
+Proszę o całkowitą zamianę starego, sztywnego scoringu w trend-mode na nową, kontekstową wersję opartą na funkcji simulate_trader_decision_advanced() – której nowa wersja już została wdrożona.
+
+🎯 Zakres zmian
+🔁 Moduły do aktualizacji scoringu:
+
+trend_mode.py – jeśli korzysta z compute_trader_score() lub ręcznie zlicza punkty, zastąpić logikę wywołaniem nowej funkcji decyzyjnej
+
+trader_ai_engine.py – upewnić się, że scoring wywołuje simulate_trader_decision_advanced() jako centralny system decyzyjny
+
+test_advanced_trend_mode.py, zerebro_decision.py, test_zerebro_weighted.py – testery również powinny używać tylko nowego scoringu
+
+telegram_bot.py lub trend_alert_cache.py – upewnić się, że alerty są triggerowane tylko, jeśli decision == "join_trend" oraz final_score >= 0.7
+
+🧠 Przykładowa refaktoryzacja:
+Z tego:
+
+python
+Kopiuj
+Edytuj
+score = compute_trader_score(...)
+if score > 0.7:
+    decision = "join_trend"
+Na to:
+
+python
+Kopiuj
+Edytuj
+features = extract_all_features_for_token(symbol)  # funkcja, która zbiera trend_strength, psych_score itd.
+result = simulate_trader_decision_advanced(features)
+
+decision = result["decision"]
+score = result["final_score"]
+
+if decision == "join_trend" and score >= 0.7:
+    send_trend_alert(symbol, score, result["quality_grade"], ...)
+💡 Dodatkowe uwagi
+Jeśli jakikolwiek plik nadal używa compute_trader_score() lub starego TraderWeightedDecisionEngine, usuń tę logikę.
+
+Wszystkie testy i alerty muszą przechodzić przez simulate_trader_decision_advanced() jako jedyny punkt decyzyjny.
+
+Proszę też o dodanie do alertu listy context_modifiers jako debug info oraz zapis wyników do loga .jsonl.
+
+✅ Cel
+Po wdrożeniu:
+
+cały system trend-mode opiera się na jednym, profesjonalnym podejściu tradera,
+
+nie ma już "ręcznego" zliczania punktów na podstawie warunków,
+
+system może być łatwo modyfikowany i trenowany dalej.
+
+Dziękuję 🚀
+Po tej zmianie zaczynamy masowe testy i dalsze wzmacnianie silnika decyzyjnego!
+
+
+
+
+
+
+
+

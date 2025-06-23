@@ -1,0 +1,23 @@
+{
+  "report_type": "high_score_symbols",
+  "generated_at": "2025-06-01T12:00:07.119401",
+  "criteria": "Top 20 symbols by PPWCS score in last 24 hours",
+  "symbols": [
+    {
+      "symbol": "WIFUSDT",
+      "score": 21,
+      "timestamp": "2025-06-01T11:55:13.492729"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "score": 20,
+      "timestamp": "2025-06-01T12:00:07.118232"
+    }
+  ],
+  "summary": {
+    "total_symbols": 2,
+    "avg_score": 20.5,
+    "max_score": 21,
+    "min_score": 20
+  }
+}

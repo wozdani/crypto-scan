@@ -1,0 +1,29 @@
+{
+  "symbol": "BTC",
+  "score": 85.0,
+  "analysis": {
+    "symbol": "BTC",
+    "risk_assessment": "low",
+    "confidence_level": 90,
+    "key_indicators": [
+      "volume_spike",
+      "price_stability",
+      "accumulation_pattern",
+      "market_cap_growth"
+    ],
+    "price_prediction": "bullish",
+    "time_horizon": "short_term",
+    "entry_recommendation": "immediate",
+    "risk_factors": [
+      "market_volatility",
+      "regulatory_changes"
+    ],
+    "supporting_evidence": [
+      "High PPWCS Score",
+      "Consistent accumulation pattern",
+      "Significant volume spike"
+    ],
+    "summary": "BTC exhibits strong pre-pump indicators with a high PPWCS score and multiple supporting technical signals. The current market conditions suggest a bullish short-term outlook, making it an opportune moment for immediate entry. However, investors should remain cautious of potential market volatility and regulatory changes."
+  },
+  "timestamp": "2025-05-27T14:42:27.328559"
+}

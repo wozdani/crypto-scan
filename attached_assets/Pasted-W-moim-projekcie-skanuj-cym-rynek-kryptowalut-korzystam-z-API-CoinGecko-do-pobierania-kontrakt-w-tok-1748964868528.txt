@@ -1,0 +1,107 @@
+W moim projekcie skanującym rynek kryptowalut korzystam z API CoinGecko do pobierania kontraktów tokenów.
+Zbudowałem lokalny cache (coingecko_cache.json, ok. 17 000 tokenów), ale mimo to ciągle otrzymuję błąd 429 (Too Many Requests).
+
+Wiem, że przyczyną jest to, że w niektórych częściach systemu nadal wywoływana jest stara funkcja:
+
+python
+Kopiuj
+Edytuj
+get_contract_from_coingecko(symbol, chain)
+która wykonuje zapytanie do API CoinGecko dla każdego tokena osobno, zamiast korzystać z cache.
+
+✅ Proszę o:
+
+Usunięcie wszędzie funkcji get_contract_from_coingecko(),
+
+Zamianę jej na get_contract(symbol) (poniżej),
+
+Upewnienie się, że żadne inne moduły (np. contracts.py, get_token_price_usd, stage_minus2_1.py) nie wykonują zapytań HTTP do CoinGecko,
+
+Upewnienie się, że build_coingecko_cache() jest wywoływane tylko jeśli is_cache_valid() zwraca False.
+
+Dzięki temu system będzie pobierał dane z CoinGecko tylko raz na 30 minut, a reszta będzie działać w pełni z lokalnego cache.
+
+📂 utils/coingecko.py
+python
+Kopiuj
+Edytuj
+import requests
+import json
+import os
+from datetime import datetime, timedelta
+
+CACHE_FILE = "coingecko_cache.json"
+CACHE_DURATION_MINUTES = 30
+
+def is_cache_valid():
+    if not os.path.exists(CACHE_FILE):
+        return False
+    modified_time = datetime.fromtimestamp(os.path.getmtime(CACHE_FILE))
+    return datetime.now() - modified_time < timedelta(minutes=CACHE_DURATION_MINUTES)
+
+def load_cache():
+    try:
+        with open(CACHE_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"⚠️ Błąd podczas ładowania cache: {e}")
+        return {}
+
+def save_cache(data):
+    try:
+        with open(CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+    except Exception as e:
+        print(f"⚠️ Błąd podczas zapisu cache: {e}")
+
+def build_coingecko_cache():
+    print("📡 Pobieram listę tokenów z CoinGecko (coins/list)...")
+    url = "https://api.coingecko.com/api/v3/coins/list?include_platform=true"
+    try:
+        response = requests.get(url, timeout=15)
+        response.raise_for_status()
+        coins = response.json()
+        id_map = {}
+        for coin in coins:
+            symbol = coin["symbol"].upper()
+            id_map[symbol] = {
+                "id": coin["id"],
+                "platforms": coin.get("platforms", {})
+            }
+        save_cache(id_map)
+        print(f"✅ Cache zapisany ({len(id_map)} tokenów).")
+    except requests.exceptions.RequestException as e:
+        print(f"⚠️ Błąd pobierania z CoinGecko: {e}")
+
+def get_contract(symbol, chain="ethereum"):
+    symbol = symbol.upper()
+    chain = chain.lower()
+
+    if not is_cache_valid():
+        build_coingecko_cache()
+
+    id_map = load_cache()
+    coin = id_map.get(symbol)
+    if not coin:
+        print(f"⚠️ Brak danych dla {symbol}")
+        return None
+
+    address = coin["platforms"].get(chain)
+    if not address:
+        print(f"⚠️ Brak kontraktu dla {symbol} na {chain}")
+        return None
+
+    return {"address": address, "chain": chain}
+📂 utils/contracts.py
+python
+Kopiuj
+Edytuj
+from utils.coingecko import get_contract
+
+def get_or_fetch_token_contract(symbol):
+    try:
+        token_info = get_contract(symbol)
+        return token_info
+    except Exception as e:
+        print(f"❌ Błąd pobierania kontraktu dla {symbol}: {e}")
+        return None

@@ -1,0 +1,66 @@
+Proszę o wdrożenie poniższych zmian do systemu alertów Telegram w module trend-mode:
+
+✅ Cel:
+Ulepszenie systemu alertów Telegram po każdym skanie, tak aby:
+
+Wysyłał TOP 5 tokenów wg najwyższego final_score.
+
+Pokazywał decyzję LONG / SHORT / AVOID.
+
+Dołączał pełny scoring breakdown i analizę decyzji.
+
+Informował, jak feedback_loop_v2 zmodyfikował wagi scoringowe.
+
+Dodawał komentarz wyjaśniający DLACZEGO uznano setup za wartościowy (np. „liquidity pressure”, „breakout volume”, „HTF alignment”).
+
+📦 Plik: utils/alerts.py
+Dodaj lub zaktualizuj funkcję wysyłającą alert:
+
+python
+Kopiuj
+Edytuj
+from utils.telegram_bot import send_telegram_message
+
+def send_tjde_telegram_summary(top5_results: list):
+    for result in top5_results:
+        symbol = result['symbol']
+        score = result['final_score']
+        decision = result['decision']
+        confidence = result.get('confidence', 'N/A')
+        grade = result.get('grade', 'N/A')
+        market_phase = result.get('market_phase', 'N/A')
+        reasons = "\n→ " + "\n→ ".join(result.get("decision_reasons", []))
+
+        breakdown = result.get("score_breakdown", {})
+        weights = result.get("weights_used", {})
+        feedback_notes = result.get("feedback_loop_notes", "Brak zmian w wagach")
+
+        breakdown_str = "\n".join([f"• {k.replace('_', ' ').title()}: {round(v, 3)}" for k, v in breakdown.items()])
+        weights_str = "\n".join([f"{k}: {round(v, 4)}" for k, v in weights.items()]) if weights else "N/A"
+
+        message = (
+            f"#{top5_results.index(result)+1} ⚡️ TJDE Alert: {symbol}\n\n"
+            f"📊 Score: {round(score, 3)} | Confidence: {confidence}\n"
+            f"❓ Grade: {grade} | Decision: {decision.upper()}\n"
+            f"📈 Phase: {market_phase}\n\n"
+            f"🧠 Score Breakdown:\n{breakdown_str}\n\n"
+            f"🧠 Adaptive Weights Used:\n{weights_str}\n\n"
+            f"🔧 Feedback Loop Notes:\n{feedback_notes}\n\n"
+            f"💡 Analysis:{reasons}"
+        )
+
+        send_telegram_message(message)
+📂 Gdzie wywołać?
+W pliku crypto_scan_service.py (lub gdzie kończy się skan trend-mode) – po wygenerowaniu listy TOP 5 wyników z simulate_trader_decision_advanced():
+
+python
+Kopiuj
+Edytuj
+from utils.alerts import send_tjde_telegram_summary
+
+# Po sortowaniu wyników i filtracji do top5
+top5 = sorted(results, key=lambda x: x['final_score'], reverse=True)[:5]
+send_tjde_telegram_summary(top5)
+Dzięki! Dajcie znać jak coś nie działa – ten system ma być inteligentnym traderem, nie botem od świeczek 💡
+
+Pozdrawiam,

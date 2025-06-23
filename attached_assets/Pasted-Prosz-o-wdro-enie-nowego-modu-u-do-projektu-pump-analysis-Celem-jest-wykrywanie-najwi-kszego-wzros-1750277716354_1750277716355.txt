@@ -1,0 +1,94 @@
+Proszę o wdrożenie nowego modułu do projektu pump-analysis. Celem jest wykrywanie największego wzrostu cenowego (pump) na podstawie świec 15-minutowych. Logika ma wykrywać zarówno impulsy (np. +30% w 30 min), jak i wzrosty trendowe (np. +60% w 6h).
+
+🔍 Zakres zadania:
+Wejście: lista świec 15M (ostatnie 7 dni), w formacie:
+
+python
+Kopiuj
+Edytuj
+[{"timestamp": ..., "open": ..., "close": ..., "high": ..., "low": ...}, ...]
+Zakres analizy:
+
+analizowane okna: 1h (4 świece), 2h, 4h, 6h, 12h
+
+wykrywanie wzrostów min. +15% w danym oknie
+
+wybierany jest największy procentowy wzrost
+
+Typ klasyfikacji (type w wyniku):
+
+pump-impulse: >20% w ≤1h
+
+trend-breakout: >30% w ≤4h
+
+trend-mode: >50% w >4h
+
+micro-move: reszta (do odrzucenia)
+
+Funkcja główna: detect_biggest_pump_15m(candles, symbol) → dict or None
+
+✅ Kod do implementacji:
+python
+Kopiuj
+Edytuj
+def detect_biggest_pump_15m(candles, symbol):
+    timeframes = {
+        1: 4, 2: 8, 4: 16, 6: 24, 12: 48
+    }
+    min_growth = 0.15
+    best_pump = None
+
+    for hours, window in timeframes.items():
+        for i in range(len(candles) - window):
+            start = candles[i]
+            end = candles[i + window]
+            try:
+                low = float(start["low"])
+                high = float(end["high"])
+                if low == 0:
+                    continue
+                change = (high - low) / low
+                if change >= min_growth:
+                    pump = {
+                        "symbol": symbol,
+                        "growth": round(change * 100, 2),
+                        "start_price": round(low, 6),
+                        "end_price": round(high, 6),
+                        "start_time": start["timestamp"],
+                        "end_time": end["timestamp"],
+                        "window_min": hours * 60,
+                        "type": categorize_pump_15m(hours, change)
+                    }
+                    if best_pump is None or pump["growth"] > best_pump["growth"]:
+                        best_pump = pump
+            except Exception as e:
+                print(f"❌ Pump check error for {symbol}: {e}")
+                continue
+    return best_pump
+
+def categorize_pump_15m(hours, growth):
+    if hours <= 1 and growth >= 0.2:
+        return "pump-impulse"
+    elif hours <= 4 and growth >= 0.3:
+        return "trend-breakout"
+    elif hours > 4 and growth >= 0.5:
+        return "trend-mode"
+    return "micro-move"
+Po wykryciu największego pumpa funkcja może zwrócić np.:
+
+python
+Kopiuj
+Edytuj
+{
+  'symbol': 'REXUSDT',
+  'growth': 34.7,
+  'start_price': 0.00594,
+  'end_price': 0.00799,
+  'start_time': '2025-06-16 09:15:00 UTC',
+  'end_time': '2025-06-16 10:45:00 UTC',
+  'window_min': 90,
+  'type': 'pump-impulse'
+}
+Proszę, aby ta funkcja była częścią modułu pump_analysis/detect_pumps.py i działała niezależnie od crypto-scan. Po wykryciu pumpa może też od razu uruchomić analizę GPT feedback (jeśli aktywne).
+
+Dzięki!

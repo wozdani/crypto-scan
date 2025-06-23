@@ -1,0 +1,74 @@
+Chciałbym dodać do systemu crypto-scan nowy detektor do stage_minus2_1.py, który będzie samodzielnie uruchamiał alert i wysyłał analizę do GPT, nawet jeśli inne sygnały są nieaktywne.
+
+🔧 Nazwa modułu
+detect_silent_accumulation(symbol, market_data, rsi_series)
+
+🔍 Co wykrywa:
+Wzorzec cichej akumulacji (ang. silent accumulation), czyli:
+
+RSI jest płaskie (między 45 a 55) przez 8 świec
+
+Świece mają bardzo małe ciała (konsolidacja bez zmienności)
+
+Brak wyraźnych knotów górnych i dolnych (tzw. „cegiełki”)
+
+✅ Co robi:
+Jeśli warunki są spełnione:
+
+Ustawia signals = { "silent_accumulation": True }
+
+Ustawia ppwcs_score = 60
+
+Natychmiast wywołuje:
+
+send_alert(symbol, ppwcs_score, signals)
+
+send_report_to_chatgpt(symbol, ppwcs_score, signals)
+
+save_conditional_reports(symbol, signals, ppwcs_score)
+
+🧠 W prompt do GPT dodaj:
+yaml
+Kopiuj
+Edytuj
+🟦 Detected: Silent accumulation zone (RSI flat, low-body candles, no wicks)
+✅ Przykład kodu do stage_minus2_1.py
+python
+Kopiuj
+Edytuj
+def detect_silent_accumulation(symbol, market_data, rsi_series):
+    try:
+        if len(market_data) < 8 or len(rsi_series) < 8:
+            return False
+
+        last_candles = market_data[-8:]
+        last_rsi = rsi_series[-8:]
+
+        flat_rsi = all(45 <= r <= 55 for r in last_rsi)
+        small_bodies = all(
+            abs(float(c['close']) - float(c['open'])) / (float(c['high']) - float(c['low']) + 1e-6) < 0.3
+            for c in last_candles
+        )
+        no_wicks = all(
+            (float(c['high']) - max(float(c['close']), float(c['open'])) < 0.1 * float(c['high'])) and
+            (min(float(c['close']), float(c['open'])) - float(c['low']) < 0.1 * float(c['low']))
+            for c in last_candles
+        )
+
+        if flat_rsi and small_bodies and no_wicks:
+            print(f"🔵 Silent Accumulation Triggered: {symbol}")
+            signals = {"silent_accumulation": True}
+            ppwcs = 60
+
+            send_alert(symbol, ppwcs_score=ppwcs, signals=signals)
+            send_report_to_chatgpt(symbol, ppwcs_score=ppwcs, signals=signals)
+            save_conditional_reports(symbol, signals=signals, ppwcs_score=ppwcs)
+
+            return True
+        return False
+
+    except Exception as e:
+        print(f"❌ Error in detect_silent_accumulation: {e}")
+        return False
+Proszę o dodanie tego modułu do stage_minus2_1.py oraz upewnienie się, że integruje się z istniejącymi funkcjami alertu i GPT. Dzięki!
+

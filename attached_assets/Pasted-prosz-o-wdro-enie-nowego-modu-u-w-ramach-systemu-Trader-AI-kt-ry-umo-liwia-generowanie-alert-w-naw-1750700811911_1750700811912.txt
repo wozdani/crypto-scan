@@ -1,0 +1,106 @@
+proszę o wdrożenie nowego modułu w ramach systemu Trader AI, który umożliwia generowanie alertów nawet przy niskim scoringu, jeśli wystąpią konkretne kombinacje cech, które historycznie oznaczały silny trend (heurystyki AI).
+
+🔧 Nowy plik do dodania:
+utils/ai_heuristic_pattern_checker.py
+
+python
+Kopiuj
+Edytuj
+import json
+import os
+
+def load_success_patterns():
+    path = "data/ai_successful_patterns.json"
+    if not os.path.exists(path):
+        return []
+    with open(path, "r") as f:
+        return json.load(f)
+
+def feature_matches_condition(feature_val, condition: str):
+    """Match single condition string like `trend_strength>0.4`"""
+    try:
+        if "=" in condition and ">" not in condition and "<" not in condition:
+            key, val = condition.split("=")
+            return str(feature_val.get(key.strip(), "")).lower() == val.strip().lower()
+        elif ">" in condition:
+            key, val = condition.split(">")
+            return float(feature_val.get(key.strip(), -999)) > float(val.strip())
+        elif "<" in condition:
+            key, val = condition.split("<")
+            return float(feature_val.get(key.strip(), 999)) < float(val.strip())
+    except:
+        return False
+    return False
+
+def check_known_success_patterns(feature_dict: dict, current_score: float):
+    patterns = load_success_patterns()
+    for p in patterns:
+        if current_score >= p.get("min_score", 0.0):
+            continue  # Already high scoring
+        matches = all(
+            feature_matches_condition(feature_dict, cond)
+            for cond in p.get("features", [])
+        )
+        if matches:
+            return {
+                "label": p.get("label", "unknown-pattern"),
+                "confidence": p.get("success_rate", 0.5),
+                "features_matched": p["features"]
+            }
+    return None
+🧠 Plik pomocniczy:
+data/ai_successful_patterns.json (przykład – można dodać więcej reguł)
+
+json
+Kopiuj
+Edytuj
+[
+  {
+    "features": [
+      "volume_behavior=buying_volume_increase",
+      "psych_flags=liquidity_grab",
+      "trend_strength>0.4"
+    ],
+    "label": "buy_volume_liquidity_combo",
+    "success_rate": 0.86,
+    "min_score": 0.35
+  },
+  {
+    "features": [
+      "volume_behavior=low_volume_after_breakout",
+      "psych_flags=pinning_detected",
+      "pullback_quality>0.6"
+    ],
+    "label": "hidden_accumulation_pattern",
+    "success_rate": 0.81,
+    "min_score": 0.33
+  }
+]
+🧩 Integracja w simulate_trader_decision_advanced()
+Na końcu funkcji – po obliczeniu scoringu i podjęciu decyzji:
+
+python
+Kopiuj
+Edytuj
+from utils.ai_heuristic_pattern_checker import check_known_success_patterns
+
+heuristic_alert = check_known_success_patterns(features, score)
+if heuristic_alert:
+    decision = "heuristic_alert"
+    final_decision_reason = f"AI Pattern Match: {heuristic_alert['label']} with confidence {heuristic_alert['confidence']:.2f}"
+    result["ai_pattern"] = heuristic_alert
+📤 Integracja z alertami Telegram:
+Jeśli decision == "heuristic_alert" → dodać do wiadomości:
+
+yaml
+Kopiuj
+Edytuj
+🤖 AI Pattern Alert: buy_volume_liquidity_combo
+📊 Confidence: 86%
+📋 Matched Features:
+• volume_behavior = buying_volume_increase
+• psych_flags = liquidity_grab
+• trend_strength > 0.4
+To pozwoli Trader AI podejmować decyzje nawet przy niskim scoringu, jeśli wzorzec historycznie wskazywał skuteczny trend.
+
+Dzięki! Dajcie znać jak będzie gotowe.

@@ -1,0 +1,110 @@
+proszę o dodanie nowego oddzielnego modułu detekcyjnego do projektu crypto-scan w pliku stage_minus2_1.py. Moduł ten ma wykrywać ukrytą akumulację (Silent Accumulation), czyli przypadki, gdy rynek wygląda na pasywny, ale pojawiają się subtelne sygnały kupna.
+
+📌 WAŻNE:
+
+Moduł nie może wpływać na istniejącą logikę Stage –2.1
+
+Jeśli wykryje sygnał – samodzielnie wysyła alert oraz analizę GPT, bez modyfikowania głównego scoringu
+
+🔧 Funkcja:
+python
+Kopiuj
+Edytuj
+detect_silent_accumulation_v1(symbol, market_data, rsi_series, orderbook, vwap_data, volume_profile, inflow, whale_txs, social_score)
+🧠 Kryteria:
+System analizuje spokojne tokeny, gdzie:
+
+RSI ≈ 50 przez kilka świec
+
+niskie korpusy i knoty
+
+kurs blisko VWAP
+
+brak hype w socialu
+
+ALE subtelne presje zakupowe: inflow, pinning, heatmapa, slope, whale micro-TX
+
+✅ Wymagane:
+min. 5 aktywacji z poniższej listy
+
+w tym min. 1 z kategorii presji zakupowej (pinning, inflow, heatmap, cluster)
+
+🧬 Kod funkcji:
+python
+Kopiuj
+Edytuj
+def detect_silent_accumulation_v1(symbol, market_data, rsi_series, orderbook, vwap_data, volume_profile, inflow, whale_txs, social_score):
+    try:
+        score = 0
+        explanations = []
+
+        # RSI ~50
+        if len(rsi_series) >= 8 and all(45 <= r <= 55 for r in rsi_series[-8:]):
+            score += 1
+            explanations.append("RSI flat")
+
+        # Świece z małym ciałem
+        bodies = [
+            abs(float(c["close"]) - float(c["open"])) / (float(c["high"]) - float(c["low"]) + 1e-6)
+            for c in market_data[-8:]
+        ]
+        if all(b < 0.3 for b in bodies):
+            score += 1
+            explanations.append("Low body candles")
+
+        # Minimalne knoty
+        if all(
+            (float(c["high"]) - max(float(c["close"]), float(c["open"])) < 0.1 * float(c["high"])) and
+            (min(float(c["close"]), float(c["open"])) - float(c["low"]) < 0.1 * float(c["low"]))
+            for c in market_data[-8:]
+        ):
+            score += 1
+            explanations.append("Minimal wicks")
+
+        # VWAP pinning
+        if vwap_data.get("pinning_count", 0) >= 6:
+            score += 2
+            explanations.append("VWAP pinning")
+
+        # Volume cluster
+        if volume_profile.get("bullish_cluster"):
+            score += 2
+            explanations.append("Bullish volume cluster")
+
+        # Heatmapa – znika podaż
+        if orderbook.get("supply_vanish") == True:
+            score += 2
+            explanations.append("Supply wall vanish (heatmap)")
+
+        # DEX inflow
+        if inflow > 2 * inflow_avg(symbol):
+            score += 2
+            explanations.append("DEX inflow anomaly")
+
+        # Whale TX (małe)
+        if 2 <= len([tx for tx in whale_txs if tx["usd"] < 10000]) <= 4:
+            score += 1
+            explanations.append("Micro whale activity")
+
+        if score >= 5 and any(det in explanations for det in ["VWAP pinning", "Bullish volume cluster", "Supply wall vanish (heatmap)", "DEX inflow anomaly"]):
+            print(f"🔵 Silent Accumulation detected on {symbol}: {score} pts")
+            signals = {"silent_accumulation": True}
+            ppwcs = 65
+            send_alert(symbol, ppwcs_score=ppwcs, signals=signals)
+            send_report_to_chatgpt(symbol, ppwcs_score=ppwcs, signals=signals)
+            save_conditional_reports(symbol, signals=signals, ppwcs_score=ppwcs)
+            return True
+
+        return False
+    except Exception as e:
+        print(f"❌ Silent Accumulation detection failed: {e}")
+        return False
+🔗 Użyj istniejących funkcji:
+send_alert()
+
+send_report_to_chatgpt()
+
+save_conditional_reports()
+
+inflow_avg(symbol) (jeśli nie ma – dodaj z past_inflow_cache)
+

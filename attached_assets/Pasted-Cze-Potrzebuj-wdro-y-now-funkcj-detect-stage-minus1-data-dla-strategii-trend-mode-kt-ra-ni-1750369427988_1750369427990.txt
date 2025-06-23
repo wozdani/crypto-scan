@@ -1,0 +1,72 @@
+Cześć,
+
+Potrzebuję wdrożyć nową funkcję detect_stage_minus1(data) dla strategii trend mode, która nie używa scoringu, technicznych warunków ani żadnych wskaźników (EMA, RSI, whales, pre-pumpy).
+
+🎯 Cel:
+Funkcja ma wykrywać moment napięcia w rynku:
+
+Trend wzrostowy trwa, ale pauzuje bez cofnięcia,
+
+Świece są spójne rytmicznie, bez paniki,
+
+Rynek wygląda, jakby czekał na kontynuację, a nie na wybicie z dołka.
+
+✅ Gotowy kod do wdrożenia:
+python
+Kopiuj
+Edytuj
+def detect_stage_minus1(data):
+    \"\"\"
+    Stage –1 (Trend Mode) – oparty na rytmie i napięciu rynku.
+    Nie stosuje scoringu. Działa na zasadzie 'czy rynek trzyma oddech'.
+    \"\"\"
+    if len(data) < 6:
+        return False, \"Za mało świec do analizy rytmu\"
+
+    def body(c): return abs(c[4] - c[1])
+    def wick_down(c): return c[1] - c[3]
+    def total_range(c): return c[2] - c[3]
+
+    last = data[-1]
+    prev = data[-2]
+    three_back = data[-4]
+
+    # 1. Czy rynek zatrzymał się, ale nie odwrócił?
+    if last[4] < three_back[4]:
+        return False, \"Cena cofnęła się za głęboko względem poprzedniego impulsu\"
+
+    # 2. Czy świeca wygląda na spokojną, bez paniki?
+    if last[4] < last[1]:  # świeca czerwona
+        wick_ratio = wick_down(last) / total_range(last) if total_range(last) else 0
+        if wick_ratio < 0.2:
+            return False, \"Korekta bez odbicia – możliwa panika\"
+
+    # 3. Czy rytm świec jest spójny?
+    body_now = body(last)
+    body_prev = body(three_back)
+    if body_now == 0 or body_prev == 0:
+        return False, \"Brak wyraźnych ciał świec\"
+
+    similarity = min(body_now, body_prev) / max(body_now, body_prev)
+    if similarity < 0.6:
+        return False, \"Zaburzony rytm ciał świec – brak harmonii\"
+
+    # 4. Czy trend nie został zniszczony? (close[-1] > close[-4])
+    if last[4] < data[-4][4]:
+        return False, \"Trend się załamał – kierunek nieutrzymany\"
+
+    # ✅ Wszystko wygląda jak zatrzymanie, nie odwrót
+    return True, \"Ruch wstrzymany, rytm utrzymany, brak paniki – możliwe wybicie\"
+🔄 Integracja:
+Funkcja powinna być wywoływana w detect_trend_mode(symbol)
+Jeśli zwraca True, dopiero wtedy uruchamiane:
+
+python
+Kopiuj
+Edytuj
+detect_orderbook_sentiment(symbol)
+Dzięki! Dajcie znać, jeśli potrzebny będzie kolejny krok do pełnego pipeline'u trend_entry.
+To będzie podstawa intuicyjnego, rytmicznego systemu trendowego.
+
+Pozdrawiam,
+Szefir

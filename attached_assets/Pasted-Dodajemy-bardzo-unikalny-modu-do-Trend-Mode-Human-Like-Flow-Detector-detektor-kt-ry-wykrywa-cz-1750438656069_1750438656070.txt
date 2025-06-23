@@ -1,0 +1,62 @@
+Dodajemy bardzo unikalny moduł do Trend Mode:
+Human-Like Flow Detector – detektor, który wykrywa, czy sekwencja ruchów ceny przypomina schemat decyzyjny człowieka, a nie losowy impuls botów.
+
+🧠 Cel:
+Ludzka sekwencja trendu wygląda tak:
+(1) cofka (zwątpienie) → (2) pierwszy impuls (decyzja) → (3) zawahanie (flat/cienka korekta) → (4) kontynuacja (commitment)
+
+System wykrywa te 4 etapy na danych cenowych z interwału 5m/15m – bez świec.
+
+📊 Dane:
+Lista cen z ostatnich 90 minut (np. 18 punktów po 5m)
+
+Porównania między sekwencjami zmian
+
+✅ Funkcja: detect_human_like_flow(prices: list[float])
+python
+Kopiuj
+Edytuj
+def detect_human_like_flow(prices: list[float]) -> bool:
+    """
+    Wykrywa sekwencję: cofka → impuls → pauza → kontynuacja (human pattern).
+    """
+    if len(prices) < 10:
+        return False
+
+    for i in range(0, len(prices) - 7):
+        leg0 = (prices[i+1] - prices[i]) / prices[i]     # cofka
+        leg1 = (prices[i+3] - prices[i+1]) / prices[i+1]  # impuls
+        leg2 = abs((prices[i+5] - prices[i+3]) / prices[i+3])  # pauza
+        leg3 = (prices[i+7] - prices[i+5]) / prices[i+5]  # kontynuacja
+
+        if (
+            leg0 < -0.002 and       # cofka np. -0.2%
+            leg1 > 0.004 and        # impuls np. +0.4%
+            leg2 < 0.0015 and       # pauza bardzo mała
+            leg3 > 0.004            # kontynuacja
+        ):
+            return True
+
+    return False
+🔧 Integracja w trend_mode_pipeline.py:
+python
+Kopiuj
+Edytuj
+from detectors.human_flow import detect_human_like_flow
+
+if prices and detect_human_like_flow(prices):
+    score += 15
+    reasons.append("human-like flow detected – psychological pattern")
+📁 Plik:
+detectors/human_flow.py
+
+💡 Jak działa:
+Nie używa świec – tylko czyste zmiany procentowe
+
+Wykrywa: 👣 cofka → 🚀 impuls → 😐 pauza → 🧨 kontynuacja
+
+To podpis psychologiczny, który trader widzi jako „ten ruch wygląda logicznie”
+
+Dodaje +15 punktów do Trend Mode, tylko jeśli sekwencja jest czytelna
+
+Proszę o dodanie i integrację.

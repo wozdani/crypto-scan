@@ -1,0 +1,107 @@
+Wdrażamy pełną integrację nowego AdvancedTraderWeightedDecisionEngine (TJDE) do systemu trend-mode.
+
+🎯 Cel:
+Zastąpienie dotychczasowego scoringu i systemu decyzyjnego nowym, inteligentnym TJDE, opartym na analizie cech kontekstowych i wag dynamicznych.
+
+🔁 Co robimy:
+✅ 1. Zbieramy dane z modułów analitycznych do trend_context:
+python
+Kopiuj
+Edytuj
+trend_context = {}
+trend_context.update(analyze_market_structure(candles))
+trend_context.update(analyze_candle_behavior(candles))
+trend_context.update(interpret_orderbook(symbol))
+trend_context.update(detect_market_phase(candles))
+trend_context.update(analyze_liquidity_behavior(symbol))
+trend_context.update(detect_psychological_traps(candles))
+trend_context.update(get_htf_confirmation(symbol))
+✅ 2. Dodaj nową funkcję compute_trader_score() – zastępuje poprzedni scoring system:
+python
+Kopiuj
+Edytuj
+def compute_trader_score(ctx):
+    weights = {
+        "trend_strength": 0.25,
+        "pullback_quality": 0.20,
+        "support_reaction": 0.15,
+        "liquidity_pattern_score": 0.10,
+        "psych_score": 0.10,  # im niższy, tym lepiej
+        "htf_supportive_score": 0.10,
+        "market_phase_modifier": 0.10
+    }
+
+    score = 0.0
+    for key, weight in weights.items():
+        val = ctx.get(key, 0.0)
+        if key == "psych_score":
+            val = 1.0 - val
+        score += val * weight
+
+    ctx["final_score"] = round(score, 3)
+    ctx["grade"] = classify_grade(score)
+    return ctx
+🛠️ Ten moduł całkowicie zastępuje wszystkie wcześniejsze funkcje scoringowe.
+
+✅ 3. Nowy system decyzyjny simulate_trader_decision_advanced() – zastępuje stary decision engine:
+python
+Kopiuj
+Edytuj
+def simulate_trader_decision_advanced(ctx):
+    ctx = compute_trader_score(ctx)
+
+    score = ctx["final_score"]
+    if score >= 0.7:
+        ctx["decision"] = "join"
+    elif score >= 0.45:
+        ctx["decision"] = "consider"
+    else:
+        ctx["decision"] = "avoid"
+
+    return ctx
+✅ 4. Wywołanie alertu w trend_mode.py – tylko przy „join”:
+python
+Kopiuj
+Edytuj
+ctx = simulate_trader_decision_advanced(trend_context)
+
+if ctx["decision"] == "join":
+    send_trend_alert(
+        symbol,
+        score=ctx["final_score"],
+        grade=ctx["grade"],
+        reasons=ctx.get("decision_reasons", []),
+        phase=ctx.get("market_phase"),
+        liquidity=ctx.get("liquidity_pattern_score"),
+        comment="💥 Smart Trend Join Opportunity"
+    )
+✅ 5. Zapis do loga:
+python
+Kopiuj
+Edytuj
+log_trend_decision(symbol, ctx, output_path="logs/advanced_trader_log.txt")
+🔄 WAŻNE:
+Ten nowy system zastępuje całkowicie wcześniejszy:
+
+simulate_trader_decision()
+
+klasyczny trend_score
+
+stare wywołania send_alert() oparte na prostych progach
+
+🧪 Test:
+Uruchom:
+
+python
+Kopiuj
+Edytuj
+test_advanced_trend_mode(["ZEREBROUSDT", "LPTUSDT"])
+i sprawdź wyniki w:
+
+bash
+Kopiuj
+Edytuj
+logs/advanced_trader_log.txt
+Dzięki!
+Po tej integracji będziemy mogli rozszerzyć system o dynamiczne uczenie wag i kontekstowe modyfikatory scoringu.
+Lecimy 🚀

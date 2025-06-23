@@ -1,0 +1,92 @@
+po testach 24/7 okazało się, że scoring PPWCS w moim systemie działa poprawnie, ale detektory albo się nie aktywują, albo logika jest zbyt rygorystyczna. Proszę o wdrożenie poniższych poprawek detektorów i brakujących funkcji.
+
+🧩 1. Naprawa detect_volume_spike()
+Aktualnie:
+
+bazuje na volume_24h > market_cap * 0.1 — co jest zbyt ogólne i mało precyzyjne.
+
+Zamień na:
+
+python
+Kopiuj
+Edytuj
+recent_volumes = data.get("recent_volumes", [])
+if len(recent_volumes) >= 4:
+    avg = sum(recent_volumes[-4:]) / 4
+    current = recent_volumes[-1]
+    if current > avg * 2.5:
+        signals["volume_spike"] = True
+📉 2. Złagodzenie detect_vwap_pinning()
+Obecnie:
+
+python
+Kopiuj
+Edytuj
+avg_deviation < 0.004  # czyli < 0.4%
+➡️ To za mało – nie aktywuje się prawie nigdy.
+
+Zamień na skalowanie:
+
+python
+Kopiuj
+Edytuj
+if avg_deviation < 0.005:
+    return True, 1.0
+elif avg_deviation < 0.008:
+    return True, 0.7
+elif avg_deviation < 0.012:
+    return True, 0.4
+else:
+    return False, 0.0
+🧠 3. Dodanie brakujących detektorów: stealth_acc i RSI_flatline
+Obecnie: funkcje te są używane w signals, ale nie istnieją nigdzie w kodzie – przez co ich wynik zawsze jest False.
+
+Dodaj nowy plik utils/custom_detectors.py z:
+
+python
+Kopiuj
+Edytuj
+def detect_stealth_acc(signals):
+    if (
+        signals.get("whale_activity") and
+        signals.get("dex_inflow") and
+        not signals.get("social_spike")
+    ):
+        return True
+    return False
+
+def detect_rsi_flatline(rsi_value, signals):
+    if 45 <= rsi_value <= 55:
+        if signals.get("dex_inflow") or signals.get("whale_activity"):
+            return True
+    return False
+I dopisz w scan_cycle() lub detect_stage_minus2_1():
+
+python
+Kopiuj
+Edytuj
+from utils.custom_detectors import detect_stealth_acc, detect_rsi_flatline
+
+signals["stealth_acc"] = detect_stealth_acc(signals)
+signals["RSI_flatline"] = detect_rsi_flatline(rsi_value, signals)  # rsi_value to RSI z ostatniej świecy
+🗂 4. Detektor stage_minus2_2() używa losowości
+python
+Kopiuj
+Edytuj
+random.seed(hash(symbol))
+if random.random() > 0.7:
+    event_tags.append("pattern")
+Zamień to na analizę realnych danych lub usuń tymczasowo, bo wprowadza szum i fałszywe tagi do PPWCS.
+
+✅ BONUS: dodaj logi debug w compute_ppwcs()
+Proszę dodać:
+
+python
+Kopiuj
+Edytuj
+print(f"[PPWCS DEBUG] Active detectors: {active_list}")
+print(f"[PPWCS DEBUG] Stage -2.1 score: {stage_minus2_1_score}")
+if signals.get("stage1g_active"):
+    print(f"[PPWCS DEBUG] Stage 1g score: {stage1g_score}")
+if tag and isinstance(tag, str):
+    print(f"[PPWCS DEBUG] Event tag: {tag} → {tag_scores.get(tag.lower(), 0)}")

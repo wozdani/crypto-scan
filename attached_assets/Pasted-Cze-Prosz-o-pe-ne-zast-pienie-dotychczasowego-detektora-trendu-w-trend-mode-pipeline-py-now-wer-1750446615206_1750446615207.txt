@@ -1,0 +1,68 @@
+Cześć! Proszę o pełne zastąpienie dotychczasowego detektora trendu w trend_mode_pipeline.py nową wersją opartą na:
+
+analizie świec 15M tylko z ostatnich 3h (12 świec),
+
+analizie poziomów wsparcia/oporu z historycznych świec (3–24h wstecz),
+
+wejściu na 5M po korekcie i sygnale bidów (entry after correction).
+
+🧠 Nowy system działa tak:
+1. is_strong_recent_trend(prices_15m_recent: list[float]) -> bool
+Ocena rytmu tylko z ostatnich 3h (12 świec):
+
+python
+Kopiuj
+Edytuj
+def is_strong_recent_trend(prices_15m_recent):
+    if len(prices_15m_recent) < 6:
+        return False
+    up_ratio = sum(1 for i in range(1, len(prices_15m_recent)) if prices_15m_recent[i] > prices_15m_recent[i-1]) / (len(prices_15m_recent) - 1)
+    return up_ratio >= 0.6 and prices_15m_recent[-1] > prices_15m_recent[0]
+2. find_support_resistance_levels(prices_15m_history)
+Identyfikacja poziomów z danych 3–24h wstecz:
+
+python
+Kopiuj
+Edytuj
+def find_support_resistance_levels(prices_15m_history, tolerance=0.003):
+    levels = []
+    for i in range(2, len(prices_15m_history) - 2):
+        pivot_high = prices_15m_history[i] > prices_15m_history[i-1] and prices_15m_history[i] > prices_15m_history[i+1]
+        pivot_low = prices_15m_history[i] < prices_15m_history[i-1] and prices_15m_history[i] < prices_15m_history[i+1]
+        if pivot_high or pivot_low:
+            level = prices_15m_history[i]
+            if not any(abs(level - l) / l < tolerance for l in levels):
+                levels.append(level)
+    return sorted(levels)
+3. is_price_near_support(current_price, levels)
+Sprawdza, czy obecna cena testuje poziom wsparcia:
+
+python
+Kopiuj
+Edytuj
+def is_price_near_support(current_price, levels, margin=0.002):
+    supports = [l for l in levels if l < current_price]
+    return any(abs(current_price - s) / s < margin for s in supports)
+🔁 Logika łączenia:
+python
+Kopiuj
+Edytuj
+if is_strong_recent_trend(prices_15m_recent) and is_price_near_support(current_price, support_levels):
+    if is_entry_after_correction(prices_5m, ask_vols, bid_vols):
+        return {
+            "trend_mode": True,
+            "trend_score": 100,
+            "entry_triggered": True
+        }
+🔁 Dane wymagane:
+prices_15m_recent: ostatnie 12 świec 15M (3h)
+
+prices_15m_history: świece z przedziału 3–24h (84 świece)
+
+prices_5m: ostatnie 12 świec 5M (1h)
+
+ask_vols, bid_vols: z orderbooku
+
+current_price: z tickera Bybit
+
+Proszę o pełne zastąpienie starego trend score tym podejściem oraz integrację z scan_cycle() jako osobny alert "trend_mode".

@@ -1,0 +1,84 @@
+W ramach rozbudowy Trend Mode proszę o dodanie nowego modułu:
+Orderbook Freeze Detector – czyli detektora sytuacji, gdy ask-side w orderbooku zamiera, podczas gdy cena rośnie.
+
+🧠 Cel:
+Wzrost ceny przy nieruchomym asku = brak oporu = ukryta akceptacja trendu
+Traderzy z doświadczeniem widzą to jako sygnał, że nikt nie chce „psuć” ruchu – tylko pozwala mu płynąć.
+
+📊 Wymagane dane:
+Snapshoty bid i ask z orderbooka (z np. 5 poziomów)
+
+Co najmniej 3 kolejne snapshoty w 15–30 minut
+
+Cena w tym czasie musi rosnąć
+
+✅ Funkcja: detect_orderbook_freeze(orderbook_snapshots: list[dict])
+python
+Kopiuj
+Edytuj
+def detect_orderbook_freeze(orderbook_snapshots: list[dict]) -> bool:
+    """
+    Wykrywa zamrożony ask-side w orderbooku przy rosnącej cenie.
+    orderbook_snapshots: lista dictów, każdy ma "price", "bids", "asks"
+    """
+    if len(orderbook_snapshots) < 3:
+        return False
+
+    ask_movement_detected = False
+
+    for i in range(1, len(orderbook_snapshots)):
+        prev_asks = orderbook_snapshots[i-1]["asks"]
+        curr_asks = orderbook_snapshots[i]["asks"]
+
+        # porównaj tylko top 3 poziomy
+        for level in range(min(3, len(prev_asks), len(curr_asks))):
+            if abs(curr_asks[level][0] - prev_asks[level][0]) > 0.01:
+                ask_movement_detected = True
+                break
+
+        if ask_movement_detected:
+            break
+
+    # jeśli cena rosła, ale ask był nieruchomy = freeze
+    price_start = orderbook_snapshots[0]["price"]
+    price_end = orderbook_snapshots[-1]["price"]
+    price_delta = (price_end - price_start) / price_start
+
+    if price_delta > 0.005 and not ask_movement_detected:  # cena wzrosła >0.5%
+        return True
+
+    return False
+🔧 Integracja w trend_mode_pipeline.py:
+python
+Kopiuj
+Edytuj
+from detectors.orderbook_freeze import detect_orderbook_freeze
+
+if orderbook_snapshots and detect_orderbook_freeze(orderbook_snapshots):
+    score += 15
+    reasons.append("orderbook freeze detected – ask-side inactive during pump")
+📦 Dane:
+Wymagane 3 snapshoty z Bybit OrderBook (co 5 min lub z cache systemu), np.:
+
+python
+Kopiuj
+Edytuj
+{
+  "price": 0.023,
+  "bids": [[0.0229, 120], [0.0228, 80], [0.0227, 45]],
+  "asks": [[0.0231, 100], [0.0232, 75], [0.0233, 60]]
+}
+📁 Plik:
+detectors/orderbook_freeze.py
+
+💡 Efekt:
+Jeśli cena rośnie, ale ask się nie rusza – ktoś pozwala na wybicie
+
+To nie FOMO pump, to kontrolowany trend
+
+Detektor dodaje score +15 do Trend Mode
+
+Proszę o wdrożenie i integrację.
+Gotowy na kolejny moduł: Heatmap Vacuum Detector.
+
+Pozdrawiam

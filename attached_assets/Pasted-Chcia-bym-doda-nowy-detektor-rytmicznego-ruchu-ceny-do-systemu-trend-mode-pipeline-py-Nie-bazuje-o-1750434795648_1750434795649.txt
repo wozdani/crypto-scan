@@ -1,0 +1,65 @@
+Chciałbym dodać nowy detektor rytmicznego ruchu ceny do systemu trend_mode_pipeline.py.
+Nie bazuje on na klasycznej analizie świec (body, wick, RSI), tylko na zachowaniu ceny w czasie, czyli jakby system „oglądał” rynek oczami tradera.
+
+🧠 Cel:
+Wykrycie sytuacji, gdzie:
+
+Cena przez ostatnie ~3 godziny podchodziła, lekko się cofała, i znowu podchodziła
+– czyli trend budowany falowo, bez paniki ani hype’u
+
+✅ Detektor: detect_rhythmic_price_flow()
+Plik: detectors/wave_flow_detector.py:
+
+python
+Kopiuj
+Edytuj
+def detect_rhythmic_price_flow(prices: list[float]) -> bool:
+    """
+    prices: lista cen z ostatnich 3h, np. co 5 minut (≈36 punktów)
+    Wykrywa: podejście – cofka – podejście (rytm trendowy).
+    Nie używa świec – tylko ciąg cen.
+    """
+    moves = []
+    for i in range(1, len(prices)):
+        delta = (prices[i] - prices[i-1]) / prices[i-1]
+        moves.append(round(delta, 5))  # 0.00123 = +0.123%
+
+    for i in range(5, len(moves) - 5):
+        leg1 = sum(moves[i:i+3])
+        pullback = sum(moves[i+3:i+5])
+        leg2 = sum(moves[i+5:i+8])
+
+        # Nie sztywne wartości – tylko proporcja i flow
+        if (
+            leg1 > 0.001  # np. +0.10%
+            and pullback < 0
+            and abs(pullback) < leg1 * 0.7  # cofka max 70% podejścia
+            and leg2 > 0.001
+        ):
+            return True
+
+    return False
+📊 Integracja w trend_mode_pipeline.py:
+python
+Kopiuj
+Edytuj
+from detectors.wave_flow_detector import detect_rhythmic_price_flow
+
+# Dane 3h z interwałem 5m
+# last_3h_prices = get_price_series(symbol, interval="5m", lookback=180)
+
+if detect_rhythmic_price_flow(last_3h_prices):
+    score += 25
+    reasons.append("price rhythm detected (non-linear trend flow)")
+🔍 Kluczowa cecha:
+Nie używa świec ani świecowych wskaźników
+
+Bazuje na falowym rytmie ceny
+
+Działa jak intuicyjny trader: widzi ciągłość i intencję ruchu
+
+Proszę o dodanie tej funkcji i wpięcie jej do scoringu Trend Mode jako element wspierający sygnały kontynuacji.
+W razie potrzeby mogę przygotować fallback danych z Bybit/Coingecko.
+
+Pozdrawiam
+Szefir 🧠📈

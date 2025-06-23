@@ -1,0 +1,97 @@
+Chcemy zintegrować system GPT w taki sposób, by mógł:
+
+rozumieć i wykorzystywać wcześniej wygenerowane funkcje detekcyjne z pump_analysis,
+
+znać i analizować strategię crypto_scan_service.py,
+
+a w przyszłości optymalizować logikę obu systemów, ucząc się na podstawie realnych przypadków.
+
+🎯 GŁÓWNE CELE:
+Pamięć i uczenie GPT w pump_analysis:
+
+GPT generuje funkcję detect_SYMBOL_DATE_preconditions(df) na podstawie realnej pumpy.
+
+Chcemy, aby miał wgląd do poprzednich funkcji (np. z folderu detectors/).
+
+Na tej podstawie:
+
+uczył się schematów,
+
+porównywał z nowymi przypadkami,
+
+ulepszał poprzednie detektory,
+
+tworzył wersje „refined” lub „meta-detektory”.
+
+Synchronizacja z crypto_scan_service.py:
+
+crypto_scan_service.py wykrywa sygnały pre-pump w czasie rzeczywistym.
+
+Chcemy, żeby GPT mógł analizować dane z tego systemu i:
+
+rozumiał cały model scoringu PPWCS,
+
+wiedział co oznaczają Stage –2.1, –1, 1g,
+
+mógł ocenić jakość alertów lub zaproponować poprawki.
+
+Wspólna baza wiedzy:
+
+GPT powinien mieć dostęp do kontekstu obu projektów:
+
+crypto_scan_service.py = real-time skaner sygnałów (pre-pump)
+
+pump_analysis = analiza tego, czy sygnały rzeczywiście poprzedzały pumpy
+
+🛠️ IMPLEMENTACJA TECHNICZNA (propozycja)
+🔹 Krok 1: Pamięć funkcji detekcyjnych
+Tworzymy katalog detectors/
+
+GPT zapisuje tam każdą funkcję jako .py
+
+Przy nowej analizie:
+
+ładowane są ostatnie N funkcji jako input (system_prompt + user_prompt)
+
+GPT może porównać, ulepszyć lub wykryć podobieństwa
+
+🔹 Krok 2: Synchronizacja z crypto-scan
+Eksportujemy scoring i dane z crypto_scan_service.py (PPWCS, aktywne stage’y, sygnały)
+
+Przekazujemy je GPT przy analizie jako context_data
+
+GPT ocenia czy skan był trafny oraz co mogłoby go ulepszyć
+
+🔹 Krok 3: „GPT memory engine”
+Proponujemy lokalny plik JSON gpt_memory.json z:
+
+historią wygenerowanych detektorów,
+
+powiązaniami: symbol, data, PPWCS, czy pump się wydarzył,
+
+oceną skuteczności sygnału.
+
+🧠 PRZYKŁADOWY FLOW:
+Skrypt crypto_scan_service.py wykrywa sygnał pre-pump (PPWCS > 80).
+
+Token ten trafia do pump_analysis po X godzinach (gdy znany jest wynik).
+
+GPT analizuje sytuację sprzed pumpy i:
+
+generuje funkcję detekcyjną,
+
+zapisuje ją do detectors/,
+
+porównuje z poprzednimi,
+
+aktualizuje gpt_memory.json z informacją czy sygnał był trafny.
+
+🧪 BONUS (opcjonalnie):
+GPT może wygenerować meta-regułę: np. „jeśli RSI ≈ 50 i volume spike > 3x i brak hype → potencjał stealth pump”.
+
+Można w przyszłości testować te meta-reguły na nowych przypadkach.
+
+Jeśli potrzeba, możemy przygotować pełną strukturę folderów, JSON, oraz flow komunikacji z GPT – wystarczy dać znać.
+
+Pozdro 🚀
+Szefir & GPT

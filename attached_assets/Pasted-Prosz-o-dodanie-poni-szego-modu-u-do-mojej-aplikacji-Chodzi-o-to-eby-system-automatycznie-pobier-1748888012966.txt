@@ -1,0 +1,90 @@
+Proszę o dodanie poniższego modułu do mojej aplikacji. Chodzi o to, żeby system automatycznie pobierał kontrakty tokenów z CoinGecko tylko dla tych symboli, które wykrył w bieżącym skanie i których brakuje w token_contract_map.json.
+
+Moduł:
+
+python
+Kopiuj
+Edytuj
+# utils/coingecko_mapper.py
+
+import json
+import time
+import requests
+
+COINGECKO_URL = "https://api.coingecko.com/api/v3/coins/list"
+CONTRACTS_URL = "https://api.coingecko.com/api/v3/coins/{id}"
+
+def load_contract_map():
+    try:
+        with open("token_contract_map.json", "r", encoding="utf-8") as f:
+            return json.load(f)
+    except:
+        return {}
+
+def save_contract_map(token_map):
+    with open("token_contract_map.json", "w", encoding="utf-8") as f:
+        json.dump(token_map, f, indent=2)
+
+def normalize_symbol(symbol):
+    return symbol.replace("USDT", "").replace("1000000", "").lower()
+
+def get_coingecko_id_map():
+    try:
+        response = requests.get(COINGECKO_URL, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        return {item["symbol"]: item["id"] for item in data}
+    except Exception as e:
+        print(f"❌ Błąd przy pobieraniu listy CoinGecko: {e}")
+        return {}
+
+def fetch_contract_info(gecko_id):
+    try:
+        url = CONTRACTS_URL.format(id=gecko_id)
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+
+        platforms = data.get("platforms", {})
+        for chain, address in platforms.items():
+            if address:
+                return {"chain": chain.lower(), "address": address}
+    except Exception as e:
+        print(f"❌ Błąd przy pobieraniu kontraktu dla {gecko_id}: {e}")
+    return None
+
+def bulk_update_contracts(symbols):
+    token_map = load_contract_map()
+    gecko_ids = get_coingecko_id_map()
+
+    for symbol in symbols:
+        if symbol in token_map:
+            continue
+
+        norm = normalize_symbol(symbol)
+        gecko_id = gecko_ids.get(norm)
+        if not gecko_id:
+            print(f"⚠️ Brak CoinGecko ID dla {symbol}")
+            continue
+
+        contract_info = fetch_contract_info(gecko_id)
+        if contract_info:
+            token_map[symbol] = contract_info
+            print(f"✅ Dodano {symbol} → {contract_info}")
+        else:
+            print(f"❌ Nie udało się pobrać kontraktu dla {symbol}")
+
+        time.sleep(1.2)
+
+    save_contract_map(token_map)
+Dodatkowo, proszę aby to było wywoływane w crypto_scan_service.py na początku skanu, np.:
+
+python
+Kopiuj
+Edytuj
+from utils.coingecko_mapper import bulk_update_contracts
+
+symbols = get_symbols_cached()
+bulk_update_contracts(symbols)
+Dziękuję! Chodzi o pełną automatyzację, żeby nie musieć ręcznie dodawać kontraktów.
+

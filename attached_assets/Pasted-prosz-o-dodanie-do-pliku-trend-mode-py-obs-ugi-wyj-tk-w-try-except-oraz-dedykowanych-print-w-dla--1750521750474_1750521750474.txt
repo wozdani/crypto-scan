@@ -1,0 +1,73 @@
+proszę o dodanie do pliku trend_mode.py obsługi wyjątków (try/except) oraz dedykowanych printów dla błędów, aby łatwo było debugować problemy z analizą trendu i uniknąć wysypywania się całego skanera.
+
+Obecnie jeśli jakakolwiek funkcja w trend_mode.py (np. compute_trend_strength, detect_pullback, interpret_market_as_trader) napotka błąd (np. ZeroDivisionError, KeyError, NoneType), to skaner przerywa działanie. Chcę, aby system:
+
+łapał błędy,
+
+wypisywał je jako [TREND ERROR] w logach terminala,
+
+zwracał bezpieczne wartości domyślne (0.0, False, "unknown"),
+
+opcjonalnie zapisywał błąd do pliku trend_error_log.txt.
+
+✅ Wzorzec do wdrożenia (dla każdej funkcji):
+Przykład w compute_trend_strength():
+python
+Kopiuj
+Edytuj
+def compute_trend_strength(candles):
+    try:
+        green_candles = sum(1 for c in candles if c["close"] > c["open"])
+        green_ratio = green_candles / len(candles)
+        slope = compute_slope(candles)
+        score = 0.5 * green_ratio + 0.5 * slope
+        print(f"[TREND DEBUG] Trend strength: {score:.2f} (green={green_ratio:.2f}, slope={slope:.2f})")
+        return score
+    except Exception as e:
+        print(f"[TREND ERROR] compute_trend_strength: {e}")
+        return 0.0
+Przykład w interpret_market_as_trader():
+python
+Kopiuj
+Edytuj
+def interpret_market_as_trader(symbol, candles, utc_hour):
+    try:
+        # pełna analiza
+        return {
+            "decision": decision,
+            "confidence": confidence,
+            "final_score": final_score,
+            "reasons": reasons
+        }
+    except Exception as e:
+        print(f"[TREND ERROR] {symbol} - interpret_market_as_trader: {e}")
+        with open("crypto-scan/trend_error_log.txt", "a") as f:
+            f.write(json.dumps({
+                "symbol": symbol,
+                "error": str(e)
+            }) + "\n")
+        return {
+            "decision": "error",
+            "confidence": 0.0,
+            "final_score": 0.0,
+            "reasons": [f"ERROR: {str(e)}"]
+        }
+🛠️ Gdzie zastosować:
+compute_trend_strength()
+
+detect_pullback()
+
+detect_support_reaction()
+
+detect_bounce_confirmation()
+
+market_time_score()
+
+compute_trend_score()
+
+interpret_market_as_trader()
+
+Po wdrożeniu, każda awaria w analizie trendu zostanie złapana i opisana w [TREND ERROR], bez przerwania działania skanera. Proszę też o zapis do trend_error_log.txt (append mode) w katalogu crypto-scan/, tak jak wcześniej debugi.
+
+Dzięki! 🚀
+

@@ -1,0 +1,127 @@
+Proszę o wdrożenie poniższej wersji funkcji simulate_trader_decision_advanced() do systemu trend-mode w module trader_ai_engine.py.
+To nowa generacja decyzji tradera – adaptacyjna, inteligentna, bez sztywnych reguł. Zastępuje dotychczasową wersję.
+
+🎯 Główne zmiany:
+Dynamiczne ważenie scoringu zależne od market_phase
+
+Kontekstowe modyfikatory na podstawie psychologii rynku, wolumenu, HTF, fazy wyczerpania
+
+Logika decyzyjna przypomina profesjonalnego tradera, który ocenia sytuację wielowarstwowo
+
+✅ Nowy kod:
+python
+Kopiuj
+Edytuj
+def simulate_trader_decision_advanced(features: dict) -> dict:
+    """
+    Profesjonalna, kontekstowa wersja decyzyjna trend-mode trader AI engine.
+    Wykorzystuje adaptacyjne ważenie scoringu oraz modyfikatory zależne od fazy rynku i psychologii.
+    """
+    score_breakdown = {}
+    context_modifiers = []
+
+    # --- Etap 1: Wyciąganie cech z wejścia ---
+    trend_strength = features.get("trend_strength", 0.0)
+    pullback_quality = features.get("pullback_quality", 0.0)
+    support_reaction = features.get("support_reaction", 0.0)
+    liquidity_pattern_score = features.get("liquidity_pattern_score", 0.0)
+    psych_score = features.get("psych_score", 0.0)
+    htf_supportive_score = features.get("htf_supportive_score", 0.0)
+    market_phase = features.get("market_phase", "unknown")
+    market_phase_modifier = features.get("market_phase_modifier", 0.0)
+    price_action_pattern = features.get("price_action_pattern", "none")
+    volume_behavior = features.get("volume_behavior", "neutral")
+    htf_trend_match = features.get("htf_trend_match", False)
+
+    # --- Etap 2: Dynamiczne ważenie zależne od market_phase ---
+    if market_phase == "breakout-continuation":
+        weights = {
+            "trend_strength": 0.25,
+            "pullback_quality": 0.2,
+            "support_reaction": 0.15,
+            "liquidity_pattern_score": 0.1,
+            "psych_score": 0.05,
+            "htf_supportive_score": 0.15,
+            "market_phase_modifier": 0.1
+        }
+    elif market_phase == "range-accumulation":
+        weights = {
+            "trend_strength": 0.1,
+            "pullback_quality": 0.15,
+            "support_reaction": 0.1,
+            "liquidity_pattern_score": 0.2,
+            "psych_score": 0.2,
+            "htf_supportive_score": 0.15,
+            "market_phase_modifier": 0.1
+        }
+    else:
+        weights = {
+            "trend_strength": 0.2,
+            "pullback_quality": 0.2,
+            "support_reaction": 0.15,
+            "liquidity_pattern_score": 0.15,
+            "psych_score": 0.1,
+            "htf_supportive_score": 0.1,
+            "market_phase_modifier": 0.1
+        }
+
+    # --- Etap 3: Scoring z dynamicznymi wagami ---
+    score = (
+        trend_strength * weights["trend_strength"] +
+        pullback_quality * weights["pullback_quality"] +
+        support_reaction * weights["support_reaction"] +
+        liquidity_pattern_score * weights["liquidity_pattern_score"] +
+        psych_score * weights["psych_score"] +
+        htf_supportive_score * weights["htf_supportive_score"] +
+        market_phase_modifier * weights["market_phase_modifier"]
+    )
+
+    # --- Etap 4: Kontekstowe modyfikatory scoringu ---
+    if volume_behavior == "supporting" and price_action_pattern in ["impulse", "continuation"]:
+        score += 0.07
+        context_modifiers.append("volume_backed_breakout")
+
+    if psych_score < 0.3:
+        score -= 0.05
+        context_modifiers.append("psych_noise_penalty")
+
+    if market_phase == "exhaustion-pullback":
+        score -= 0.08
+        context_modifiers.append("phase_exhaustion_penalty")
+
+    if htf_trend_match and htf_supportive_score > 0.5:
+        score += 0.05
+        context_modifiers.append("htf_alignment_boost")
+
+    # --- Etap 5: Interpretacja końcowa ---
+    if score >= 0.70:
+        decision = "join_trend"
+        grade = "strong"
+    elif score >= 0.45:
+        decision = "consider_entry"
+        grade = "moderate"
+    else:
+        decision = "avoid"
+        grade = "weak"
+
+    # --- Etap 6: Zwracanie wyników ---
+    return {
+        "decision": decision,
+        "final_score": round(score, 3),
+        "quality_grade": grade,
+        "context_modifiers": context_modifiers,
+        "weights": weights,
+        "used_features": {
+            "trend_strength": trend_strength,
+            "pullback_quality": pullback_quality,
+            "support_reaction": support_reaction,
+            "liquidity_pattern_score": liquidity_pattern_score,
+            "psych_score": psych_score,
+            "htf_supportive_score": htf_supportive_score,
+            "market_phase_modifier": market_phase_modifier
+        }
+    }
+📎 Dodatki:
+Proszę też, byście zintegrowali ten scoring z alert engine, tak by tylko decision == join_trend triggerował alert na Telegram.
+
+Jeśli możliwe – dodać print/log.debug dla context_modifiers oraz final_score.

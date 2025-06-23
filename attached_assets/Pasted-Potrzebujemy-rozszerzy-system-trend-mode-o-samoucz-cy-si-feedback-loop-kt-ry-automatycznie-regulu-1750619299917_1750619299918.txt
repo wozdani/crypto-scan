@@ -1,0 +1,139 @@
+Potrzebujemy rozszerzyć system trend-mode o samouczący się feedback loop, który automatycznie reguluje wagi scoringowe w simulate_trader_decision_advanced() w oparciu o skuteczność alertów.
+
+Poniżej wszystkie zmiany krok po kroku:
+
+1. 📁 data/scoring/advanced_weights.json
+Stwórz ten plik z początkowymi wagami:
+
+json
+Kopiuj
+Edytuj
+{
+  "trend_strength": 0.25,
+  "pullback_quality": 0.2,
+  "support_reaction": 0.15,
+  "liquidity_pattern_score": 0.1,
+  "psych_score": 0.1,
+  "htf_supportive_score": 0.1,
+  "market_phase_modifier": 0.1
+}
+2. 🔧 W pliku simulate_trader_decision_advanced():
+Dodaj funkcję:
+
+python
+Kopiuj
+Edytuj
+import json, os
+
+def get_advanced_weights():
+    weights_file = "data/scoring/advanced_weights.json"
+    if os.path.exists(weights_file):
+        with open(weights_file, "r") as f:
+            return json.load(f)
+    else:
+        return {
+            "trend_strength": 0.25,
+            "pullback_quality": 0.2,
+            "support_reaction": 0.15,
+            "liquidity_pattern_score": 0.1,
+            "psych_score": 0.1,
+            "htf_supportive_score": 0.1,
+            "market_phase_modifier": 0.1
+        }
+A potem w głównej funkcji:
+
+python
+Kopiuj
+Edytuj
+weights = get_advanced_weights()
+
+final_score = (
+    features["trend_strength"] * weights["trend_strength"] +
+    features["pullback_quality"] * weights["pullback_quality"] +
+    features["support_reaction"] * weights["support_reaction"] +
+    features["liquidity_pattern_score"] * weights["liquidity_pattern_score"] +
+    features["psych_score"] * weights["psych_score"] +
+    features["htf_supportive_score"] * weights["htf_supportive_score"] +
+    features["market_phase_modifier"] * weights["market_phase_modifier"]
+)
+3. 🧠 Nowy plik: utils/score_accuracy_analysis.py
+python
+Kopiuj
+Edytuj
+import json
+import os
+from datetime import datetime, timedelta
+
+def analyze_alert_performance(alerts_path="data/alerts/alerts_history.json", candle_loader=None):
+    with open(alerts_path, "r") as f:
+        alerts = json.load(f)
+
+    success_count = 0
+    total_count = 0
+    logs = []
+
+    for alert in alerts:
+        symbol = alert["symbol"]
+        alert_time = datetime.fromisoformat(alert["timestamp"])
+        score = alert.get("final_score", 0)
+
+        if not candle_loader:
+            continue
+
+        # Pobierz cenę z +2h
+        candles = candle_loader(symbol, after=alert_time, duration_hours=2)
+        if not candles:
+            continue
+
+        start_price = candles[0]["close"]
+        end_price = candles[-1]["close"]
+        pct_change = (end_price - start_price) / start_price * 100
+
+        alert_success = pct_change > 2.0  # >2% zysku w 2h
+        logs.append({"symbol": symbol, "change": pct_change, "success": alert_success})
+        if alert_success:
+            success_count += 1
+        total_count += 1
+
+    return logs, success_count / total_count if total_count else 0.0
+4. 🔄 Nowy plik: utils/update_advanced_weights.py
+python
+Kopiuj
+Edytuj
+import json
+
+def update_weights_based_on_performance(logs_path, weights_path="data/scoring/advanced_weights.json"):
+    with open(logs_path, "r") as f:
+        logs = json.load(f)
+
+    with open(weights_path, "r") as f:
+        weights = json.load(f)
+
+    factor = 0.01  # regulacja wagi per sukces
+
+    adjustments = {k: 0 for k in weights}
+
+    for log in logs:
+        if log["success"]:
+            adjustments["trend_strength"] += factor
+        else:
+            adjustments["psych_score"] += factor  # np. błędna analiza psychologii
+
+    # Update wag
+    for key in weights:
+        weights[key] += adjustments.get(key, 0)
+        weights[key] = round(min(max(weights[key], 0.05), 0.4), 3)
+
+    # Normalize (suma = 1)
+    total = sum(weights.values())
+    for key in weights:
+        weights[key] = round(weights[key] / total, 3)
+
+    with open(weights_path, "w") as f:
+        json.dump(weights, f, indent=2)
+Dzięki temu:
+✅ simulate_trader_decision_advanced() używa dynamicznych wag
+✅ Po każdej sesji testowej system analizuje skuteczność i uczy się
+✅ Wagi są automatycznie dostrajane i zapisywane
+
+Dajcie znać, jak to wdrożycie – a my lecimy dalej z integracją backtestów i samoadaptacji 🧠📈

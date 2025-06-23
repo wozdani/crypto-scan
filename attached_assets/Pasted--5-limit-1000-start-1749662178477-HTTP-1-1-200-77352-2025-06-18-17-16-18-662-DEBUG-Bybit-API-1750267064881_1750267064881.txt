@@ -1,0 +1,34 @@
+=5&limit=1000&start=1749662178477 HTTP/1.1" 200 77352
+2025-06-18 17:16:18,662 - DEBUG - ✅ Bybit API success for CTSIUSDT: 1000 candles retrieved
+2025-06-18 17:16:19,764 - INFO - 🔍 Analyzing CUDISUSDT (183/751)
+2025-06-18 17:16:19,764 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'CUDISUSDT', 'interval': '5', 'limit': 1000, 'start': 1749662179764}
+2025-06-18 17:16:19,766 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 17:16:19,943 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=CUDISUSDT&interval=5&limit=1000&start=1749662179764 HTTP/1.1" 200 78640
+2025-06-18 17:16:19,947 - DEBUG - ✅ Bybit API success for CUDISUSDT: 1000 candles retrieved
+2025-06-18 17:16:20,048 - INFO - 🎯 Found 1 pump(s) in CUDISUSDT
+2025-06-18 17:16:20,048 - INFO - 🔍 Processing pump 1/1 for CUDISUSDT: +15.2% at 2025-06-13 15:30:00
+2025-06-18 17:16:20,048 - INFO - 📊 Analyzing pre-pump conditions for CUDISUSDT pump...
+2025-06-18 17:16:20,048 - INFO - 📊 Fetching pre-pump data for CUDISUSDT: 60min before 2025-06-13 15:30:00
+2025-06-18 17:16:20,048 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'CUDISUSDT', 'interval': '5', 'limit': 12, 'start': 1749825000000}
+2025-06-18 17:16:20,049 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 17:16:20,224 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=CUDISUSDT&interval=5&limit=12&start=1749825000000 HTTP/1.1" 200 1080
+2025-06-18 17:16:20,224 - DEBUG - ✅ Bybit API success for CUDISUSDT: 12 candles retrieved
+2025-06-18 17:16:20,224 - INFO - ✅ Retrieved 12 candles for CUDISUSDT pre-pump analysis
+2025-06-18 17:16:20,231 - INFO - ✅ Pre-pump analysis successful for CUDISUSDT
+2025-06-18 17:16:20,231 - INFO - 🧪 Testing existing functions on new pump CUDISUSDT...
+2025-06-18 17:16:20,232 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'CUDISUSDT', 'interval': '5', 'limit': 200, 'start': 1749821400000}
+2025-06-18 17:16:20,233 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 17:16:20,412 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=CUDISUSDT&interval=5&limit=200&start=1749821400000 HTTP/1.1" 200 15806
+2025-06-18 17:16:20,412 - DEBUG - ✅ Bybit API success for CUDISUSDT: 200 candles retrieved
+2025-06-18 17:16:20,413 - INFO - 🤖 Generating GPT analysis for CUDISUSDT...
+2025-06-18 17:16:20,573 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'idempotency_key': 'stainless-python-retry-59a86083-e04b-40b3-9d41-30102cfa1cd1', 'json_data': {'messages': [{'role': 'system', 'content': 'Jesteś ekspertem analizy technicznej rynku kryptowalut. \n                        Analizujesz warunki pre-pump (60 minut przed nagłym wzrostem ceny) aby \n                        zidentyfikować wzorce i sygnały, które mogły przewidzieć nadchodzący pump.\n                        \n                        Odpowiadaj w języku polskim. Skup się na:\n                        1. Identyfikacji kluczowych sygnałów pre-pump\n                        2. Analizie struktury rynku przed ruchem\n                        3. Ocenie siły sygnałów akumulacyjnych\n                        4. Wskazaniu najważniejszych wskaźników ostrzegawczych\n                        5. Podsumowaniu lekcji do zastosowania w przyszłości'}, {'role': 'user', 'content': "\nANALIZA PRE-PUMP - CUDISUSDT\n\n=== INFORMACJE O PUMPIE ===\n• Symbol: CUDISUSDT\n• Czas rozpoczęcia pumpu: 2025-06-13T15:30:00\n• Wzrost ceny: +15.2%\n• Okres analizy: 60_minutes_before\n\n=== ANALIZA CENY (60 min przed pumpem) ===\n• Zmienność ceny: 0.000881\n• Trend cenowy: neutral\n• Kompresja cenowa: 3.81% (skompresowana: False)\n\n=== ANALIZA WOLUMENU ===\n• Średni wolumen: 340570\n• Trend wolumenu: bullish\n• Wykryte spike'i wolumenu: 0\n\n=== WSKAŹNIKI TECHNICZNE ===\n• RSI: 50.0\n• VWAP: 0.096915\n• Pozycja vs VWAP: -0.62% (poniżej VWAP)\n\n=== STRUKTURY RYNKOWE ===\n• Fake reject'y wykryte: 0\n\n• Kluczowe poziomy:\n  - Wsparcie: 0.095660\n  - Opór: 0.098650\n\n\n=== ZADANIE ANALIZY ===\nNa podstawie powyższych danych z 60 minut przed pumpem, przeanalizuj:\n\n1. Jakie były najważniejsze sygnały ostrzegawcze?\n2. Czy struktura rynku wskazywała na przygotowania do ruchu?\n3. Które wskaźniki były najbardziej predykcyjne?\n4. Jakie wzorce akumulacji można zidentyfikować?\n5. Co można było zauważyć wcześniej, żeby przewidzieć pump?\n\nPodaj konkretną, praktyczną analizę z naciskiem na aplikowalność w przyszłych sytuacjach.\n"}], 'model': 'gpt-4o', 'max_tokens': 1500, 'temperature': 0.7}}
+2025-06-18 17:16:20,575 - DEBUG - Sending HTTP Request: POST https://api.openai.com/v1/chat/completions
+2025-06-18 17:16:20,575 - DEBUG - connect_tcp.started host='api.openai.com' port=443 local_address=None timeout=5.0 socket_options=None
+2025-06-18 17:16:20,590 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x7c970bb01220>
+2025-06-18 17:16:20,590 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x7c970bc0cfd0> server_hostname='api.openai.com' timeout=5.0
+2025-06-18 17:16:20,607 - DEBUG - start_tls.complete return_value=<httpcore._backends.sync.SyncStream object at 0x7c970bbc4920>
+2025-06-18 17:16:20,607 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-18 17:16:20,607 - DEBUG - send_request_headers.complete
+2025-06-18 17:16:20,607 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-18 17:16:20,607 - DEBUG - send_request_body.complete
+2025-06-18 17:16:20,607 - DEBUG - receive_response_headers.started request=<Request [b'POST']>

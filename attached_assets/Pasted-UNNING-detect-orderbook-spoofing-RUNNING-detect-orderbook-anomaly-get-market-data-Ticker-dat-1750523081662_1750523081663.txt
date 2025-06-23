@@ -1,0 +1,40 @@
+UNNING: detect_orderbook_spoofing
+RUNNING: detect_orderbook_anomaly
+✅ [get_market_data] Ticker data dla ACHUSDT: cena=$0.01892, volume=$572,637
+[DEBUG] get_market_data result type: <class 'tuple'>, length: 4
+[DEBUG] Market data unpacked - success: True, data type: <class 'dict'>, price_usd: 0.01892
+[DEBUG] === STAGE -2.1 ANALYSIS START: ACXUSDT ===
+[DEBUG] Input price_usd: 0.1507
+🧪 [get_market_data] Start dla ACXUSDT
+🔍 Skanuję AEGUSDT...
+🧪 [get_market_data] Start dla AEGUSDT
+✅ Dodano kontrakt dla ACHUSDT: 0xed04915c23f00a313a544955524eb7dbd823143d na ethereum
+✅ Kontrakt dla ACHUSDT: {'address': '0xed04915c23f00a313a544955524eb7dbd823143d', 'chain': 'ethereum'}
+[DEBUG] detect_volume_spike(ACHUSDT) - START
+[DEBUG] ACHUSDT recent_volumes: []
+RUNNING: detect_whale_tx (Enhanced)
+✅ Dodano kontrakt dla ACEUSDT: 0xec5483804e637d45cde22fa0869656b64b5ab1ab na ethereum
+RUNNING: detect_vwap_pinning
+RUNNING: detect_volume_cluster_slope
+RUNNING: detect_heatmap_exhaustion
+RUNNING: detect_orderbook_spoofing
+RUNNING: detect_orderbook_anomaly
+[WHALE TX] Szukam transakcji po 16:09:13 UTC dla ACEUSDT
+✅ [get_market_data] Ticker data dla ACXUSDT: cena=$0.1507, volume=$213,051
+🔄 Fallback do get_all_data() dla AEGUSDT
+[DEBUG] get_market_data result type: <class 'tuple'>, length: 4
+[DEBUG] Market data unpacked - success: True, data type: <class 'dict'>, price_usd: 0.1507
+✅ Dodano kontrakt dla ACXUSDT: 0x44108f0223a3c3028f5fe7aec7f9bb2e66bef82f na ethereum
+✅ Kontrakt dla ACXUSDT: {'address': '0x44108f0223a3c3028f5fe7aec7f9bb2e66bef82f', 'chain': 'ethereum'}
+[DEBUG] detect_volume_spike(ACXUSDT) - START
+[DEBUG] ACXUSDT recent_volumes: []
+RUNNING: detect_whale_tx (Enhanced)
+RUNNING: detect_vwap_pinning
+RUNNING: detect_volume_cluster_slope
+RUNNING: detect_heatmap_exhaustion
+RUNNING: detect_orderbook_spoofing
+RUNNING: detect_orderbook_anomaly
+✅ Dodano kontrakt dla ACHUSDT: 0xed04915c23f00a313a544955524eb7dbd823143d na ethereum
+[WHALE TX] Szukam transakcji po 16:09:13 UTC dla ACHUSDT
+❌ Blad danych Bybit dla AEGUSDT: {'retCode': 10001, 'retMsg': 'params error: Symbol Is Invalid', 'result': {}, 'retExtInfo': {}, 'time': 1750523053391}
+❌ [get_market_data] get_all_data zwróciło None dla AEGUSDT

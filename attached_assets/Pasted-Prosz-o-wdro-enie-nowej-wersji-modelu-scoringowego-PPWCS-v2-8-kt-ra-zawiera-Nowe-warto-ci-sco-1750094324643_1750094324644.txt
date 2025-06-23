@@ -1,0 +1,77 @@
+Proszę o wdrożenie nowej wersji modelu scoringowego PPWCS v2.8, która zawiera:
+
+🔧 Nowe wartości scoringu (PPWCS v2.8)
+Detektor	Punkty	Uwagi
+whale_activity	+18	min. 3 TX > 50k USDT w 15 min
+volume_spike	+16	Z-score > 2.5 lub 3× avg
+orderbook_anomaly	+12	np. pusty bid/ask lub delta zmiana
+dex_inflow	+12	inflow > próg dynamiczny
+spoofing	+10	rozpoznany pattern
+vwap_pinning	+8	cena trzyma się VWAP
+cluster_slope	+8	nachylenie klastrów vol.
+social_spike	+6	wykryty skok aktywności
+compressed (Stage –1)	+10	filtr kompresji aktywny
+RSI_flatline + inflow	+6	RSI 47–53 przy inflow
+pure_accumulation	+5	whales + inflow + brak social
+
+🧠 Nowe detektory do wdrożenia (PPWCS + Stage –1 + Stage 1g)
+1. Whale Execution Pattern Detector +10
+Aktywowany gdy: dex_inflow + whale_tx + orderbook_anomaly
+
+Dodaje signals["whale_sequence"] = True
+
+Używany także w stage1g_active = True
+
+2. DEX Pool Divergence Detector +6
+Gdy (price_dex - price_cex)/price_cex > 1.5%
+
+Dodaje signals["dex_divergence"] = True, aktywuje stealth_accumulation = True
+
+3. Time Clustering Detector +10
+Gdy 2+ tokeny z tego samego sektora mają w ciągu 30 min:
+compressed=True, whale_activity=True, volume_spike=True
+
+Dodaje signals["sector_clustering"] = True
+
+4. Momentum Pre-Shakeout (Fake Reject) +10
+Świeca 15M/5M z:
+
+knot dolny >60%, close w górnej 30%, RSI 48–55, volume spike
+
+Dodaje signals["fake_reject"] = True
+
+5. Blockspace Friction Detector +5
+Wzrost gas + mempool inflow dla tokena
+
+Dodaje signals["gas_pressure"] = True
+
+6. Whale Dominance Ratio +8
+Jeśli volume_top_3_wallets / total_volume > 0.65
+
+Dodaje signals["dominant_accumulation"] = True
+
+7. Heatmap Liquidity Trap Detector +8
+W ciągu 10 min znika duża ściana sprzedaży (>100k), potem volume_spike
+
+Dodaje signals["heatmap_exhaustion"] = True
+
+8. Execution Intent Detector +5
+Jeśli buy_volume > 2 * sell_volume
+
+Dodaje signals["execution_intent"] = True
+
+📂 Integracja w plikach:
+Detektor	Plik docelowy	Funkcja
+Whale Execution Pattern	stage_minus2_1.py	detect_stage_minus2_1()
+DEX Pool Divergence	market_data.py + 1g.py	detect_stage_1g()
+Time Clustering	scan_cycle.py	compute_ppwcs()
+Momentum Fake Reject	candle_analysis.py	detect_stage_1g()
+Blockspace Friction	mempool.py + gas.py	detect_stage_minus2_1()
+Whale Dominance Ratio	whale.py + dex.py	detect_stage_minus2_1()
+Heatmap Liquidity Trap	orderbook.py	detect_stage_1g()
+Execution Intent	dex.py	detect_dex_inflow()
+
+🎯 Cel:
+Zwiększenie czułości i dokładności scoringu, szybsza aktywacja Stage –1 i 1g, więcej alertów wysokiej jakości i lepsza detekcja pre-pump setupów nawet przy niskim hype (pure accumulation).
+
+Daj znać, gdy commit będzie gotowy do testów! 🚀 Dzięki wielkie!

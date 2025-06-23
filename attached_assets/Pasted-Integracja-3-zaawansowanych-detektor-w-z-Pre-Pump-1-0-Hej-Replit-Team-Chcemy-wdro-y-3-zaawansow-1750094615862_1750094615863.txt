@@ -1,0 +1,74 @@
+Integracja 3 zaawansowanych detektorów z Pre-Pump 1.0
+Hej Replit Team! 🚀
+Chcemy wdrożyć 3 zaawansowane detektory z wersji Pre-Pump 1.0, które znacznie poprawiają dokładność PPWCS oraz aktywację Stage 1g. Proszę o dodanie ich do systemu skanowania w odpowiednich miejscach.
+
+✅ 1. Substructure Squeeze Detector
+Cel: wykrycie wewnętrznych mikroskopijnych kompresji (1M/5M), które poprzedzają większe ruchy.
+Miejsce: detect_stage_1g() lub osobna funkcja detect_substructure_squeeze()
+
+🔧 Logika:
+Pobierz świeczki 1M lub 5M z ostatnich 15–20 minut
+
+Oblicz:
+
+ATR z 5 świec
+
+RSI z 5 świec
+
+Jeśli:
+
+python
+Kopiuj
+Edytuj
+atr_now < 0.7 * atr_mean_10min
+and 45 < rsi_now < 55
+→ signals["substructure_squeeze"] = True
+
+Dodaj jako pomocniczy trigger Stage 1g
+
+✅ 2. Fractal Momentum Echo Detector
+Cel: wykrycie podobieństw do poprzednich pump danego tokena (RSI, świeczki, wolumen)
+Miejsce: compute_ppwcs() lub detect_stage_1g()
+
+🔧 Logika:
+Sprawdź, czy obecna struktura:
+
+RSI ≈ RSI z poprzedniego breakout (±5)
+
+Świece mają podobną strukturę (długi knot, szybki wzrost)
+
+Volume spike > 2× średnia
+
+Jeśli tak:
+
+python
+Kopiuj
+Edytuj
+signals["fractal_echo"] = True
+score += 5
+Używane jako wzmacniacz scoringu PPWCS v2.8
+
+✅ 3. Momentum Kill-Switch
+Cel: anulowanie sygnału, jeśli po „wybiciu” nie ma kontynuacji
+Miejsce: scan_cycle() lub filter_signals_before_alert()
+
+🔧 Logika:
+Po aktywacji stage1g_active = True, sprawdź kolejną świeczkę:
+
+python
+Kopiuj
+Edytuj
+if candle.body_ratio < 0.4 and rsi < 60 and volume < 1.5×avg:
+    signals["momentum_killed"] = True
+    cancel_alert = True
+Alternatywnie można opóźnić alert o 1 świeczkę i aktywować tylko przy kontynuacji.
+
+🔄 Gdzie zintegrować:
+Detektor	Plik docelowy	Funkcja docelowa
+Substructure Squeeze	stage1g.py	detect_stage_1g()
+Fractal Momentum Echo	scoring.py	compute_ppwcs()
+Momentum Kill-Switch	scan_cycle.py	check_kill_switch()
+
+🎯 Cel: Zwiększenie trafności alertów, unikanie fałszywych breakoutów, precyzyjna aktywacja Stage 1g oraz PPWCS 60+.
+
+Dajcie znać, jak będzie gotowe do testów – dzięki wielkie! 💪

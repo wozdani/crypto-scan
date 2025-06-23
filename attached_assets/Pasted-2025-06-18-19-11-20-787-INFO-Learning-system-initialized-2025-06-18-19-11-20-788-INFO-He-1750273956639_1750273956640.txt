@@ -1,0 +1,32 @@
+2025-06-18 19:11:20,787 - INFO - 🧠 Learning system initialized
+2025-06-18 19:11:20,788 - INFO - Heatmap integration manager initialized
+2025-06-18 19:11:20,788 - DEBUG - Collected orderbooks for 0/0 symbols
+2025-06-18 19:11:20,788 - INFO - Started orderbook collection thread
+2025-06-18 19:11:20,788 - INFO - 📊 Heatmap integration system initialized
+2025-06-18 19:11:20,804 - INFO - 📚 Function history system initialized
+2025-06-18 19:11:20,804 - INFO - ⛓️ OnChain Analyzer initialized
+2025-06-18 19:11:20,804 - INFO - 🚀 Starting Pump Analysis System
+2025-06-18 19:11:20,804 - INFO - 📊 Analyzing 7 days of data for up to 999999 symbols
+2025-06-18 19:11:20,808 - INFO - Loaded 751 USDT symbols from cache
+2025-06-18 19:11:20,808 - INFO - ✅ Retrieved 200 symbols from crypto-scan cache
+2025-06-18 19:11:20,808 - INFO - 📈 Processing all 200 symbols: ['1000000BABYDOGEUSDT', '1000000CHEEMSUSDT', '1000000MOGUSDT', '1000000PEIPEIUSDT', '10000COQUSDT', '10000ELONUSDT', '10000LADYSUSDT', '10000QUBICUSDT', '10000SATSUSDT', '10000WENUSDT']...
+2025-06-18 19:11:20,808 - INFO - 🔍 Analyzing 1000000BABYDOGEUSDT (1/200)
+2025-06-18 19:11:20,809 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': '1000000BABYDOGEUSDT', 'interval': '15', 'limit': 1000, 'start': 1749669080808}
+2025-06-18 19:11:20,810 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 19:11:20,988 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=1000000BABYDOGEUSDT&interval=15&limit=1000&start=1749669080808 HTTP/1.1" 200 60040
+2025-06-18 19:11:21,303 - DEBUG - ✅ Bybit API success for 1000000BABYDOGEUSDT: 672 candles retrieved
+2025-06-18 19:11:22,385 - INFO - 🔍 Analyzing 1000000CHEEMSUSDT (2/200)
+2025-06-18 19:11:22,385 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': '1000000CHEEMSUSDT', 'interval': '15', 'limit': 1000, 'start': 1749669082385}
+2025-06-18 19:11:22,387 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 19:11:22,570 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=1000000CHEEMSUSDT&interval=15&limit=1000&start=1749669082385 HTTP/1.1" 200 None
+2025-06-18 19:11:22,572 - DEBUG - ✅ Bybit API success for 1000000CHEEMSUSDT: 672 candles retrieved
+2025-06-18 19:11:23,679 - INFO - 🔍 Analyzing 1000000MOGUSDT (3/200)
+2025-06-18 19:11:23,679 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': '1000000MOGUSDT', 'interval': '15', 'limit': 1000, 'start': 1749669083679}
+2025-06-18 19:11:23,680 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 19:11:24,016 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=1000000MOGUSDT&interval=15&limit=1000&start=1749669083679 HTTP/1.1" 200 50637
+2025-06-18 19:11:24,174 - DEBUG - ✅ Bybit API success for 1000000MOGUSDT: 672 candles retrieved
+2025-06-18 19:11:25,254 - INFO - 🔍 Analyzing 1000000PEIPEIUSDT (4/200)
+2025-06-18 19:11:25,255 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': '1000000PEIPEIUSDT', 'interval': '15', 'limit': 1000, 'start': 1749669085255}
+2025-06-18 19:11:25,256 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 19:11:25,435 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=1000000PEIPEIUSDT&interval=15&limit=1000&start=1749669085255 HTTP/1.1" 200 None
+2025-06-18 19:11:25,437 - DEBUG - ✅ Bybit API success for 1000000PEIPEIUSDT: 672 candles retrieved

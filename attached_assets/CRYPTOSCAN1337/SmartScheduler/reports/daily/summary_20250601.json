@@ -1,0 +1,58 @@
+{
+  "report_type": "daily_summary",
+  "date": "2025-06-01",
+  "generated_at": "2025-06-01T12:00:07.119903",
+  "statistics": {
+    "total_scans": 3,
+    "total_alerts": 0,
+    "unique_symbols_scanned": 2,
+    "unique_symbols_alerted": 0,
+    "avg_score": 18.333333333333332,
+    "max_score": 21,
+    "high_score_count": 0
+  },
+  "top_performers": [
+    {
+      "symbol": "WIFUSDT",
+      "timestamp": "2025-06-01T11:55:13.493086",
+      "ppwcs_score": 21,
+      "stage_minus2": true,
+      "stage_minus1": {
+        "strength": 21.428571428571427,
+        "confidence": 50.0,
+        "momentum": false,
+        "volume_confirmed": true,
+        "technical_alignment": false
+      },
+      "stage_1g": false
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "timestamp": "2025-06-01T12:00:07.118633",
+      "ppwcs_score": 20,
+      "stage_minus2": true,
+      "stage_minus1": {
+        "strength": 28.57142857142857,
+        "confidence": 50.0,
+        "momentum": false,
+        "volume_confirmed": true,
+        "technical_alignment": false
+      },
+      "stage_1g": false
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "timestamp": "2025-06-01T11:55:14.766025",
+      "ppwcs_score": 14,
+      "stage_minus2": true,
+      "stage_minus1": {
+        "strength": 28.57142857142857,
+        "confidence": 0.0,
+        "momentum": false,
+        "volume_confirmed": false,
+        "technical_alignment": false
+      },
+      "stage_1g": false
+    }
+  ]
+}

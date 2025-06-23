@@ -1,0 +1,65 @@
+Cześć! Proszę o pełną integrację nowego modułu Trend Mode w pliku trend_mode_pipeline.py, który ma zastąpić dotychczasowy mechanizm wykrywania trendu i wejścia.
+
+✅ Założenia systemu:
+Trend analizowany na świecach 15M z ostatnich 24h (96 świec)
+
+Wejście wykrywane na świecach 5M z ostatnich 60 minut (12 świec)
+
+Alert wysyłany tylko jeśli oba warunki są spełnione
+
+📦 Moduły do zaimplementowania:
+1. is_strong_uptrend_15m(prices_15m: list[float]) -> bool
+Wykrywa realny trend wzrostowy:
+
+python
+Kopiuj
+Edytuj
+def is_strong_uptrend_15m(prices_15m: list[float]) -> bool:
+    if len(prices_15m) < 20:
+        return False
+    upmoves = [1 if prices_15m[i] > prices_15m[i-1] else -1 for i in range(1, len(prices_15m))]
+    up_ratio = sum(1 for m in upmoves if m == 1) / len(upmoves)
+    return up_ratio >= 0.6 and prices_15m[-1] > prices_15m[-6]
+Warunek: ≥60% zielonych świec i ostatnia cena > cena sprzed 6 świec.
+
+2. is_entry_after_correction(prices_5m: list[float], asks: list[float], bids: list[float]) -> bool
+Wykrywa idealne wejście na końcu korekty:
+
+python
+Kopiuj
+Edytuj
+def is_entry_after_correction(prices_5m: list[float], asks: list[float], bids: list[float]) -> bool:
+    if len(prices_5m) < 5 or len(asks) < 3 or len(bids) < 3:
+        return False
+    recent_reds = sum(1 for i in range(-4, -1) if prices_5m[i] < prices_5m[i-1])
+    ask_down = asks[-3] > asks[-2] > asks[-1]
+    bid_up = bids[-3] < bids[-2] < bids[-1]
+    return recent_reds >= 2 and ask_down and bid_up
+Warunek: min. 2 czerwone świece + spadek presji sprzedaży + wzrost presji kupna.
+
+🔁 Połączenie w głównej logice:
+python
+Kopiuj
+Edytuj
+if is_strong_uptrend_15m(prices_15m) and is_entry_after_correction(prices_5m, ask_vols, bid_vols):
+    return {
+        "trend_mode": True,
+        "trend_score": 100,
+        "entry_triggered": True
+    }
+else:
+    return {
+        "trend_mode": False,
+        "trend_score": 0,
+        "entry_triggered": False
+    }
+🔁 Dane wejściowe:
+prices_15m – lista zamknięć z 96 świec 15M
+
+prices_5m – lista zamknięć z 12 świec 5M
+
+ask_vols, bid_vols – 3 ostatnie wartości z orderbooku (do oceny presji)
+
+🔁 Proszę o pełne zastąpienie starego systemu detekcji trendu tą wersją oraz integrację z scan_cycle() jako osobny alert typu "trend_mode".
+
+Jeśli potrzebne – mogę też dołożyć kod pobierania 96 świec 15M i 12 świec 5M oraz obliczania ask/bid volume z orderbooku.

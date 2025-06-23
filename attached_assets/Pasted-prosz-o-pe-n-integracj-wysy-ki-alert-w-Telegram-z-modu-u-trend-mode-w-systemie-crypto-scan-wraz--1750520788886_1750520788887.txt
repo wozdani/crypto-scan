@@ -1,0 +1,88 @@
+proszę o pełną integrację wysyłki alertów Telegram z modułu trend-mode w systemie crypto-scan, wraz z informacją o końcowym scoringu (final_score).
+Chcemy, aby po wykryciu momentu dołączenia do trendu przez funkcję interpret_market_as_trader(), system automatycznie wysyłał bogaty alert na Telegrama z reasoningiem, confidence i scorem.
+
+✅ 1. Dane wejściowe z trend_mode.py
+Funkcja interpret_market_as_trader(symbol, candles, utc_hour) zwraca słownik:
+
+python
+Kopiuj
+Edytuj
+{
+  "decision": "join_trend",
+  "confidence": 0.84,
+  "final_score": 0.82,
+  "reasons": [
+      "support held",
+      "clean pullback",
+      "momentum intact"
+  ],
+  "gpt_feedback": {
+    "gpt_decision": "Yes – ideal entry",
+    "explanation": "Pullback to EMA21 held with bullish wick"
+  }
+}
+✅ 2. Generowanie treści alertu
+W crypto_scan_service.py, gdy decyzja to "join_trend" i final_score >= 0.75, należy zbudować wiadomość:
+
+python
+Kopiuj
+Edytuj
+alert_text = f"""
+📈 [Trend Mode Alert] {symbol}
+✅ Trader AI Decision: JOIN TREND
+🧠 Reasons:
+- {'\n- '.join(trend_result['reasons'])}
+
+📊 Final Score: {trend_result['final_score']:.2f}
+🎯 Confidence: {trend_result['confidence']*100:.1f}%
+"""
+
+if "gpt_feedback" in trend_result:
+    alert_text += f"""
+🤖 GPT: {trend_result['gpt_feedback']['gpt_decision']}
+📝 {trend_result['gpt_feedback']['gpt_explanation']}
+"""
+✅ 3. Wysyłka wiadomości na Telegram
+Jeśli nie ma jeszcze takiej funkcji – proszę o stworzenie send_telegram_message(msg: str) w utils/telegram.py, np.:
+
+python
+Kopiuj
+Edytuj
+import requests, os
+
+def send_telegram_message(message: str):
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    chat_id = os.getenv("TELEGRAM_CHANNEL_ID")
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    data = {
+        "chat_id": chat_id,
+        "text": message,
+        "parse_mode": "Markdown"
+    }
+    requests.post(url, data=data)
+✅ 4. Warunek alertu + wywołanie:
+W głównej pętli:
+
+python
+Kopiuj
+Edytuj
+if trend_result["decision"] == "join_trend" and trend_result["final_score"] >= 0.75:
+    send_telegram_message(alert_text)
+✅ 5. (Opcjonalnie) Proszę o dodanie prostego cooldown systemu, np. already_alerted_recently(symbol, "trend_mode"), żeby nie spamować Telegrama przy każdym przebiegu.
+
+✅ Celem końcowym jest otrzymywanie na Telegramie inteligentnych alertów:
+
+z informacją o symbolu
+
+decyzją tradera
+
+reasoningiem (why)
+
+scoringiem (final_score)
+
+confidence
+
+GPT feedbackiem (jeśli dostępny)
+
+Dzięki! 🚀
+

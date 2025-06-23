@@ -1,0 +1,151 @@
+Hej! 🚀 Potrzebujemy wdrożyć 8 nowych detektorów do naszego systemu skanowania rynku kryptowalut. Każdy z nich rozszerza funkcje stage_minus2_1.py, compute_ppwcs() i detect_stage_1g().
+
+To kluczowe moduły wykrywające pre-pump setupy aktywowane przez whales i DEX akumulację. Proszę o wdrożenie poniższych funkcji i ich integrację:
+
+✅ 1. Whale Execution Pattern Detector
+Cel: wykrycie sekwencji: dex_inflow ➝ whale_tx ➝ orderbook_anomaly
+Logika:
+
+python
+Kopiuj
+Edytuj
+if signals["dex_inflow"] and signals["whale_activity"] and signals["orderbook_anomaly"]:
+    signals["whale_sequence"] = True
+    score += 10
+Dodaje +10 do PPWCS
+
+Można dodać whale_sequence = True w raporcie i stage1g_active = True
+
+✅ 2. DEX Pool Divergence Detector
+Cel: wykrycie, że cena na DEX rośnie szybciej niż na CEX
+Logika:
+
+python
+Kopiuj
+Edytuj
+if (price_dex - price_cex) / price_cex > 0.015:
+    signals["dex_divergence"] = True
+Może być użyte jako trigger stealth_accumulation = True
+
+Wsparcie dla Stage 1g
+
+✅ 3. Time Clustering Detector
+Cel: wykrycie aktywacji wielu tokenów z jednego sektora w ciągu 30 minut
+Logika: sprawdzaj czy inne tokeny w tej samej kategorii mają:
+
+compressed = True
+
+whale_activity = True
+
+volume_spike = True
+
+Jeśli ≥ 2 takie tokeny w 30 minut:
+
+python
+Kopiuj
+Edytuj
+signals["sector_clustering"] = True
+score += 10
+✅ 4. Momentum Pre-Shakeout Detector (Fake Reject)
+Cel: wykrycie „shakeout candle” przed impulsem
+Logika:
+
+Świeca 15M lub 5M z:
+
+długi dolny knot (>60% świecy)
+
+close w górnej 30%
+
+RSI 48–55
+
+volume spike
+
+Dodaj:
+
+python
+Kopiuj
+Edytuj
+signals["fake_reject"] = True
+✅ 5. Blockspace Friction Detector
+Cel: wykrycie wzrostu opłat na chainie sugerujących whale działania
+Logika:
+
+Gas price + mempool inflow dla danego tokena idą w górę w tym samym czasie
+
+Dodaj:
+
+python
+Kopiuj
+Edytuj
+signals["gas_pressure"] = True
+score += 5
+✅ 6. Whale Dominance Ratio
+Cel: sprawdzenie czy kilka walletów odpowiada za większość objętości
+Logika:
+
+Dla dex_inflow lub whale_tx, oblicz:
+
+python
+Kopiuj
+Edytuj
+dominance_ratio = volume_top_3_wallets / total_volume
+Jeśli dominance_ratio > 0.65:
+
+python
+Kopiuj
+Edytuj
+signals["dominant_accumulation"] = True
+score += 5
+✅ 7. Heatmap Liquidity Trap Detector
+Cel: wykrycie zniknięcia dużej ściany sprzedaży w orderbooku
+Logika:
+
+Wcześniej obecna duża ściana sprzedaży (> 100k$)
+
+W ciągu 5–10 minut zniknęła całkowicie
+
+Potem pojawia się volume_spike
+
+Dodaj:
+
+python
+Kopiuj
+Edytuj
+signals["heatmap_exhaustion"] = True
+score += 8
+✅ 8. Execution Intent Detector
+Cel: upewnienie się, że whale nie tylko wpłacił tokeny, ale je kupił
+Logika:
+
+python
+Kopiuj
+Edytuj
+if buy_volume > 2 * sell_volume:
+    signals["execution_intent"] = True
+    score += 5
+Można wykorzystać w logice inflow / whale
+
+🔧 Gdzie to zintegrować:
+Detektor	Plik	Funkcja docelowa
+Whale Execution Pattern	stage_minus2_1.py	detect_stage_minus2_1()
+DEX Pool Divergence	market_data.py + stage1g.py	detect_stage_1g()
+Time Clustering	scan_cycle.py (przechowuj timing)	compute_ppwcs()
+Fake Reject	candle_analysis.py	detect_stage_1g()
+Blockspace Friction	mempool.py + gas.py	detect_stage_minus2_1()
+Dominance Ratio	whale.py + dex.py	detect_stage_minus2_1()
+Heatmap Exhaustion	orderbook.py	detect_stage_1g()
+Execution Intent	dex.py	detect_dex_inflow()
+
+🎯 Cel:
+Ulepszyć scoring PPWCS v2.8 oraz aktywację Stage –1 i Stage 1g na podstawie prawdziwych działań whales i struktur akumulacji.
+To poprawi dokładność alertów, zmniejszy opóźnienia i pozwoli złapać hidden gems przed ruchem.
+
+Daj znać jak będziesz miał gotowy commit do przetestowania – dzięki! 💪
+
+
+
+
+
+
+
+

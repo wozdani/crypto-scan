@@ -1,0 +1,70 @@
+Cześć, proszę o naprawienie następującego problemu w moim projekcie:
+
+🛠 Problem
+System ma automatycznie pobierać dane kontraktów tokenów z CoinGecko (gdy nie istnieją w token_contract_map.json), ale:
+
+kontrakty nie są pobierane i zapisywane mimo poprawnego formatu tokena,
+
+plik token_contract_map.json nie aktualizuje się,
+
+tokeny takie jak 1000000CHEEMSUSDT ciągle pokazują ⚠️ Brak mapowania.
+
+✅ Oczekiwane działanie
+Gdy token nie istnieje w token_contract_map.json, funkcja get_token_contract_from_coingecko() ma pobierać kontrakt z CoinGecko.
+
+Po pobraniu, kontrakt i chain mają być dodane do token_contract_map.json (np. "1000000CHEEMSUSDT": {"address": "...", "chain": "bsc"}).
+
+Jeśli nie da się pobrać – zapisz symbol do missing_contracts_log.txt.
+
+🔍 Co sprawdzić / naprawić
+Czy import get_token_contract_from_coingecko jest poprawny:
+
+python
+Kopiuj
+Edytuj
+from utils.contracts import get_token_contract_from_coingecko
+Czy w detect_whale_tx() (lub podobnym) znajduje się:
+
+python
+Kopiuj
+Edytuj
+if not token_info:
+    clean_symbol = normalize_token_name(symbol)
+    token_info = get_token_contract_from_coingecko(clean_symbol)
+    if token_info:
+        token_map[symbol] = token_info
+        with open("token_contract_map.json", "w", encoding="utf-8") as f:
+            json.dump(token_map, f, indent=2)
+    else:
+        # log missing
+        with open("missing_contracts_log.txt", "a", encoding="utf-8") as f:
+            f.write(f"{symbol}\n")
+        return False
+Czy plik token_contract_map.json istnieje i ma poprawne kodowanie utf-8?
+
+Czy funkcja normalize_token_name(symbol) istnieje i oczyszcza token z prefiksów jak 1000000, USDT, PERP itp.?
+
+Czy w utils/contracts.py znajduje się poprawna funkcja:
+
+python
+Kopiuj
+Edytuj
+def get_token_contract_from_coingecko(symbol):
+    try:
+        url = f"https://api.coingecko.com/api/v3/search?query={symbol}"
+        response = requests.get(url, timeout=10)
+        data = response.json()
+        coins = data.get("coins", [])
+
+        for coin in coins:
+            if symbol.lower() in coin["symbol"].lower():
+                platform_data = coin.get("platforms", {})
+                for chain, address in platform_data.items():
+                    if address:
+                        return {"address": address, "chain": chain.lower()}
+        return None
+    except Exception as e:
+        print(f"❌ Błąd pobierania z CoinGecko: {e}")
+        return None
+Proszę o naprawę całego flow i sprawdzenie, czy tokeny bez kontraktów są poprawnie pobierane i dodawane do mapy. Dziękuję!
+

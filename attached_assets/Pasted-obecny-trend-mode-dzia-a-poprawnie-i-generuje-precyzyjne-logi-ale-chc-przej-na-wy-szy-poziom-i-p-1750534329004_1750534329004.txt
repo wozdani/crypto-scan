@@ -1,0 +1,113 @@
+obecny trend-mode działa poprawnie i generuje precyzyjne logi, ale chcę przejść na wyższy poziom i przekształcić go w Trader AI Engine, który nie tylko ocenia warunki rynkowe, ale potrafi samodzielnie wyciągać logiczne wnioski jak realny trader.
+
+Poniżej opisuję, co należy wdrożyć w ramach tej transformacji — z naciskiem na interpretację, adaptację i analizę intencji rynku, a nie sztywne reguły.
+
+✅ 1. Dodanie dynamicznego scoringu: compute_trader_score(features)
+Oblicza final_score 0.0–1.0 w oparciu o dynamiczne wagi zależne od market_context
+
+Każdy czynnik (trend_strength, pullback_quality, support_reaction_strength, bounce_confirmation_strength, orderbook_alignment, time_boost) ma wagę, np.:
+
+python
+Kopiuj
+Edytuj
+base_weights = {
+  "trend_strength": 0.25,
+  "pullback_quality": 0.2,
+  "support_reaction_strength": 0.2,
+  "bounce_confirmation_strength": 0.15,
+  "orderbook_alignment": 0.1,
+  "time_boost": 0.1
+}
+Dostosowanie wag do kontekstu: np. w range pullback = 0, a orderbook = 0.25
+
+Finalny scoring + grade (excellent, strong, neutral, poor) + log print:
+
+python
+Kopiuj
+Edytuj
+[TRADER SCORE] IOTXUSDT → 0.78 (trend=0.72, pullback=0.66, support=0.80, bounce=0.60, orderbook=0.75, time=0.90)
+✅ 2. Wprowadzenie warstwy decyzyjnej simulate_trader_decision()
+Funkcja oceniająca kontekst, świeczki i orderbook jak realny trader
+
+Łączy:
+
+market_context (z analyze_market_structure)
+
+candle_behavior (z analyze_candle_behavior)
+
+orderbook_data (nowy moduł)
+
+wynik scoringu (compute_trader_score)
+
+Zwraca:
+
+python
+Kopiuj
+Edytuj
+{
+  "decision": "join_trend",
+  "final_score": 0.81,
+  "confidence": 0.81,
+  "quality_grade": "strong",
+  "reasons": [...],
+  "score_breakdown": {...}
+}
+✅ 3. Dodanie modułu interpretującego order book: analyze_orderbook()
+Wykrywa:
+
+warstwowanie bidów (≥3 poziomy)
+
+spoofing
+
+absorpcję dużych zleceń
+
+nagłą zmianę presji ask vs bid
+
+Zwraca:
+
+python
+Kopiuj
+Edytuj
+{
+  "bids_layered": True,
+  "spoofing_detected": False,
+  "bid_strength": 0.75,
+  "ask_pressure": "low"
+}
+✅ 4. Wdrożenie czytelnych logów z reasoningiem i scoringiem
+W terminalu:
+
+python
+Kopiuj
+Edytuj
+[TRADER DECISION] IOTXUSDT: JOIN_TREND (score=0.81, confidence=0.81, grade=strong)
+[REASONS] trend intact, healthy pullback, bid layering, no ask pressure
+W pliku trader_decision_log.txt:
+
+json
+Kopiuj
+Edytuj
+{
+  "symbol": "IOTXUSDT",
+  "score": 0.81,
+  "grade": "strong",
+  "decision": "join_trend",
+  "context": "impulse",
+  "orderbook": {...},
+  "reasons": [...]
+}
+✅ (Opcjonalnie) funkcja describe_setup_naturally():
+Tworzy naturalny opis decyzji (może być użyty do GPT):
+
+"Rynek utrzymuje trend wzrostowy, cena odbiła od EMA21 po korekcie o niskim wolumenie, wsparcie potwierdzone warstwą bidów."
+
+🔚 Cel końcowy:
+trend-mode przekształcony w Trader AI Engine
+
+Decyzje podejmowane jak przez doświadczonego scalpera
+
+Zero sztywnych reguł — pełna interpretacja kontekstu, świec i intencji rynku
+
+Proszę o wdrożenie powyższych zmian w nowym pliku trader_ai_engine.py, z integracją z głównym skanerem i dotychczasowym trend-mode.
+
+Dzięki! 🚀

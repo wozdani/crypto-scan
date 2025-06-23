@@ -1,0 +1,45 @@
+✅ Kontrakt dla AAVEUSDT: {'address': '0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9', 'chain': 'ethereum'}
+[DEBUG] detect_volume_spike(AAVEUSDT) - START
+[DEBUG] AAVEUSDT recent_volumes: []
+✅ [get_market_data] Ticker data dla ACEUSDT: cena=$0.4993, volume=$210,151
+[DEBUG] get_market_data result type: <class 'tuple'>, length: 4
+[DEBUG] Market data unpacked - success: True, data type: <class 'dict'>, price_usd: 0.4993
+✅ [get_market_data] Ticker data dla ACHUSDT: cena=$0.01883, volume=$585,195
+🧪 Wywołanie detect_stage_minus2_1(ACHUSDT)
+[DEBUG] === STAGE -2.1 ANALYSIS START: ACHUSDT ===
+[DEBUG] Input price_usd: 0.01883
+✅ Dodano kontrakt dla ACEUSDT: 0xec5483804e637d45cde22fa0869656b64b5ab1ab na ethereum
+🧪 [get_market_data] Start dla ACHUSDT
+RUNNING: detect_vwap_pinning
+RUNNING: detect_volume_cluster_slope
+RUNNING: detect_heatmap_exhaustion
+RUNNING: detect_orderbook_spoofing
+RUNNING: detect_orderbook_anomaly
+🔍 Skanuję ACXUSDT...
+🧪 [get_market_data] Start dla ACXUSDT
+✅ Kontrakt dla ACEUSDT: {'address': '0xec5483804e637d45cde22fa0869656b64b5ab1ab', 'chain': 'ethereum'}
+[DEBUG] detect_volume_spike(ACEUSDT) - START
+[DEBUG] ACEUSDT recent_volumes: []
+RUNNING: detect_whale_tx (Enhanced)
+✅ [get_market_data] Ticker data dla ACXUSDT: cena=$0.1499, volume=$233,153
+🧪 Wywołanie detect_stage_minus2_1(ACXUSDT)
+[DEBUG] === STAGE -2.1 ANALYSIS START: ACXUSDT ===
+[DEBUG] Input price_usd: 0.1499
+🧪 [get_market_data] Start dla ACXUSDT
+🔍 Skanuję AEGUSDT...
+🧪 [get_market_data] Start dla AEGUSDT
+✅ Dodano kontrakt dla AAVEUSDT: 0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9 na ethereum
+[WHALE TX] Szukam transakcji po 15:51:09 UTC dla AAVEUSDT
+✅ [get_market_data] Ticker data dla ACHUSDT: cena=$0.01883, volume=$585,195
+RUNNING: detect_vwap_pinning
+RUNNING: detect_volume_cluster_slope
+RUNNING: detect_heatmap_exhaustion
+RUNNING: detect_orderbook_spoofing
+RUNNING: detect_orderbook_anomaly
+[DEBUG] get_market_data result type: <class 'tuple'>, length: 4
+[DEBUG] Market data unpacked - success: True, data type: <class 'dict'>, price_usd: 0.01883
+✅ Dodano kontrakt dla ACHUSDT: 0xed04915c23f00a313a544955524eb7dbd823143d na ethereum
+✅ Kontrakt dla ACHUSDT: {'address': '0xed04915c23f00a313a544955524eb7dbd823143d', 'chain': 'ethereum'}
+[DEBUG] detect_volume_spike(ACHUSDT) - START
+[DEBUG] ACHUSDT recent_volumes: []
+🔄 Fallback do get_all_data() dla AEGUSDT

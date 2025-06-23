@@ -1,0 +1,33 @@
+/root/pump-analysis/main.py:310: RuntimeWarning: divide by zero encountered in scalar divide
+  change_pct = ((second_half - first_half) / first_half) * 100
+2025-06-18 16:20:33,859 - ERROR - ❌ Error analyzing pump for BRAWLUSDT: Invalid format specifier '.6f if data['support_resistance']['key_support'] else 'brak'' for object of type 'float'
+2025-06-18 16:20:34,358 - ERROR - ❌ Error analyzing pump for BRAWLUSDT: Invalid format specifier '.6f if data['support_resistance']['key_support'] else 'brak'' for object of type 'float'
+2025-06-18 16:20:34,544 - ERROR - ❌ Error analyzing pump for BRAWLUSDT: Invalid format specifier '.6f if data['support_resistance']['key_support'] else 'brak'' for object of type 'float'
+2025-06-18 16:20:34,731 - ERROR - ❌ Error analyzing pump for BRAWLUSDT: Invalid format specifier '.6f if data['support_resistance']['key_support'] else 'brak'' for object of type 'float'
+2025-06-18 16:20:35,731 - INFO - 🔍 Analyzing PAWSUSDT (25/30)
+2025-06-18 16:20:37,013 - INFO - 🔍 Analyzing SONUSDT (26/30)
+2025-06-18 16:20:37,453 - INFO - 🎯 Found 6 pump(s) in SONUSDT
+2025-06-18 16:20:37,637 - ERROR - ❌ Error analyzing pump for SONUSDT: Invalid format specifier '.6f if data['support_resistance']['key_support'] else 'brak'' for object of type 'float'
+2025-06-18 16:20:37,824 - ERROR - ❌ Error analyzing pump for SONUSDT: Invalid format specifier '.6f if data['support_resistance']['key_support'] else 'brak'' for object of type 'float'
+2025-06-18 16:20:38,009 - ERROR - ❌ Error analyzing pump for SONUSDT: unsupported format string passed to NoneType.__format__
+2025-06-18 16:20:53,484 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-18 16:20:53,572 - INFO - Telegram message sent successfully
+2025-06-18 16:20:53,573 - INFO - ✅ Analysis sent for SONUSDT pump at 2025-06-13 11:40:00
+2025-06-18 16:20:53,574 - INFO - 💾 Analysis saved to pump_data/SONUSDT_20250618_162053_pump_analysis.json
+2025-06-18 16:20:55,760 - ERROR - ❌ Error analyzing pump for SONUSDT: Invalid format specifier '.6f if data['support_resistance']['key_support'] else 'brak'' for object of type 'float'
+2025-06-18 16:20:55,946 - ERROR - ❌ Error analyzing pump for SONUSDT: Invalid format specifier '.6f if data['support_resistance']['key_support'] else 'brak'' for object of type 'float'
+2025-06-18 16:20:56,946 - INFO - 🔍 Analyzing HOMEUSDT (27/30)
+2025-06-18 16:20:57,233 - INFO - 🎯 Found 6 pump(s) in HOMEUSDT
+2025-06-18 16:20:57,416 - ERROR - ❌ Error analyzing pump for HOMEUSDT: Invalid format specifier '.6f if data['support_resistance']['key_support'] else 'brak'' for object of type 'float'
+2025-06-18 16:20:57,602 - ERROR - ❌ Error analyzing pump for HOMEUSDT: Invalid format specifier '.6f if data['support_resistance']['key_support'] else 'brak'' for object of type 'float'
+2025-06-18 16:20:57,786 - ERROR - ❌ Error analyzing pump for HOMEUSDT: Invalid format specifier '.6f if data['support_resistance']['key_support'] else 'brak'' for object of type 'float'
+2025-06-18 16:20:57,971 - ERROR - ❌ Error analyzing pump for HOMEUSDT: Invalid format specifier '.6f if data['support_resistance']['key_support'] else 'brak'' for object of type 'float'
+2025-06-18 16:20:58,158 - ERROR - ❌ Error analyzing pump for HOMEUSDT: Invalid format specifier '.6f if data['support_resistance']['key_support'] else 'brak'' for object of type 'float'
+2025-06-18 16:20:58,344 - ERROR - ❌ Error analyzing pump for HOMEUSDT: Invalid format specifier '.6f if data['support_resistance']['key_support'] else 'brak'' for object of type 'float'
+2025-06-18 16:20:59,344 - INFO - 🔍 Analyzing FARUSDT (28/30)
+2025-06-18 16:20:59,632 - INFO - 🎯 Found 5 pump(s) in FARUSDT
+2025-06-18 16:20:59,817 - ERROR - ❌ Error analyzing pump for FARUSDT: Invalid format specifier '.6f if data['support_resistance']['key_support'] else 'brak'' for object of type 'float'
+2025-06-18 16:21:00,002 - ERROR - ❌ Error analyzing pump for FARUSDT: Invalid format specifier '.6f if data['support_resistance']['key_support'] else 'brak'' for object of type 'float'
+2025-06-18 16:21:00,187 - ERROR - ❌ Error analyzing pump for FARUSDT: Invalid format specifier '.6f if data['support_resistance']['key_support'] else 'brak'' for object of type 'float'
+2025-06-18 16:21:00,372 - ERROR - ❌ Error analyzing pump for FARUSDT: Invalid format specifier '.6f if data['support_resistance']['key_support'] else 'brak'' for object of type 'float'
+2025-06-18 16:21:00,556 - ERROR - ❌ Error analyzing pump for FARU

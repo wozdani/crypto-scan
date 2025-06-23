@@ -1,0 +1,167 @@
+(venv) root@CryptoScan:~/pump-analysis# python main.py
+2025-06-18 16:48:57,240 - INFO - 🚀 Starting Pump Analysis System
+2025-06-18 16:48:57,240 - INFO - 📊 Analyzing 7 days of data for up to 30 symbols
+2025-06-18 16:48:57,240 - INFO - 📊 Fetching USDT perpetual futures symbols from Bybit...
+2025-06-18 16:48:57,240 - DEBUG - 🔗 Fetching symbols with cursor:
+2025-06-18 16:48:57,241 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:48:57,433 - DEBUG - https://api.bybit.com:443 "GET /v5/market/tickers?category=linear&limit=1000 HTTP/1.1" 200 363086
+2025-06-18 16:48:57,911 - WARNING - ⚠️ Using fallback symbol list due to API failure
+2025-06-18 16:48:57,912 - INFO - 📈 Retrieved 30 symbols: ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT', 'XRPUSDT', 'DOTUSDT', 'LINKUSDT', 'LTCUSDT', 'BCHUSDT']...
+2025-06-18 16:48:57,912 - INFO - 🔍 Analyzing BTCUSDT (1/30)
+2025-06-18 16:48:57,912 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'BTCUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660537912}
+2025-06-18 16:48:57,913 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:48:58,091 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=BTCUSDT&interval=5&limit=1000&start=1749660537912 HTTP/1.1" 200 85746
+2025-06-18 16:48:58,096 - DEBUG - ✅ Bybit API success for BTCUSDT: 1000 candles retrieved
+2025-06-18 16:48:59,200 - INFO - 🔍 Analyzing ETHUSDT (2/30)
+2025-06-18 16:48:59,200 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'ETHUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660539200}
+2025-06-18 16:48:59,202 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:48:59,378 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=ETHUSDT&interval=5&limit=1000&start=1749660539200 HTTP/1.1" 200 82602
+2025-06-18 16:48:59,383 - DEBUG - ✅ Bybit API success for ETHUSDT: 1000 candles retrieved
+2025-06-18 16:49:00,514 - INFO - 🔍 Analyzing BNBUSDT (3/30)
+2025-06-18 16:49:00,514 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'BNBUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660540514}
+2025-06-18 16:49:00,515 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:00,695 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=BNBUSDT&interval=5&limit=1000&start=1749660540514 HTTP/1.1" 200 None
+2025-06-18 16:49:00,697 - DEBUG - ✅ Bybit API success for BNBUSDT: 1000 candles retrieved
+2025-06-18 16:49:01,796 - INFO - 🔍 Analyzing ADAUSDT (4/30)
+2025-06-18 16:49:01,797 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'ADAUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660541797}
+2025-06-18 16:49:01,798 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:01,977 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=ADAUSDT&interval=5&limit=1000&start=1749660541797 HTTP/1.1" 200 None
+2025-06-18 16:49:01,979 - DEBUG - ✅ Bybit API success for ADAUSDT: 1000 candles retrieved
+2025-06-18 16:49:03,079 - INFO - 🔍 Analyzing SOLUSDT (5/30)
+2025-06-18 16:49:03,079 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'SOLUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660543079}
+2025-06-18 16:49:03,081 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:03,268 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=SOLUSDT&interval=5&limit=1000&start=1749660543079 HTTP/1.1" 200 None
+2025-06-18 16:49:03,270 - DEBUG - ✅ Bybit API success for SOLUSDT: 1000 candles retrieved
+2025-06-18 16:49:04,370 - INFO - 🔍 Analyzing XRPUSDT (6/30)
+2025-06-18 16:49:04,370 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'XRPUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660544370}
+2025-06-18 16:49:04,371 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:04,551 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=XRPUSDT&interval=5&limit=1000&start=1749660544370 HTTP/1.1" 200 None
+2025-06-18 16:49:04,554 - DEBUG - ✅ Bybit API success for XRPUSDT: 1000 candles retrieved
+2025-06-18 16:49:05,656 - INFO - 🔍 Analyzing DOTUSDT (7/30)
+2025-06-18 16:49:05,656 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'DOTUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660545656}
+2025-06-18 16:49:05,658 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:05,842 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=DOTUSDT&interval=5&limit=1000&start=1749660545656 HTTP/1.1" 200 77653
+2025-06-18 16:49:05,846 - DEBUG - ✅ Bybit API success for DOTUSDT: 1000 candles retrieved
+2025-06-18 16:49:06,945 - INFO - 🔍 Analyzing LINKUSDT (8/30)
+2025-06-18 16:49:06,946 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'LINKUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660546946}
+2025-06-18 16:49:06,947 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:07,124 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=LINKUSDT&interval=5&limit=1000&start=1749660546946 HTTP/1.1" 200 77117
+2025-06-18 16:49:07,439 - DEBUG - ✅ Bybit API success for LINKUSDT: 1000 candles retrieved
+2025-06-18 16:49:08,541 - INFO - 🔍 Analyzing LTCUSDT (9/30)
+2025-06-18 16:49:08,541 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'LTCUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660548541}
+2025-06-18 16:49:08,542 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:08,722 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=LTCUSDT&interval=5&limit=1000&start=1749660548541 HTTP/1.1" 200 None
+2025-06-18 16:49:08,724 - DEBUG - ✅ Bybit API success for LTCUSDT: 1000 candles retrieved
+2025-06-18 16:49:09,823 - INFO - 🔍 Analyzing BCHUSDT (10/30)
+2025-06-18 16:49:09,824 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'BCHUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660549824}
+2025-06-18 16:49:09,825 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:10,002 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=BCHUSDT&interval=5&limit=1000&start=1749660549824 HTTP/1.1" 200 70567
+2025-06-18 16:49:10,007 - DEBUG - ✅ Bybit API success for BCHUSDT: 1000 candles retrieved
+2025-06-18 16:49:11,108 - INFO - 🔍 Analyzing XLMUSDT (11/30)
+2025-06-18 16:49:11,108 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'XLMUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660551108}
+2025-06-18 16:49:11,109 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:11,287 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=XLMUSDT&interval=5&limit=1000&start=1749660551108 HTTP/1.1" 200 79939
+2025-06-18 16:49:11,445 - DEBUG - ✅ Bybit API success for XLMUSDT: 1000 candles retrieved
+2025-06-18 16:49:12,545 - INFO - 🔍 Analyzing UNIUSDT (12/30)
+2025-06-18 16:49:12,545 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'UNIUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660552545}
+2025-06-18 16:49:12,546 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:12,723 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=UNIUSDT&interval=5&limit=1000&start=1749660552545 HTTP/1.1" 200 73273
+2025-06-18 16:49:13,038 - DEBUG - ✅ Bybit API success for UNIUSDT: 1000 candles retrieved
+2025-06-18 16:49:14,163 - INFO - 🔍 Analyzing FILUSDT (13/30)
+2025-06-18 16:49:14,163 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'FILUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660554163}
+2025-06-18 16:49:14,164 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:14,341 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=FILUSDT&interval=5&limit=1000&start=1749660554163 HTTP/1.1" 200 71883
+2025-06-18 16:49:14,345 - DEBUG - ✅ Bybit API success for FILUSDT: 1000 candles retrieved
+2025-06-18 16:49:15,444 - INFO - 🔍 Analyzing TRXUSDT (14/30)
+2025-06-18 16:49:15,444 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'TRXUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660555444}
+2025-06-18 16:49:15,445 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:15,625 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=TRXUSDT&interval=5&limit=1000&start=1749660555444 HTTP/1.1" 200 None
+2025-06-18 16:49:15,628 - DEBUG - ✅ Bybit API success for TRXUSDT: 1000 candles retrieved
+2025-06-18 16:49:16,727 - INFO - 🔍 Analyzing ETCUSDT (15/30)
+2025-06-18 16:49:16,727 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'ETCUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660556727}
+2025-06-18 16:49:16,728 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:16,908 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=ETCUSDT&interval=5&limit=1000&start=1749660556727 HTTP/1.1" 200 None
+2025-06-18 16:49:16,910 - DEBUG - ✅ Bybit API success for ETCUSDT: 1000 candles retrieved
+2025-06-18 16:49:18,006 - INFO - 🔍 Analyzing NEARUSDT (16/30)
+2025-06-18 16:49:18,007 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'NEARUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660558007}
+2025-06-18 16:49:18,008 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:18,185 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=NEARUSDT&interval=5&limit=1000&start=1749660558007 HTTP/1.1" 200 None
+2025-06-18 16:49:18,189 - DEBUG - ✅ Bybit API success for NEARUSDT: 1000 candles retrieved
+2025-06-18 16:49:19,288 - INFO - 🔍 Analyzing ATOMUSDT (17/30)
+2025-06-18 16:49:19,288 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'ATOMUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660559288}
+2025-06-18 16:49:19,289 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:19,472 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=ATOMUSDT&interval=5&limit=1000&start=1749660559288 HTTP/1.1" 200 None
+2025-06-18 16:49:19,474 - DEBUG - ✅ Bybit API success for ATOMUSDT: 1000 candles retrieved
+2025-06-18 16:49:20,574 - INFO - 🔍 Analyzing ALGOUSDT (18/30)
+2025-06-18 16:49:20,574 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'ALGOUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660560574}
+2025-06-18 16:49:20,575 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:20,751 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=ALGOUSDT&interval=5&limit=1000&start=1749660560574 HTTP/1.1" 200 77670
+2025-06-18 16:49:20,756 - DEBUG - ✅ Bybit API success for ALGOUSDT: 1000 candles retrieved
+2025-06-18 16:49:21,854 - INFO - 🔍 Analyzing VETUSDT (19/30)
+2025-06-18 16:49:21,854 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'VETUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660561854}
+2025-06-18 16:49:21,855 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:22,347 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=VETUSDT&interval=5&limit=1000&start=1749660561854 HTTP/1.1" 200 79530
+2025-06-18 16:49:22,662 - DEBUG - ✅ Bybit API success for VETUSDT: 1000 candles retrieved
+2025-06-18 16:49:23,762 - INFO - 🔍 Analyzing ICPUSDT (20/30)
+2025-06-18 16:49:23,762 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'ICPUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660563762}
+2025-06-18 16:49:23,763 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:23,942 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=ICPUSDT&interval=5&limit=1000&start=1749660563762 HTTP/1.1" 200 71825
+2025-06-18 16:49:23,946 - DEBUG - ✅ Bybit API success for ICPUSDT: 1000 candles retrieved
+2025-06-18 16:49:25,047 - INFO - 🔍 Analyzing THETAUSDT (21/30)
+2025-06-18 16:49:25,047 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'THETAUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660565047}
+2025-06-18 16:49:25,048 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:25,225 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=THETAUSDT&interval=5&limit=1000&start=1749660565047 HTTP/1.1" 200 None
+2025-06-18 16:49:25,228 - DEBUG - ✅ Bybit API success for THETAUSDT: 1000 candles retrieved
+2025-06-18 16:49:26,328 - INFO - 🔍 Analyzing HBARUSDT (22/30)
+2025-06-18 16:49:26,328 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'HBARUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660566328}
+2025-06-18 16:49:26,329 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:26,507 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=HBARUSDT&interval=5&limit=1000&start=1749660566328 HTTP/1.1" 200 80727
+2025-06-18 16:49:26,665 - DEBUG - ✅ Bybit API success for HBARUSDT: 1000 candles retrieved
+2025-06-18 16:49:27,792 - INFO - 🔍 Analyzing EGLDUSDT (23/30)
+2025-06-18 16:49:27,792 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'EGLDUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660567792}
+2025-06-18 16:49:27,793 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:27,970 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=EGLDUSDT&interval=5&limit=1000&start=1749660567792 HTTP/1.1" 200 None
+2025-06-18 16:49:27,973 - DEBUG - ✅ Bybit API success for EGLDUSDT: 1000 candles retrieved
+2025-06-18 16:49:29,071 - INFO - 🔍 Analyzing AAVEUSDT (24/30)
+2025-06-18 16:49:29,071 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'AAVEUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660569071}
+2025-06-18 16:49:29,072 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:29,249 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=AAVEUSDT&interval=5&limit=1000&start=1749660569071 HTTP/1.1" 200 77011
+2025-06-18 16:49:29,564 - DEBUG - ✅ Bybit API success for AAVEUSDT: 1000 candles retrieved
+2025-06-18 16:49:30,664 - INFO - 🔍 Analyzing EOSUSDT (25/30)
+2025-06-18 16:49:30,664 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'EOSUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660570664}
+2025-06-18 16:49:30,666 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:30,842 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=EOSUSDT&interval=5&limit=1000&start=1749660570664 HTTP/1.1" 200 125
+2025-06-18 16:49:30,842 - DEBUG - ✅ Bybit API success for EOSUSDT: 0 candles retrieved
+2025-06-18 16:49:30,843 - WARNING - ⚠️ No data for EOSUSDT
+2025-06-18 16:49:30,843 - INFO - 🔍 Analyzing AXSUSDT (26/30)
+2025-06-18 16:49:30,843 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'AXSUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660570843}
+2025-06-18 16:49:30,844 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:31,021 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=AXSUSDT&interval=5&limit=1000&start=1749660570843 HTTP/1.1" 200 70931
+2025-06-18 16:49:31,335 - DEBUG - ✅ Bybit API success for AXSUSDT: 1000 candles retrieved
+2025-06-18 16:49:32,437 - INFO - 🔍 Analyzing SANDUSDT (27/30)
+2025-06-18 16:49:32,437 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'SANDUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660572437}
+2025-06-18 16:49:32,438 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:32,616 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=SANDUSDT&interval=5&limit=1000&start=1749660572437 HTTP/1.1" 200 74476
+2025-06-18 16:49:32,620 - DEBUG - ✅ Bybit API success for SANDUSDT: 1000 candles retrieved
+2025-06-18 16:49:33,720 - INFO - 🔍 Analyzing MANAUSDT (28/30)
+2025-06-18 16:49:33,721 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'MANAUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660573721}
+2025-06-18 16:49:33,722 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:33,899 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=MANAUSDT&interval=5&limit=1000&start=1749660573721 HTTP/1.1" 200 None
+2025-06-18 16:49:33,901 - DEBUG - ✅ Bybit API success for MANAUSDT: 1000 candles retrieved
+2025-06-18 16:49:35,000 - INFO - 🔍 Analyzing GALAUSDT (29/30)
+2025-06-18 16:49:35,001 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'GALAUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660575000}
+2025-06-18 16:49:35,002 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:35,180 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=GALAUSDT&interval=5&limit=1000&start=1749660575000 HTTP/1.1" 200 None
+2025-06-18 16:49:35,182 - DEBUG - ✅ Bybit API success for GALAUSDT: 1000 candles retrieved
+2025-06-18 16:49:36,282 - INFO - 🔍 Analyzing PAWSUSDT (30/30)
+2025-06-18 16:49:36,283 - DEBUG - 📡 Bybit API request: https://api.bybit.com/v5/market/kline with params: {'category': 'linear', 'symbol': 'PAWSUSDT', 'interval': '5', 'limit': 1000, 'start': 1749660576282}
+2025-06-18 16:49:36,284 - DEBUG - Starting new HTTPS connection (1): api.bybit.com:443
+2025-06-18 16:49:36,461 - DEBUG - https://api.bybit.com:443 "GET /v5/market/kline?category=linear&symbol=PAWSUSDT&interval=5&limit=1000&start=1749660576282 HTTP/1.1" 200 110
+2025-06-18 16:49:36,461 - ERROR - Bybit API error for PAWSUSDT: params error: Symbol Is Invalid
+2025-06-18 16:49:36,462 - WARNING - ⚠️ No data for PAWSUSDT
+2025-06-18 16:49:36,462 - INFO - 🏁 Analysis complete!
+2025-06-18 16:49:36,462 - INFO - 📊 Total pumps found: 0
+2025-06-18 16:49:36,462 - INFO - 📤 Total analyses sent: 0
+2025-06-18 16:49:36,463 - DEBUG - Starting new HTTPS connection (1): api.telegram.org:443
+2025-06-18 16:49:36,568 - DEBUG - https://api.telegram.org:443 "POST /bot7623591794:AAEoxAaIiy-GS2vWmoLaEBbji_i7CnmqD3w/sendMessage HTTP/1.1" 200 529
+2025-06-18 16:49:36,568 - INFO - Telegram message sent successfully

@@ -1,0 +1,58 @@
+prosimy o usunięcie starego detektora "Chaotic Flow", który bazował na zmianach koloru świec (zielona/czerwona),
+i zastąpienie go nową logiką detekcji trendu i wejścia na korekcie.
+
+🔁 Co usuwamy:
+Funkcję, która zlicza zmiany kierunku np. count_direction_flips() lub compute_flow_instability()
+
+Komunikaty typu:
+📉 PIXELUSDT: Chaotic flow – zbyt dużo zmian kierunku (44.4%) (–10 points)
+
+✅ Co dodajemy zamiast:
+1️⃣ is_uptrend_15m(prices_15m)
+python
+Kopiuj
+Edytuj
+def is_uptrend_15m(prices_15m: list[float]) -> bool:
+    if len(prices_15m) < 6:
+        return False
+    upward_progress = prices_15m[-1] > prices_15m[-4]
+    up_count = sum(1 for i in range(-5, 0) if prices_15m[i] > prices_15m[i-1])
+    dominance = up_count >= 3
+    corrections_ok = all(
+        (abs(prices_15m[i] - prices_15m[i-1]) / prices_15m[i-1]) < 0.01
+        for i in range(-3, 0)
+        if prices_15m[i] < prices_15m[i-1]
+    )
+    return upward_progress and dominance and corrections_ok
+2️⃣ is_absorption_entry_trigger(prices_5m, volumes_ask, orderbook)
+python
+Kopiuj
+Edytuj
+def is_absorption_entry_trigger(prices_5m, volumes_ask, orderbook):
+    if len(prices_5m) < 5 or len(volumes_ask) < 3:
+        return False
+    red_count = sum(1 for i in range(-3, 0) if prices_5m[i] < prices_5m[i-1])
+    if red_count < 2:
+        return False
+    ask_trend_down = volumes_ask[-3] > volumes_ask[-2] > volumes_ask[-1]
+    bids = orderbook.get("bids", [])[:5]
+    asks = orderbook.get("asks", [])[:5]
+    bid_vol = sum([b[1] for b in bids])
+    ask_vol = sum([a[1] for a in asks])
+    bid_pressure = bid_vol / ask_vol if ask_vol else 0 > 1.4
+    last_rebound = prices_5m[-1] > prices_5m[-2]
+    return ask_trend_down and bid_pressure and last_rebound
+📌 Integracja:
+python
+Kopiuj
+Edytuj
+if is_uptrend_15m(prices_15m):
+    if is_absorption_entry_trigger(prices_5m, volumes_ask, orderbook):
+        send_alert(
+            symbol=symbol,
+            reason="Trend Mode Entry: Uptrend 15M + Trigger 5M (Absorption)",
+            score=75,
+            alert_type="trend_mode"
+        )
+Dzięki temu system nie będzie już mylił korekty z chaosem,
+tylko wejdzie w pozycję, gdy presja sprzedających słabnie, a kupujący się uaktywniają – jak robi to najlepszy scalper. 🔥

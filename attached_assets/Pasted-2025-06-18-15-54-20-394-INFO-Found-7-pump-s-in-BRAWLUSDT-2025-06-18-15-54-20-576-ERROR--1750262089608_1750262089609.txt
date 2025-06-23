@@ -1,0 +1,16 @@
+2025-06-18 15:54:20,394 - INFO - 🎯 Found 7 pump(s) in BRAWLUSDT
+2025-06-18 15:54:20,576 - ERROR - ❌ Error analyzing pump for BRAWLUSDT: Invalid format specifier '.6f if data['support_resistance']['key_support'] else 'brak'' for object of type 'float'
+2025-06-18 15:54:20,761 - ERROR - ❌ Error analyzing pump for BRAWLUSDT: Invalid format specifier '.6f if data['support_resistance']['key_support'] else 'brak'' for object of type 'float'
+2025-06-18 15:54:20,945 - ERROR - ❌ Error analyzing pump for BRAWLUSDT: Invalid format specifier '.6f if data['support_resistance']['key_support'] else 'brak'' for object of type 'float'
+/root/pump-analysis/main.py:310: RuntimeWarning: divide by zero encountered in scalar divide
+  change_pct = ((second_half - first_half) / first_half) * 100
+2025-06-18 15:54:21,132 - ERROR - ❌ Error analyzing pump for BRAWLUSDT: Invalid format specifier '.6f if data['support_resistance']['key_support'] else 'brak'' for object of type 'float'
+2025-06-18 15:54:21,627 - ERROR - ❌ Error analyzing pump for BRAWLUSDT: Invalid format specifier '.6f if data['support_resistance']['key_support'] else 'brak'' for object of type 'float'
+2025-06-18 15:54:21,809 - ERROR - ❌ Error analyzing pump for BRAWLUSDT: Invalid format specifier '.6f if data['support_resistance']['key_support'] else 'brak'' for object of type 'float'
+2025-06-18 15:54:21,995 - ERROR - ❌ Error analyzing pump for BRAWLUSDT: Invalid format specifier '.6f if data['support_resistance']['key_support'] else 'brak'' for object of type 'float'
+2025-06-18 15:54:22,995 - INFO - 🔍 Analyzing PAWSUSDT (25/30)
+2025-06-18 15:54:24,294 - INFO - 🔍 Analyzing SONUSDT (26/30)
+2025-06-18 15:54:24,573 - INFO - 🎯 Found 6 pump(s) in SONUSDT
+2025-06-18 15:54:24,754 - ERROR - ❌ Error analyzing pump for SONUSDT: Invalid format specifier '.6f if data['support_resistance']['key_support'] else 'brak'' for object of type 'float'
+2025-06-18 15:54:24,939 - ERROR - ❌ Error analyzing pump for SONUSDT: Invalid format specifier '.6f if data['support_resistance']['key_support'] else 'brak'' for object of type 'float'
+2025-06-18 15:54:25,127 - ERROR - ❌ Error analyzing pump for SONUSDT: unsupported format string passed to NoneType.__format__

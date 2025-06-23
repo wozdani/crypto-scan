@@ -1,0 +1,86 @@
+Zmieniamy podejście w Trend Mode.
+Poprzednia funkcja detect_rhythmic_price_flow() (leg1 → cofka → leg2) okazała się zbyt sztuczna.
+W rzeczywistości rynek porusza się z dominującym kierunkiem, a nie sztywną strukturą świec.
+
+🧠 Cel:
+Nowa funkcja wykrywa, czy cena poruszała się naturalnie i spójnie (np. 6x wzrost, 2x cofka, 3x wzrost),
+czy chaotycznie i szarpanie (np. up, down, up, down, up...).
+
+✅ Nowy detektor: detect_directional_flow(prices)
+python
+Kopiuj
+Edytuj
+def detect_directional_flow(prices: list[float]) -> bool:
+    """
+    Wykrywa, czy ruch ceny jest spójny kierunkowo (niechaotyczny).
+    Jeśli flow jest chaotyczny – zwraca False.
+    """
+    if len(prices) < 20:
+        return False
+
+    direction_changes = 0
+    last_dir = 0
+
+    for i in range(1, len(prices)):
+        delta = prices[i] - prices[i-1]
+        if delta > 0 and last_dir != 1:
+            direction_changes += 1
+            last_dir = 1
+        elif delta < 0 and last_dir != -1:
+            direction_changes += 1
+            last_dir = -1
+
+    chaos_ratio = direction_changes / len(prices)
+
+    # jeśli mniej niż ~40% zmian kierunku – trend naturalny
+    return chaos_ratio < 0.4
+✅ Pobieranie danych (zostaje bez zmian):
+python
+Kopiuj
+Edytuj
+def get_price_series_bybit(symbol: str) -> list[float]:
+    url = "https://api.bybit.com/v5/market/kline"
+    params = {
+        "interval": "5",
+        "limit": 36,
+        "category": "linear",
+        "symbol": symbol
+    }
+
+    try:
+        resp = requests.get(url, params=params, timeout=10)
+        data = resp.json()
+        if data["retCode"] != 0:
+            print(f"❌ Bybit API error for {symbol}: {data['retMsg']}")
+            return []
+
+        return [float(item[4]) for item in data["result"]["list"]]
+    except Exception as e:
+        print(f"❌ Exception fetching price series for {symbol}: {e}")
+        return []
+🔧 Integracja w trend_mode_pipeline.py:
+python
+Kopiuj
+Edytuj
+from detectors.directional_flow_detector import detect_directional_flow, get_price_series_bybit
+
+prices = get_price_series_bybit(symbol)
+
+if prices and detect_directional_flow(prices):
+    score += 25
+    reasons.append("natural directional price flow detected")
+else:
+    score -= 10
+    reasons.append("chaotic price flow – score penalty")
+📈 Co osiągamy:
+Zero alertów na szarpanych, memowych tokenach
+
+Pełna zgodność z realnym rytmem rynku
+
+Brak uzależnienia od świec – tylko zachowanie ceny
+
+Gotowe pod rozbudowę o AI lub LSTM w przyszłości
+
+Proszę o podmianę poprzedniego detektora na ten nowy (detect_directional_flow)
+i integrację z pipeline Trend Mode.
+Plik można nazwać detectors/directional_flow_detector.py.

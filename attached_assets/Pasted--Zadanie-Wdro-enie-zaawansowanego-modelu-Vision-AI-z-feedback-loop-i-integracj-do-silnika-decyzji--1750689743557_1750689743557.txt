@@ -1,0 +1,90 @@
+ Zadanie: Wdrożenie zaawansowanego modelu Vision-AI z feedback loop i integracją do silnika decyzji
+Cel: nasz system ma uczyć się patrzeć na wykres jak najlepszy trader na świecie. W tym celu integrujemy system CV (Computer Vision), który:
+
+analizuje obrazy wykresów (np. 15m/1h candlestick snapshot z Bybit),
+
+dopasowuje je do opisów generowanych przez GPT (embeddingi),
+
+uczy się oceniać setupy (np. breakout, fakeout, pułapka) i fazy rynku,
+
+integruje swoje predykcje do simulate_trader_decision_advanced().
+
+✅ Do wdrożenia:
+5. Feedback loop dla modelu CV
+Stworzyć moduł feedback_loop_cv.py:
+
+Dla każdego predykowanego setupu przez model CV (np. breakout-continuation, trap), po upływie np. 2h lub 6h sprawdzana jest:
+
+realizacja ruchu (np. +2% w danym kierunku),
+
+skuteczność klasyfikacji (success: True/False).
+
+Na tej podstawie loguj skuteczność predykcji:
+
+data/cv_feedback_logs/{symbol}_{timestamp}.jsonl
+
+Skonstruować metodę update_cv_model_weights() (wstępnie może być log-only), która w przyszłości dostraja model.
+
+6. Integracja predykcji modelu CV do simulate_trader_decision_advanced()
+W pliku simulate_trader_decision_advanced() dodaj:
+
+Wczytanie predykcji z folderu data/cv_predictions/ (np. JSTUSDT_20250623_1045.json):
+
+python
+Kopiuj
+Edytuj
+cv_data = load_cv_prediction(symbol)
+if cv_data:
+    setup_type = cv_data.get("setup")  # e.g. breakout, trap
+    setup_conf = cv_data.get("confidence", 0)
+    # Dostosuj scoring:
+    if setup_type == "breakout" and setup_conf > 0.8:
+        score += 0.1
+        decision_reasons.append("CV Model: breakout with high confidence")
+    elif setup_type == "trap" and setup_conf > 0.7:
+        score -= 0.1
+        decision_reasons.append("CV Model: possible trap")
+8. Embeddingi z obrazów i opisów (Vision Transformer + CLIP)
+W pliku train_cv_model.py:
+
+Dla każdego obrazu:
+
+zapisujemy chart.png,
+
+generujemy opis setupu i fazy od GPT (description: "fakeout na oporze w fazie range").
+
+Używamy modelu typu CLIP (np. openai/clip-vit-base-patch16) do uczenia powiązania:
+
+python
+Kopiuj
+Edytuj
+image_embedding = model.encode_image(chart_tensor)
+text_embedding = model.encode_text(tokenizer(description))
+similarity = cosine_similarity(image_embedding, text_embedding)
+loss = -similarity  # minimalizacja
+W folderze data/vision_ai/embeddings/ trzymać wektory i etykiety.
+
+📁 Pliki do stworzenia/zmodyfikowania:
+bash
+Kopiuj
+Edytuj
+vision_ai/
+├── train_cv_model.py                  # Trening embeddingów CLIP
+├── predict_cv_setup.py               # Predykcja setupu z wykresu
+├── feedback_loop_cv.py               # Analiza skuteczności predykcji
+data/
+├── charts/                           # Zapisane wykresy (.png)
+├── vision_ai/
+│   ├── embeddings/                   # Embeddingi obrazów i tekstów
+│   ├── predictions/                  # Predykcje dla każdego symbolu
+├── cv_feedback_logs/                # Wyniki analizy skuteczności
+🧠 Cel końcowy:
+Model CV ma działać jak trader wizualny:
+
+przewidywać: setup type, market phase, confidence,
+
+wspierać decyzję alertową,
+
+uczyć się na bazie skuteczności predykcji,
+
+być zasilany realnymi obrazami wykresów z Bybit.

@@ -1,0 +1,55 @@
+Cześć Replit Team 👋
+
+Tworzę nowy projekt o nazwie `pump_analysis`, który analizuje dane z giełdy kryptowalut Bybit i wykorzystuje OpenAI do automatycznego generowania analizy „pre-pump”.
+
+📦 Projekt będzie działał **niezależnie od mojego głównego skanera** i potrzebuję Waszego wsparcia, żeby ustawić jego środowisko na Replit. Będę go potem przenosił na mój serwer przez GitHub.
+
+---
+
+## 🔁 Etapy działania projektu `pump_analysis`:
+
+### 🔹 Etap 1: Wykrycie „pumpy”
+- Skrypt pobiera dane świecowe (5-minutowe) z Bybit API dla kilkudziesięciu tokenów.
+- Dla każdego tokena analizuje ostatnie 7 dni i sprawdza, czy wystąpił nagły wzrost ceny **≥15% w ciągu 30 minut**.
+- Jeśli tak – zapisuje czas rozpoczęcia „pumpy”.
+
+### 🔹 Etap 2: Analiza pre-pump (60 minut przed ruchem)
+- Dla każdej wykrytej pumpy, skrypt analizuje 60 minut poprzedzających ją.
+- Liczy wskaźniki: RSI, VWAP, wolumen, obecność fake rejectów, itd.
+- Wyniki są przygotowywane w formacie JSON lub jako tekstowy prompt.
+
+### 🔹 Etap 3: Komunikacja z GPT
+- Prompt z pre-pump danych jest wysyłany do OpenAI (GPT-4o) przez `openai.ChatCompletion.create`.
+- Model GPT generuje analizę: ocenia możliwe przyczyny pumpy, obecność sygnałów akumulacyjnych itd.
+
+### 🔹 Etap 4: Wysyłka na Telegram
+- Odpowiedź GPT jest natychmiast wysyłana do mojego prywatnego kanału Telegram (przez mojego bota).
+- Nie potrzebuję dashboardu ani GUI — tylko pełna automatyzacja.
+
+---
+
+## 🔧 Potrzebuję od Was:
+
+1. Stworzenia osobnego projektu `pump_analysis` na Replit.
+2. Możliwości instalacji tych bibliotek (lub dodania ich do `replit.nix`):
+   - `openai`
+   - `python-dotenv`
+   - `pandas`
+   - `matplotlib`
+   - `requests`
+3. Ustawienia zmiennych środowiskowych przez `.env`:
+   - `OPENAI_API_KEY`
+   - `TELEGRAM_BOT_TOKEN`
+   - `TELEGRAM_CHAT_ID`
+4. Opcji uruchomienia tego skryptu cyklicznie (np. co 12h), jeśli możliwe na Replit.
+5. (Opcjonalnie) Pomocy w konfiguracji webhooka lub cron-like triggera, jeśli skrypt ma być uruchamiany automatycznie.
+
+---
+
+✅ Docelowo nie będzie żadnej integracji z innym projektem. `pump_analysis` to osobny moduł, który służy do **generowania wiedzy i insightów** z prawdziwych przypadków pump na rynku kryptowalut.
+
+---
+
+Dajcie znać, czy potrzebuję coś dodatkowego skonfigurować z Waszej strony lub jakie są najlepsze praktyki do takiego projektu na Replit.
+
+Dzięki za pomoc! 🚀

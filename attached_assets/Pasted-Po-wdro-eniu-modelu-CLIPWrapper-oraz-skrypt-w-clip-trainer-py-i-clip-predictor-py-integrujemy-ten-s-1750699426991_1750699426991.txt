@@ -1,0 +1,78 @@
+Po wdrożeniu modelu CLIPWrapper oraz skryptów clip_trainer.py i clip_predictor.py, integrujemy ten system z TJDE (simulate_trader_decision_advanced()), aby:
+
+✅ Automatycznie wykrywać fazę rynku i typ setupu z wykresu (obraz)
+✅ Używać tej predykcji jako dodatkowej cechy scoringowej w podejmowaniu decyzji
+✅ Zwiększać inteligencję systemu – „widzenie jak trader”
+
+🔁 ZMIANY DO WDROŻENIA
+1. Importuj CLIP predictor
+W pliku z simulate_trader_decision_advanced() (np. trader_ai_engine.py):
+
+python
+Kopiuj
+Edytuj
+from ai.clip_predictor import predict_clip_chart
+2. Zdefiniuj listę możliwych faz / setupów
+(np. u góry pliku lub w configu):
+
+python
+Kopiuj
+Edytuj
+CANDIDATE_PHASES = [
+    "breakout-continuation", "pullback-in-trend", "range-accumulation",
+    "trend-reversal", "consolidation", "fake-breakout", "trending-up", "trending-down"
+]
+3. W simulate_trader_decision_advanced(symbol, ...) dodaj sekcję predykcji CLIP:
+python
+Kopiuj
+Edytuj
+# 🔍 CLIP Vision Prediction
+image_path = f"training_data/clip/{symbol}_{timestamp_str}.png"  # lub inna ścieżka do obrazu wykresu
+try:
+    clip_result = predict_clip_chart(image_path, CANDIDATE_PHASES)
+    predicted_phase = clip_result["predicted_label"]
+    clip_confidence = clip_result["confidence"]
+except Exception as e:
+    predicted_phase = "unknown"
+    clip_confidence = 0.0
+    print(f"[CLIP] ❌ Failed for {symbol}: {e}")
+4. W scoringu dodaj modyfikator np. jako clip_phase_modifier:
+python
+Kopiuj
+Edytuj
+# Przykład modyfikatora scoringu na podstawie CLIP predykcji
+clip_phase_modifier = 0.0
+if "breakout" in predicted_phase:
+    clip_phase_modifier = 0.08 * clip_confidence
+elif "pullback-in-trend" in predicted_phase:
+    clip_phase_modifier = 0.05 * clip_confidence
+elif "trend-reversal" in predicted_phase:
+    clip_phase_modifier = -0.06 * clip_confidence
+
+# Dodaj do final_score
+final_score += clip_phase_modifier
+5. Dodaj wynik CLIP do debug_info i alertu Telegram:
+python
+Kopiuj
+Edytuj
+debug_info["clip_phase_prediction"] = predicted_phase
+debug_info["clip_confidence"] = clip_confidence
+debug_info["clip_modifier"] = round(clip_phase_modifier, 3)
+I w alercie Telegram:
+
+yaml
+Kopiuj
+Edytuj
+🧠 CLIP Phase Prediction: pullback-in-trend (conf: 0.72)
+🔧 Modifier Applied: +0.036
+🧠 Finalny Efekt:
+Model CLIP działa jako kolejna warstwa „intuicji tradera”, patrząc na wykres i mówiąc:
+
+„To wygląda jak wyczerpanie trendu”
+
+„Tu jest pullback po breakoutcie”
+
+„To klasyczna konsolidacja z niskim wolumenem”
+
+Wszystko zintegrowane z TJDE i wpływające na decyzję alert/avoid!
+

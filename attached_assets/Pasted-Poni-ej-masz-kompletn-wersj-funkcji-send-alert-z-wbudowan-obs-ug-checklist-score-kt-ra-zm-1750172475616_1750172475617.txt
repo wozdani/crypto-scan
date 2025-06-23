@@ -1,0 +1,53 @@
+Poniżej masz kompletną wersję funkcji send_alert() z wbudowaną obsługą checklist_score, która:
+
+✅ zmienia treść alertu w zależności od jakości struktury (czyli checklist_score)
+
+📈 wzmacnia komunikat, jeśli struktura jest silna (checklist_score ≥ 60)
+
+⚠️ ostrzega, jeśli sygnał jest mocny, ale struktura słaba
+
+🔧 Funkcja: send_alert(symbol, ppwcs, checklist_score, checklist_summary, signals)
+python
+Kopiuj
+Edytuj
+def send_alert(symbol, ppwcs, checklist_score, checklist_summary, signals):
+    alert_lines = []
+
+    # Nagłówek
+    alert_lines.append(f"🚨 **PRE-PUMP ALERT** – {symbol}")
+    alert_lines.append(f"PPWCS Score: {ppwcs}/100")
+    alert_lines.append(f"Checklist Score: {checklist_score}/100")
+
+    # Wzmocnienie komunikatu wg checklist_score
+    if checklist_score >= 70:
+        alert_lines.append("✅ Struktura: bardzo silna (setup high-confidence)")
+    elif checklist_score >= 50:
+        alert_lines.append("⚠️ Struktura: akceptowalna, ale warto monitorować")
+    else:
+        alert_lines.append("❗ Uwaga: słaba struktura – możliwy fałszywy sygnał")
+
+    # Sygnały aktywne
+    alert_lines.append("\n📡 Aktywne sygnały:")
+    for k, v in signals.items():
+        if isinstance(v, bool) and v:
+            alert_lines.append(f"• {k}")
+        elif isinstance(v, str) and v.strip():
+            alert_lines.append(f"• {k}: {v}")
+    
+    # Podsumowanie struktury
+    if checklist_summary:
+        alert_lines.append("\n🧠 Struktura setupu:")
+        alert_lines.append(" + ".join(checklist_summary))
+
+    # Dodaj link (jeśli masz Bybit lub DEX screener)
+    alert_lines.append(f"\n🔗 Sprawdź wykres: https://www.bybit.com/en-US/trade/spot/{symbol}")
+
+    # Wyślij wiadomość (Telegram, Discord, log, itp.)
+    final_msg = "\n".join(alert_lines)
+    print(final_msg)
+    # send_telegram_message(final_msg)  # odkomentuj, jeśli potrzebne
+🧠 Co to daje?
+Checklist Score	Komentarz w alertach
+≥ 70	„✅ Struktura bardzo silna”
+50–69	„⚠️ Struktura akceptowalna”
+< 50	„❗ Możliwy fałszywy sygnał”
