@@ -123,16 +123,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Quality Assessment**: excellent/strong/good/neutral-watch/weak/very_poor z context adjustment info
 - **Production Integration**: Pełna integracja z crypto_scan_service.py - audytowalny decision trail
 
-### June 23, 2025 - OpenAI Vision Chart Labeling System - PRODUCTION READY ✅
-- **Intelligent Chart Labeling**: Created utils/chart_labeler.py with OpenAI Vision API for automatic chart pattern classification
-- **GPT-4o Vision Integration**: Automated labeling using latest OpenAI model with 7 predefined pattern classes (breakout_with_pullback, clean_pullback_in_trend, etc.)
-- **Smart Prompt Engineering**: Contextual prompts combining chart images with market features (trend_strength, pullback_quality, liquidity_score)
-- **Training Dataset Generation**: Automatic JSONL dataset creation with labeled charts, features, and metadata for ML training
-- **Batch Processing**: Mass labeling of existing chart exports with comprehensive error handling and progress tracking
-- **Vision-Enhanced Export**: Integration with chart export system for automatic labeling during chart generation
-- **Label Validation**: Intelligent label matching and fallback classification for consistent dataset quality
-- **Production Testing**: Complete test suite validating OpenAI connection, single/batch labeling, and dataset management
-- **Semi-Automatic Classification**: Perfect for fine-tuning Computer Vision models or creating supervised training datasets
+### June 23, 2025 - Complete Chart Learning Pipeline with PyTorch CV Model - PRODUCTION READY ✅
+- **Chart Snapshot Generator**: Created generate_chart_snapshot.py with standardized SYMBOL_TIMESTAMP.png format for ML training
+- **GPT Labeling with Auto-Rename**: Implemented label_charts_with_gpt.py that classifies charts and renames files to SYMBOL_TIMESTAMP_LABEL.png format
+- **PyTorch Model Training**: Built train_chart_model.py with ResNet18 backbone for 6-class pattern recognition (breakout_continuation, pullback_setup, range, fakeout, exhaustion, retest_confirmation)
+- **Production CV Classifier**: Created trend_cv_classifier.py for real-time chart classification in simulate_trader_decision_advanced()
+- **Complete Training Pipeline**: Structured data/chart_training/ with charts/, labels/, training_data/ directories as specified
+- **TJDE Integration**: Enhanced trader_ai_engine.py with CV model support, providing confidence boosts for high-accuracy classifications
+- **Automated File Management**: GPT automatically renames charts with detected patterns, skipping already-labeled files
+- **Professional Training Dataset**: Generated labeled training data with market features and JSON metadata for supervised learning
+- **Real-time Classification**: CV model provides predicted_phase and confidence scores for integration with existing trading algorithms
 
 ## User Preferences
 
