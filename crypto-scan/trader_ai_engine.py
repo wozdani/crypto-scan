@@ -7,6 +7,7 @@ Analizuje kontekst rynkowy, zachowanie świec i orderbook jak prawdziwy trader.
 
 import os
 import json
+import logging
 import numpy as np
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
