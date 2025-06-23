@@ -92,6 +92,39 @@ class CLIPWrapper:
             logger.error(f"Error getting image embedding: {e}")
             return None
     
+    def get_text_embedding(self, text: str) -> Optional[torch.Tensor]:
+        """
+        Get CLIP text embedding
+        
+        Args:
+            text: Text to encode
+            
+        Returns:
+            Text embedding tensor or None if failed
+        """
+        if not self.initialized:
+            logger.warning("CLIP model not initialized")
+            return None
+        
+        try:
+            if hasattr(self, 'use_fallback'):
+                # Use fallback CLIP
+                import clip
+                text_tokens = clip.tokenize([text]).to(self.device)
+                with torch.no_grad():
+                    text_features = self.model.encode_text(text_tokens)
+                return text_features.cpu()
+            else:
+                # Use transformers CLIP
+                inputs = self.processor(text=[text], return_tensors="pt", padding=True).to(self.device)
+                with torch.no_grad():
+                    text_features = self.model.get_text_features(**inputs)
+                return text_features.cpu()
+                
+        except Exception as e:
+            logger.error(f"Error getting text embedding: {e}")
+            return None
+    
     def get_model_info(self) -> Dict[str, Any]:
         """Get model information"""
         return {
