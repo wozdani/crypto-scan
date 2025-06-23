@@ -125,9 +125,10 @@ data/cache/
 temp/
 tmp/
 
-# Large backup files
+# Large backup files and attachments
 *.zip
 CRYPTOSCAN1337*
 backup/
 backups/
 archives/
+attached_assets/
