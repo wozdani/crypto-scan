@@ -35,3 +35,49 @@ def should_request_gpt_analysis(alert_level: str) -> bool:
     Determine if GPT analysis should be requested
     """
     return alert_level == "strong"
+
+
+import json
+import os
+from datetime import datetime, timezone
+from pathlib import Path
+
+
+def ensure_logs_directory():
+    """Ensure logs directory exists"""
+    logs_dir = Path("logs")
+    logs_dir.mkdir(exist_ok=True)
+    return logs_dir
+
+
+def log_alert_history(symbol, score, decision, breakdown=None, timestamp=None):
+    """
+    Log alert to history file for feedback loop analysis
+    
+    Args:
+        symbol: Trading symbol
+        score: Final TJDE/PPWCS score
+        decision: Decision type (join_trend, consider_entry, etc.)
+        breakdown: Score breakdown dict
+        timestamp: Custom timestamp (optional)
+    """
+    try:
+        ensure_logs_directory()
+        
+        log_entry = {
+            "symbol": symbol,
+            "timestamp": timestamp or datetime.utcnow().isoformat(),
+            "score": round(float(score), 4),
+            "decision": decision,
+            "score_breakdown": breakdown or {}
+        }
+        
+        log_file = Path("logs/alerts_history.jsonl")
+        
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(log_entry) + "\n")
+            
+        print(f"[ALERT LOG] Zapisano historię alertu: {symbol} ({score:.3f}, {decision})")
+        
+    except Exception as e:
+        print(f"[ALERT LOG] Błąd zapisu historii alertu {symbol}: {e}")

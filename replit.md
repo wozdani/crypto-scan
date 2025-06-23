@@ -134,6 +134,13 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Production Alerts**: System now generating actual TJDE alerts (VICUSDT, LQTYUSDT, FORMUSDT, METISUSDT, MOVEUSDT) with auto-labeling integration
 - **Complete Architecture**: End-to-end Vision-AI system from chart generation to CLIP embeddings with feedback loops for continuous learning
 
+### June 23, 2025 - Critical Feedback Loop v2 Alert Logging Fix - PRODUCTION READY ✅
+- **Alert History Logging**: Implemented log_alert_history() function in utils/alert_utils.py for automatic logging of all TJDE alerts
+- **Feedback Loop Integration**: Added alert logging to crypto_scan_service.py after successful TJDE alert sending
+- **Data Structure**: logs/alerts_history.jsonl now captures symbol, score, decision, breakdown, and timestamp for each alert
+- **Learning System Enabled**: Feedback loop v2 can now analyze alert effectiveness and automatically adjust TJDE weights
+- **Production Ready**: System logging all alerts in real-time, enabling continuous learning and performance optimization
+
 ## User Preferences
 
 - Language: Polish for user-facing messages and alerts
