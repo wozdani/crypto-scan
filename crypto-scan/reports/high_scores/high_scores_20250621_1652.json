@@ -1,0 +1,41 @@
+{
+  "report_type": "high_score_symbols",
+  "generated_at": "2025-06-21T16:52:17.245648+00:00",
+  "criteria": "Top 20 symbols by PPWCS score in last 24 hours",
+  "symbols": [
+    {
+      "symbol": "BIGTIMEUSDT",
+      "score": 75
+    },
+    {
+      "symbol": "BTCUSDT",
+      "score": 45
+    },
+    {
+      "symbol": "ETHUSDT",
+      "score": 45
+    },
+    {
+      "symbol": "SOLUSDT",
+      "score": 45
+    },
+    {
+      "symbol": "ADAUSDT",
+      "score": 45
+    },
+    {
+      "symbol": "DOTUSDT",
+      "score": 35
+    },
+    {
+      "symbol": "LINKUSDT",
+      "score": 35
+    }
+  ],
+  "summary": {
+    "total_symbols": 7,
+    "avg_score": 46.42857142857143,
+    "max_score": 75,
+    "min_score": 35
+  }
+}

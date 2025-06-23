@@ -1,0 +1,23 @@
+{
+  "timestamp": "2025-06-23T14:57:47.707744",
+  "tokens_requested": 2,
+  "tokens_found": 2,
+  "processing_stats": {
+    "processed_symbols": 2,
+    "charts_exported": 0,
+    "labels_generated": 0,
+    "training_pairs_created": 0,
+    "errors": 2
+  },
+  "results": [
+    {
+      "symbol": "BTCUSDT",
+      "error": "Chart export failed"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "error": "Chart export failed"
+    }
+  ],
+  "success_rate": 0.0
+}

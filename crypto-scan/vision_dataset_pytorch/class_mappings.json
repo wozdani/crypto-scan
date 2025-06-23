@@ -1,0 +1,16 @@
+{
+  "setup_type_to_idx": {
+    "trend_continuation": 0
+  },
+  "phase_type_to_idx": {
+    "exhaustion-pullback": 0,
+    "trend-acceleration": 1
+  },
+  "idx_to_setup_type": {
+    "0": "trend_continuation"
+  },
+  "idx_to_phase_type": {
+    "0": "exhaustion-pullback",
+    "1": "trend-acceleration"
+  }
+}

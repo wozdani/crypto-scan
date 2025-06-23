@@ -1,0 +1,15 @@
+{
+  "report_type": "daily_summary",
+  "date": "2025-06-18",
+  "generated_at": "2025-06-18T21:30:05.024845+00:00",
+  "statistics": {
+    "total_scans": 0,
+    "total_alerts": 4,
+    "unique_symbols_scanned": 0,
+    "unique_symbols_alerted": 1,
+    "avg_score": 0,
+    "max_score": 0,
+    "high_score_count": 0
+  },
+  "top_performers": []
+}

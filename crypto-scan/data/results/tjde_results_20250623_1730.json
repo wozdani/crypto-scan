@@ -1,0 +1,54 @@
+[
+  {
+    "symbol": "BTCUSDT",
+    "decision": "consider_entry",
+    "final_score": 0.685,
+    "quality_grade": "moderate",
+    "timestamp": "2025-06-23T17:30:00.000Z",
+    "clip_enhanced": true,
+    "clip_info": {
+      "predicted_phase": "pullback-in-trend",
+      "confidence": 0.742
+    }
+  },
+  {
+    "symbol": "ETHUSDT", 
+    "decision": "join_trend",
+    "final_score": 0.758,
+    "quality_grade": "strong",
+    "timestamp": "2025-06-23T17:15:00.000Z",
+    "clip_enhanced": true,
+    "clip_info": {
+      "predicted_phase": "breakout-continuation",
+      "confidence": 0.685
+    }
+  },
+  {
+    "symbol": "ADAUSDT",
+    "decision": "avoid",
+    "final_score": 0.325,
+    "quality_grade": "weak",
+    "timestamp": "2025-06-23T17:00:00.000Z",
+    "clip_enhanced": false
+  },
+  {
+    "symbol": "SOLUSDT",
+    "decision": "avoid",
+    "final_score": 0.278,
+    "quality_grade": "weak",
+    "timestamp": "2025-06-23T16:45:00.000Z",
+    "clip_enhanced": true,
+    "clip_info": {
+      "predicted_phase": "trend-reversal",
+      "confidence": 0.678
+    }
+  },
+  {
+    "symbol": "XRPUSDT",
+    "decision": "consider_entry",
+    "final_score": 0.456,
+    "quality_grade": "moderate",
+    "timestamp": "2025-06-23T16:30:00.000Z",
+    "clip_enhanced": false
+  }
+]

@@ -1,0 +1,39 @@
+{
+  "defi": {
+    "UNIUSDT": {
+      "trend_score": 30,
+      "trend_signals": [
+        "RSI strong (100.0)",
+        "Volume rising",
+        "3x close up",
+        "Above VWAP"
+      ],
+      "timestamp": "2025-06-17T18:57:32.635519+00:00",
+      "sector": "defi"
+    },
+    "AAVEUSDT": {
+      "trend_score": 30,
+      "trend_signals": [
+        "RSI strong (100.0)",
+        "Volume rising",
+        "3x close up",
+        "Above VWAP"
+      ],
+      "timestamp": "2025-06-17T18:57:32.650122+00:00",
+      "sector": "defi"
+    }
+  },
+  "gaming": {
+    "AXSUSDT": {
+      "trend_score": 30,
+      "trend_signals": [
+        "RSI strong (100.0)",
+        "Volume rising",
+        "3x close up",
+        "Above VWAP"
+      ],
+      "timestamp": "2025-06-17T18:57:32.655041+00:00",
+      "sector": "gaming"
+    }
+  }
+}

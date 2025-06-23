@@ -1,0 +1,18 @@
+Advanced Trend Mode Full Decision Test Results
+============================================================
+Timestamp: 2025-06-21T20:08:29.383285
+Engine: AdvancedTraderWeightedDecisionEngine
+Symbols Tested: ZEREBROUSDT
+
+SUMMARY:
+  Total Symbols: 1
+  Successful Tests: 0
+  Join Trend Decisions: 0
+  Consider Entry: 0
+  Avoid Decisions: 0
+  Average Score: 0.000
+
+
+ZEREBROUSDT:
+----------------------------------------
+  Error: insufficient_data

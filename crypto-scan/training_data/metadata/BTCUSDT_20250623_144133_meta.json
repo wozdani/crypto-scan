@@ -1,0 +1,13 @@
+{
+  "symbol": "BTCUSDT",
+  "timestamp": "20250623_144133",
+  "chart_file": "BTCUSDT_20250623_144133_chart.png",
+  "context_features": {
+    "trend_strength": 0.7,
+    "pullback_quality": 0.6,
+    "phase_score": 0.75,
+    "liquidity_score": 0.8,
+    "market_phase": "trending_up"
+  },
+  "created_at": "2025-06-23T14:41:33.398955"
+}

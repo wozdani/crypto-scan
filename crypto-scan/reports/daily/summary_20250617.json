@@ -1,0 +1,54 @@
+{
+  "report_type": "daily_summary",
+  "date": "2025-06-17",
+  "generated_at": "2025-06-17T20:00:05.077283+00:00",
+  "statistics": {
+    "total_scans": 2,
+    "total_alerts": 0,
+    "unique_symbols_scanned": 2,
+    "unique_symbols_alerted": 0,
+    "avg_score": 70.0,
+    "max_score": 75,
+    "high_score_count": 0
+  },
+  "top_performers": [
+    {
+      "symbol": "TESTUSDT",
+      "timestamp": "2025-06-17T19:40:24.029939+00:00",
+      "ppwcs_score": 75,
+      "checklist_score": 20,
+      "checklist_summary": [
+        "rsi_flatline",
+        "vwap_pinning",
+        "dominant_accumulation"
+      ],
+      "stage_minus2": true,
+      "stage_minus1": true,
+      "stage_1g": true,
+      "trend_score": 42,
+      "trend_active": true,
+      "trend_summary": [
+        "RSI strong (72.5)",
+        "Volume rising",
+        "Above VWAP",
+        "EMA alignment confirmed (strong)"
+      ]
+    },
+    {
+      "symbol": "LEGACYUSDT",
+      "timestamp": "2025-06-17T19:40:24.034500+00:00",
+      "ppwcs_score": 65,
+      "checklist_score": 15,
+      "checklist_summary": [
+        "whale_activity",
+        "dex_inflow"
+      ],
+      "stage_minus2": true,
+      "stage_minus1": false,
+      "stage_1g": false,
+      "trend_score": null,
+      "trend_active": false,
+      "trend_summary": []
+    }
+  ]
+}

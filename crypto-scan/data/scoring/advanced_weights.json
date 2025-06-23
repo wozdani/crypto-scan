@@ -1,0 +1,28 @@
+{
+  "trend_strength": 0.2381,
+  "pullback_quality": 0.1905,
+  "support_reaction": 0.1429,
+  "liquidity_pattern_score": 0.0952,
+  "psych_score": 0.0952,
+  "htf_supportive_score": 0.0952,
+  "market_phase_modifier": 0.0952,
+  "total_adjustments": 13,
+  "last_updated": "2025-06-22T19:10:26.336526+00:00",
+  "version": "2.0_adaptive",
+  "success_rate": 0.3077,
+  "adjustments_applied": {
+    "trend_strength": 0.0,
+    "pullback_quality": 0.0,
+    "support_reaction": 0.0,
+    "liquidity_pattern_score": 0.0,
+    "psych_score": 0.0,
+    "htf_supportive_score": 0.0,
+    "market_phase_modifier": 0.0,
+    "total_adjustments": 0.0
+  },
+  "performance_summary": {
+    "total_alerts": 13,
+    "successful_alerts": 4,
+    "success_rate": 0.3077
+  }
+}

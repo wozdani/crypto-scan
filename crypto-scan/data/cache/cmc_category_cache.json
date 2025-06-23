@@ -1,0 +1,60 @@
+{
+  "UNI": {
+    "category": "token",
+    "tags": [
+      "DeFi",
+      "Automated Market Maker"
+    ]
+  },
+  "AAVE": {
+    "category": "token",
+    "tags": [
+      "DeFi",
+      "Lending Borrowing"
+    ]
+  },
+  "AXS": {
+    "category": "token",
+    "tags": [
+      "Gaming",
+      "Play to Earn",
+      "NFT"
+    ]
+  },
+  "SAND": {
+    "category": "token",
+    "tags": [
+      "Gaming",
+      "Metaverse",
+      "Virtual Reality"
+    ]
+  },
+  "ETH": {
+    "category": "coin",
+    "tags": [
+      "Smart Contracts",
+      "Platform"
+    ]
+  },
+  "DOGE": {
+    "category": "coin",
+    "tags": [
+      "Memes",
+      "Dog Themed"
+    ]
+  },
+  "FET": {
+    "category": "token",
+    "tags": [
+      "Artificial Intelligence",
+      "Machine Learning"
+    ]
+  },
+  "LINK": {
+    "category": "token",
+    "tags": [
+      "Oracle",
+      "Infrastructure"
+    ]
+  }
+}

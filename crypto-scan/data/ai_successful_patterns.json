@@ -1,0 +1,90 @@
+[
+  {
+    "features": [
+      "volume_behavior=buying_volume_increase",
+      "psych_flags=liquidity_grab",
+      "trend_strength>0.4"
+    ],
+    "label": "buy_volume_liquidity_combo",
+    "success_rate": 0.86,
+    "min_score": 0.35,
+    "description": "Strong buying volume with liquidity grab - high success rate"
+  },
+  {
+    "features": [
+      "volume_behavior=low_volume_after_breakout",
+      "psych_flags=pinning_detected",
+      "pullback_quality>0.6"
+    ],
+    "label": "hidden_accumulation_pattern",
+    "success_rate": 0.81,
+    "min_score": 0.33,
+    "description": "Hidden accumulation with pinning after breakout"
+  },
+  {
+    "features": [
+      "trend_strength>0.7",
+      "support_reaction>0.6",
+      "volume_behavior=volume_spike"
+    ],
+    "label": "strong_trend_support_volume",
+    "success_rate": 0.78,
+    "min_score": 0.4,
+    "description": "Strong trend with support reaction and volume spike"
+  },
+  {
+    "features": [
+      "psych_flags=fakeout_rejection",
+      "pullback_quality>0.7",
+      "htf_supportive_score>0.5"
+    ],
+    "label": "fakeout_rejection_htf_support",
+    "success_rate": 0.74,
+    "min_score": 0.38,
+    "description": "Fakeout rejection with strong pullback and HTF support"
+  },
+  {
+    "features": [
+      "liquidity_pattern_score>0.6",
+      "psych_flags=momentum_confirmed",
+      "market_phase=trending-up"
+    ],
+    "label": "momentum_liquidity_trending",
+    "success_rate": 0.82,
+    "min_score": 0.42,
+    "description": "Confirmed momentum with liquidity in uptrend"
+  },
+  {
+    "features": [
+      "volume_behavior=buying_volume_increase",
+      "trend_strength>0.6",
+      "psych_flags=bounce_confirmed"
+    ],
+    "label": "volume_trend_bounce_combo",
+    "success_rate": 0.79,
+    "min_score": 0.36,
+    "description": "Volume increase with strong trend and confirmed bounce"
+  },
+  {
+    "features": [
+      "psych_flags=whale_accumulation",
+      "liquidity_pattern_score>0.5",
+      "support_reaction>0.65"
+    ],
+    "label": "whale_accumulation_support",
+    "success_rate": 0.77,
+    "min_score": 0.34,
+    "description": "Whale accumulation with strong support reaction"
+  },
+  {
+    "features": [
+      "volume_behavior=silent_accumulation",
+      "trend_strength>0.5",
+      "psych_flags=stealth_buying"
+    ],
+    "label": "silent_accumulation_stealth",
+    "success_rate": 0.73,
+    "min_score": 0.31,
+    "description": "Silent accumulation with stealth buying patterns"
+  }
+]

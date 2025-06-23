@@ -1,0 +1,82 @@
+{
+  "timestamp": "2025-06-21T20:13:33.161813+00:00",
+  "current_weights": {
+    "trend_strength": 0.25,
+    "pullback_quality": 0.2,
+    "support_reaction": 0.15,
+    "liquidity_pattern_score": 0.1,
+    "psych_score": 0.1,
+    "htf_supportive_score": 0.1,
+    "market_phase_modifier": 0.1
+  },
+  "default_weights": {
+    "trend_strength": 0.25,
+    "pullback_quality": 0.2,
+    "support_reaction": 0.15,
+    "liquidity_pattern_score": 0.1,
+    "psych_score": 0.1,
+    "htf_supportive_score": 0.1,
+    "market_phase_modifier": 0.1
+  },
+  "weight_differences": {
+    "trend_strength": 0.0,
+    "pullback_quality": 0.0,
+    "support_reaction": 0.0,
+    "liquidity_pattern_score": 0.0,
+    "psych_score": 0.0,
+    "htf_supportive_score": 0.0,
+    "market_phase_modifier": 0.0
+  },
+  "performance_stats": {
+    "total_examples": 3,
+    "successful_examples": 2,
+    "success_rate": 0.667,
+    "last_updated": "2025-06-21T20:13:33.156506+00:00",
+    "memory_utilization": "3/200"
+  },
+  "memory_size": 3,
+  "recent_examples": [
+    {
+      "timestamp": "2025-06-21T20:13:33.156358+00:00",
+      "symbol": "TEST1",
+      "outcome": true,
+      "features": {
+        "trend_strength": 0.8,
+        "pullback_quality": 0.7,
+        "support_reaction": 0.6,
+        "liquidity_pattern_score": 0.5,
+        "psych_score": 0.3,
+        "htf_supportive_score": 0.8,
+        "market_phase_modifier": 0.1
+      }
+    },
+    {
+      "timestamp": "2025-06-21T20:13:33.156438+00:00",
+      "symbol": "TEST2",
+      "outcome": true,
+      "features": {
+        "trend_strength": 0.9,
+        "pullback_quality": 0.7,
+        "support_reaction": 0.6,
+        "liquidity_pattern_score": 0.5,
+        "psych_score": 0.3,
+        "htf_supportive_score": 0.8,
+        "market_phase_modifier": 0.1
+      }
+    },
+    {
+      "timestamp": "2025-06-21T20:13:33.156501+00:00",
+      "symbol": "TEST3",
+      "outcome": false,
+      "features": {
+        "trend_strength": 0.8,
+        "pullback_quality": 0.7,
+        "support_reaction": 0.6,
+        "liquidity_pattern_score": 0.5,
+        "psych_score": 0.8,
+        "htf_supportive_score": 0.8,
+        "market_phase_modifier": 0.1
+      }
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "report_type": "high_score_symbols",
+  "generated_at": "2025-06-23T17:15:07.057210+00:00",
+  "criteria": "Top 20 symbols by PPWCS score in last 24 hours",
+  "symbols": [
+    {
+      "symbol": "TESTUSDT",
+      "score": 50.0,
+      "timestamp": "2025-06-22T19:40:43.923021"
+    }
+  ],
+  "summary": {
+    "total_symbols": 1,
+    "avg_score": 50.0,
+    "max_score": 50.0,
+    "min_score": 50.0
+  }
+}

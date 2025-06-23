@@ -1,0 +1,17 @@
+[
+  {
+    "image_file": "BTCUSDT_20250623_144133_chart.png",
+    "setup_type": "trend_continuation",
+    "phase_type": "trend-acceleration",
+    "confidence": 0.8,
+    "symbol": "BTCUSDT",
+    "timestamp": "20250623_144133",
+    "metadata": {
+      "trend_strength": 0.7,
+      "pullback_quality": 0.6,
+      "phase_score": 0.75,
+      "liquidity_score": 0.8,
+      "market_phase": "trending_up"
+    }
+  }
+]

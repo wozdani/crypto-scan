@@ -1,0 +1,80 @@
+[
+  {
+    "timestamp": "2025-05-27T14:38:18.655378",
+    "message": "\ud83d\udea8 *BTC* \u2013 *PPWCS: 87.5*\n*Tags:* `volume_breakout, whale_accumulation, ascending_triangle`\n*Compressed:* \u2705\n*Stage 1g:* \u2705\n\n#PrePumpAlert",
+    "status": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-05-27T14:40:21.351844",
+    "message": "\ud83d\udea8 *BTC* \u2013 *PPWCS: 88.5*\n*Tags:* `volume_breakout, ascending_triangle, whale_accumulation`\n*Compressed:* \u2705\n*Stage 1g:* \u2705\n\n\ud83e\udd16 *AI Analysis:*\n*Risk:* low | *Confidence:* 95%\n*Prediction:* bullish\n*Entry:* immediate\n\n#PrePumpAlert",
+    "status": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-05-27T14:41:32.373223",
+    "message": "\ud83d\udea8 *ETH* \u2013 *PPWCS: 92.0*\n*Tags:* `whale_accumulation, volume_spike, breakout_pattern`\n*Compressed:* \u2705\n*Stage 1g:* \u2705\n\n\ud83e\udd16 *AI Analysis:*\n*Risk:* low | *Confidence:* 90%\n*Prediction:* bullish\n*Entry:* immediate\n\n#PrePumpAlert",
+    "status": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-05-27T14:46:39.563177",
+    "message": "\ud83d\udea8 *DOGE* \u2013 *PPWCS: 89.2*\n*Tags:* `volume_breakout, whale_activity, momentum_surge`\n*Compressed:* \u2705\n*Stage 1g:* \u2705\n\n\ud83e\udd16 *AI Analysis:*\n*Risk:* low | *Confidence:* 92%\n*Prediction:* bullish\n*Entry:* immediate\n\n#PrePumpAlert",
+    "status": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-05-27T14:52:27.396303",
+    "message": "\ud83d\udea8 *ETH* \u2013 *PPWCS: 87.5*\n*Tags:* `volume_breakout, whale_accumulation, momentum_surge`\n*Compressed:* \u274c\n*Stage 1g:* \u2705\n\n#PrePumpAlert\n\n\ud83e\udd16 *GPT Analysis*:\nSygna\u0142 pre-pump dla ETH wygl\u0105da obiecuj\u0105co, zw\u0142aszcza przy wysokim PPWCS na poziomie 87.5 oraz obecno\u015bci tag\u00f3w takich jak volume_breakout i whale_accumulation, kt\u00f3re wskazuj\u0105 na potencjalne zainteresowanie du\u017cych graczy. Struktura jest dojrza\u0142a do wybicia, co potwierdza r\u00f3wnie\u017c obecno\u015b\u0107 momentum_surge i fakt, \u017ce jest skompresowana oraz w Stage 1g. Ryzyko false breakout jest obecne, jak zawsze w takich sytuacjach, ale obecne wska\u017aniki sugeruj\u0105 wi\u0119ksze prawdopodobie\u0144stwo rzeczywistego wybicia. Zalecam obserwacj\u0119 z gotowo\u015bci\u0105 do szybkiego wej\u015bcia, je\u015bli potwierdz\u0105 si\u0119 dalsze sygna\u0142y wzrostowe.",
+    "status": "failed",
+    "error": "{\"ok\":false,\"error_code\":400,\"description\":\"Bad Request: can't parse entities: Can't find end of the entity starting at byte offset 472\"}"
+  },
+  {
+    "timestamp": "2025-05-27T14:52:49.833158",
+    "message": "\ud83d\udea8 BTC - PPWCS: 89.0\nTags: volume_breakout, whale_activity\nCompressed: tak\nStage 1g: tak\n\n\ud83e\udd16 GPT Analysis:\nSygna\u0142 pre-pump dla BTC z PPWCS na poziomie 89.0 wskazuje na wysok\u0105 jako\u015b\u0107, szczeg\u00f3lnie w po\u0142\u0105czeniu z tagami takimi jak volume_breakout i whale_activity. Struktura wygl\u0105da na dojrza\u0142\u0105 do wybicia, co zwi\u0119ksza prawdopodobie\u0144stwo udanego ruchu wzrostowego. Jednak\u017ce, istnieje umiarkowane ryzyko false breakout, kt\u00f3re nale\u017cy monitorowa\u0107. Zalecam obserwacj\u0119 sytuacji z gotowo\u015bci\u0105 do szybkiego wej\u015bcia, je\u015bli potwierdz\u0105 si\u0119 dalsze sygna\u0142y wzrostowe.\n\n#PrePumpAlert",
+    "status": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-05-27T15:17:18.458870",
+    "message": "\ud83d\udea8 CRYPTO SCANNER - TEST\n\n\u2705 System aktywny\n\u2705 Baza danych PostgreSQL dodana\n\u2705 Dashboard dzia\u0142a\n\u2705 Telegram Bot po\u0142\u0105czony\n\nGotowy do skanowania pre-pump!\n\n#TestSystem",
+    "status": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-05-27T15:17:33.696216",
+    "message": "\ud83d\udea8 TEST GPT ANALYSIS\n    \n\u2753 Pytanie: Kto jest najlepszym pi\u0142karzem?\n\n\ud83e\udd16 Odpowied\u017a GPT:\nTrudno jednoznacznie stwierdzi\u0107, kto jest najlepszym pi\u0142karzem na \u015bwiecie, poniewa\u017c zale\u017cy to od wielu czynnik\u00f3w, takich jak aktualna forma, statystyki i sukcesy dru\u017cynowe. W ostatnich latach cz\u0119sto wymieniani w tym kontek\u015bcie s\u0105 zawodnicy tacy jak Lionel Messi i Cristiano Ronaldo, ale na scenie pojawiaj\u0105 si\u0119 te\u017c nowe talenty, kt\u00f3re zdobywaj\u0105 coraz wi\u0119ksze uznanie.\n\n\u2705 System Crypto Scanner z AI dzia\u0142a!\n\n#TestGPT",
+    "status": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-06-15T17:58:13.271809+00:00",
+    "message": "\ud83e\uddea Test wiadomo\u015bci z Crypto Scanner - system dzia\u0142a poprawnie!",
+    "status": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-06-18T20:10:40.670458+00:00",
+    "message": "\ud83d\udd35 SILENT ACCUMULATION v1 DETECTED\n\n\ud83d\udcca Symbol: TEST_PERFECT_PATTERN\n\ud83c\udfaf PPWCS Score: 65\n\u2705 Signals (12 pts): RSI flat, Low body candles, VWAP pinning, Bullish volume cluster, Supply wall vanish (heatmap), DEX inflow anomaly, Micro whale activity, Low social activity\n\u26a1 Buying Pressure: Yes\n\ud83d\udd52 Time: 20:10 UTC",
+    "status": "success",
+    "error": null
+  },
+  {
+    "timestamp": "2025-06-18T20:10:45.711084+00:00",
+    "message": "\ud83d\udd35 SILENT ACCUMULATION v1 DETECTED\n\n\ud83d\udcca Symbol: TEST_MINIMAL_BUYING_PRESSURE\n\ud83c\udfaf PPWCS Score: 65\n\u2705 Signals (6 pts): RSI flat, Low body candles, VWAP pinning, Micro whale activity, Low social activity\n\u26a1 Buying Pressure: Yes\n\ud83d\udd52 Time: 20:10 UTC",
+    "status": "failed",
+    "error": "{\"ok\":false,\"error_code\":400,\"description\":\"Bad Request: can't parse entities: Can't find end of the entity starting at byte offset 70\"}"
+  },
+  {
+    "timestamp": "2025-06-18T20:10:48.748968+00:00",
+    "message": "\ud83d\udd35 SILENT ACCUMULATION v1 DETECTED\n\n\ud83d\udcca Symbol: TEST_HIGH_SOCIAL_ACTIVITY\n\ud83c\udfaf PPWCS Score: 65\n\u2705 Signals (11 pts): RSI flat, Low body candles, VWAP pinning, Bullish volume cluster, Supply wall vanish (heatmap), DEX inflow anomaly, Micro whale activity\n\u26a1 Buying Pressure: Yes\n\ud83d\udd52 Time: 20:10 UTC",
+    "status": "failed",
+    "error": "{\"ok\":false,\"error_code\":400,\"description\":\"Bad Request: can't parse entities: Can't find end of the entity starting at byte offset 67\"}"
+  },
+  {
+    "timestamp": "2025-06-18T20:12:20.690172+00:00",
+    "message": "\ud83d\udd35 SILENT ACCUMULATION v1 DETECTED\\n\\n\ud83d\udcca Symbol: TEST_PERFECT\\n\ud83c\udfaf PPWCS Score: 65\\n\u2705 Signals \\(12 pts\\): RSI flat, Low body candles, VWAP pinning, Bullish volume cluster, Supply wall vanish (heatmap), DEX inflow anomaly, Micro whale activity, Low social activity\\n\u26a1 Buying Pressure: Yes\\n\ud83d\udd52 Time: 20:12 UTC",
+    "status": "failed",
+    "error": "{\"ok\":false,\"error_code\":400,\"description\":\"Bad Request: can't parse entities: Can't find end of the entity starting at byte offset 57\"}"
+  }
+]

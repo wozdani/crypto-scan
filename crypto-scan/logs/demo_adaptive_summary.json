@@ -1,0 +1,23 @@
+{
+  "timestamp": "2025-06-21T20:18:07.163728+00:00",
+  "demo_type": "adaptive_scoring_system",
+  "engine_stats": {
+    "total_examples": 17,
+    "successful_examples": 8,
+    "success_rate": 0.471,
+    "last_updated": "2025-06-21T20:18:07.152385+00:00",
+    "memory_utilization": "17/50",
+    "memory_size": 17,
+    "max_memory": 50
+  },
+  "learned_weights": {
+    "trend_strength": 0.24560546875000003,
+    "pullback_quality": 0.17578124999999994,
+    "support_reaction": 0.14892578125,
+    "liquidity_pattern_score": 0.11962890624999997,
+    "psych_score": 0.04150390625,
+    "htf_supportive_score": 0.22705078124999986,
+    "market_phase_modifier": 0.04150390625
+  },
+  "summary": "Successful demonstration of adaptive learning and contextual modifications"
+}

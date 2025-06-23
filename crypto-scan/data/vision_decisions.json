@@ -1,0 +1,50 @@
+[
+  {
+    "timestamp": "2025-06-22T20:34:50.216015+00:00",
+    "image_path": "data/vision_snapshots/BTCUSDT_20250622_203449.png",
+    "symbol": "BTCUSDT",
+    "prediction": {
+      "phase": "konsolidacja",
+      "setup": "range-trade",
+      "confidence": 0.45,
+      "phase_confidence": 0.45,
+      "setup_confidence": 0.45,
+      "phase_description": "Basic technical analysis - consolidation detected",
+      "setup_description": "Range-bound trading opportunity",
+      "analysis_timestamp": "2025-06-22T20:34:50.215845+00:00",
+      "model_used": "fallback-heuristics"
+    }
+  },
+  {
+    "timestamp": "2025-06-23T14:29:15.338682+00:00",
+    "image_path": "data/vision_snapshots/BTCUSDT_20250623_142914.png",
+    "symbol": "BTCUSDT",
+    "prediction": {
+      "phase": "konsolidacja",
+      "setup": "range-trade",
+      "confidence": 0.45,
+      "phase_confidence": 0.45,
+      "setup_confidence": 0.45,
+      "phase_description": "Basic technical analysis - consolidation detected",
+      "setup_description": "Range-bound trading opportunity",
+      "analysis_timestamp": "2025-06-23T14:29:15.338014+00:00",
+      "model_used": "fallback-heuristics"
+    }
+  },
+  {
+    "timestamp": "2025-06-23T14:30:03.354900+00:00",
+    "image_path": "data/vision_snapshots/BTCUSDT_20250623_143002.png",
+    "symbol": "BTCUSDT",
+    "prediction": {
+      "phase": "konsolidacja",
+      "setup": "range-trade",
+      "confidence": 0.45,
+      "phase_confidence": 0.45,
+      "setup_confidence": 0.45,
+      "phase_description": "Basic technical analysis - consolidation detected",
+      "setup_description": "Range-bound trading opportunity",
+      "analysis_timestamp": "2025-06-23T14:30:03.354428+00:00",
+      "model_used": "fallback-heuristics"
+    }
+  }
+]

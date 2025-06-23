@@ -1,0 +1,31 @@
+{
+  "timestamp": "2025-06-23T15:11:22.498691",
+  "tokens_requested": 3,
+  "tokens_found": 2,
+  "processing_stats": {
+    "processed_symbols": 2,
+    "charts_exported": 2,
+    "labels_generated": 2,
+    "training_pairs_created": 2,
+    "errors": 0
+  },
+  "results": [
+    {
+      "symbol": "BTCUSDT",
+      "chart_path": "data/charts/BTCUSDT_20250623_1511.png",
+      "label_path": "data/charts/BTCUSDT_20250623_1511.txt",
+      "description": "trend-reversal | trending-down | pattern-strength-high",
+      "training_pair": "data/vision_ai/train_data/BTCUSDT_20250623_1511.png",
+      "success": true
+    },
+    {
+      "symbol": "ETHUSDT",
+      "chart_path": "data/charts/ETHUSDT_20250623_1511.png",
+      "label_path": "data/charts/ETHUSDT_20250623_1511.txt",
+      "description": "breakout-continuation | trending-up | volume-backed",
+      "training_pair": "data/vision_ai/train_data/ETHUSDT_20250623_1511.png",
+      "success": true
+    }
+  ],
+  "success_rate": 1.0
+}

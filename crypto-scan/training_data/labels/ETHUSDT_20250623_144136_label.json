@@ -1,0 +1,13 @@
+{
+  "symbol": "ETHUSDT",
+  "timestamp": "20250623_144136",
+  "chart_file": "ETHUSDT_20250623_144136_chart.png",
+  "labels": {
+    "phase_type": "exhaustion-pullback",
+    "setup_type": "trend_continuation",
+    "confidence": 0.75,
+    "timestamp": "2025-06-23T14:41:36.696794+00:00",
+    "labeler": "gpt-4o-vision"
+  },
+  "created_at": "2025-06-23T14:41:36.699008"
+}

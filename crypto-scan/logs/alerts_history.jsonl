@@ -1,0 +1,2 @@
+{"symbol": "BTCUSDT", "timestamp": "2025-06-23T16:31:59.489904", "score": 0.785, "decision": "join_trend", "score_breakdown": {"trend_strength": 0.85, "pullback_quality": 0.71, "support_reaction": 0.78}}
+{"symbol": "ETHUSDT", "timestamp": "2025-06-23T16:31:59.825821", "score": 0.635, "decision": "consider_entry", "score_breakdown": {"trend_strength": 0.68, "pullback_quality": 0.55, "support_reaction": 0.6}}

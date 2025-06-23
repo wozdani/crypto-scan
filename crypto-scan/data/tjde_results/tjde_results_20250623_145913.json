@@ -1,0 +1,31 @@
+{
+  "timestamp": "20250623_145913",
+  "scan_completed": "2025-06-23T14:59:13.254990",
+  "total_results": 2,
+  "results": [
+    {
+      "symbol": "BTCUSDT",
+      "final_score": 0.85,
+      "decision": "join_trend",
+      "confidence": 0.78,
+      "market_structure": {
+        "trend_direction": "up"
+      },
+      "candle_behavior": {
+        "pattern_strength": 0.82
+      }
+    },
+    {
+      "symbol": "ETHUSDT",
+      "final_score": 0.72,
+      "decision": "consider_entry",
+      "confidence": 0.65,
+      "market_structure": {
+        "trend_direction": "up"
+      },
+      "candle_behavior": {
+        "pattern_strength": 0.7
+      }
+    }
+  ]
+}

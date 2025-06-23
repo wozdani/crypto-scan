@@ -1,0 +1,147 @@
+{
+  "timestamp": "2025-06-22T19:10:26.331386+00:00",
+  "total_alerts": 13,
+  "successful_alerts": 4,
+  "success_rate": 0.3077,
+  "feature_effectiveness": {
+    "trend_strength": 0.0,
+    "pullback_quality": 0.0,
+    "support_reaction": 0.0,
+    "liquidity_pattern_score": 0.0,
+    "psych_score": 0.0,
+    "htf_supportive_score": 0.0,
+    "market_phase_modifier": 0.0
+  },
+  "detailed_logs": [
+    {
+      "symbol": "UNKNOWN",
+      "timestamp": "2025-05-27T14:38:18.655378",
+      "score": 0,
+      "price_change_pct": -0.16,
+      "success": false,
+      "hours_checked": 2,
+      "features_used": {},
+      "context_modifiers": []
+    },
+    {
+      "symbol": "UNKNOWN",
+      "timestamp": "2025-05-27T14:40:21.351844",
+      "score": 0,
+      "price_change_pct": -1.36,
+      "success": false,
+      "hours_checked": 2,
+      "features_used": {},
+      "context_modifiers": []
+    },
+    {
+      "symbol": "UNKNOWN",
+      "timestamp": "2025-05-27T14:41:32.373223",
+      "score": 0,
+      "price_change_pct": 3.03,
+      "success": true,
+      "hours_checked": 2,
+      "features_used": {},
+      "context_modifiers": []
+    },
+    {
+      "symbol": "UNKNOWN",
+      "timestamp": "2025-05-27T14:46:39.563177",
+      "score": 0,
+      "price_change_pct": 0.6,
+      "success": false,
+      "hours_checked": 2,
+      "features_used": {},
+      "context_modifiers": []
+    },
+    {
+      "symbol": "UNKNOWN",
+      "timestamp": "2025-05-27T14:52:27.396303",
+      "score": 0,
+      "price_change_pct": -2.93,
+      "success": false,
+      "hours_checked": 2,
+      "features_used": {},
+      "context_modifiers": []
+    },
+    {
+      "symbol": "UNKNOWN",
+      "timestamp": "2025-05-27T14:52:49.833158",
+      "score": 0,
+      "price_change_pct": 4.58,
+      "success": true,
+      "hours_checked": 2,
+      "features_used": {},
+      "context_modifiers": []
+    },
+    {
+      "symbol": "UNKNOWN",
+      "timestamp": "2025-05-27T15:17:18.458870",
+      "score": 0,
+      "price_change_pct": -1.7,
+      "success": false,
+      "hours_checked": 2,
+      "features_used": {},
+      "context_modifiers": []
+    },
+    {
+      "symbol": "UNKNOWN",
+      "timestamp": "2025-05-27T15:17:33.696216",
+      "score": 0,
+      "price_change_pct": 2.11,
+      "success": true,
+      "hours_checked": 2,
+      "features_used": {},
+      "context_modifiers": []
+    },
+    {
+      "symbol": "UNKNOWN",
+      "timestamp": "2025-06-15T17:58:13.271809+00:00",
+      "score": 0,
+      "price_change_pct": -0.42,
+      "success": false,
+      "hours_checked": 2,
+      "features_used": {},
+      "context_modifiers": []
+    },
+    {
+      "symbol": "UNKNOWN",
+      "timestamp": "2025-06-18T20:10:40.670458+00:00",
+      "score": 0,
+      "price_change_pct": 1.36,
+      "success": false,
+      "hours_checked": 2,
+      "features_used": {},
+      "context_modifiers": []
+    },
+    {
+      "symbol": "UNKNOWN",
+      "timestamp": "2025-06-18T20:10:45.711084+00:00",
+      "score": 0,
+      "price_change_pct": 2.54,
+      "success": true,
+      "hours_checked": 2,
+      "features_used": {},
+      "context_modifiers": []
+    },
+    {
+      "symbol": "UNKNOWN",
+      "timestamp": "2025-06-18T20:10:48.748968+00:00",
+      "score": 0,
+      "price_change_pct": -1.68,
+      "success": false,
+      "hours_checked": 2,
+      "features_used": {},
+      "context_modifiers": []
+    },
+    {
+      "symbol": "UNKNOWN",
+      "timestamp": "2025-06-18T20:12:20.690172+00:00",
+      "score": 0,
+      "price_change_pct": -2.15,
+      "success": false,
+      "hours_checked": 2,
+      "features_used": {},
+      "context_modifiers": []
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "symbol": "ETHUSDT",
+  "timestamp": "20250623_144207",
+  "chart_file": "ETHUSDT_20250623_144207_chart.png",
+  "context_features": {
+    "trend_strength": 0.75,
+    "pullback_quality": 0.68,
+    "phase_score": 0.8,
+    "liquidity_score": 0.72,
+    "market_phase": "trend-continuation"
+  },
+  "created_at": "2025-06-23T14:42:07.331243"
+}

@@ -1,0 +1,10 @@
+{
+  "BTCUSDT": {
+    "timestamp": "2025-06-17T14:07:03.151998+00:00",
+    "ppwcs": 75.0,
+    "signals": {
+      "whale_activity": true,
+      "volume_spike": true
+    }
+  }
+}

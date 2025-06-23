@@ -1,0 +1,13 @@
+{
+  "symbol": "BTCUSDT",
+  "timestamp": "20250623_144133",
+  "chart_file": "BTCUSDT_20250623_144133_chart.png",
+  "labels": {
+    "phase_type": "trend-acceleration",
+    "setup_type": "trend_continuation",
+    "confidence": 0.8,
+    "timestamp": "2025-06-23T14:41:33.397329+00:00",
+    "labeler": "gpt-4o-vision"
+  },
+  "created_at": "2025-06-23T14:41:33.399509"
+}

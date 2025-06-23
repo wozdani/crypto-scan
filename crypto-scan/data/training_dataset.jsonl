@@ -1,0 +1,1 @@
+{"symbol": "mock", "label": "choppy_consolidation", "features": {"trend_strength": 0.6, "pullback_quality": 0.5, "liquidity_score": 0.7, "htf_trend_match": true, "phase": "test-pattern-1"}, "image": "mock_test.png", "image_path": "data/chart_exports/mock_test.png", "timestamp": "2025-06-23T14:32:19.548586+00:00", "labeler": "openai_vision_gpt4o"}

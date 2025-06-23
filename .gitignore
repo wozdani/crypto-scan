@@ -32,10 +32,20 @@ ENV/
 env.bak/
 venv.bak/
 
-# Data and logs
-data/
-reports/
-logs/
+# Data and logs - selective exclusion
+data/cache/
+data/orderbooks/
+data/chart_exports/
+data/chart_training/
+data/charts/
+data/vision_snapshots/
+reports/daily/
+reports/frequency/
+reports/high_scores/
+reports/signals/
+logs/*.log
+logs/trader_debug_log.txt
+logs/trend_error_log.txt
 *.log
 
 # Cache
@@ -91,11 +101,14 @@ coverage.xml
 .dmypy.json
 dmypy.json
 
-# Crypto Scan - kontrakty, raporty i logi
-token_contract_map.json
+# Crypto Scan - selective exclusion
 missing_contracts_log.txt
 out.log
-*.json
 *.zip
 scan_output/
 attached_assets/
+# Keep these important JSON/PKL files:
+# data/ai_successful_patterns.json
+# data/adaptive_weights.pkl
+# logs/auto_label_session_history.json
+# All other essential config and AI files

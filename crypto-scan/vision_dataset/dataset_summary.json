@@ -1,0 +1,17 @@
+{
+  "total_samples": 2,
+  "unique_symbols": 2,
+  "setup_type_distribution": {
+    "trend_continuation": 2
+  },
+  "phase_type_distribution": {
+    "trend-acceleration": 1,
+    "exhaustion-pullback": 1
+  },
+  "confidence_stats": {
+    "mean": 0.775,
+    "std": 0.03535533905932741,
+    "min": 0.75,
+    "max": 0.8
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "BTCUSDT": {
+    "symbol": "BTCUSDT",
+    "timestamp": "2025-06-19T15:36:15.867413+00:00",
+    "ppwcs_score": 45,
+    "whale_activity": true,
+    "dex_inflow": false,
+    "volume_spike": true,
+    "orderbook_anomaly": false
+  },
+  "ETHUSDT": {
+    "symbol": "ETHUSDT",
+    "timestamp": "2025-06-19T15:21:15.867413+00:00",
+    "ppwcs_score": 45,
+    "whale_activity": true,
+    "dex_inflow": false,
+    "volume_spike": true,
+    "orderbook_anomaly": false
+  },
+  "SOLUSDT": {
+    "symbol": "SOLUSDT",
+    "timestamp": "2025-06-19T15:06:15.867413+00:00",
+    "ppwcs_score": 45,
+    "whale_activity": true,
+    "dex_inflow": false,
+    "volume_spike": true,
+    "orderbook_anomaly": false
+  },
+  "ADAUSDT": {
+    "symbol": "ADAUSDT",
+    "timestamp": "2025-06-19T15:46:15.867413+00:00",
+    "ppwcs_score": 45,
+    "whale_activity": true,
+    "dex_inflow": false,
+    "volume_spike": true,
+    "orderbook_anomaly": false
+  },
+  "DOTUSDT": {
+    "symbol": "DOTUSDT",
+    "timestamp": "2025-06-19T10:51:15.875163+00:00",
+    "ppwcs_score": 35,
+    "whale_activity": true,
+    "dex_inflow": false,
+    "volume_spike": false,
+    "orderbook_anomaly": true
+  },
+  "LINKUSDT": {
+    "symbol": "LINKUSDT",
+    "timestamp": "2025-06-19T11:51:15.875163+00:00",
+    "ppwcs_score": 35,
+    "whale_activity": true,
+    "dex_inflow": false,
+    "volume_spike": false,
+    "orderbook_anomaly": true
+  },
+  "BIGTIMEUSDT": 75
+}

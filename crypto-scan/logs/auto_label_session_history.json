@@ -1,0 +1,37 @@
+[
+  {
+    "symbol": "BTCUSDT",
+    "filename": "BTCUSDT_20250623_1730",
+    "label": "pullback-in-trend | trending-up | volume-backed",
+    "confidence": 0.742,
+    "timestamp": "2025-06-23T17:30:00.000Z"
+  },
+  {
+    "symbol": "ETHUSDT",
+    "filename": "ETHUSDT_20250623_1715",
+    "label": "breakout-continuation | bullish momentum",
+    "confidence": 0.685,
+    "timestamp": "2025-06-23T17:15:00.000Z"
+  },
+  {
+    "symbol": "ADAUSDT",
+    "filename": "ADAUSDT_20250623_1700",
+    "label": "consolidation | range-accumulation",
+    "confidence": 0.523,
+    "timestamp": "2025-06-23T17:00:00.000Z"
+  },
+  {
+    "symbol": "SOLUSDT",
+    "filename": "SOLUSDT_20250623_1645",
+    "label": "trend-reversal | exhaustion pattern",
+    "confidence": 0.678,
+    "timestamp": "2025-06-23T16:45:00.000Z"
+  },
+  {
+    "symbol": "XRPUSDT",
+    "filename": "XRPUSDT_20250623_1630",
+    "label": "fake-breakout | bearish momentum",
+    "confidence": 0.589,
+    "timestamp": "2025-06-23T16:30:00.000Z"
+  }
+]

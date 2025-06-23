@@ -1,0 +1,29 @@
+[
+  {
+    "symbol": "TEST1USDT",
+    "ppwcs_score": 60,
+    "signals": {
+      "silent_accumulation": true
+    },
+    "detector_type": "silent_accumulation",
+    "timestamp": "2025-06-18 20:04:52.931524"
+  },
+  {
+    "symbol": "INTEGRATION_TEST_USDT",
+    "ppwcs_score": 60,
+    "signals": {
+      "silent_accumulation": true
+    },
+    "detector_type": "silent_accumulation",
+    "timestamp": "2025-06-18 20:04:52.935491"
+  },
+  {
+    "symbol": "TESTUSDT",
+    "ppwcs_score": 60,
+    "signals": {
+      "silent_accumulation": true
+    },
+    "detector_type": "silent_accumulation",
+    "timestamp": "2025-06-18 20:06:02.200716"
+  }
+]

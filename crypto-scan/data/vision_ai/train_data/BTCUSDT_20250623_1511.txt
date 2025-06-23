@@ -1,0 +1,16 @@
+trend-reversal | trending-down | pattern-strength-high
+
+# Context data:
+# symbol: BTCUSDT
+# final_score: 0.85
+# decision: join_trend
+# confidence: 0.78
+
+# Generated: 2025-06-23T15:11:20.312864
+# Chart: BTCUSDT_20250623_1511.png
+
+# TJDE Analysis Context:
+# symbol: BTCUSDT
+# final_score: 0.85
+# decision: join_trend
+# confidence: 0.78

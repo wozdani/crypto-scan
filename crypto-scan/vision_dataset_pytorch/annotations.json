@@ -1,0 +1,48 @@
+{
+  "samples": [
+    {
+      "image_file": "BTCUSDT_20250623_144133_chart.png",
+      "setup_type": "trend_continuation",
+      "phase_type": "trend-acceleration",
+      "confidence": 0.8,
+      "symbol": "BTCUSDT",
+      "timestamp": "20250623_144133",
+      "metadata": {
+        "trend_strength": 0.7,
+        "pullback_quality": 0.6,
+        "phase_score": 0.75,
+        "liquidity_score": 0.8,
+        "market_phase": "trending_up"
+      }
+    },
+    {
+      "image_file": "ETHUSDT_20250623_144136_chart.png",
+      "setup_type": "trend_continuation",
+      "phase_type": "exhaustion-pullback",
+      "confidence": 0.75,
+      "symbol": "ETHUSDT",
+      "timestamp": "20250623_144136",
+      "metadata": {
+        "trend_strength": 0.7999999999999999,
+        "pullback_quality": 0.65,
+        "phase_score": 0.75,
+        "liquidity_score": 0.8,
+        "market_phase": "pullback"
+      }
+    }
+  ],
+  "dataset_info": {
+    "total_samples": 2,
+    "format": "pytorch",
+    "created_at": "2025-06-23T14:41:40.021208",
+    "classes": {
+      "setup_types": [
+        "trend_continuation"
+      ],
+      "phase_types": [
+        "trend-acceleration",
+        "exhaustion-pullback"
+      ]
+    }
+  }
+}

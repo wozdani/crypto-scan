@@ -1,0 +1,93 @@
+{
+  "report_type": "high_score_symbols",
+  "generated_at": "2025-06-18T20:04:23.773925+00:00",
+  "criteria": "Top 20 symbols by PPWCS score in last 24 hours",
+  "symbols": [
+    {
+      "symbol": "1INCHUSDT",
+      "score": 36
+    },
+    {
+      "symbol": "ACEUSDT",
+      "score": 36
+    },
+    {
+      "symbol": "ACHUSDT",
+      "score": 36
+    },
+    {
+      "symbol": "MOODENGUSDT",
+      "score": 36
+    },
+    {
+      "symbol": "CHILLGUYUSDT",
+      "score": 36
+    },
+    {
+      "symbol": "GIGAUSDT",
+      "score": 36
+    },
+    {
+      "symbol": "LEVERUSDT",
+      "score": 36
+    },
+    {
+      "symbol": "FLOCKUSDT",
+      "score": 36
+    },
+    {
+      "symbol": "ENAUSDT",
+      "score": 36
+    },
+    {
+      "symbol": "BLASTUSDT",
+      "score": 36
+    },
+    {
+      "symbol": "SIGNUSDT",
+      "score": 36
+    },
+    {
+      "symbol": "SPXUSDT",
+      "score": 36
+    },
+    {
+      "symbol": "AAVEUSDT",
+      "score": 26
+    },
+    {
+      "symbol": "AERGOUSDT",
+      "score": 26
+    },
+    {
+      "symbol": "ATHUSDT",
+      "score": 26
+    },
+    {
+      "symbol": "MASKUSDT",
+      "score": 26
+    },
+    {
+      "symbol": "GALAUSDT",
+      "score": 26
+    },
+    {
+      "symbol": "PHAUSDT",
+      "score": 26
+    },
+    {
+      "symbol": "CHZUSDT",
+      "score": 26
+    },
+    {
+      "symbol": "ONDOUSDT",
+      "score": 26
+    }
+  ],
+  "summary": {
+    "total_symbols": 20,
+    "avg_score": 32.0,
+    "max_score": 36,
+    "min_score": 26
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "last_update": "2025-06-19T15:52:59.708711+00:00",
+  "total_count": 4,
+  "priority_tokens": [
+    {
+      "symbol": "ADAUSDT",
+      "priority_score": 93,
+      "whale_count": 5,
+      "minutes_ago": 6,
+      "whale_pattern": "single_whale",
+      "whale_score_boost": 0,
+      "under_watch": false
+    },
+    {
+      "symbol": "BTCUSDT",
+      "priority_score": 83,
+      "whale_count": 4,
+      "minutes_ago": 16,
+      "whale_pattern": "single_whale",
+      "whale_score_boost": 0,
+      "under_watch": false
+    },
+    {
+      "symbol": "ETHUSDT",
+      "priority_score": 58,
+      "whale_count": 3,
+      "minutes_ago": 31,
+      "whale_pattern": "single_whale",
+      "whale_score_boost": 0,
+      "under_watch": false
+    },
+    {
+      "symbol": "SOLUSDT",
+      "priority_score": 33,
+      "whale_count": 2,
+      "minutes_ago": 46,
+      "whale_pattern": "single_whale",
+      "whale_score_boost": 0,
+      "under_watch": false
+    }
+  ],
+  "status": "active"
+}

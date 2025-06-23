@@ -1,0 +1,7 @@
+{
+  "trend_strength": 0.3,
+  "pullback_quality": 0.5,
+  "liquidity_score": 0.7,
+  "htf_trend_match": false,
+  "phase_score": 0.4
+}

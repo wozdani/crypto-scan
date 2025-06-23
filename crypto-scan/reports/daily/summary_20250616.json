@@ -1,0 +1,24 @@
+{
+  "report_type": "daily_summary",
+  "date": "2025-06-16",
+  "generated_at": "2025-06-16T17:45:05.063998+00:00",
+  "statistics": {
+    "total_scans": 1,
+    "total_alerts": 0,
+    "unique_symbols_scanned": 1,
+    "unique_symbols_alerted": 0,
+    "avg_score": 75.5,
+    "max_score": 75.5,
+    "high_score_count": 0
+  },
+  "top_performers": [
+    {
+      "symbol": "TESTUSDT",
+      "timestamp": "2025-06-16T16:55:34.604411+00:00",
+      "ppwcs_score": 75.5,
+      "stage_minus2": true,
+      "stage_minus1": true,
+      "stage_1g": false
+    }
+  ]
+}
