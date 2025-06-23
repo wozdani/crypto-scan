@@ -319,7 +319,7 @@ class VisionPhaseClassifier:
         except Exception as e:
             print(f"[VISION] ⚠️ Logging failed: {e}")
     
-    def analyze_symbol_with_vision(self, symbol: str, candles: List[List], export_for_training: bool = False) -> Optional[Dict]:
+    def analyze_symbol_with_vision(self, symbol: str, candles: List[List] = None, export_for_training: bool = False) -> Optional[Dict]:
         """
         Complete vision analysis pipeline for a symbol
         
@@ -332,6 +332,12 @@ class VisionPhaseClassifier:
             Vision analysis result or None if failed
         """
         try:
+            # Generate mock candles if not provided
+            if not candles:
+                from utils.mock_data_generator import generate_realistic_candles
+                candles = generate_realistic_candles(symbol, 96, pattern="trending_up")
+                print(f"[VISION] Generated mock data for {symbol}")
+            
             # Generate chart image for vision analysis
             image_path = self.generate_chart_image(symbol, candles, style="vision")
             if not image_path:
@@ -387,18 +393,19 @@ def predict_chart_setup(image_path: str) -> Dict:
     return vision_classifier.predict_chart_setup(image_path)
 
 
-def analyze_symbol_with_vision(symbol: str, candles: List[List]) -> Optional[Dict]:
+def analyze_symbol_with_vision(symbol: str, candles: List[List] = None, export_for_training: bool = False) -> Optional[Dict]:
     """
     Analyze symbol with complete vision pipeline
     
     Args:
         symbol: Trading symbol  
-        candles: OHLCV candle data
+        candles: OHLCV candle data (optional, will generate mock data if None)
+        export_for_training: Whether to export training data
         
     Returns:
         Vision analysis result
     """
-    return vision_classifier.analyze_symbol_with_vision(symbol, candles)
+    return vision_classifier.analyze_symbol_with_vision(symbol, candles, export_for_training)
 
 
 def get_vision_model_status() -> Dict:

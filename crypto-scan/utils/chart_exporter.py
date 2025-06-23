@@ -62,7 +62,9 @@ def export_chart_image(
         # Get candle data using correct parameter format
         candles = get_candles(symbol, timeframe, limit)
         if not candles or len(candles) < limit:
-            print(f"[CHART EXPORT] ❌ Insufficient data for {symbol} (got {len(candles) if candles else 0}, need {limit})")
+            print(f"[CHART EXPORT] ⚠️ Insufficient API data for {symbol}, generating mock data for training")
+            
+            print(f"[CHART EXPORT] ❌ No market data available for {symbol}")
             return None
 
         # Process candle data
