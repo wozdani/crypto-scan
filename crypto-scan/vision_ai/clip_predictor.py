@@ -4,13 +4,14 @@ Integruje model CLIP (OpenAI) do analizy wykresów cenowych
 """
 
 import torch
-from transformers import CLIPProcessor, CLIPModel
+import clip
 from PIL import Image
 import os
 from pathlib import Path
 from typing import Dict, Tuple, Optional, List
 import logging
 from datetime import datetime
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -30,19 +31,19 @@ CLIP_LABELS = [
 class CLIPChartPredictor:
     """CLIP-based chart pattern predictor using OpenAI ViT-B/32 model"""
     
-    def __init__(self, model_name: str = "openai/clip-vit-base-patch32"):
+    def __init__(self, model_name: str = "ViT-B/32"):
         """
         Initialize CLIP predictor
         
         Args:
-            model_name: CLIP model name from HuggingFace
+            model_name: CLIP model variant
         """
         self.model_name = model_name
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         
         # Model initialization
         self.model = None
-        self.processor = None
+        self.preprocess = None
         self.initialized = False
         
         # Initialize model on first use
@@ -54,9 +55,7 @@ class CLIPChartPredictor:
             if not self.initialized:
                 logger.info(f"Initializing CLIP model: {self.model_name}")
                 
-                self.model = CLIPModel.from_pretrained(self.model_name).to(self.device)
-                self.processor = CLIPProcessor.from_pretrained(self.model_name)
-                
+                self.model, self.preprocess = clip.load(self.model_name, device=self.device)
                 self.model.eval()
                 self.initialized = True
                 
@@ -89,15 +88,14 @@ class CLIPChartPredictor:
             
             # Load and preprocess image
             image = Image.open(image_path).convert('RGB')
+            image_input = self.preprocess(image).unsqueeze(0).to(self.device)
             
-            # Process inputs
-            inputs = self.processor(text=CLIP_LABELS, images=image, return_tensors="pt", padding=True)
-            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+            # Tokenize text labels
+            text_tokens = clip.tokenize(CLIP_LABELS).to(self.device)
             
             # Generate predictions
             with torch.no_grad():
-                outputs = self.model(**inputs)
-                logits_per_image = outputs.logits_per_image
+                logits_per_image, logits_per_text = self.model(image_input, text_tokens)
                 probs = logits_per_image.softmax(dim=-1).cpu().numpy()[0]
             
             # Get top prediction
@@ -131,13 +129,11 @@ class CLIPChartPredictor:
                 all_predictions = []
             else:
                 image = Image.open(image_path).convert('RGB')
-                
-                inputs = self.processor(text=CLIP_LABELS, images=image, return_tensors="pt", padding=True)
-                inputs = {k: v.to(self.device) for k, v in inputs.items()}
+                image_input = self.preprocess(image).unsqueeze(0).to(self.device)
+                text_tokens = clip.tokenize(CLIP_LABELS).to(self.device)
                 
                 with torch.no_grad():
-                    outputs = self.model(**inputs)
-                    logits_per_image = outputs.logits_per_image
+                    logits_per_image, logits_per_text = self.model(image_input, text_tokens)
                     probs = logits_per_image.softmax(dim=-1).cpu().numpy()[0]
                 
                 all_predictions = [
