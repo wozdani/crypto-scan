@@ -6,7 +6,7 @@
   "psych_score": 0.0881,
   "htf_supportive_score": 0.0881,
   "market_phase_modifier": 0.0881,
-  "last_updated": "2025-06-23T14:59:26.614859+00:00",
+  "last_updated": "2025-06-23T15:00:06.949426+00:00",
   "weights_version": "feedback_v2_trained",
   "source": "feedback_loop_v2",
   "feedback_info": {
@@ -24,6 +24,6 @@
       "market_phase_modifier": 0.0
     },
     "explanations": {},
-    "analysis_timestamp": "2025-06-23T14:59:26.614820+00:00"
+    "analysis_timestamp": "2025-06-23T15:00:06.949383+00:00"
   }
 }
