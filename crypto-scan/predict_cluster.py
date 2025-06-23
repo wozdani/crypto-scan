@@ -11,6 +11,12 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 import pickle
 
+try:
+    import sklearn
+    SKLEARN_AVAILABLE = True
+except ImportError:
+    SKLEARN_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 class ClusterPredictor:
@@ -102,6 +108,15 @@ class ClusterPredictor:
             return embedding
     
     def predict_cluster(self, embedding: np.ndarray) -> Dict[str, Any]:
+        if not SKLEARN_AVAILABLE:
+            return {
+                "cluster": -1,
+                "confidence": 0.0,
+                "distance": float('inf'),
+                "method": "unavailable",
+                "success": False,
+                "error": "sklearn not available"
+            }
         """
         Predict cluster for embedding
         

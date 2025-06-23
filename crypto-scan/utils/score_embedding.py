@@ -6,7 +6,31 @@ Zamienia TJDE scoring na znormalizowane wektory embeddingów
 import numpy as np
 import logging
 from typing import Dict, Any, Optional, List
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
+try:
+    from sklearn.preprocessing import StandardScaler, MinMaxScaler
+    SKLEARN_AVAILABLE = True
+except ImportError:
+    SKLEARN_AVAILABLE = False
+    # Fallback implementation
+    class MinMaxScaler:
+        def __init__(self, feature_range=(0, 1)):
+            self.feature_range = feature_range
+            self.fitted = False
+            
+        def fit(self, X):
+            self.fitted = True
+            return self
+            
+        def transform(self, X):
+            import numpy as np
+            X = np.array(X)
+            if X.ndim == 1:
+                X = X.reshape(1, -1)
+            # Simple min-max normalization
+            return np.clip((X - 0) / (1 - 0), 0, 1)
+            
+        def fit_transform(self, X):
+            return self.fit(X).transform(X)
 import json
 from pathlib import Path
 

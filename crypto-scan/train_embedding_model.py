@@ -12,11 +12,16 @@ from typing import Dict, List, Tuple, Optional, Any
 from datetime import datetime
 import pickle
 
-from sklearn.cluster import KMeans, DBSCAN
-from sklearn.decomposition import PCA
-from sklearn.manifold import TSNE
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import silhouette_score, calinski_harabasz_score
+try:
+    from sklearn.cluster import KMeans, DBSCAN
+    from sklearn.decomposition import PCA
+    from sklearn.manifold import TSNE
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.metrics import silhouette_score, calinski_harabasz_score
+    SKLEARN_AVAILABLE = True
+except ImportError:
+    SKLEARN_AVAILABLE = False
+    print("⚠️ sklearn not available - clustering features disabled")
 
 try:
     import umap
@@ -253,6 +258,13 @@ class EmbeddingTrainer:
             logger.error(f"Error saving model {model_name}: {e}")
     
     def train_complete_pipeline(self, n_clusters: int = 10, reduction_method: str = "pca", n_components: int = 64) -> Dict[str, Any]:
+        if not SKLEARN_AVAILABLE:
+            return {
+                "success": False,
+                "error": "sklearn not available - install scikit-learn for clustering",
+                "models_trained": [],
+                "metrics": {}
+            }
         """
         Train complete embedding pipeline
         

@@ -6,8 +6,13 @@ Integruje predykcje klastrów z systemem TJDE dla enhanced decision making
 import numpy as np
 import logging
 from typing import Dict, Any, Optional
-from predict_cluster import get_cluster_predictor
-from generate_embeddings import get_embedding_generator
+try:
+    from predict_cluster import get_cluster_predictor
+    from generate_embeddings import get_embedding_generator
+    CLUSTERING_AVAILABLE = True
+except ImportError as e:
+    CLUSTERING_AVAILABLE = False
+    print(f"⚠️ Clustering components unavailable: {e}")
 
 logger = logging.getLogger(__name__)
 
@@ -16,8 +21,12 @@ class TJDEClusterIntegration:
     
     def __init__(self):
         """Initialize cluster integration"""
-        self.cluster_predictor = get_cluster_predictor()
-        self.embedding_generator = get_embedding_generator()
+        if CLUSTERING_AVAILABLE:
+            self.cluster_predictor = get_cluster_predictor()
+            self.embedding_generator = get_embedding_generator()
+        else:
+            self.cluster_predictor = None
+            self.embedding_generator = None
         
         # Cluster-based score modifiers
         self.cluster_modifiers = {
@@ -49,6 +58,10 @@ class TJDEClusterIntegration:
             Enhanced TJDE result with cluster information
         """
         try:
+            if not CLUSTERING_AVAILABLE or not self.embedding_generator:
+                logger.warning(f"Clustering not available for {symbol}")
+                return self._add_cluster_info(tjde_result, {"error": "Clustering unavailable"})
+            
             # Generate embedding for current setup
             embedding = self.embedding_generator.generate_combined_embedding(
                 symbol, image_path, tjde_result, gpt_comment

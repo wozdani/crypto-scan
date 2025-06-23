@@ -749,8 +749,16 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
                 
             else:
                 # Fallback to chart-based prediction
-                from ai.clip_predictor import predict_clip_chart
-                import glob
+                try:
+                    from ai.clip_predictor import predict_clip_chart
+                    import glob
+                except ImportError:
+                    try:
+                        from vision_ai.clip_predictor import predict_clip_chart
+                        import glob
+                    except ImportError:
+                        print(f"[CLIP FALLBACK] No clip_predictor available for {symbol}")
+                        clip_prediction = None
                 
                 chart_locations = [
                     f"charts/{symbol}_*.png",
