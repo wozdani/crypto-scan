@@ -343,14 +343,15 @@ class VisionPhaseClassifier:
             if not image_path:
                 return None
             
-            # Export additional training data if requested
+            # Export additional training data and label with OpenAI Vision if requested
             training_paths = []
             if export_for_training:
                 try:
                     from utils.chart_exporter import export_chart_image
+                    from utils.chart_labeler import chart_labeler
                     
                     # Export in multiple styles for training
-                    for style in ["professional", "clean", "detailed"]:
+                    for style in ["professional", "clean"]:
                         training_path = export_chart_image(
                             symbol=symbol,
                             timeframe="15m",
@@ -360,8 +361,23 @@ class VisionPhaseClassifier:
                         if training_path:
                             training_paths.append(training_path)
                             
+                            # Auto-label with OpenAI Vision
+                            features = {
+                                "trend_strength": 0.7,
+                                "pullback_quality": 0.6,
+                                "liquidity_score": 0.8,
+                                "htf_trend_match": True,
+                                "phase": vision_result.get("phase", "unknown")
+                            }
+                            
+                            try:
+                                label = chart_labeler.label_and_save(training_path, features, symbol)
+                                print(f"[VISION] Auto-labeled {style} chart as: {label}")
+                            except Exception as e:
+                                print(f"[VISION] Auto-labeling failed: {e}")
+                            
                 except ImportError:
-                    print("[VISION] Chart exporter not available for training data")
+                    print("[VISION] Chart exporter/labeler not available for training data")
             
             # Analyze chart pattern
             vision_result = self.predict_chart_setup(image_path)

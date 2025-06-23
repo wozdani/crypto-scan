@@ -123,16 +123,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Quality Assessment**: excellent/strong/good/neutral-watch/weak/very_poor z context adjustment info
 - **Production Integration**: Pełna integracja z crypto_scan_service.py - audytowalny decision trail
 
-### June 23, 2025 - Advanced Chart Export Module for CV Training - PRODUCTION READY ✅
-- **Professional Chart Exporter**: Created utils/chart_exporter.py with 3 chart styles (professional, clean, detailed) for Computer Vision training data
-- **Multiple Chart Formats**: Support for candlestick charts with volume, EMA indicators, RSI analysis, and customizable timeframes
-- **Training Data Pipeline**: Automated export of high-quality PNG images optimized for machine learning pattern recognition
-- **Batch Export Functionality**: export_multiple_charts() for generating training datasets across multiple symbols and timeframes  
-- **Enhanced Vision Integration**: Updated vision_phase_classifier.py to use chart_exporter for consistent training data generation
-- **Production Testing**: Comprehensive test suite with test_chart_export.py validating all export styles and configurations
-- **Chart Style Variations**: Professional (colorful), Clean (minimal), Detailed (with RSI/multiple EMAs) for diverse training data
-- **Export Statistics**: Built-in monitoring of exported files, sizes, and generation success rates
-- **Training Data Quality**: 150 DPI, optimized dimensions, consistent styling for reliable Computer Vision model training
+### June 23, 2025 - OpenAI Vision Chart Labeling System - PRODUCTION READY ✅
+- **Intelligent Chart Labeling**: Created utils/chart_labeler.py with OpenAI Vision API for automatic chart pattern classification
+- **GPT-4o Vision Integration**: Automated labeling using latest OpenAI model with 7 predefined pattern classes (breakout_with_pullback, clean_pullback_in_trend, etc.)
+- **Smart Prompt Engineering**: Contextual prompts combining chart images with market features (trend_strength, pullback_quality, liquidity_score)
+- **Training Dataset Generation**: Automatic JSONL dataset creation with labeled charts, features, and metadata for ML training
+- **Batch Processing**: Mass labeling of existing chart exports with comprehensive error handling and progress tracking
+- **Vision-Enhanced Export**: Integration with chart export system for automatic labeling during chart generation
+- **Label Validation**: Intelligent label matching and fallback classification for consistent dataset quality
+- **Production Testing**: Complete test suite validating OpenAI connection, single/batch labeling, and dataset management
+- **Semi-Automatic Classification**: Perfect for fine-tuning Computer Vision models or creating supervised training datasets
 
 ## User Preferences
 
