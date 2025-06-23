@@ -102,128 +102,194 @@ def build_bybit_symbols_cache() -> bool:
 
 def fetch_bybit_symbols_from_api() -> List[str]:
     """
-    Pobiera symbole z Bybit API używając istniejącego systemu autoryzacji
+    Pobiera symbole z Bybit API - logika przeniesiona z pump-analysis
     
     Returns:
         List[str]: Lista symboli USDT
     """
     try:
-        logger.info("📡 Pobieranie symboli z Bybit API...")
+        logger.info("📡 Budowanie cache symboli Bybit...")
         
-        # Użyj istniejącego systemu z data_fetchers.py
-        try:
-            from utils.data_fetchers import get_symbols_cached as get_symbols_from_data_fetchers
-            symbols = get_symbols_from_data_fetchers()
-            
-            if symbols and len(symbols) > 0:
-                logger.info(f"✅ Pobrano {len(symbols)} symboli z data_fetchers")
-                return symbols
-        except Exception as e:
-            logger.warning(f"Nie udało się użyć data_fetchers: {e}")
+        all_symbols = set()
+        categories = ["linear", "spot"]  # Focus on linear (futures) and spot
         
-        # Fallback - próbuj z autoryzacją Bybit
-        try:
-            import hmac
-            import hashlib
+        for category in categories:
+            logger.info(f"Fetching symbols from category: {category}")
+            cursor = ""
             
-            api_key = os.getenv('BYBIT_API_KEY')
-            secret_key = os.getenv('BYBIT_SECRET_KEY')
-            
-            if api_key and secret_key:
-                logger.info("Używam autoryzowanych zapytań Bybit")
-                
-                timestamp = str(int(time.time() * 1000))
-                recv_window = "5000"
-                
-                params = {
-                    "category": "linear"
-                }
-                
-                param_str = "&".join([f"{k}={v}" for k, v in sorted(params.items())])
-                raw_str = timestamp + api_key + recv_window + param_str
-                
-                signature = hmac.new(
-                    secret_key.encode('utf-8'),
-                    raw_str.encode('utf-8'),
-                    hashlib.sha256
-                ).hexdigest()
-                
-                headers = {
-                    "X-BAPI-API-KEY": api_key,
-                    "X-BAPI-SIGN": signature,
-                    "X-BAPI-SIGN-TYPE": "2",
-                    "X-BAPI-TIMESTAMP": timestamp,
-                    "X-BAPI-RECV-WINDOW": recv_window,
-                    "Content-Type": "application/json"
-                }
-                
-                url = "https://api.bybit.com/v5/market/tickers"
-                response = requests.get(url, params=params, headers=headers, timeout=30)
-                response.raise_for_status()
-                
-                data = response.json()
-                
-                if data.get("retCode") != 0:
-                    logger.error(f"Bybit API error: {data.get('retMsg', 'Unknown error')}")
-                    return get_fallback_symbols()
-                
-                tickers = data.get("result", {}).get("list", [])
-                
-                usdt_symbols = []
-                for ticker in tickers:
-                    symbol = ticker.get("symbol", "")
-                    if symbol.endswith("USDT"):
-                        usdt_symbols.append(symbol)
-                
-                if len(usdt_symbols) < 50:
-                    logger.warning(f"Otrzymano tylko {len(usdt_symbols)} symboli - używam fallback")
-                    return get_fallback_symbols()
-                
-                logger.info(f"✅ Pobrano {len(usdt_symbols)} symboli USDT z autoryzowanym API")
-                return sorted(usdt_symbols)
-                
-        except Exception as e:
-            logger.error(f"Błąd autoryzowanego zapytania: {e}")
-        
-        # Ostateczny fallback
-        return get_fallback_symbols()
+            while True:
+                try:
+                    params = {
+                        "category": category,
+                        "limit": 1000
+                    }
+                    if cursor:
+                        params["cursor"] = cursor
+
+                    param_str = "&".join([f"{k}={v}" for k, v in sorted(params.items())])
+                    url = f"https://api.bybit.com/v5/market/tickers?{param_str}"
+
+                    headers = get_bybit_headers(params)
+                    response = requests.get(url, headers=headers, timeout=10)
+                    
+                    if response.status_code != 200:
+                        logger.warning(f"HTTP error {response.status_code} for category {category}")
+                        break
+                    
+                    try:
+                        data = response.json()
+                    except Exception as e:
+                        logger.error(f"JSON parse error: {e}")
+                        break
+
+                    if "result" not in data or "list" not in data["result"]:
+                        logger.warning(f"No data in response for category {category}")
+                        break
+
+                    page_symbols = data["result"]["list"]
+                    usdt_symbols = [item["symbol"] for item in page_symbols if item["symbol"].endswith("USDT")]
+                    all_symbols.update(usdt_symbols)
+
+                    cursor = data["result"].get("nextPageCursor")
+                    logger.debug(f"Processed {len(usdt_symbols)} USDT symbols, cursor: {bool(cursor)}")
+                    if not cursor:
+                        break
+
+                    time.sleep(0.5)
+
+                except Exception as e:
+                    logger.error(f"Error for category {category}: {e}")
+                    break
+
+        if len(all_symbols) > 0:
+            logger.info(f"✅ Pobrano {len(all_symbols)} unique symbols z Bybit API")
+            return sorted(list(all_symbols))
+        else:
+            logger.warning("Nie otrzymano symboli z API - używam fallback")
+            return get_fallback_symbols()
         
     except Exception as e:
-        logger.error(f"Unexpected error fetching Bybit symbols: {e}")
+        logger.error(f"Critical error fetching Bybit symbols: {e}")
         return get_fallback_symbols()
+
+def get_bybit_headers(params=None):
+    """Generate authenticated headers for Bybit API - pump-analysis logic"""
+    api_key = os.getenv("BYBIT_API_KEY")
+    secret_key = os.getenv("BYBIT_SECRET_KEY")
+    
+    if not api_key or not secret_key:
+        logger.warning("Missing Bybit API credentials")
+        return {}
+    
+    timestamp = str(int(time.time() * 1000))
+    recv_window = "5000"
+    
+    if params:
+        param_str = "&".join([f"{k}={v}" for k, v in sorted(params.items())])
+        raw_str = timestamp + api_key + recv_window + param_str
+    else:
+        raw_str = timestamp + api_key + recv_window
+    
+    import hmac
+    import hashlib
+    
+    signature = hmac.new(
+        secret_key.encode('utf-8'),
+        raw_str.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
+    
+    return {
+        "X-BAPI-API-KEY": api_key,
+        "X-BAPI-SIGN": signature,
+        "X-BAPI-SIGN-TYPE": "2",
+        "X-BAPI-TIMESTAMP": timestamp,
+        "X-BAPI-RECV-WINDOW": recv_window,
+        "Content-Type": "application/json"
+    }
 
 def get_fallback_symbols() -> List[str]:
     """
-    Fallback lista głównych symboli USDT gdy API nie działa
+    Rozszerzona fallback lista symboli USDT - przywracam większą listę
     
     Returns:
-        List[str]: Lista podstawowych symboli
+        List[str]: Lista rozszerzona do ~200+ symboli
     """
-    logger.info("📋 Używam fallback listy symboli")
+    logger.info("📋 Używam rozszerzonej fallback listy symboli")
     
-    # Lista głównych kryptowalut które zwykle są dostępne na Bybit
-    fallback_symbols = [
-        "BTCUSDT", "ETHUSDT", "ADAUSDT", "DOTUSDT", "LINKUSDT", "BNBUSDT",
-        "SOLUSDT", "AVAXUSDT", "LUNAUSDT", "MATICUSDT", "FTMUSDT", "ATOMUSDT",
-        "NEARUSDT", "ALGOUSDT", "VETUSDT", "ICPUSDT", "AXSUSDT", "SANDUSDT",
-        "MANAUSDT", "ENJUSDT", "CHZUSDT", "FLOWUSDT", "GALAUSDT", "GMTUSDT",
-        "APEUSDT", "OPUSDT", "ARBUSDT", "LDOUSDT", "MAGICUSDT", "BLZUSDT",
-        "UNFIUSDT", "CTKUSDT", "KLAYUSDT", "ROSEUSDT", "DARUSDT", "PEOPLEUSDT",
-        "JASMYUSDT", "WOOUSDT", "BELUSDT", "SFPUSDT", "ANCUSDT", "WAXUSDT",
-        "TLMUSDT", "CVXUSDT", "STGUSDT", "GALUSDT", "LRCUSDT", "BATUSDT",
-        "IOTXUSDT", "ONTUSDT", "ZENUSDT", "QTUMUSDT", "ZILUSDT", "RLCUSDT",
-        "C98USDT", "CELRUSDT", "BAKEUSDT", "OCEANUSDT", "SKLUSDT", "GRTUSDT",
-        "1INCHUSDT", "CKBUSDT", "RENUSDT", "RSRUSDT", "REEFUSDT", "STORJUSDT",
-        "COTIUSDT", "DENTUSDT", "CHRUSDT", "PENDLEUSDT", "AMBUSDT", "SUSHIUSDT",
-        "YFIUSDT", "AAVEUSDT", "COMPUSDT", "MKRUSDT", "SNXUSDT", "CRVUSDT",
-        "BALUSDT", "UNIUSDT", "SXPUSDT", "BANDUSDT", "ALPHAUSDT", "KAVAUSDT",
-        "RUNEUSDT", "YFIIUSDT", "DEFIUSDT", "AUDIOUSDT", "CTSIUSDT", "OGNUSDT",
-        "HNTUSDT", "OMGUSDT", "IOSTUSDT", "DUSKUSDT", "FLMUSDT", "SCRTUSDT",
-        "MDTUSDT", "WINUSDT", "TROYUSDT", "VITEUSDT", "ONEUSDT", "FTOUSDT",
-        "HOTUSDT", "DREPUSDT", "TCOUSDT", "FISUSDT", "ORNUSDT", "CKBUSDT"
+    # Główne kategorie kryptowalut dostępnych na Bybit
+    major_coins = [
+        "BTCUSDT", "ETHUSDT", "BNBUSDT", "ADAUSDT", "SOLUSDT", "DOTUSDT", 
+        "AVAXUSDT", "MATICUSDT", "LINKUSDT", "UNIUSDT", "LTCUSDT", "ATOMUSDT"
     ]
     
-    return sorted(list(set(fallback_symbols)))  # Remove duplicates and sort
+    defi_tokens = [
+        "AAVEUSDT", "COMPUSDT", "MKRUSDT", "SNXUSDT", "CRVUSDT", "BALUSDT",
+        "SUSHIUSDT", "1INCHUSDT", "YFIUSDT", "YFIIUSDT", "DEFIUSDT", "LRCUSDT"
+    ]
+    
+    layer1_coins = [
+        "NEARUSDT", "ALGOUSDT", "VETUSDT", "ICPUSDT", "FTMUSDT", "KLAYUSDT",
+        "FLOWUSDT", "ONTUSDT", "ZILUSDT", "QTUMUSDT", "IOSTUSDT", "ONEUSDT"
+    ]
+    
+    layer2_coins = [
+        "OPUSDT", "ARBUSDT", "LDOUSDT", "MAGICUSDT", "STRKUSDT", "METISUSDT"
+    ]
+    
+    gaming_nft = [
+        "AXSUSDT", "SANDUSDT", "MANAUSDT", "ENJUSDT", "CHZUSDT", "GALAUSDT",
+        "GMTUSDT", "APEUSDT", "WAXUSDT", "TLMUSDT", "GALUSDT"
+    ]
+    
+    emerging_coins = [
+        "PEPEUSDT", "SHIBUSDT", "FLOKIUSDT", "DOGEUSDT", "BONKUSDT", "WIFUSDT",
+        "JUPUSDT", "PYTHUSDT", "JTORUSDT", "RAYUSDT", "ORCAUSDT"
+    ]
+    
+    infrastructure = [
+        "GRTUSDT", "OCEANUSDT", "STORJUSDT", "FILUSDT", "HNTUSDT", "IOTXUSDT",
+        "HELIUMUSDT", "RENDERUSDT", "AKASHUSDT"
+    ]
+    
+    popular_alts = [
+        "PENDLEUSDT", "INJUSDT", "SUIUSDT", "APTUSDT", "SEIUSDT", "CELESTUSDT",
+        "TIAUSDT", "WLDUSDT", "ARKMUSDT", "RNRUSDT", "FETUSDT", "AGIXUSDT",
+        "OCEANUSDT", "CFXUSDT", "KASUSDT", "RUNEUSDT", "THORUSDT"
+    ]
+    
+    meme_coins = [
+        "DOGEUSDT", "SHIBUSDT", "PEPEUSDT", "FLOKIUSDT", "BONKUSDT", "WIFUSDT",
+        "BRETTUSDT", "PONKEUSDT", "MEWUSDT", "POPUSDT"
+    ]
+    
+    trending_new = [
+        "MOVEUSDT", "HYPUSDT", "EIGENUSDT", "GRASSUSDT", "PNUTUSDT", "ACTUSDT",
+        "NEIROUSDT", "GOATUSDT", "CHILLGUYUSDT", "TURBOUSDT", "BANUSDT"
+    ]
+    
+    additional_alts = [
+        "ROSEUSDT", "DARUSDT", "PEOPLEUSDT", "JASMYUSDT", "WOOUSDT", "BELUSDT",
+        "SFPUSDT", "ANCUSDT", "CVXUSDT", "STGUSDT", "BATUSDT", "ZENUSDT",
+        "RLCUSDT", "C98USDT", "CELRUSDT", "BAKEUSDT", "SKLUSDT", "CKBUSDT",
+        "RENUSDT", "RSRUSDT", "REEFUSDT", "COTIUSDT", "DENTUSDT", "CHRUSDT",
+        "AMBUSDT", "SXPUSDT", "BANDUSDT", "ALPHAUSDT", "KAVAUSDT", "AUDIOUSDT",
+        "CTSIUSDT", "OGNUSDT", "OMGUSDT", "DUSKUSDT", "FLMUSDT", "SCRTUSDT",
+        "MDTUSDT", "WINUSDT", "TROYUSDT", "VITEUSDT", "FTOUSDT", "HOTUSDT",
+        "DREPUSDT", "TCOUSDT", "FISUSDT", "ORNUSDT", "BLZUSDT", "UNFIUSDT",
+        "CTKUSDT", "XRPUSDT", "TRXUSDT", "EOSUSDT", "XLMUSDT", "XTZUSDT"
+    ]
+    
+    # Połącz wszystkie kategorie
+    all_symbols = (major_coins + defi_tokens + layer1_coins + layer2_coins + 
+                  gaming_nft + emerging_coins + infrastructure + popular_alts + 
+                  meme_coins + trending_new + additional_alts)
+    
+    # Usuń duplikaty i posortuj
+    unique_symbols = sorted(list(set(all_symbols)))
+    
+    logger.info(f"📋 Fallback lista zawiera {len(unique_symbols)} symboli")
+    return unique_symbols
 
 def get_bybit_symbols_cached() -> List[str]:
     """
