@@ -26,13 +26,12 @@ logger = logging.getLogger(__name__)
 # === Load ENV ===
 load_dotenv()
 from utils.telegram_bot import send_alert, format_alert
-from utils.data_fetchers import get_symbols_cached, get_market_data
-from utils.data_fetchers import build_bybit_symbol_cache_all_categories as build_bybit_symbol_cache, is_bybit_cache_expired
+from utils.data_fetchers import get_market_data
+from utils.bybit_cache_manager import get_bybit_symbols_cached
 # === CONFIGURATION ===
 
-if is_bybit_cache_expired():
-    print("🕒 Cache symboli Bybit jest przestarzały – buduję ponownie...")
-    build_bybit_symbol_cache()
+# Sprawdzanie i odświeżanie cache symboli Bybit
+print("🔍 Sprawdzanie cache symboli Bybit...")
 
 from stages.stage_minus2_1 import detect_stage_minus2_1
 
@@ -206,8 +205,8 @@ def scan_cycle():
     else:
         print("✅ Cache CoinGecko jest aktualny - pomijam rebuild")
 
-    symbols = get_symbols_cached()
-    symbols_bybit = symbols  # Używaj tych samych symboli
+    symbols = get_bybit_symbols_cached()
+    symbols_bybit = symbols  # Używaj symboli z Bybit cache manager
     
     # 🐋 WHALE PRIORITY SYSTEM - Priorytetowanie na podstawie wcześniejszej aktywności whale
     from utils.whale_priority import prioritize_whale_tokens, save_priority_report, get_whale_boost_for_symbol
