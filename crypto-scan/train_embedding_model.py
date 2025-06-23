@@ -8,7 +8,7 @@ import json
 import numpy as np
 import logging
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Tuple, Optional, Any, Union
 from datetime import datetime
 import pickle
 
@@ -108,7 +108,7 @@ class EmbeddingTrainer:
             logger.error(f"Error loading embeddings: {e}")
             return np.array([]), [], []
     
-    def preprocess_embeddings(self, embeddings: np.ndarray) -> Tuple[np.ndarray, StandardScaler]:
+    def preprocess_embeddings(self, embeddings: np.ndarray) -> Tuple[np.ndarray, Any]:
         """
         Preprocess embeddings with normalization
         
