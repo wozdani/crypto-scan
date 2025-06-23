@@ -42,6 +42,18 @@ def save_chart_snapshot(
         if not candles:
             from utils.api_utils import get_bybit_candles
             candles = get_bybit_candles(symbol, timeframe, 100)
+            
+            # Fallback to mock data if API fails
+            if not candles:
+                print(f"[CHART EXPORT] API failed for {symbol}, using mock data for training")
+                from utils.mock_data_generator import generate_realistic_candles
+                
+                # Generate realistic patterns for training
+                patterns = ["trending_up", "breakout", "pullback", "consolidation"]
+                import random
+                pattern = random.choice(patterns)
+                
+                candles = generate_realistic_candles(symbol, 100, pattern=pattern)
         
         if not candles or len(candles) < 20:
             print(f"[CHART EXPORT] Insufficient data for {symbol}")

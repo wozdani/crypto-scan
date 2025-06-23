@@ -6,7 +6,7 @@
   "psych_score": 0.0881,
   "htf_supportive_score": 0.0881,
   "market_phase_modifier": 0.0881,
-  "last_updated": "2025-06-23T14:58:40.143806+00:00",
+  "last_updated": "2025-06-23T14:59:26.614859+00:00",
   "weights_version": "feedback_v2_trained",
   "source": "feedback_loop_v2",
   "feedback_info": {
@@ -15,18 +15,15 @@
     "success_rate": 1.0,
     "learning_rate": 0.05,
     "weight_adjustments": {
-      "trend_strength": 0.005,
-      "pullback_quality": 0.004,
-      "support_reaction": 0.006,
+      "trend_strength": 0.0,
+      "pullback_quality": 0.0,
+      "support_reaction": 0.0,
       "liquidity_pattern_score": 0.0,
       "psych_score": 0.0,
       "htf_supportive_score": 0.0,
       "market_phase_modifier": 0.0
     },
-    "explanations": {
-      "trend_strength": "Zwiększono - analiza wskazuje na niedoszacowanie składnika",
-      "support_reaction": "Zwiększono - analiza wskazuje na niedoszacowanie składnika"
-    },
-    "analysis_timestamp": "2025-06-23T14:58:40.143757+00:00"
+    "explanations": {},
+    "analysis_timestamp": "2025-06-23T14:59:26.614820+00:00"
   }
 }
