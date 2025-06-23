@@ -12,7 +12,7 @@ from typing import Dict, Any, Optional, List, Tuple
 import json
 import glob
 
-from ai import get_clip_image_embedding
+from ai.clip_model import get_clip_image_embedding
 from utils.gpt_embedding import get_gpt_text_embedding
 from utils.score_embedding import embed_score_vector
 

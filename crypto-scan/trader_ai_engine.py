@@ -812,7 +812,64 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
                 grade = "very_poor"
                 print(f"[CLIP DANGER] {symbol}: Strong avoid signal from visual analysis")
         
-        # === ETAP 7: FINAL RESULT ASSEMBLY WITH CLIP DEBUG INFO ===
+        # === ETAP 7: CLUSTER ANALYSIS INTEGRATION ===
+        cluster_enhanced = False
+        cluster_modifier = 0.0
+        cluster_info = {}
+        
+        try:
+            from cluster_integration import get_cluster_integration
+            
+            # Create temporary TJDE result for cluster analysis
+            temp_tjde_result = {
+                "symbol": features.get("symbol", "UNKNOWN"),
+                "final_score": enhanced_score,
+                "decision": decision,
+                "score_breakdown": {
+                    "trend_strength": trend_strength,
+                    "pullback_quality": pullback_quality,
+                    "support_reaction": support_reaction,
+                    "liquidity_pattern_score": liquidity_pattern_score,
+                    "psych_score": psych_score,
+                    "htf_supportive_score": htf_supportive_score,
+                    "market_phase_modifier": market_phase_modifier
+                }
+            }
+            
+            # Get cluster integration
+            cluster_integration = get_cluster_integration()
+            
+            # Enhance with cluster analysis
+            cluster_enhanced_result = cluster_integration.enhance_tjde_with_cluster(
+                features.get("symbol", "UNKNOWN"),
+                temp_tjde_result
+            )
+            
+            if cluster_enhanced_result.get("cluster_enhanced"):
+                # Update score and decision with cluster enhancement
+                cluster_enhanced_score = cluster_enhanced_result.get("final_score", enhanced_score)
+                cluster_enhanced_decision = cluster_enhanced_result.get("decision", decision)
+                cluster_info = cluster_enhanced_result.get("cluster_info", {})
+                
+                cluster_modifier = cluster_info.get("score_modifier", 0.0)
+                
+                # Update final values
+                enhanced_score = cluster_enhanced_score
+                decision = cluster_enhanced_decision
+                cluster_enhanced = True
+                
+                # Add cluster reasoning
+                if cluster_modifier != 0:
+                    cluster_reason = f"Cluster {cluster_info.get('cluster', -1)}: {cluster_info.get('recommendation', 'neutral')} ({cluster_modifier:+.3f})"
+                    context_modifiers.append(cluster_reason)
+                
+                print(f"[CLUSTER] {features.get('symbol', 'UNKNOWN')}: Enhanced with cluster analysis")
+                print(f"[CLUSTER] Modifier: {cluster_modifier:+.3f}, Quality: {cluster_info.get('quality_score', 0):.3f}")
+            
+        except Exception as cluster_error:
+            print(f"[CLUSTER ERROR] {features.get('symbol', 'UNKNOWN')}: {cluster_error}")
+        
+        # === ETAP 8: FINAL RESULT ASSEMBLY WITH CLIP + CLUSTER DEBUG INFO ===
         
         # Prepare enhanced debug info for alerts and logging
         debug_info = {
@@ -823,6 +880,9 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
             "clip_modifier": round(clip_modifier, 3),
             "clip_boost_applied": clip_boost_applied,
             "contextual_boosts": [mod for mod in context_modifiers if "CLIP:" in mod],
+            "cluster_enhanced": cluster_enhanced,
+            "cluster_modifier": round(cluster_modifier, 3),
+            "cluster_info": cluster_info,
             "decision_change": original_decision != decision,
             "original_decision": original_decision
         }
