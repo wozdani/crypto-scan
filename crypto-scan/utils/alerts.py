@@ -106,6 +106,16 @@ def send_tjde_telegram_summary(top5_results: List[Dict[str, Any]], feedback_data
             success = send_trend_alert(message)
             if success:
                 print(f"📤 [TJDE ALERT] Sent #{i}: {symbol} ({decision}, {score:.3f})")
+                
+                # Log alert to history for feedback loop analysis
+                from utils.alert_utils import log_alert_history
+                
+                log_alert_history(
+                    symbol=symbol,
+                    score=score,
+                    decision=decision,
+                    breakdown=result.get("score_breakdown", {})
+                )
             else:
                 print(f"❌ [TJDE ALERT] Failed to send #{i}: {symbol}")
         
