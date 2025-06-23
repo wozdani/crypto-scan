@@ -7,9 +7,18 @@ Automatically processes top tokens from TJDE scans and creates training data
 import os
 import sys
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Optional
+
+# Configure logging
+logging.basicConfig(
+    filename='logs/debug.log',
+    level=logging.DEBUG,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

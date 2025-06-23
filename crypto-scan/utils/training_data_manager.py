@@ -5,10 +5,19 @@ Manages training data collection during token analysis
 
 import os
 import json
+import logging
 import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional, List
+
+# Configure logging
+logging.basicConfig(
+    filename='logs/debug.log',
+    level=logging.DEBUG,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 
 class TrainingDataManager:
@@ -83,11 +92,14 @@ class TrainingDataManager:
             with open(label_path, 'w') as f:
                 json.dump(label_data, f, indent=2)
             
-            print(f"[TRAINING DATA] Saved sample: {base_name}")
+            print(f"[TRAINING DEBUG] Saved training pair: {base_name}")
+            logging.debug(f"[TRAINING DEBUG] Saving training pair for {symbol}: chart={chart_path}, label={label_data}")
+            logging.info(f"[TRAINING DEBUG] Training pair saved: {base_name} with label '{labels.get('label', 'unknown')}'")
             return True
             
         except Exception as e:
-            print(f"[TRAINING DATA] Failed to save sample for {symbol}: {e}")
+            print(f"[TRAINING DEBUG] Error saving training pair for {symbol}: {e}")
+            logging.error(f"[TRAINING DEBUG] Failed to save training pair for {symbol}: {e}")
             return False
     
     def collect_sample_during_scan(

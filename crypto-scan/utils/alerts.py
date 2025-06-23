@@ -4,8 +4,17 @@ Sends detailed TOP 5 token analysis with scoring breakdowns and feedback loop in
 """
 
 import os
+import logging
 from typing import List, Dict, Any
 from utils.telegram_bot import send_trend_alert
+
+# Configure logging
+logging.basicConfig(
+    filename='logs/debug.log',
+    level=logging.DEBUG,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 
 def send_tjde_telegram_summary(top5_results: List[Dict[str, Any]], feedback_data: Dict = None):
@@ -17,8 +26,12 @@ def send_tjde_telegram_summary(top5_results: List[Dict[str, Any]], feedback_data
         feedback_data: Optional feedback loop data with weight changes
     """
     try:
+        print(f"[ALERT DEBUG] Preparing to send alerts for {len(top5_results)} results")
+        logging.debug(f"[ALERT DEBUG] Starting alert preparation for {len(top5_results)} results")
+        
         if not top5_results:
             print("[TJDE ALERTS] No results to send")
+            logging.warning("[ALERT DEBUG] No results provided for alert sending")
             return False
         
         for i, result in enumerate(top5_results, 1):
@@ -27,6 +40,9 @@ def send_tjde_telegram_summary(top5_results: List[Dict[str, Any]], feedback_data
             decision = result.get('decision', 'avoid')
             confidence = result.get('confidence', 0.0)
             grade = result.get('grade', 'unknown')
+            
+            print(f"[ALERT DEBUG] Sending alert for {symbol}: score={score:.3f}, decision={decision}")
+            logging.debug(f"[ALERT DEBUG] Processing alert {i}/{len(top5_results)} for {symbol}: score={score:.3f}, decision={decision}")
             
             # Get market context
             market_context = result.get('market_context', {})

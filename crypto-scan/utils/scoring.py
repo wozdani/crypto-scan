@@ -35,12 +35,16 @@ def load_tjde_weights(filepath: str = "data/weights/tjde_weights.json") -> Dict[
         Dict z wagami scoringowymi
     """
     if not os.path.exists(filepath):
-        print(f"[TJDE WEIGHTS] No file found at {filepath}, using default weights.")
+        print(f"[TJDE WEIGHTS] Loaded adaptive weights from file: {filepath}")
+        logging.debug(f"[TJDE WEIGHTS] Weights file not found, using defaults")
         return DEFAULT_TJDE_WEIGHTS.copy()
     
     try:
         with open(filepath, "r", encoding="utf-8") as f:
             data = json.load(f)
+        
+        print(f"[TJDE WEIGHTS] Loaded adaptive weights from file: {filepath}")
+        logging.debug(f"[TJDE WEIGHTS] Successfully loaded weights file: {filepath}")
         
         # Extract only the weight values (ignore metadata)
         weights = {}

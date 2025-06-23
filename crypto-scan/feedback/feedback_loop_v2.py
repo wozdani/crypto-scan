@@ -314,10 +314,16 @@ def apply_weight_adjustments(current_weights: Dict[str, float], adjustments: Dic
     
     for key in new_weights:
         adjustment = adjustments.get(key, 0.0)
-        new_weight = new_weights[key] + adjustment
+        old_weight = new_weights[key]
+        new_weight = old_weight + adjustment
         
         # Apply bounds
-        new_weights[key] = max(MIN_WEIGHT, min(new_weight, MAX_WEIGHT))
+        bounded_weight = max(MIN_WEIGHT, min(new_weight, MAX_WEIGHT))
+        new_weights[key] = bounded_weight
+        
+        if abs(adjustment) > 0.001:  # Only log significant adjustments
+            print(f"[FEEDBACK DEBUG] Weight update for {key}: {old_weight:.4f} → {bounded_weight:.4f}")
+            logging.debug(f"[FEEDBACK DEBUG] Weight adjustment for {key}: {old_weight:.4f} → {bounded_weight:.4f} (adjustment: {adjustment:+.4f})")
     
     return new_weights
 
@@ -420,12 +426,27 @@ def analyze_and_adjust() -> Dict[str, Any]:
     """
     try:
         print(f"\n[FEEDBACK V2] Starting advanced feedback analysis...")
+        logging.debug("[FEEDBACK DEBUG] Starting analyze_and_adjust function")
         
         # Load data
         alerts = load_alert_logs()
+        print(f"[FEEDBACK DEBUG] Loaded {len(alerts)} alerts for evaluation")
+        logging.debug(f"[FEEDBACK DEBUG] Alert history loaded: {len(alerts)} entries from {ALERT_LOG}")
+        
         if not alerts:
             print("[FEEDBACK V2] No alert logs found.")
+            logging.warning("[FEEDBACK DEBUG] No alert data available for feedback analysis")
             return {}
+        
+        # Debug details of first few alerts
+        if len(alerts) > 0:
+            print(f"[FEEDBACK DEBUG] Sample alert data:")
+            for i, alert in enumerate(alerts[:3]):
+                symbol = alert.get("symbol", "UNKNOWN")
+                score = alert.get("score", "N/A")
+                timestamp = alert.get("timestamp", "N/A")
+                print(f"  Alert {i+1}: {symbol} (score: {score}, time: {timestamp})")
+                logging.debug(f"[FEEDBACK DEBUG] Alert {i+1} details: {alert}")
         
         current_weights = load_current_weights()
         
@@ -440,6 +461,7 @@ def analyze_and_adjust() -> Dict[str, Any]:
         print(f"  Total alerts analyzed: {total_analyzed}")
         print(f"  Successful alerts: {successful}")
         print(f"  Success rate: {success_rate:.1%}")
+        logging.info(f"[FEEDBACK DEBUG] Performance metrics: {total_analyzed} analyzed, {successful} successful, {success_rate:.1%} rate")
         
         # Calculate adjustments
         weight_adjustments = calculate_weight_adjustments(alerts, current_weights)
@@ -491,6 +513,7 @@ def analyze_and_adjust() -> Dict[str, Any]:
         
     except Exception as e:
         print(f"[FEEDBACK V2] Error in analysis: {e}")
+        logging.error(f"[FEEDBACK DEBUG] Error in analyze_and_adjust: {e}")
         import traceback
         traceback.print_exc()
         return {}

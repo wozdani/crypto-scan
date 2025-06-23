@@ -66,10 +66,16 @@ class CLIPOnlineTrainer:
                 "training_time": time.time() - start_time
             }
         
+        print(f"[CLIP TRAIN] Starting training on dataset of size: {len(recent_pairs)}")
+        logging.debug(f"[CLIP TRAIN] Training parameters: epochs={num_epochs}, batch_size={self.batch_size}, dataset_size={len(recent_pairs)}")
         logger.info(f"Found {len(recent_pairs)} recent training pairs")
         
         # Train model
         training_results = self._train_on_pairs(recent_pairs, num_epochs)
+        
+        avg_loss = training_results.get("avg_loss", 0)
+        print(f"[CLIP TRAIN] Training complete. Accuracy: {avg_loss:.2f}")
+        logging.info(f"[CLIP TRAIN] Training completed with final loss: {avg_loss:.4f}")
         
         # Save model after training
         self.model.save_model()
