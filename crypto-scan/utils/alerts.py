@@ -32,7 +32,11 @@ def send_tjde_telegram_summary(top5_results: List[Dict[str, Any]], feedback_data
             market_context = result.get('market_context', {})
             market_phase = market_context.get('phase', 'unknown') if isinstance(market_context, dict) else str(market_context)
             
-            # Get vision analysis if available
+            # Get CLIP analysis if available
+            clip_label = result.get('clip_label', 'unknown')
+            clip_confidence = result.get('clip_confidence', 0.0)
+            
+            # Get vision analysis if available (legacy)
             vision_analysis = result.get('vision_analysis', {})
             vision_confidence = vision_analysis.get('confidence', 0) if vision_analysis else 0
             
@@ -100,7 +104,9 @@ def send_tjde_telegram_summary(top5_results: List[Dict[str, Any]], feedback_data
 {setup_explanation}
 
 🔍 Decision Logic:
-{reasons_str}"""
+{reasons_str}
+
+📸 CLIP Label: {clip_label} ({clip_confidence:.3f})"""
 
             # Send individual token alert
             success = send_trend_alert(message)
