@@ -553,6 +553,42 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         except Exception as e:
             print(f"[SAVE ERROR] {symbol} → {e}")
         
+        # Professional chart generation for training data
+        training_chart_saved = False
+        try:
+            if tjde_score >= 0.6 or ppwcs_score >= 50:
+                from chart_generator import generate_chart_async_safe
+                
+                # Prepare market data for chart generation
+                chart_market_data = {
+                    "candles": candles_15m,
+                    "candles_5m": candles_5m
+                }
+                
+                # Prepare TJDE result for chart generation
+                chart_tjde_result = {
+                    "final_score": tjde_score,
+                    "decision": tjde_decision
+                }
+                
+                # Generate professional trend mode chart
+                chart_path = generate_chart_async_safe(
+                    symbol=symbol,
+                    market_data=chart_market_data,
+                    tjde_result=chart_tjde_result,
+                    tjde_breakdown=features if 'features' in locals() else {}
+                )
+                
+                if chart_path:
+                    training_chart_saved = True
+                    print(f"[CHART GENERATED] {symbol}: Professional trend chart with TJDE {tjde_score:.3f} ({tjde_decision})")
+                else:
+                    print(f"[CHART SKIP] {symbol}: Chart generation skipped (insufficient data)")
+                    
+        except Exception as chart_e:
+            print(f"[CHART ERROR] {symbol}: {chart_e}")
+            training_chart_saved = False
+
         result = {
             "symbol": symbol,
             "ppwcs_score": ppwcs_score,
@@ -561,6 +597,7 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             "price": price,
             "volume_24h": volume_24h,
             "alert_sent": alert_sent,
+            "training_chart_saved": training_chart_saved,
             "candles_count": len(candles_15m),
             "timestamp": datetime.now().isoformat()
         }
