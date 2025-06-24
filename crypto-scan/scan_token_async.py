@@ -14,6 +14,9 @@ from typing import Optional, Dict, Any
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+# Import training data manager
+from utils.training_data_manager import TrainingDataManager
+
 # Import scoring and analysis modules with proper error handling
 PPWCS_AVAILABLE = True  # Always available with realistic calculation
 print("[IMPORT SUCCESS] Realistic PPWCS calculation implemented")
@@ -376,6 +379,38 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             tjde_score = ppwcs_score / 100 if ppwcs_score else 0.4  # Convert to 0-1 range
             tjde_decision = "monitor" if tjde_score > 0.5 else "avoid"
         
+        # Training chart generation for quality setups
+        training_chart_saved = False
+        if ppwcs_score >= 40 or tjde_score >= 0.6:
+            print(f"[TRAINING] {symbol} → Generating training chart (PPWCS: {ppwcs_score}, TJDE: {tjde_score})")
+            try:
+                # Initialize training data manager
+                training_manager = TrainingDataManager()
+                
+                # Prepare context features for training
+                context_features = {
+                    "ppwcs_score": ppwcs_score,
+                    "tjde_score": tjde_score,
+                    "tjde_decision": tjde_decision,
+                    "price": price,
+                    "volume_24h": volume_24h,
+                    "market_phase": "active_scan",
+                    "scan_timestamp": datetime.now().isoformat(),
+                    "candle_count_15m": len(candles_15m) if candles_15m else 0,
+                    "candle_count_5m": len(candles_5m) if candles_5m else 0
+                }
+                
+                # Generate and save training chart
+                chart_id = training_manager.collect_from_scan(symbol, context_features)
+                if chart_id:
+                    training_chart_saved = True
+                    print(f"[TRAINING] {symbol} → Chart saved: {chart_id}")
+                else:
+                    print(f"[TRAINING] {symbol} → Chart generation failed")
+                    
+            except Exception as e:
+                print(f"[TRAINING ERROR] {symbol} → {e}")
+        
         # Alert processing with diagnostics
         alert_sent = False
         print(f"[ALERT CHECK] {symbol} → PPWCS: {ppwcs_score}, TJDE: {tjde_score}")
@@ -416,6 +451,19 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             print(f"[SUSPICIOUS] {symbol} → Both scores are fallback values - likely errors in scoring functions")
         
         print(f"✅ {symbol}: PPWCS {ppwcs_score:.1f}, TJDE {tjde_score:.3f} ({tjde_decision}), {len(candles_15m)}x15M, {len(candles_5m)}x5M")
+        result = {
+            "symbol": symbol,
+            "ppwcs_score": ppwcs_score,
+            "tjde_score": tjde_score,
+            "tjde_decision": tjde_decision,
+            "price": price,
+            "volume_24h": volume_24h,
+            "alert_sent": alert_sent,
+            "training_chart_saved": training_chart_saved,
+            "timestamp": datetime.now().isoformat(),
+            "processing_time": processing_time
+        }
+        
         return result
         
     except Exception as e:
