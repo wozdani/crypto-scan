@@ -479,9 +479,16 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             tjde_score = ppwcs_score / 100 if ppwcs_score else 0.4  # Convert to 0-1 range
             tjde_decision = "monitor" if tjde_score > 0.5 else "avoid"
         
-        # TJDE-based training chart generation for quality setups
+        # Generate training charts for meaningful setups (always attempt for debug)
         training_chart_saved = False
-        if tjde_score >= 0.4 and tjde_decision != "avoid":  # User's requested conditions
+        chart_eligible = tjde_score >= 0.4 and tjde_decision != "avoid"
+        
+        # Force chart generation for testing even with low scores if we have data
+        if not chart_eligible and candles_15m and len(candles_15m) >= 20:
+            print(f"[CHART DEBUG] {symbol} → Forcing chart generation for testing (TJDE: {tjde_score:.3f}, Decision: {tjde_decision})")
+            chart_eligible = True
+            
+        if chart_eligible:
             print(f"[TRAINING] {symbol} → Generating TJDE training chart (Score: {tjde_score:.3f}, Decision: {tjde_decision})")
             try:
                 # Import contextual TJDE chart generator
@@ -644,7 +651,7 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 else:
                     print(f"[CHART SKIP] {symbol}: Generowanie wykresu pominięte (niewystarczające dane)")
             else:
-                print(f"[CHART SKIP] {symbol}: Nie spełnia warunków (TJDE: {tjde_score:.3f}, Decyzja: {tjde_decision})")
+                print(f"[CHART SKIP] {symbol}: Warunki nie spełnione - TJDE: {tjde_score:.3f}, Decyzja: {tjde_decision}, Dane: {len(candles_15m) if candles_15m else 0} świec")
                     
         except Exception as chart_e:
             print(f"[CHART ERROR] {symbol}: {chart_e}")

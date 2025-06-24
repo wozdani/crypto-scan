@@ -215,7 +215,12 @@ def generate_alert_focused_training_chart(
         filepath = os.path.join("training_charts", filename)
         
         plt.tight_layout()
-        plt.savefig(filepath, dpi=150, bbox_inches='tight', facecolor='white', edgecolor=phase_color, linewidth=3)
+        
+        # Save with proper parameters (linewidth not supported in savefig)
+        fig = plt.gcf()
+        fig.patch.set_edgecolor(phase_color)
+        fig.patch.set_linewidth(3)
+        plt.savefig(filepath, dpi=150, bbox_inches='tight', facecolor='white')
         plt.close()
         
         # 10. METADATA Z KONTEKSTEM ALERTU
