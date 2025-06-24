@@ -413,15 +413,35 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     
                     # Detailed TJDE scoring breakdown
                     if debug_info:
+                        # Get enhanced TJDE component scores with fallback calculations
                         trend_strength = debug_info.get("trend_strength", 0.0)
-                        pullback_quality = debug_info.get("pullback_quality", 0.0)
+                        pullback_quality = debug_info.get("pullback_quality", 0.0)  
                         support_reaction = debug_info.get("support_reaction", 0.0)
                         volume_behavior_score = debug_info.get("volume_behavior_score", 0.0)
                         psych_score = debug_info.get("psych_score", 0.0)
+                        
+                        # If components are 0.0, calculate using enhanced functions directly
+                        if all(v == 0.0 for v in [trend_strength, pullback_quality, support_reaction, volume_behavior_score, psych_score]):
+                            try:
+                                from trader_ai_engine import compute_trend_strength, compute_pullback_quality, compute_support_reaction, compute_volume_behavior_score, compute_psych_score
+                                
+                                print(f"[TJDE CALC OVERRIDE] {symbol}: Using enhanced calculation functions directly")
+                                trend_strength = compute_trend_strength(candles_15m, symbol)
+                                pullback_quality = compute_pullback_quality(candles_15m, symbol)
+                                support_reaction = compute_support_reaction(candles_15m, symbol)
+                                volume_behavior_score = compute_volume_behavior_score(candles_15m, symbol)
+                                psych_score = compute_psych_score(candles_15m, symbol)
+                                
+                                print(f"[TJDE ENHANCED] {symbol}: trend={trend_strength:.3f}, pullback={pullback_quality:.3f}, support={support_reaction:.3f}")
+                                print(f"[TJDE ENHANCED] {symbol}: volume={volume_behavior_score:.3f}, psych={psych_score:.3f}")
+                                
+                            except Exception as calc_e:
+                                print(f"[TJDE CALC ERROR] {symbol}: Enhanced calculation failed: {calc_e}")
+                                # Keep original 0.0 values as fallback
                         liquidity_pattern_score = debug_info.get("liquidity_pattern_score", 0.0)
                         
-                        print(f"[TJDE SCORE] trend_strength={trend_strength:.2f}, pullback_quality={pullback_quality:.2f}, final_score={final_score:.2f}")
-                        print(f"[TJDE SCORE] volume_behavior_score={volume_behavior_score:.1f}, psych_score={psych_score:.1f}, support_reaction={support_reaction:.1f}")
+                        print(f"[TJDE SCORE] trend_strength={trend_strength:.3f}, pullback_quality={pullback_quality:.3f}, final_score={final_score:.3f}")
+                        print(f"[TJDE SCORE] volume_behavior_score={volume_behavior_score:.3f}, psych_score={psych_score:.3f}, support_reaction={support_reaction:.3f}")
                     
                     # Market phase modifier
                     try:
