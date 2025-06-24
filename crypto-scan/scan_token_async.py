@@ -383,6 +383,15 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 
                 trend_features = extract_trend_features(candles_15m, candles_5m, price, volume_24h)
                 
+                # TJDE Analysis with comprehensive debug
+                print(f"[DEBUG] Simulating trader decision for {symbol}...")
+                print(f"[DEBUG] market_data keys: {list(market_data.keys()) if isinstance(market_data, dict) else 'Invalid structure'}")
+                
+                if isinstance(market_data, dict):
+                    candles_15m = market_data.get('candles', [])
+                    candles_5m = market_data.get('candles_5m', [])
+                    print(f"[DEBUG] candles_15m: {len(candles_15m)}, candles_5m: {len(candles_5m)}")
+                
                 features = {
                     "symbol": symbol,
                     "market_phase": "trend-following",
@@ -394,12 +403,48 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 
                 tjde_result = simulate_trader_decision_advanced(features)
                 
-                tjde_score = tjde_result.get("final_score", 0) if tjde_result else 0
-                tjde_decision = tjde_result.get("decision", "avoid") if tjde_result else "avoid"
-                
-                print(f"[TJDE SUCCESS] {symbol}: score={tjde_score}, decision={tjde_decision}")
                 if tjde_result and isinstance(tjde_result, dict):
-                    print(f"[TJDE SUCCESS] {symbol} → result keys: {list(tjde_result.keys())}")
+                    final_score = tjde_result.get("final_score", 0.4)
+                    decision = tjde_result.get("decision", "neutral")
+                    debug_info = tjde_result.get("debug_info", {})
+                    market_phase = tjde_result.get("market_phase", "unknown")
+                    
+                    # Detailed TJDE scoring breakdown
+                    if debug_info:
+                        trend_strength = debug_info.get("trend_strength", 0.0)
+                        pullback_quality = debug_info.get("pullback_quality", 0.0)
+                        support_reaction = debug_info.get("support_reaction", 0.0)
+                        volume_behavior_score = debug_info.get("volume_behavior_score", 0.0)
+                        psych_score = debug_info.get("psych_score", 0.0)
+                        liquidity_pattern_score = debug_info.get("liquidity_pattern_score", 0.0)
+                        
+                        print(f"[TJDE SCORE] trend_strength={trend_strength:.2f}, pullback_quality={pullback_quality:.2f}, final_score={final_score:.2f}")
+                        print(f"[TJDE SCORE] volume_behavior_score={volume_behavior_score:.1f}, psych_score={psych_score:.1f}, support_reaction={support_reaction:.1f}")
+                    
+                    # Market phase modifier
+                    try:
+                        from utils.market_phase import market_phase_modifier
+                        modifier = market_phase_modifier(market_phase)
+                        if modifier != 0.0:
+                            print(f"[MODIFIER] market_phase={market_phase}, modifier=+{modifier:.3f}")
+                            final_score += modifier
+                            print(f"[TJDE ENHANCED] {symbol}: {final_score:.2f} (with phase modifier)")
+                    except Exception as phase_e:
+                        print(f"[MODIFIER ERROR] {symbol}: {phase_e}")
+                    
+                    tjde_score = final_score
+                    tjde_decision = decision
+                    
+                    print(f"[TJDE FINAL] {symbol}: score={final_score:.2f}, decision={decision}")
+                    
+                    # Alert check for high scores
+                    if final_score >= 0.7:
+                        print(f"[ALERT TRIGGER] {symbol} → TJDE={final_score:.2f} → HIGH SCORE DETECTED")
+                        
+                else:
+                    print(f"[TJDE FALLBACK] {symbol}: simulate_trader_decision_advanced returned invalid result")
+                    tjde_score = 0.4
+                    tjde_decision = "neutral"
                 
             except Exception as e:
                 print(f"[TJDE FALLBACK] {symbol}: {type(e).__name__}: {e}")
