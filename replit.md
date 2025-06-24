@@ -98,8 +98,8 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 24, 2025 - Complete Async Scanner Production Deployment - PRODUCTION READY ✅
-All 6 critical async scanner issues resolved achieving production-ready cryptocurrency market scanning system with enhanced performance, error handling, and CLIP integration.
+### June 24, 2025 - Complete Async Scanner with Training Chart System - PRODUCTION READY ✅
+All 6 critical async scanner issues resolved plus training chart integration fully operational. System now automatically generates training charts for PPWCS ≥ 40 or TJDE ≥ 0.6 setups.
 
 ### June 21, 2025 - Alert System Integration Fix - PRODUCTION READY
 - **Critical Alert Function Fixed**: Naprawiono process_alert() w alert_system.py - KERNELUSDT score 57 teraz wysyła alerty
