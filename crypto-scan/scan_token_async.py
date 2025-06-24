@@ -289,8 +289,8 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     
                     score += special_points
                     
-                    # Cap at realistic maximum - most tokens should be 15-50
-                    return min(max(score, 15.0), 60.0)  # Range 15-60 for normal market conditions
+                    # Allow full range for exceptional cases - można osiągnąć 100 punktów
+                    return min(max(score, 15.0), 100.0)  # Range 15-100, perfect score możliwy
                 
                 ppwcs_score = calculate_realistic_ppwcs(candles_15m, candles_5m, price, volume_24h, orderbook)
                 
@@ -441,8 +441,9 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         alert_sent = False
         print(f"[ALERT CHECK] {symbol} → PPWCS: {ppwcs_score}, TJDE: {tjde_score}")
         
-        if ppwcs_score >= 40 or tjde_score >= 0.7:
-            print(f"[ALERT TRIGGER] {symbol} → Sending alert (PPWCS≥40 or TJDE≥0.7)")
+        # ALERT TYLKO DLA PPWCS 100 lub CHECKLIST 100 PUNKTÓW
+        if ppwcs_score >= 100 or checklist_score >= 100:
+            print(f"[🚨 PERFECT SCORE ALERT] {symbol} → PPWCS: {ppwcs_score:.1f}/100, Checklist: {checklist_score:.1f}/100")
             try:
                 # Use synchronous alert function with proper context
                 from utils.alert_system import process_alert
@@ -450,6 +451,7 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 # Prepare signals for alert
                 signals = {
                     "ppwcs_score": ppwcs_score,
+                    "checklist_score": checklist_score,
                     "tjde_score": tjde_score,
                     "decision": tjde_decision,
                     "price": price,
@@ -465,24 +467,25 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 alert_data = {
                     "symbol": symbol,
                     "ppwcs_score": ppwcs_score,
+                    "checklist_score": checklist_score,
                     "tjde_score": tjde_score,
                     "tjde_decision": tjde_decision,
-                    "message": f"🚀 ASYNC ALERT: {symbol} - PPWCS: {ppwcs_score:.1f} | TJDE: {tjde_score:.3f} ({tjde_decision})",
+                    "message": f"🎯 PERFECT SCORE: {symbol} - PPWCS: {ppwcs_score:.1f}/100 | Checklist: {checklist_score:.1f}/100",
                     "timestamp": datetime.now().isoformat(),
-                    "type": "async_scan_alert",
-                    "telegram_status": "pending_config"
+                    "type": "perfect_score_alert",
+                    "telegram_status": "ready_to_send"
                 }
                 
-                with open(f"data/alerts/{symbol}_async_alert.json", "w") as f:
+                with open(f"data/alerts/{symbol}_perfect_alert.json", "w") as f:
                     json.dump(alert_data, f, indent=2)
                 
                 alert_sent = True
-                print(f"[ALERT RESULT] {symbol} → Alert logged locally (Telegram config pending)")
+                print(f"[🎯 PERFECT ALERT SAVED] {symbol} → Telegram ready")
             except Exception as e:
                 print(f"[ALERT ERROR] {symbol} → {e}")
                 alert_sent = False
         else:
-            print(f"[ALERT SKIP] {symbol} → Below thresholds (PPWCS: {ppwcs_score:.1f}, TJDE: {tjde_score:.3f})")
+            print(f"[ALERT SKIP] {symbol} → Need 100 points (PPWCS: {ppwcs_score:.1f}/100, Checklist: {checklist_score:.1f}/100)")
         
         # Save results with diagnostics (if save function available)
         try:
