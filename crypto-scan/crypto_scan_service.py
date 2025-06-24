@@ -469,154 +469,38 @@ def scan_cycle():
     scan_duration = time.time() - scan_start_time
     print(f"🏁 [PARALLEL SCAN] Completed in {scan_duration:.1f}s, processed {len(scan_results)} tokens")
 
-    # Process results sequentially for reporting and alerts
+    # Save stage signal data and handle special alerts
     for result in scan_results:
         try:
             symbol = result['symbol']
             signals = result['signals']
-            # Handle Stage -1 alerts for high-priority detections
-            stage_minus1_detected = signals.get("stage_minus1_detected", False)
-            stage_minus1_description = signals.get("stage_minus1_description", "")
             
-            if stage_minus1_detected:
-                # Save Stage -1 alert
-                stage_minus1_alert = {
-                    'symbol': symbol,
-                    'market_tension': 'WYKRYTE',
-                    'rhythm_description': stage_minus1_description,
-                    'tension_level': 'WYSOKIE' if 'napięcie' in stage_minus1_description.lower() else 'STANDARD',
-                    'timestamp': datetime.now(timezone.utc).isoformat()
-                }
-                
-                # Save to file
-                os.makedirs("data", exist_ok=True)
-                alerts_file = "data/stage_minus1_alerts.json"
-                
-                try:
-                    if os.path.exists(alerts_file):
-                        with open(alerts_file, 'r') as f:
-                            existing_alerts = json.load(f)
-                    else:
-                        existing_alerts = []
-                    
-                    existing_alerts.append(stage_minus1_alert)
-                    
-                    # Keep only last 50 alerts
-                    if len(existing_alerts) > 50:
-                        existing_alerts = existing_alerts[-50:]
-                    
-                    with open(alerts_file, 'w') as f:
-                        json.dump(existing_alerts, f, indent=2)
-                except Exception as save_error:
-                    print(f"⚠️ Failed to save Stage -1 alert for {symbol}: {save_error}")
-
             # Save stage signal data
             save_stage_signal(symbol, result['score'], result.get('stage2_pass', False), 
                             result.get('compressed', False), result.get('stage1g_active', False), 
                             result.get('checklist_score', 0), result.get('checklist_summary', {}))
-            is_high_confidence = False
-            structure_ok = False
-            
-            # Enhanced conditions based on weighted checklist scoring (new system)
-            if checklist_score >= 25 and final_score >= 45:  # Adjusted for weighted scoring (max 41)
-                is_high_confidence = True
-            
-            if checklist_score >= 15:  # Quality threshold instead of count-based ≥3
-                structure_ok = True
-            
-            # Map alert levels to tiers and determine if alert should be sent
-            if alert_level == 3:  # Strong alert
-                alert_tier = "🔴 Strong Alert" + (" [HIGH CONFIDENCE]" if is_high_confidence else "")
-                alert_tier += " [STRUCTURE OK]" if structure_ok and not is_high_confidence else ""
-                allow_alert = True
-            elif alert_level == 2:  # Pre-pump active
-                alert_tier = "🟠 Pre-pump Active" + (" [HIGH CONFIDENCE]" if is_high_confidence else "")
-                alert_tier += " [STRUCTURE OK]" if structure_ok and not is_high_confidence else ""
-                allow_alert = True
-            elif alert_level == 1:  # Watchlist
-                alert_tier = "🟡 Watchlist" + (" [STRUCTURE OK]" if structure_ok else "")
-                allow_alert = False  # Watchlist items don't send alerts, only logged
-            
+        except Exception as e:
+            print(f"❌ Error saving stage signal for {result.get('symbol', 'unknown')}: {e}")
 
-
-            gpt_feedback = None
-            # Enhanced GPT conditions to include high confidence alerts
-            gpt_alert_conditions = [
-                "🔴 Urgent Alert", "🟠 Pre-pump Active", 
-                "🔴 Urgent Alert [HIGH CONFIDENCE]", "🟠 Pre-pump Active [HIGH CONFIDENCE]",
-                "🔴 Urgent Alert [STRUCTURE OK]", "🟠 Pre-pump Active [STRUCTURE OK]"
-            ]
-            
-            if allow_alert and any(tier in alert_tier for tier in gpt_alert_conditions if alert_tier):
-                try:
-                    gpt_feedback = send_report_to_gpt(symbol, signals, tp_forecast, alert_tier)
-                    feedback_score = score_gpt_feedback(gpt_feedback)
-                    category, description, emoji = categorize_feedback_score(feedback_score)
-
-                    signals["feedback_score"] = feedback_score
-                    signals["feedback_category"] = category
-                    os.makedirs("data/feedback", exist_ok=True)
-                    feedback_file = f"data/feedback/{symbol}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}.txt"
-                    with open(feedback_file, "w", encoding="utf-8") as f:
-                        f.write(f"Token: {symbol}\nPPWCS: {final_score} (Structure: {ppwcs_structure}, Quality: {ppwcs_quality})\n")
-                        f.write(f"Checklist Score: {checklist_score}/41 ({len(checklist_summary)}/20 conditions)\n")
-
-                        f.write(f"Alert Tier: {alert_tier}\nTimestamp: {datetime.now(timezone.utc).isoformat()}\n")
-                        f.write(f"Signals: {signals}\nTP Forecast: {tp_forecast}\nFeedback Score: {feedback_score}/100\n")
-                        f.write(f"Feedback Category: {category} ({description})\nGPT Feedback:\n{gpt_feedback}\n")
-                except Exception as gpt_error:
-                    print(f"⚠️ GPT feedback failed for {symbol}: {gpt_error}")
-
-            if allow_alert and alert_tier:
-                # Use comprehensive alert system with all features (checklist, TP forecast, GPT)
-                from utils.alert_system import process_alert
-                alert_success = process_alert(symbol, final_score, signals, gpt_feedback)
-
-
-
-
-            # === ADVANCED TREND-MODE ANALYSIS & ALERTS ===
-            try:
-                from trend_mode import analyze_trend_opportunity
-                
-                # Get UTC hour for session analysis
-                utc_hour = get_utc_hour()
-                candles_15m = market_data.get('candles', [])
-                
-                # Run TJDE Trend-Mode analysis
-                trend_result = analyze_trend_opportunity(symbol, candles_15m)
-                
-                if trend_result and trend_result.get('decision') != 'avoid':
-                    decision = trend_result.get('decision', 'avoid')
-                    confidence = trend_result.get('confidence', 0.0)
-                    final_score = trend_result.get('final_score', 0.0)
-                    grade = trend_result.get('grade', 'unknown')
-                    reasons = trend_result.get('decision_reasons', [])
-                    
-                    # Update signals z TJDE wynikami
-                    signals.update({
-                        'tjde_decision': decision,
-                        'tjde_confidence': confidence,
-                        'tjde_final_score': final_score,
-                        'tjde_grade': grade,
-                        'tjde_reasons': reasons[:3]  # Top 3 reasons
-                    })
-                    
-                    # === TJDE ALERT LOGIC ===
-                    # Alert conditions: decision="join" (handled in trend_mode.py)
-                    if (decision == "join_trend" and entry_quality >= 0.75 and 
-                        not trend_alert_cache.already_alerted_recently(symbol, "trend_mode")):
-                        
-                        # Prepare alert message
-                        alert_text = f'''📈 [Trend Mode Alert] {symbol}
-✅ Trader AI Decision: JOIN TREND
-🎯 Confidence: {confidence*100:.1f}%
-📊 Quality: {quality_grade.upper()} ({entry_quality:.2f})
-🧠 Reasons:
-- {chr(10).join(f"  {reason}" for reason in reasons[:5])}
-
-💡 Context: {market_context} | Trend Strength: {trend_strength:.2f}
-⏰ Session: {utc_hour:02d}:XX UTC'''
+    # Post-scan processing and reports
+    print("📊 Conditional reports generated")
+    save_conditional_reports()
+    compress_reports_to_zip()
+    
+    print(f"✅ Scan completed. Processed {len(scan_results)} symbols.")
+    
+    # Advanced feedback system integration  
+    try:
+        from feedback.feedback_loop_v2 import run_feedback_analysis_v2
+        feedback_results = run_feedback_analysis_v2()
+        if feedback_results.get("adjustments_made", 0) > 0:
+            print(f"📊 Feedback loop adjusted {feedback_results['adjustments_made']} weights")
+    except Exception as feedback_error:
+        print(f"📊 No feedback analysis data available for this scan")
+    except Exception as e:
+        print(f"📊 No feedback analysis data available for this scan")
+    
+    return scan_results
 
                         # Check if GPT feedback is available
                         gpt_data = trend_result.get('gpt_analysis', {})
