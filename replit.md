@@ -283,7 +283,7 @@ Fixed critical "CLIP Confidence: N/A" issue by implementing comprehensive CLIP p
 - **Contextual Filenames**: Charts named with phase and decision for easy CLIP training organization
 - **Fallback System**: Automatic fallback to simple chart generation if contextual method fails
 
-### June 24, 2025 - Complete TJDE System Overhaul with Enhanced Calculations - PRODUCTION READY ✅
+### June 24, 2025 - Enhanced TJDE System + Alert-Focused Chart Generation - PRODUCTION READY ✅
 - **Enhanced TJDE Calculation Functions**: Completely rebuilt all TJDE component calculations with realistic baseline values (trend_strength: 0.15-1.0, pullback_quality: 0.2-1.0, support_reaction: 0.25-1.0, volume_behavior: 0.3-1.0, psych_score: 0.4-1.0) replacing previous 0.00 readings
 - **Multi-Factor Analysis Implementation**: Enhanced trend_strength with direction analysis, momentum calculation, and volatility consideration; pullback_quality with depth detection, volume behavior assessment, and price stability analysis; support_reaction with bounce strength, volume confirmation, and recency factors
 - **Context-Aware Training Charts**: Implemented generate_tjde_training_chart_contextual() with alert point detection, 100+20 candle windows, phase-colored visualization, and professional candlestick layouts with volume spike highlighting
@@ -291,6 +291,8 @@ Fixed critical "CLIP Confidence: N/A" issue by implementing comprehensive CLIP p
 - **Enhanced Component Logging**: Detailed [TJDE CALC] logging showing individual component breakdowns, calculation factors, and error handling for comprehensive debugging
 - **Professional Chart Generation**: Charts now focus on actual trading decision moments with enhanced metadata storage, phase-based color coding, and alert moment visualization
 - **Production Integration**: Complete system deployment with realistic TJDE scoring providing meaningful trading analysis instead of zero-value calculations
+- **Alert-Focused Chart Generation**: Completely rebuilt chart system using generate_alert_focused_training_chart() with detect_alert_moment() for precise volume spike detection, 100+20 candle context windows, phase-colored visualization, and professional alert marking with pionowa linia and strzałka annotations
+- **Context-Aware Training Data**: Charts now focus on actual trading decision moments instead of random data fragments, generating meaningful training pairs for CLIP model with phase-based color coding and comprehensive metadata storage
 
 ### June 24, 2025 - TJDE Component Calculation Logic Completely Enhanced - PRODUCTION READY ✅
 - **Realistic TJDE Baselines**: All components now return meaningful values with proper baselines (0.15 trend_strength, 0.2 pullback_quality, 0.25 support_reaction, 0.3 volume_behavior, 0.4 psych_score) eliminating 0.00 readings

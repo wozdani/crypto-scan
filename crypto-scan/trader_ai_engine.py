@@ -53,38 +53,38 @@ def compute_trend_strength(candles, symbol=None):
     if not candles or len(candles) < 20:
         return 0.15  # Minimum baseline value
         
-        try:
-            closes = [float(c[4]) for c in candles[-20:]]
-            if len(closes) < 10:
-                return 0.15
-                
-            # Calculate multiple trend indicators
-            # 1. Short vs long term comparison
-            short_avg = sum(closes[-5:]) / 5
-            long_avg = sum(closes[-15:-10]) / 5
-            trend_direction = (short_avg - long_avg) / long_avg if long_avg > 0 else 0
-            
-            # 2. Momentum calculation
-            price_changes = [closes[i] - closes[i-1] for i in range(1, len(closes))]
-            positive_changes = sum(1 for change in price_changes if change > 0)
-            momentum_ratio = positive_changes / len(price_changes)
-            
-            # 3. Price volatility consideration
-            price_range = max(closes) - min(closes)
-            avg_price = sum(closes) / len(closes)
-            volatility = price_range / avg_price if avg_price > 0 else 0
-            
-            # Combine indicators
-            trend_strength = abs(trend_direction) * 0.4 + momentum_ratio * 0.4 + min(volatility * 2, 0.5) * 0.2
-            trend_strength = min(max(trend_strength, 0.1), 1.0)
-            
-            if symbol:
-                print(f"[TJDE CALC] {symbol}: trend_strength = {trend_strength:.3f} (direction: {trend_direction:.3f}, momentum: {momentum_ratio:.3f})")
-            return trend_strength
-        except Exception as e:
-            if symbol:
-                print(f"[TJDE ERROR] {symbol}: trend_strength calculation failed: {e}")
+    try:
+        closes = [float(c[4]) for c in candles[-20:]]
+        if len(closes) < 10:
             return 0.15
+            
+        # Calculate multiple trend indicators
+        # 1. Short vs long term comparison
+        short_avg = sum(closes[-5:]) / 5
+        long_avg = sum(closes[-15:-10]) / 5
+        trend_direction = (short_avg - long_avg) / long_avg if long_avg > 0 else 0
+        
+        # 2. Momentum calculation
+        price_changes = [closes[i] - closes[i-1] for i in range(1, len(closes))]
+        positive_changes = sum(1 for change in price_changes if change > 0)
+        momentum_ratio = positive_changes / len(price_changes)
+        
+        # 3. Price volatility consideration
+        price_range = max(closes) - min(closes)
+        avg_price = sum(closes) / len(closes)
+        volatility = price_range / avg_price if avg_price > 0 else 0
+        
+        # Combine indicators
+        trend_strength = abs(trend_direction) * 0.4 + momentum_ratio * 0.4 + min(volatility * 2, 0.5) * 0.2
+        trend_strength = min(max(trend_strength, 0.1), 1.0)
+        
+        if symbol:
+            print(f"[TJDE CALC] {symbol}: trend_strength = {trend_strength:.3f} (direction: {trend_direction:.3f}, momentum: {momentum_ratio:.3f})")
+        return trend_strength
+    except Exception as e:
+        if symbol:
+            print(f"[TJDE ERROR] {symbol}: trend_strength calculation failed: {e}")
+        return 0.15
 
 def compute_pullback_quality(candles, symbol=None):
     """Enhanced pullback quality calculation"""
