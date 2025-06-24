@@ -8,11 +8,12 @@ import json
 import openai
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import multiprocessing
 
 # Load environment variables at the start
 load_dotenv()
 # from utils.contracts import get_contract  # Module not available
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from utils.coingecko import build_coingecko_cache
 import logging
 
@@ -217,10 +218,48 @@ def scan_cycle():
     if priority_info:
         save_priority_report(priority_info)
         
+    # Dynamiczne zarządzanie wątkami - min(CPU cores, liczba symboli, max 16)
+    max_workers = min(multiprocessing.cpu_count(), len(symbols), 16)
+    print(f"🚀 [PARALLEL SCAN] Using {max_workers} workers for {len(symbols)} symbols")
+    
     scan_results = []
 
-    def run_detect_stage(symbol, price_usd, market_data=None):
+    def scan_single_token(symbol):
+        """Scan pojedynczego tokena - kompletna analiza w jednym wątku"""
         try:
+            print(f"🔍 Skanuję {symbol}...")
+            
+            # Podstawowa walidacja symbolu
+            if symbol not in symbols_bybit:
+                print(f"⚠️ Pomijam {symbol} – nie znajduje się na Bybit (USDT perp)")
+                return None
+
+            # Pobieranie danych rynkowych z timeoutami
+            success, data, price_usd, is_valid = get_market_data(symbol)
+
+            if not success or not data or not isinstance(data, dict) or price_usd is None:
+                print(f"⚠️ Pomiń {symbol} – niepoprawne dane z get_market_data(): {data}")
+                return None
+
+            # Filtry płynności i jakości
+            volume_usdt = data.get("volume")
+            best_ask = data.get("best_ask")
+            best_bid = data.get("best_bid")
+
+            if not price_usd or price_usd <= 0:
+                print(f"⚠️ Pominięto {symbol} – nieprawidłowa cena: {price_usd}")
+                return None
+
+            if not volume_usdt or volume_usdt < 100_000:
+                print(f"⚠️ Pominięto {symbol} – zbyt niski wolumen: ${volume_usdt}")
+                return None
+
+            if best_ask and best_bid:
+                spread = (best_ask - best_bid) / best_ask
+                if spread > 0.02:
+                    print(f"⚠️ Pominięto {symbol} – zbyt szeroki spread: {spread*100:.2f}%")
+                    return None
+
             # Run pre-pump analysis
             stage2_pass, signals, inflow_usd, stage1g_active = detect_stage_minus2_1(symbol, price_usd=price_usd)
             
@@ -304,96 +343,17 @@ def scan_cycle():
                     'trend_mode_grade': 'error'
                 })
             
-            return symbol, (stage2_pass, signals, inflow_usd, stage1g_active)
-            
-        except Exception as e:
-            print(f"❌ Error processing {symbol}: {e}")
-            return symbol, (False, {}, 0.0, False)
-
-    futures = []
-    with ThreadPoolExecutor(max_workers=15) as executor:
-        for symbol in symbols:
-            print(f"🔍 Skanuję {symbol}...")
-            if symbol not in symbols_bybit:
-                print(f"⚠️ Pomijam {symbol} – nie znajduje się na Bybit (USDT perp)")
-                continue
-
-            try:
-                success, data, price_usd, is_valid = get_market_data(symbol)
-
-                if not success or not data or not isinstance(data, dict) or price_usd is None:
-                    logger.warning(f"⚠️ Pomiń {symbol} – niepoprawne dane z get_market_data(): {data}")
-                    continue
-
-                # 📉 Filtrowanie tokenów: zbyt tanie, niska płynność, szeroki spread
-                volume_usdt = data.get("volume")
-                best_ask = data.get("best_ask")
-                best_bid = data.get("best_bid")
-
-                if not price_usd or price_usd <= 0:
-                    print(f"⚠️ Pominięto {symbol} – nieprawidłowa cena: {price_usd}")
-                    continue
-
-                if not volume_usdt or volume_usdt < 100_000:
-                    print(f"⚠️ Pominięto {symbol} – zbyt niski wolumen: ${volume_usdt}")
-                    continue
-
-                if best_ask and best_bid:
-                    spread = (best_ask - best_bid) / best_ask
-                    if spread > 0.02:
-                        print(f"⚠️ Pominięto {symbol} – zbyt szeroki spread: {spread*100:.2f}%")
-                        continue
-
-                # ✅ Token przeszedł wszystkie filtry
-                futures.append(executor.submit(run_detect_stage, symbol, price_usd, data))
-
-            except Exception as e:
-                print(f"❌ Błąd przy analizie {symbol}: {e}")
-                continue
-
-    for future in as_completed(futures):
-        symbol, (stage2_pass, signals, inflow, stage1g_active) = future.result()
-        try:
             # === STAGE -1 (TREND MODE) - NEW RHYTHM DETECTION ===
             stage_minus1_detected = False
             stage_minus1_description = "Brak detekcji"
             
             try:
-                # Pobierz dane świec dla Stage -1 rhythm analysis
-                success, market_data, price_usd, is_valid = get_market_data(symbol)
-                if success and market_data and isinstance(market_data, dict) and 'candles' in market_data:
-                    candles_data = market_data.get('candles')
-                    if candles_data and isinstance(candles_data, list) and len(candles_data) >= 6:
-                        stage_minus1_detected, stage_minus1_description = detect_stage_minus1(candles_data)
-                        if stage_minus1_detected:
-                            print(f"🎵 {symbol}: Stage -1 DETECTED - {stage_minus1_description}")
-                            # Zapisz alert Stage -1
-                            stage_minus1_alert = {
-                                'symbol': symbol,
-                                'market_tension': 'WYKRYTE',
-                                'rhythm_description': stage_minus1_description,
-                                'tension_level': 'WYSOKIE' if 'napięcie' in stage_minus1_description.lower() else 'STANDARD',
-                                'timestamp': datetime.now(timezone.utc).isoformat()
-                            }
-                            
-                            # Zapisz do pliku alerts
-                            os.makedirs("data", exist_ok=True)
-                            alerts_file = "data/stage_minus1_alerts.json"
-                            
-                            if os.path.exists(alerts_file):
-                                with open(alerts_file, 'r') as f:
-                                    existing_alerts = json.load(f)
-                            else:
-                                existing_alerts = []
-                            
-                            existing_alerts.append(stage_minus1_alert)
-                            
-                            # Zachowaj tylko ostatnie 50 alertów
-                            if len(existing_alerts) > 50:
-                                existing_alerts = existing_alerts[-50:]
-                            
-                            with open(alerts_file, 'w') as f:
-                                json.dump(existing_alerts, f, indent=2)
+                from stages.stage_minus1 import detect_stage_minus1
+                candles_data = data.get('candles')
+                if candles_data and isinstance(candles_data, list) and len(candles_data) >= 6:
+                    stage_minus1_detected, stage_minus1_description = detect_stage_minus1(candles_data)
+                    if stage_minus1_detected:
+                        print(f"🎵 {symbol}: Stage -1 DETECTED - {stage_minus1_description}")
             except Exception as stage_minus1_error:
                 print(f"⚠️ Stage -1 analysis failed for {symbol}: {stage_minus1_error}")
             
@@ -404,14 +364,13 @@ def scan_cycle():
             # Legacy compressed detection (keeping for compatibility)
             compressed = stage_minus1_detected
             
+            # PPWCS Scoring
             previous_score = get_previous_score(symbol)
             try:
-                # Handle legacy compute_ppwcs return value
                 ppwcs_result = compute_ppwcs(signals, symbol)
                 if isinstance(ppwcs_result, tuple) and len(ppwcs_result) == 3:
                     final_score, ppwcs_structure, ppwcs_quality = ppwcs_result
                 else:
-                    # Handle single float return
                     final_score = float(ppwcs_result) if ppwcs_result else 0.0
                     ppwcs_structure = {}
                     ppwcs_quality = "basic"
@@ -421,13 +380,13 @@ def scan_cycle():
                 ppwcs_structure = {}
                 ppwcs_quality = "error"
             
-            # 🐋 WHALE BOOST SCORING - Dodaj punkty za priorytet whale
+            # Whale boost scoring
             whale_boost = get_whale_boost_for_symbol(symbol, priority_info)
             if whale_boost > 0:
                 final_score += whale_boost
                 print(f"🔥 {symbol}: Whale boost +{whale_boost} points (total: {final_score})")
             
-            # Integrate checklist scoring with scan cycle
+            # Checklist scoring
             try:
                 from utils.scoring import compute_checklist_score
                 checklist_result = compute_checklist_score(signals)
@@ -441,17 +400,34 @@ def scan_cycle():
                 checklist_score = 0.0
                 checklist_summary = {}
             
-            # Add checklist data to signals for downstream processing
+            # Add checklist data to signals
             signals["checklist_score"] = checklist_score
             signals["checklist_summary"] = checklist_summary
             signals["whale_boost"] = whale_boost
             signals["whale_priority"] = symbol in priority_symbols
             
+            # Save results
             save_score(symbol, final_score, signals)
             log_ppwcs_score(symbol, final_score, signals)
 
+            # Alert processing
+            from utils.take_profit_engine import forecast_take_profit_levels
+            tp_forecast = forecast_take_profit_levels(signals)
 
-            scan_results.append({
+            from utils.scoring import get_alert_level
+            alert_level = get_alert_level(final_score, checklist_score)
+            
+            # Process alerts if needed
+            if alert_level >= 2:  # Level 2 or 3 alerts
+                try:
+                    from utils.alert_system import process_alert
+                    alert_success = process_alert(symbol, final_score, signals, None)
+                    if alert_success:
+                        print(f"📢 [ALERT] {symbol}: Level {alert_level} alert sent")
+                except Exception as alert_error:
+                    print(f"⚠️ Alert processing failed for {symbol}: {alert_error}")
+
+            return {
                 'symbol': symbol,
                 'score': final_score,
                 'checklist_score': checklist_score,
@@ -460,18 +436,84 @@ def scan_cycle():
                 'stage2_pass': stage2_pass,
                 'compressed': compressed,
                 'stage1g_active': stage1g_active,
-                'tjde_result': signals.get('tjde_result')  # Add TJDE result for embedding generation
-            })
-
-            from utils.take_profit_engine import forecast_take_profit_levels
-            tp_forecast = forecast_take_profit_levels(signals)
-
-            # New Alert Level System - Updated for PPWCS 0-65 and Checklist 0-85 ranges
-            from utils.scoring import get_alert_level
+                'alert_level': alert_level,
+                'signals': signals
+            }
             
-            alert_level = get_alert_level(final_score, checklist_score)
-            allow_alert = False
-            alert_tier = None
+        except Exception as e:
+            print(f"❌ Error processing {symbol}: {e}")
+            return None
+
+    # Równoległe skanowanie wszystkich symboli
+    scan_start_time = time.time()
+    
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        print(f"⚡ [PARALLEL] Submitting {len(symbols)} tokens for concurrent analysis...")
+        future_to_symbol = {executor.submit(scan_single_token, symbol): symbol for symbol in symbols}
+        
+        completed_count = 0
+        for future in as_completed(future_to_symbol):
+            completed_count += 1
+            symbol = future_to_symbol[future]
+            
+            try:
+                result = future.result(timeout=30)  # 30s timeout per token
+                if result:
+                    scan_results.append(result)
+                    print(f"✅ [{completed_count}/{len(symbols)}] {symbol}: Score {result['score']:.1f}")
+                else:
+                    print(f"⚠️ [{completed_count}/{len(symbols)}] {symbol}: Skipped")
+            except Exception as e:
+                print(f"❌ [{completed_count}/{len(symbols)}] {symbol}: Error - {e}")
+    
+    scan_duration = time.time() - scan_start_time
+    print(f"🏁 [PARALLEL SCAN] Completed in {scan_duration:.1f}s, processed {len(scan_results)} tokens")
+
+    # Process results sequentially for reporting and alerts
+    for result in scan_results:
+        try:
+            symbol = result['symbol']
+            signals = result['signals']
+            # Handle Stage -1 alerts for high-priority detections
+            stage_minus1_detected = signals.get("stage_minus1_detected", False)
+            stage_minus1_description = signals.get("stage_minus1_description", "")
+            
+            if stage_minus1_detected:
+                # Save Stage -1 alert
+                stage_minus1_alert = {
+                    'symbol': symbol,
+                    'market_tension': 'WYKRYTE',
+                    'rhythm_description': stage_minus1_description,
+                    'tension_level': 'WYSOKIE' if 'napięcie' in stage_minus1_description.lower() else 'STANDARD',
+                    'timestamp': datetime.now(timezone.utc).isoformat()
+                }
+                
+                # Save to file
+                os.makedirs("data", exist_ok=True)
+                alerts_file = "data/stage_minus1_alerts.json"
+                
+                try:
+                    if os.path.exists(alerts_file):
+                        with open(alerts_file, 'r') as f:
+                            existing_alerts = json.load(f)
+                    else:
+                        existing_alerts = []
+                    
+                    existing_alerts.append(stage_minus1_alert)
+                    
+                    # Keep only last 50 alerts
+                    if len(existing_alerts) > 50:
+                        existing_alerts = existing_alerts[-50:]
+                    
+                    with open(alerts_file, 'w') as f:
+                        json.dump(existing_alerts, f, indent=2)
+                except Exception as save_error:
+                    print(f"⚠️ Failed to save Stage -1 alert for {symbol}: {save_error}")
+
+            # Save stage signal data
+            save_stage_signal(symbol, result['score'], result.get('stage2_pass', False), 
+                            result.get('compressed', False), result.get('stage1g_active', False), 
+                            result.get('checklist_score', 0), result.get('checklist_summary', {}))
             is_high_confidence = False
             structure_ok = False
             
