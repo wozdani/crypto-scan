@@ -743,6 +743,27 @@ def scan_cycle():
         # Run periodic feedback analysis first
         feedback_data = run_periodic_feedback_analysis()
         
+        # Display feedback loop score changes table if available
+        if feedback_data and feedback_data.get("success"):
+            try:
+                from feedback.feedback_loop_v2 import print_adjustment_summary
+                weights_before = feedback_data.get("weights_before", {})
+                weights_after = feedback_data.get("weights_after", {})
+                adjustments = feedback_data.get("adjustments", {})
+                performance = feedback_data.get("performance", {})
+                
+                if weights_before and weights_after:
+                    print_adjustment_summary(weights_before, weights_after, adjustments, {
+                        "success_rate": performance.get("success_rate", 0),
+                        "analysis_timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+                    })
+                else:
+                    print("📊 Feedback analysis completed but no weight changes made")
+            except Exception as table_error:
+                print(f"[FEEDBACK TABLE] Error displaying changes table: {table_error}")
+        else:
+            print("📊 No feedback analysis data available for this scan")
+        
         if tjde_results:
             # Filter for meaningful decisions and sort by score
             valid_results = [

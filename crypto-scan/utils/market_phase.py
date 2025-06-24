@@ -390,3 +390,41 @@ def _calculate_ema(prices: List[float], period: int) -> List[float]:
         ema.append(ema_value)
     
     return ema
+
+
+def market_phase_modifier(market_phase: str) -> float:
+    """
+    Zwraca modyfikator score w zależności od rozpoznanej fazy rynku.
+    
+    Args:
+        market_phase: Nazwa fazy rynku (np. "bull_trend", "accumulation")
+        
+    Returns:
+        float: Modyfikator score (-0.15 do +0.15)
+    """
+    phase = market_phase.lower() if market_phase else "unknown"
+
+    modifiers = {
+        "bull_trend": +0.15,
+        "accumulation": +0.10,
+        "consolidation": +0.05,
+        "breakout": +0.12,
+        "breakout-continuation": +0.12,
+        "pre-breakout": +0.08,
+        "retest-confirmation": +0.06,
+        "range": -0.05,
+        "range-accumulation": +0.02,
+        "bear_trend": -0.10,
+        "distribution": -0.15,
+        "reversal": -0.08,
+        "exhaustion-pullback": -0.08,
+        "undefined": 0.00,
+        "unknown": 0.00,
+        "error": 0.00,
+        "insufficient_data": 0.00
+    }
+
+    modifier = modifiers.get(phase, 0.00)
+
+    print(f"[MARKET_PHASE_MODIFIER] Phase: {phase} → Modifier: {modifier:+.3f}")
+    return modifier
