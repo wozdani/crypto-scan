@@ -49,25 +49,35 @@ def check_momentum_kill_switch(symbol, candle_data, signals):
     Anulowanie sygnału, jeśli po wybiciu nie ma kontynuacji
     """
     try:
-        if not candle_data or len(candle_data) < 2:
+        if not candle_data or not signals:
             return False
             
-        latest_candle = candle_data[-1]
-        
-        # Analiza siły ostatniej świecy
-        open_price = float(latest_candle.get('open', 0))
-        close_price = float(latest_candle.get('close', 0))
-        high_price = float(latest_candle.get('high', 0))
-        low_price = float(latest_candle.get('low', 0))
-        volume = float(latest_candle.get('volume', 0))
-        
-        if not all([open_price, close_price, high_price, low_price]):
+        # Sprawdź czy Stage 1g był aktywny
+        if not signals.get("stage1g_active"):
             return False
             
-        # Body ratio (stosunek korpusu do całego zakresu)
-        total_range = high_price - low_price
+        # Pobierz ostatnią świeczkę
+        if isinstance(candle_data, list) and len(candle_data) > 0:
+            last_candle = candle_data[-1]
+        elif isinstance(candle_data, dict):
+            last_candle = candle_data
+        else:
+            return False
+            
+        # Pobierz dane świecy
+        open_price = float(last_candle.get('open', 0))
+        close_price = float(last_candle.get('close', 0))
+        high_price = float(last_candle.get('high', 0))
+        low_price = float(last_candle.get('low', 0))
+        volume = float(last_candle.get('volume', 0))
+        
+        if any(x <= 0 for x in [open_price, close_price, high_price, low_price]):
+            return False
+            
+        # Oblicz body ratio
+        candle_range = high_price - low_price
         body_size = abs(close_price - open_price)
-        body_ratio = body_size / total_range if total_range > 0 else 0
+        body_ratio = body_size / candle_range if candle_range > 0 else 0
         
         # Oblicz RSI z ostatnich 5 świec (uproszczone)
         if isinstance(candle_data, list) and len(candle_data) >= 5:
@@ -139,28 +149,35 @@ Stage –2.1:
 • News/Tag Analysis: {data.get("event_tag", "none")}
 • Sector Time Clustering Active: {sector_cluster}
 
-Advanced Detectors:
-• Pure Accumulation Pattern: {pure_acc}
+Stage –1:
+• Compressed Structure: {compressed}
+
+Stage 1g:
+• Active: {stage1g}
+• Pure Accumulation (No Social): {pure_acc}
+
+Structural Detectors:
 • Heatmap Exhaustion: {heatmap_exhaustion}
-• Orderbook Spoofing: {spoofing}
-• VWAP Pinning: {vwap_pinned}
-• Volume Slope Rising: {vol_slope}
+• Spoofing Suspected: {spoofing}
+• VWAP Pinned: {vwap_pinned}
+• Volume Slope Up: {vol_slope}
 
-Market Conditions:
-• Stage 1G Active: {stage1g}
-• Price Compression: {compressed}
+TP Forecast:
+• TP1: +{tp_forecast['TP1']}%
+• TP2: +{tp_forecast['TP2']}%
+• TP3: +{tp_forecast['TP3']}%
+• Trailing: {tp_forecast['TrailingTP']}%
 
-TP Forecast: {tp_forecast}
-
-Provide brief analysis (max 100 words) with risk level (low/medium/high), confidence (1-100), and entry recommendation (immediate/wait/avoid)."""
+Evaluate the quality and strength of this signal. Provide a confident but concise assessment in **3 short sentences**, including **any risk factors** and **probability of continuation** in Polish."""
 
     try:
-        # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
-        # do not change this unless explicitly requested by the user
         response = openai.chat.completions.create(
             model="gpt-4o",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=150
+            messages=[
+                {"role": "system", "content": "You are a crypto signal quality evaluator. Respond in Polish."},
+                {"role": "user", "content": prompt}
+            ],
+            timeout=15
         )
         return response.choices[0].message.content.strip() if response.choices[0].message.content else "No response"
     except Exception as e:
@@ -253,7 +270,7 @@ def scan_cycle():
                 
                 # Safe candle fetching with validation
                 from utils.safe_candles import safe_trend_analysis_check
-                candles_15m, is_ready = safe_trend_analysis_check(symbol, data)
+                candles_15m, is_ready = safe_trend_analysis_check(symbol, market_data)
                 
                 if is_ready and candles_15m:
                     from trend_mode import analyze_trend_opportunity
@@ -281,7 +298,6 @@ def scan_cycle():
                     })
                     
                     # Send Trend-Mode alert if high-quality setup
-                    entry_quality = trend_analysis.get('entry_quality', 0.0)
                     if decision == "join_trend" and entry_quality >= 0.75:
                         from utils.trend_alert_cache import should_send_trend_alert, add_trend_alert
                         
@@ -481,9 +497,279 @@ def scan_cycle():
             print(f"📊 Feedback loop adjusted {feedback_results['adjustments_made']} weights")
     except Exception as feedback_error:
         print(f"📊 No feedback analysis data available for this scan")
+    except Exception as e:
+        print(f"📊 No feedback analysis data available for this scan")
     
     return scan_results
+                                
+                                # Log alert to file
+                                alert_log_file = f"data/alerts/trend_mode_{symbol}_{get_utc_timestamp()[:10]}.txt"
+                                os.makedirs("data/alerts", exist_ok=True)
+                                with open(alert_log_file, "w", encoding="utf-8") as f:
+                                    f.write(f"Timestamp: {get_utc_timestamp()}\n")
+                                    f.write(f"Symbol: {symbol}\n")
+                                    f.write(f"Decision: {decision}\n")
+                                    f.write(f"Confidence: {confidence:.3f}\n")
+                                    f.write(f"Entry Quality: {entry_quality:.3f}\n")
+                                    f.write(f"Quality Grade: {quality_grade}\n")
+                                    f.write(f"Market Context: {market_context}\n")
+                                    f.write(f"Trend Strength: {trend_strength:.3f}\n")
+                                    f.write(f"Reasons: {reasons}\n")
+                                    f.write(f"Components: {trend_result.get('components', {})}\n")
+                                    f.write(f"\nAlert Text:\n{alert_text}\n")
+                            else:
+                                print(f"❌ [TREND-MODE ALERT] Failed to send for {symbol}")
+                                
+                        except Exception as alert_error:
+                            print(f"⚠️ Trend-Mode alert error for {symbol}: {alert_error}")
+                    
+                    # Enhanced logging for all decisions
+                    if decision == "join_trend":
+                        if entry_quality >= 0.75:
+                            cooldown_status = trend_alert_cache.get_cooldown_status(symbol, "trend_mode")
+                            if cooldown_status["on_cooldown"]:
+                                print(f"🎯 [TREND-MODE] {symbol}: JOIN TREND - Quality: {quality_grade} (COOLDOWN: {cooldown_status['minutes_remaining']}min)")
+                            else:
+                                print(f"🎯 [TREND-MODE] {symbol}: JOIN TREND - Quality: {quality_grade} (ALERT SENT)")
+                        else:
+                            print(f"🎯 [TREND-MODE] {symbol}: JOIN TREND - Quality: {quality_grade} (below alert threshold)")
+                        print(f"   Context: {market_context}, Confidence: {confidence:.2f}")
+                        print(f"   Top reasons: {', '.join(reasons[:3])}")
+                    elif decision == "wait":
+                        print(f"⏳ [TREND-MODE] {symbol}: WAIT - Quality: {quality_grade} ({entry_quality:.2f})")
+                    else:
+                        print(f"❌ [TREND-MODE] {symbol}: AVOID - {quality_grade} setup ({market_context})")
+                
+            except Exception as trend_error:
+                error_msg = f"Trend-Mode integration failed: {str(trend_error)}"
+                print(f"[TREND ERROR] {symbol} - {error_msg}")
+                
+                # Log integration errors
+                try:
+                    with open("trend_error_log.txt", "a", encoding="utf-8") as f:
+                        f.write(json.dumps({
+                            "timestamp": get_utc_timestamp(),
+                            "symbol": symbol,
+                            "function": "crypto_scan_service_trend_integration",
+                            "error": str(trend_error),
+                            "error_type": type(trend_error).__name__,
+                            "candles_available": len(candles_15m) if candles_15m else 0
+                        }) + "\n")
+                except:
+                    pass
+                
+                # Fallback values
+                signals.update({
+                    'trend_mode_decision': 'error',
+                    'trend_mode_confidence': 0.0,
+                    'trend_mode_context': 'error',
+                    'trend_mode_strength': 0.0,
+                    'trend_mode_quality': 0.0,
+                    'trend_mode_grade': 'error'
+                })
 
+            # Save complete stage signal data 
+            save_stage_signal(symbol, final_score, stage2_pass, compressed, stage1g_active, 
+                            checklist_score, checklist_summary)
+
+        except Exception as e:
+            print(f"❌ Error scanning {symbol}: {e}")
+
+    save_conditional_reports()
+    compress_reports_to_zip()
+    print(f"✅ Scan completed. Processed {len(scan_results)} symbols.")
+    
+    # Send enhanced TJDE alerts to Telegram after scan completion
+    try:
+        from utils.alerts import send_tjde_telegram_summary
+        from utils.feedback_integration import run_periodic_feedback_analysis
+        from trend_mode import analyze_trend_opportunity
+        from utils.training_data_manager import training_manager
+        
+        # Collect TJDE results from this scan and gather training data
+        tjde_results = []
+        training_samples_collected = 0
+        
+        for result in scan_results:
+            symbol = result.get('symbol')
+            if symbol:
+                try:
+                    trend_result = analyze_trend_opportunity(symbol)
+                    if trend_result and trend_result.get("final_score", 0) > 0:
+                        trend_result["symbol"] = symbol
+                        tjde_results.append(trend_result)
+                        
+                        # Collect training data for Vision-AI (selective collection)
+                        if (trend_result.get("final_score", 0) > 0.6 or 
+                            trend_result.get("decision") in ["join_trend", "consider_entry"]):
+                            
+                            # Get candles for this symbol
+                            from utils.api_utils import get_bybit_candles
+                            candles = get_bybit_candles(symbol, "15", 100)
+                            
+                            if candles and len(candles) >= 50:
+                                # Collect training sample
+                                sample_id = training_manager.collect_sample_during_scan(
+                                    symbol=symbol,
+                                    candles=candles,
+                                    scoring_context=result,
+                                    trend_decision=trend_result
+                                )
+                                
+                                if sample_id:
+                                    training_samples_collected += 1
+                                    print(f"[TRAINING] Collected sample: {sample_id}")
+                                
+                                # Generate CV prediction for high-quality signals
+                                try:
+                                    from utils.chart_exporter import save_candlestick_chart
+                                    from vision_ai.predict_cv_setup import predict_setup_from_chart
+                                    
+                                    # Export chart for CV analysis
+                                    chart_path = save_candlestick_chart(symbol, candles, "temp_cv_charts")
+                                    
+                                    if chart_path:
+                                        # Generate CV prediction
+                                        cv_prediction = predict_setup_from_chart(chart_path, symbol)
+                                        
+                                        if cv_prediction and "error" not in cv_prediction:
+                                            print(f"[CV PREDICTION] {symbol}: {cv_prediction.get('setup', 'unknown')} ({cv_prediction.get('confidence', 0):.2f})")
+                                        
+                                        # Clean up temp chart
+                                        import os
+                                        try:
+                                            os.remove(chart_path)
+                                        except:
+                                            pass
+                                            
+                                except Exception as cv_error:
+                                    print(f"[CV PREDICTION] Failed for {symbol}: {cv_error}")
+                        
+                except Exception as e:
+                    print(f"[TJDE] Error analyzing {symbol}: {e}")
+                    continue
+        
+        # Run periodic feedback analysis first
+        feedback_data = run_periodic_feedback_analysis()
+        
+        # Display feedback loop score changes table if available
+        if feedback_data and feedback_data.get("success"):
+            try:
+                from feedback.feedback_loop_v2 import print_adjustment_summary
+                weights_before = feedback_data.get("weights_before", {})
+                weights_after = feedback_data.get("weights_after", {})
+                adjustments = feedback_data.get("adjustments", {})
+                performance = feedback_data.get("performance", {})
+                
+                if weights_before and weights_after:
+                    print_adjustment_summary(weights_before, weights_after, adjustments, {
+                        "success_rate": performance.get("success_rate", 0),
+                        "analysis_timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+                    })
+                else:
+                    print("📊 Feedback analysis completed but no weight changes made")
+            except Exception as table_error:
+                print(f"[FEEDBACK TABLE] Error displaying changes table: {table_error}")
+        else:
+            print("📊 No feedback analysis data available for this scan")
+        
+        if tjde_results:
+            # Filter for meaningful decisions and sort by score
+            valid_results = [
+                r for r in tjde_results 
+                if r.get("decision") in ["join_trend", "consider_entry"] 
+                and r.get("final_score", 0) > 0.3
+            ]
+            
+            if valid_results:
+                # Sort by final_score and get top 5
+                top5_results = sorted(valid_results, key=lambda x: x.get("final_score", 0), reverse=True)[:5]
+                
+                print(f"[TJDE ALERTS] Sending TOP {len(top5_results)} enhanced alerts")
+                send_tjde_telegram_summary(top5_results, feedback_data)
+            else:
+                print("[TJDE ALERTS] No qualifying tokens found for alerts")
+                # Send feedback summary only if weight changes occurred
+                if feedback_data and feedback_data.get("success"):
+                    from utils.alerts import send_feedback_summary
+                    send_feedback_summary(feedback_data)
+        else:
+            print("[TJDE ALERTS] No TJDE results found")
+        
+        # Log training data collection summary
+        if training_samples_collected > 0:
+            print(f"[TRAINING] Collected {training_samples_collected} training samples this scan")
+            
+            # Get training stats
+            stats = training_manager.get_training_stats()
+            print(f"[TRAINING] Total dataset: {stats.get('total_samples', 0)} samples")
+            
+            # Run CV feedback analysis for recent predictions
+            try:
+                from vision_ai.feedback_loop_cv import CVFeedbackLoop
+                
+                feedback_loop = CVFeedbackLoop()
+                analysis = feedback_loop.analyze_pending_predictions(hours_back=12)
+                
+                if "error" not in analysis:
+                    summary = analysis["summary"]
+                    if summary["predictions_analyzed"] > 0:
+                        print(f"[CV FEEDBACK] Analyzed {summary['predictions_analyzed']} predictions, {summary['success_rate']:.1%} success rate")
+                        
+                        # Update model weights if we have enough data
+                        if len(analysis["results"]) >= 3:
+                            weight_updates = feedback_loop.update_cv_model_weights(analysis["results"])
+                            if "error" not in weight_updates:
+                                print(f"[CV FEEDBACK] Model performance analysis completed")
+                                
+            except Exception as feedback_error:
+                print(f"[CV FEEDBACK] Feedback analysis failed: {feedback_error}")
+        
+        # Save TJDE results for auto-labeling system
+        if tjde_results:
+            try:
+                import json
+                from pathlib import Path
+                
+                # Save current TJDE results
+                results_dir = Path("data/tjde_results")
+                results_dir.mkdir(parents=True, exist_ok=True)
+                
+                timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+                results_file = results_dir / f"tjde_results_{timestamp}.json"
+                
+                with open(results_file, 'w') as f:
+                    json.dump({
+                        "timestamp": timestamp,
+                        "scan_completed": datetime.now(timezone.utc).isoformat(),
+                        "total_results": len(tjde_results),
+                        "results": tjde_results
+                    }, f, indent=2)
+                
+                print(f"[TJDE RESULTS] Saved {len(tjde_results)} results to {results_file.name}")
+                
+                # Run auto-labeling for top tokens
+                try:
+                    from vision_ai.auto_label_runner import run_auto_labeling_for_tjde
+                    
+                    # Process top 5 tokens for training data
+                    auto_label_summary = run_auto_labeling_for_tjde(top_count=5)
+                    
+                    if "error" not in auto_label_summary:
+                        pairs_created = auto_label_summary["processing_stats"]["training_pairs_created"]
+                        if pairs_created > 0:
+                            print(f"[AUTO LABEL] Created {pairs_created} training pairs from top tokens")
+                    
+                except Exception as auto_label_error:
+                    print(f"[AUTO LABEL] Auto-labeling failed: {auto_label_error}")
+                
+            except Exception as save_error:
+                print(f"[TJDE RESULTS] Failed to save results: {save_error}")
+            
+    except Exception as e:
+        print(f"❌ [TJDE ALERTS] Error in enhanced alert system: {e}")
+    
+    return scan_results
 # === Main execution ===
 if __name__ == "__main__":
     print("🚀 Crypto Pre-Pump Detection System Starting...")
