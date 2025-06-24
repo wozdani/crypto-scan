@@ -239,208 +239,185 @@ def scan_cycle():
     scan_results = []
 
     def scan_single_token(symbol):
-        """Scan pojedynczego tokena - kompletna analiza w jednym wątku"""
+        """Optimized single token scan with parallel sub-analysis"""
+        token_start = time.time()
         try:
-            print(f"🔍 Skanuję {symbol}...")
-            
             # Podstawowa walidacja symbolu
             if symbol not in symbols_bybit:
-                print(f"⚠️ Pomijam {symbol} – nie znajduje się na Bybit (USDT perp)")
                 return None
 
-            # Pobieranie danych rynkowych z timeoutami
+            # Pobieranie danych rynkowych z timeoutami (najwolniejsza operacja)
+            api_start = time.time()
             success, data, price_usd, is_valid = get_market_data(symbol)
+            api_time = time.time() - api_start
 
             if not success or not data or not isinstance(data, dict) or price_usd is None:
-                print(f"⚠️ Pomiń {symbol} – niepoprawne dane z get_market_data(): {data}")
                 return None
 
-            # Filtry płynności i jakości
-            volume_usdt = data.get("volume")
+            # Quick validation filters
+            volume_usdt = data.get("volume", 0)
+            if not price_usd or price_usd <= 0 or volume_usdt < 100_000:
+                return None
+
             best_ask = data.get("best_ask")
             best_bid = data.get("best_bid")
-
-            if not price_usd or price_usd <= 0:
-                print(f"⚠️ Pominięto {symbol} – nieprawidłowa cena: {price_usd}")
-                return None
-
-            if not volume_usdt or volume_usdt < 100_000:
-                print(f"⚠️ Pominięto {symbol} – zbyt niski wolumen: ${volume_usdt}")
-                return None
-
             if best_ask and best_bid:
                 spread = (best_ask - best_bid) / best_ask
                 if spread > 0.02:
-                    print(f"⚠️ Pominięto {symbol} – zbyt szeroki spread: {spread*100:.2f}%")
                     return None
 
-            # Run pre-pump analysis
-            stage2_pass, signals, inflow_usd, stage1g_active = detect_stage_minus2_1(symbol, price_usd=price_usd)
+            # Parallel analysis execution using ThreadPoolExecutor for sub-tasks
+            analysis_start = time.time()
             
-            # === PARALLEL TREND-MODE ANALYSIS ===
-            # Run trend-mode analysis simultaneously with pre-pump PPWCS
-            try:
-                print(f"[TREND DEBUG] {symbol}: Attempting Trend-Mode analysis...")
+            with ThreadPoolExecutor(max_workers=3) as sub_executor:
+                # Submit parallel analysis tasks
+                stage2_future = sub_executor.submit(detect_stage_minus2_1, symbol, price_usd=price_usd)
                 
-                # Safe candle fetching with validation
-                from utils.safe_candles import safe_trend_analysis_check
-                candles_15m, is_ready = safe_trend_analysis_check(symbol, data)
+                # TJDE trend analysis (if candles available)
+                trend_future = None
+                try:
+                    from utils.safe_candles import safe_trend_analysis_check
+                    candles_15m, is_ready = safe_trend_analysis_check(symbol, data)
+                    if is_ready and candles_15m:
+                        from trend_mode import analyze_trend_opportunity
+                        trend_future = sub_executor.submit(analyze_trend_opportunity, symbol, candles_15m)
+                except:
+                    pass
                 
-                if is_ready and candles_15m:
-                    from trend_mode import analyze_trend_opportunity
-                    trend_analysis = analyze_trend_opportunity(
-                        symbol=symbol,
-                        candles=candles_15m
-                    )
-                    
-                    # Extract TJDE trend data
-                    decision = trend_analysis.get('decision', 'avoid')
-                    confidence = trend_analysis.get('confidence', 0.0)
-                    final_score = trend_analysis.get('final_score', 0.0)
-                    quality_grade = trend_analysis.get('grade', 'poor')
-                    market_context = trend_analysis.get('market_context', {}).get('session', 'unknown')
-                    trend_strength = trend_analysis.get('trend_strength', 0.0)
-                    
-                    # Add TJDE data to signals for PPWCS integration
-                    signals.update({
-                        'tjde_decision': decision,
-                        'tjde_confidence': confidence,
-                        'tjde_final_score': final_score,
-                        'tjde_context': market_context,
-                        'tjde_strength': trend_strength,
-                        'tjde_grade': quality_grade
-                    })
-                    
-                    # Send Trend-Mode alert if high-quality setup
-                    entry_quality = trend_analysis.get('entry_quality', 0.0)
-                    if decision == "join_trend" and entry_quality >= 0.75:
-                        from utils.trend_alert_cache import should_send_trend_alert, add_trend_alert
-                        
-                        if should_send_trend_alert(symbol):
-                            alert_message = (
-                                f"🎯 TREND-MODE ALERT\n"
-                                f"Symbol: {symbol}\n"
-                                f"Decision: {decision.upper()}\n"
-                                f"Quality: {quality_grade} ({entry_quality:.2f})\n"
-                                f"Context: {market_context}\n"
-                                f"Confidence: {confidence:.2f}\n"
-                                f"Trend Strength: {trend_strength:.2f}"
-                            )
-                            
-                            try:
-                                from utils.telegram_bot import send_alert
-                                send_alert(alert_message)
-                                add_trend_alert(symbol, decision, entry_quality, quality_grade)
-                                print(f"📈 [TREND ALERT] {symbol}: {quality_grade} entry opportunity")
-                            except Exception as telegram_error:
-                                print(f"⚠️ Trend alert send failed for {symbol}: {telegram_error}")
-                    
-                    # Compact logging for trend decisions (only for interesting decisions)
-                    if decision == "join_trend":
-                        print(f"✅ [TREND] {symbol}: JOIN ({quality_grade}, {entry_quality:.2f})")
-                    elif decision == "wait":
-                        print(f"⏳ [TREND] {symbol}: WAIT ({quality_grade}, {entry_quality:.2f})")
-                else:
-                    # Symbol skipped - insufficient or invalid candle data
-                    print(f"[TREND DEBUG] {symbol}: Trend-Mode analysis skipped - data quality check failed")
-                
-            except Exception as trend_error:
-                # Log trend errors but don't fail pre-pump analysis
-                print(f"[TREND ERROR] {symbol} - Trend analysis failed: {str(trend_error)}")
-                
-                # Add error fallback values to signals
-                signals.update({
-                    'trend_mode_decision': 'error',
-                    'trend_mode_confidence': 0.0,
-                    'trend_mode_context': 'error',
-                    'trend_mode_strength': 0.0,
-                    'trend_mode_quality': 0.0,
-                    'trend_mode_grade': 'error'
-                })
-            
-            # === STAGE -1 (TREND MODE) - NEW RHYTHM DETECTION ===
-            stage_minus1_detected = False
-            stage_minus1_description = "Brak detekcji"
-            
-            try:
-                from stages.stage_minus1 import detect_stage_minus1
+                # Stage -1 analysis
+                stage1_future = None
                 candles_data = data.get('candles')
                 if candles_data and isinstance(candles_data, list) and len(candles_data) >= 6:
-                    stage_minus1_detected, stage_minus1_description = detect_stage_minus1(candles_data)
-                    if stage_minus1_detected:
-                        print(f"🎵 {symbol}: Stage -1 DETECTED - {stage_minus1_description}")
-            except Exception as stage_minus1_error:
-                print(f"⚠️ Stage -1 analysis failed for {symbol}: {stage_minus1_error}")
+                    from stages.stage_minus1 import detect_stage_minus1
+                    stage1_future = sub_executor.submit(detect_stage_minus1, candles_data)
+                
+                # Collect results with timeout
+                try:
+                    stage2_pass, signals, inflow_usd, stage1g_active = stage2_future.result(timeout=10)
+                except:
+                    stage2_pass, signals, inflow_usd, stage1g_active = False, {}, 0, False
+                
+                # Collect trend analysis
+                trend_analysis = None
+                if trend_future:
+                    try:
+                        trend_analysis = trend_future.result(timeout=8)
+                    except:
+                        pass
+                
+                # Collect stage -1 results  
+                stage_minus1_detected, stage_minus1_description = False, "Brak detekcji"
+                if stage1_future:
+                    try:
+                        stage_minus1_detected, stage_minus1_description = stage1_future.result(timeout=5)
+                    except:
+                        pass
             
-            # Update signals with Stage -1 results
+            analysis_time = time.time() - analysis_start
+            
+            # Process trend analysis results (if available)
+            if trend_analysis:
+                decision = trend_analysis.get('decision', 'avoid')
+                confidence = trend_analysis.get('confidence', 0.0)
+                final_score = trend_analysis.get('final_score', 0.0)
+                quality_grade = trend_analysis.get('grade', 'poor')
+                market_context = trend_analysis.get('market_context', {}).get('session', 'unknown')
+                trend_strength = trend_analysis.get('trend_strength', 0.0)
+                
+                # Add TJDE data to signals for PPWCS integration
+                signals.update({
+                    'tjde_decision': decision,
+                    'tjde_confidence': confidence,
+                    'tjde_final_score': final_score,
+                    'tjde_context': market_context,
+                    'tjde_strength': trend_strength,
+                    'tjde_grade': quality_grade
+                })
+                
+                # Handle alerts for high-quality setups
+                entry_quality = trend_analysis.get('entry_quality', 0.0)
+                if decision == "join_trend" and entry_quality >= 0.75:
+                    try:
+                        from utils.trend_alert_cache import should_send_trend_alert, add_trend_alert
+                        if should_send_trend_alert(symbol):
+                            alert_message = f"TREND-MODE: {symbol} {decision.upper()} - {quality_grade} ({entry_quality:.2f})"
+                            from utils.telegram_bot import send_alert
+                            send_alert(alert_message)
+                            add_trend_alert(symbol, decision, entry_quality, quality_grade)
+                    except:
+                        pass
+            
+            # Update signals with Stage -1 results  
             signals["stage_minus1_detected"] = stage_minus1_detected
             signals["stage_minus1_description"] = stage_minus1_description
-            
-            # Legacy compressed detection (keeping for compatibility)
             compressed = stage_minus1_detected
             
-            # PPWCS Scoring
-            previous_score = get_previous_score(symbol)
-            try:
-                ppwcs_result = compute_ppwcs(signals, symbol)
-                if isinstance(ppwcs_result, tuple) and len(ppwcs_result) == 3:
-                    final_score, ppwcs_structure, ppwcs_quality = ppwcs_result
-                else:
-                    final_score = float(ppwcs_result) if ppwcs_result else 0.0
-                    ppwcs_structure = {}
-                    ppwcs_quality = "basic"
-            except Exception as ppwcs_error:
-                print(f"❌ PPWCS error for {symbol}: {ppwcs_error}")
-                final_score = 0.0
-                ppwcs_structure = {}
-                ppwcs_quality = "error"
+            # Fast scoring pipeline with parallel execution
+            scoring_start = time.time()
             
-            # Whale boost scoring
-            whale_boost = get_whale_boost_for_symbol(symbol, priority_info)
-            if whale_boost > 0:
-                final_score += whale_boost
-                print(f"🔥 {symbol}: Whale boost +{whale_boost} points (total: {final_score})")
+            with ThreadPoolExecutor(max_workers=4) as scoring_executor:
+                # Submit parallel scoring tasks
+                ppwcs_future = scoring_executor.submit(compute_ppwcs, signals, symbol)
+                checklist_future = scoring_executor.submit(lambda: compute_checklist_score(signals))
+                whale_future = scoring_executor.submit(get_whale_boost_for_symbol, symbol, priority_info)
+                
+                # Collect scoring results with timeouts
+                try:
+                    ppwcs_result = ppwcs_future.result(timeout=5)
+                    if isinstance(ppwcs_result, tuple) and len(ppwcs_result) == 3:
+                        final_score, ppwcs_structure, ppwcs_quality = ppwcs_result
+                    else:
+                        final_score = float(ppwcs_result) if ppwcs_result else 0.0
+                        ppwcs_structure, ppwcs_quality = {}, "basic"
+                except:
+                    final_score, ppwcs_structure, ppwcs_quality = 0.0, {}, "error"
+                
+                try:
+                    checklist_result = checklist_future.result(timeout=3)
+                    if isinstance(checklist_result, tuple) and len(checklist_result) == 2:
+                        checklist_score, checklist_summary = checklist_result
+                    else:
+                        checklist_score, checklist_summary = float(checklist_result or 0), {}
+                except:
+                    checklist_score, checklist_summary = 0.0, {}
+                
+                try:
+                    whale_boost = whale_future.result(timeout=2)
+                    if whale_boost > 0:
+                        final_score += whale_boost
+                except:
+                    whale_boost = 0
             
-            # Checklist scoring
-            try:
-                from utils.scoring import compute_checklist_score
-                checklist_result = compute_checklist_score(signals)
-                if isinstance(checklist_result, tuple) and len(checklist_result) == 2:
-                    checklist_score, checklist_summary = checklist_result
-                else:
-                    checklist_score = float(checklist_result) if checklist_result else 0.0
-                    checklist_summary = {}
-            except Exception as checklist_error:
-                print(f"❌ Checklist error for {symbol}: {checklist_error}")
-                checklist_score = 0.0
-                checklist_summary = {}
+            scoring_time = time.time() - scoring_start
             
-            # Add checklist data to signals
-            signals["checklist_score"] = checklist_score
-            signals["checklist_summary"] = checklist_summary
-            signals["whale_boost"] = whale_boost
-            signals["whale_priority"] = symbol in priority_symbols
+            # Add metadata to signals
+            signals.update({
+                "checklist_score": checklist_score,
+                "checklist_summary": checklist_summary,
+                "whale_boost": whale_boost,
+                "whale_priority": symbol in priority_symbols
+            })
             
-            # Save results
+            # Quick save and alert processing
             save_score(symbol, final_score, signals)
             log_ppwcs_score(symbol, final_score, signals)
-
-            # Alert processing
-            from utils.take_profit_engine import forecast_take_profit_levels
-            tp_forecast = forecast_take_profit_levels(signals)
 
             from utils.scoring import get_alert_level
             alert_level = get_alert_level(final_score, checklist_score)
             
-            # Process alerts if needed
-            if alert_level >= 2:  # Level 2 or 3 alerts
+            # Fast alert processing (no blocking operations)
+            if alert_level >= 2:
                 try:
                     from utils.alert_system import process_alert
-                    alert_success = process_alert(symbol, final_score, signals, None)
-                    if alert_success:
-                        print(f"📢 [ALERT] {symbol}: Level {alert_level} alert sent")
-                except Exception as alert_error:
-                    print(f"⚠️ Alert processing failed for {symbol}: {alert_error}")
+                    process_alert(symbol, final_score, signals, None)
+                except:
+                    pass
+
+            token_time = time.time() - token_start
+            
+            # Performance logging for optimization
+            if token_time > 2.0:  # Log slow tokens
+                print(f"⏱️ [SLOW] {symbol}: {token_time:.1f}s (API: {api_time:.1f}s, Analysis: {analysis_time:.1f}s, Scoring: {scoring_time:.1f}s)")
 
             return {
                 'symbol': symbol,
@@ -452,11 +429,13 @@ def scan_cycle():
                 'compressed': compressed,
                 'stage1g_active': stage1g_active,
                 'alert_level': alert_level,
-                'signals': signals
+                'signals': signals,
+                'processing_time': token_time
             }
             
         except Exception as e:
-            print(f"❌ Error processing {symbol}: {e}")
+            token_time = time.time() - token_start
+            print(f"❌ Error processing {symbol} in {token_time:.1f}s: {e}")
             return None
 
     # Równoległe skanowanie wszystkich symboli
