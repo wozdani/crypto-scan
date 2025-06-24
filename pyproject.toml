@@ -17,6 +17,8 @@ dependencies = [
     "regex>=2024.11.6",
     "tqdm>=4.67.1",
     "clip",
+    "aiohttp>=3.12.13",
+    "asyncio>=3.4.3",
 ]
 
 [[tool.uv.index]]

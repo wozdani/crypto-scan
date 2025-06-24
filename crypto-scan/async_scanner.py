@@ -1,0 +1,283 @@
+#!/usr/bin/env python3
+"""
+Async Crypto Scanner - aiohttp + asyncio implementation
+High-performance scanning with true I/O parallelism
+"""
+
+import asyncio
+import aiohttp
+import time
+import json
+import os
+import sys
+from datetime import datetime, timezone, timedelta
+from typing import List, Dict, Optional, Tuple
+from dotenv import load_dotenv
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv()
+
+# Import essential modules
+from utils.bybit_cache_manager import get_bybit_symbols_cached
+from stages.stage_minus2_1 import detect_stage_minus2_1
+from utils.scoring import compute_ppwcs, compute_checklist_score, get_alert_level, save_score, log_ppwcs_score
+from utils.alert_system import process_alert
+from utils.coingecko import build_coingecko_cache
+from utils.whale_priority import prioritize_whale_tokens
+
+class AsyncCryptoScanner:
+    """Async crypto scanner with aiohttp for I/O parallelism"""
+    
+    def __init__(self, max_concurrent: int = 25):
+        self.max_concurrent = max_concurrent
+        self.semaphore = asyncio.Semaphore(max_concurrent)
+        self.session = None
+        self.results = []
+        
+    async def __aenter__(self):
+        """Async context manager entry"""
+        timeout = aiohttp.ClientTimeout(total=10, connect=5)
+        self.session = aiohttp.ClientSession(
+            timeout=timeout,
+            connector=aiohttp.TCPConnector(limit=50, limit_per_host=10)
+        )
+        return self
+        
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit"""
+        if self.session:
+            await self.session.close()
+    
+    async def fetch_bybit_data(self, symbol: str) -> Optional[Dict]:
+        """Async fetch market data from Bybit API"""
+        try:
+            # Bybit V5 API endpoints
+            ticker_url = "https://api.bybit.com/v5/market/tickers"
+            candles_url = "https://api.bybit.com/v5/market/kline"
+            orderbook_url = "https://api.bybit.com/v5/market/orderbook"
+            
+            params_ticker = {"category": "spot", "symbol": symbol}
+            params_candles = {"category": "spot", "symbol": symbol, "interval": "15", "limit": "20"}
+            params_orderbook = {"category": "spot", "symbol": symbol, "limit": "10"}
+            
+            # Parallel fetch all data
+            async with self.session.get(ticker_url, params=params_ticker) as ticker_resp:
+                if ticker_resp.status != 200:
+                    return None
+                ticker_data = await ticker_resp.json()
+                
+            async with self.session.get(candles_url, params=params_candles) as candles_resp:
+                if candles_resp.status != 200:
+                    return None
+                candles_data = await candles_resp.json()
+                
+            async with self.session.get(orderbook_url, params=params_orderbook) as orderbook_resp:
+                if orderbook_resp.status != 200:
+                    return None
+                orderbook_data = await orderbook_resp.json()
+            
+            # Process ticker data
+            if not ticker_data.get("result", {}).get("list"):
+                return None
+                
+            ticker = ticker_data["result"]["list"][0]
+            price_usd = float(ticker.get("lastPrice", 0))
+            volume_24h = float(ticker.get("volume24h", 0))
+            
+            # Process candles
+            candles = []
+            if candles_data.get("result", {}).get("list"):
+                for candle in candles_data["result"]["list"]:
+                    candles.append({
+                        "timestamp": int(candle[0]),
+                        "open": float(candle[1]),
+                        "high": float(candle[2]), 
+                        "low": float(candle[3]),
+                        "close": float(candle[4]),
+                        "volume": float(candle[5])
+                    })
+            
+            # Process orderbook
+            bids = []
+            asks = []
+            if orderbook_data.get("result", {}).get("b"):
+                for bid in orderbook_data["result"]["b"][:5]:
+                    bids.append({"price": float(bid[0]), "size": float(bid[1])})
+            if orderbook_data.get("result", {}).get("a"):
+                for ask in orderbook_data["result"]["a"][:5]:
+                    asks.append({"price": float(ask[0]), "size": float(ask[1])})
+            
+            return {
+                "symbol": symbol,
+                "price_usd": price_usd,
+                "volume_24h": volume_24h,
+                "candles": candles,
+                "orderbook": {"bids": bids, "asks": asks},
+                "best_bid": bids[0]["price"] if bids else price_usd * 0.999,
+                "best_ask": asks[0]["price"] if asks else price_usd * 1.001,
+                "volume": volume_24h,
+                "recent_volumes": [c["volume"] for c in candles[-7:]]  # Last 7 candles for volume analysis
+            }
+            
+        except Exception as e:
+            print(f"Error fetching {symbol}: {e}")
+            return None
+    
+    async def scan_token_async(self, symbol: str, priority_info: Dict = None) -> Optional[Dict]:
+        """Async scan single token with concurrency control"""
+        async with self.semaphore:  # Limit concurrent scans
+            try:
+                start_time = time.time()
+                
+                # Fetch market data async
+                market_data = await self.fetch_bybit_data(symbol)
+                if not market_data:
+                    return None
+                
+                price_usd = market_data["price_usd"]
+                volume_24h = market_data["volume_24h"]
+                
+                # Basic validation
+                if not price_usd or price_usd <= 0 or volume_24h < 100_000:
+                    return None
+                
+                # Stage-2.1 analysis (synchronous but fast)
+                stage2_pass, signals, inflow_usd, stage1g_active = detect_stage_minus2_1(symbol, price_usd)
+                
+                # Add market data to signals
+                signals.update({
+                    "price_usd": price_usd,
+                    "volume_24h": volume_24h,
+                    "candles": market_data["candles"],
+                    "orderbook": market_data["orderbook"],
+                    "recent_volumes": market_data["recent_volumes"]
+                })
+                
+                # Fast scoring
+                final_score = compute_ppwcs(signals, symbol)
+                if isinstance(final_score, tuple):
+                    final_score = final_score[0]
+                final_score = float(final_score) if final_score else 0.0
+                
+                checklist_score = compute_checklist_score(signals)
+                if isinstance(checklist_score, tuple):
+                    checklist_score = checklist_score[0]
+                checklist_score = float(checklist_score) if checklist_score else 0.0
+                
+                # Save and alert (async-safe)
+                save_score(symbol, final_score, signals)
+                log_ppwcs_score(symbol, final_score, signals)
+                
+                alert_level = get_alert_level(final_score, checklist_score)
+                if alert_level >= 2:
+                    process_alert(symbol, final_score, signals, None)
+                
+                scan_time = time.time() - start_time
+                
+                return {
+                    "symbol": symbol,
+                    "final_score": final_score,
+                    "signals": signals,
+                    "checklist_score": checklist_score,
+                    "scan_time": scan_time,
+                    "price_usd": price_usd,
+                    "volume_24h": volume_24h
+                }
+                
+            except Exception as e:
+                print(f"Error scanning {symbol}: {e}")
+                return None
+    
+    async def scan_batch_async(self, symbols: List[str], priority_info: Dict = None) -> List[Dict]:
+        """Scan batch of symbols concurrently"""
+        print(f"Starting async scan of {len(symbols)} symbols with max {self.max_concurrent} concurrent")
+        
+        start_time = time.time()
+        
+        # Create tasks for all symbols
+        tasks = [self.scan_token_async(symbol, priority_info) for symbol in symbols]
+        
+        # Execute with progress tracking
+        results = []
+        completed = 0
+        
+        # Process in chunks to avoid overwhelming the system
+        chunk_size = self.max_concurrent * 2
+        for i in range(0, len(tasks), chunk_size):
+            chunk_tasks = tasks[i:i + chunk_size]
+            chunk_results = await asyncio.gather(*chunk_tasks, return_exceptions=True)
+            
+            for result in chunk_results:
+                completed += 1
+                if isinstance(result, Exception):
+                    print(f"[{completed}/{len(symbols)}] Error: {result}")
+                elif result:
+                    results.append(result)
+                    print(f"[{completed}/{len(symbols)}] {result['symbol']}: Score {result['final_score']:.1f} ({result['scan_time']:.2f}s)")
+                else:
+                    print(f"[{completed}/{len(symbols)}] Skipped")
+        
+        total_time = time.time() - start_time
+        print(f"Async scan completed: {len(results)}/{len(symbols)} tokens in {total_time:.1f}s")
+        print(f"Average: {total_time/len(symbols):.2f}s per token, {len(symbols)/total_time:.1f} tokens/second")
+        
+        return results
+
+async def async_scan_cycle():
+    """Main async scan cycle"""
+    print(f"\nStarting async scan cycle at {datetime.now().strftime('%H:%M:%S')}")
+    
+    # Get symbols
+    symbols = get_bybit_symbols_cached()
+    print(f"Fetched {len(symbols)} symbols")
+    
+    # Build cache (synchronous)
+    build_coingecko_cache()
+    
+    # Whale priority (synchronous)
+    symbols, priority_symbols, priority_info = prioritize_whale_tokens(symbols)
+    
+    # Async scanning
+    async with AsyncCryptoScanner(max_concurrent=25) as scanner:
+        results = await scanner.scan_batch_async(symbols, priority_info)
+    
+    return results
+
+def wait_for_next_candle():
+    """Wait for next 15-minute candle"""
+    now = datetime.now(timezone.utc)
+    next_candle = now.replace(second=5, microsecond=0)
+    
+    if now.second >= 5:
+        next_candle += timedelta(minutes=15 - (now.minute % 15))
+    else:
+        next_candle += timedelta(minutes=15 - (now.minute % 15))
+    
+    wait_seconds = (next_candle - now).total_seconds()
+    
+    if wait_seconds > 0:
+        print(f"Waiting {wait_seconds:.1f}s for next candle at {next_candle.strftime('%H:%M:%S')} UTC")
+        time.sleep(wait_seconds)
+
+async def main():
+    """Main async loop"""
+    print("Starting Async Crypto Scanner with aiohttp")
+    
+    try:
+        while True:
+            try:
+                await async_scan_cycle()
+                wait_for_next_candle()
+            except KeyboardInterrupt:
+                print("\nShutting down...")
+                break
+            except Exception as e:
+                print(f"Scan error: {e}")
+                await asyncio.sleep(60)  # Wait 1 minute before retry
+                
+    except KeyboardInterrupt:
+        print("Async scanner stopped.")
+
+if __name__ == "__main__":
+    # Run the async main function
+    asyncio.run(main())
