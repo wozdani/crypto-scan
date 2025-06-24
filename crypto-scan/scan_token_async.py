@@ -507,7 +507,6 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         )
                     else:
                         print(f"[TRAINING ERROR] {symbol} → No chart data available")
-                        continue
                 
                 if chart_path:
                     print(f"[TRAINING SUCCESS] {symbol} → Chart saved: {chart_path}")
