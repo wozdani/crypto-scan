@@ -146,9 +146,9 @@ def simple_scan_fallback(symbols):
     
     try:
         results = asyncio.run(scan_symbols_async(symbols))
-        duration = time.time() - start_time
+        # Note: duration calculation moved to scan_symbols_async function
         processed = len(results) if results else 0
-        print(f"Async scan completed in {duration:.1f}s, processed {processed} tokens")
+        print(f"Fallback scan processed {processed} tokens")
         
         # Flush any remaining async results to storage
         try:
