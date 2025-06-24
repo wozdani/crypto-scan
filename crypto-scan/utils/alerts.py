@@ -8,6 +8,13 @@ import logging
 from typing import List, Dict, Any
 from utils.telegram_bot import send_trend_alert
 
+def send_alert(message: str) -> bool:
+    """
+    Send alert message via Telegram
+    Wrapper function for compatibility
+    """
+    return send_trend_alert(message)
+
 # Configure logging
 logging.basicConfig(
     filename='logs/debug.log',
