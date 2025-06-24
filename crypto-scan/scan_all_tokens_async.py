@@ -158,9 +158,20 @@ async def async_scan_cycle():
     return results
 
 def generate_top_tjde_charts(results: List[Dict]):
-    """Generate training charts for TOP 5 TJDE tokens only"""
+    """Generate training charts and Vision-AI data for TOP 5 TJDE tokens only"""
     try:
-        # Filter out results without valid TJDE scores
+        # Import Vision-AI pipeline
+        from vision_ai_pipeline import generate_vision_ai_training_data
+        
+        # Generate comprehensive Vision-AI training data
+        training_pairs = generate_vision_ai_training_data(results)
+        
+        if training_pairs > 0:
+            print(f"\n🎯 VISION-AI PIPELINE: Generated {training_pairs} training pairs")
+        else:
+            print("\n🎯 VISION-AI PIPELINE: No training data generated")
+        
+        # Original chart generation logic (kept for compatibility)
         valid_results = [r for r in results if r.get('tjde_score', 0) > 0]
         
         if not valid_results:

@@ -163,10 +163,10 @@ def generate_alert_focused_training_chart(
         # Limit data to prevent mplfinance warning
         df_limited = df.tail(200) if len(df) > 200 else df
         
-        mpf.plot(df_limited, type='candle', style='charles', warn_too_much_data=500,
+        mpf.plot(df_limited, type='candle', style='charles',
                  ax=ax1, volume=ax2, 
                  show_nontrading=False,
-                 warn_too_much_data=False)
+                 warn_too_much_data=500)
         
         # 6. OZNACZ MOMENT ALERTU
         if 0 <= alert_relative_idx < len(df):

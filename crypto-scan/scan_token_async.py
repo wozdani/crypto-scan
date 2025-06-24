@@ -624,7 +624,7 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         
         # Skip individual chart generation - will be done for TOP 5 TJDE tokens only
         print(f"[CHART SKIP] {symbol}: Individual chart generation disabled - TOP 5 TJDE charts generated in batch")
-            training_chart_saved = False
+        training_chart_saved = False
 
         result = {
             "symbol": symbol,

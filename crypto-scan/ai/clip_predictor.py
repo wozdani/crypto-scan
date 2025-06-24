@@ -58,7 +58,8 @@ class CLIPPredictor:
                 self.label_texts = [
                     "breakout-continuation", "pullback-in-trend", "trend-reversal",
                     "range-accumulation", "consolidation", "fake-breakout", 
-                    "volume-backed breakout", "exhaustion pattern", "no-trend noise"
+                    "volume-backed breakout", "exhaustion pattern", "no-trend noise",
+                    "trend-following", "distribution", "accumulation"  # Added Vision-AI labels
                 ]
                 
                 if self.device == "cuda":
@@ -66,7 +67,7 @@ class CLIPPredictor:
                     print("[CLIP MODEL] Moved to CUDA")
                     
                 self.model.eval()
-                print("[CLIP MODEL] ✅ transformers CLIP ready")
+                print("[CLIP MODEL] ✅ transformers CLIP ready with Vision-AI labels")
             else:
                 print("[CLIP MODEL] Loading ViT-B/32...")
                 self.model, self.preprocess = clip.load("ViT-B/32", device=self.device)
@@ -137,13 +138,14 @@ class CLIPPredictor:
             return None
     
     def _predict_with_transformers(self, image):
-        """Predict using transformers CLIP"""
+        """Predict using transformers CLIP with Vision-AI labels"""
         candidate_labels = [
             "breakout-continuation", "pullback-in-trend", "range-accumulation",
             "trend-reversal", "consolidation", "fake-breakout", 
-            "volume-backed breakout", "exhaustion pattern", "no-trend noise"
+            "volume-backed breakout", "exhaustion pattern", "no-trend noise",
+            "trend-following", "distribution", "accumulation"  # Vision-AI labels
         ]
-        print(f"[CLIP PREDICT] Using {len(candidate_labels)} candidate labels")
+        print(f"[CLIP PREDICT] Using {len(candidate_labels)} Vision-AI candidate labels")
         
         # Process inputs
         print(f"[CLIP PREDICT] Processing inputs...")
