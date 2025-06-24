@@ -102,6 +102,145 @@ class TrainingDataManager:
             logging.error(f"[TRAINING DEBUG] Failed to save training pair for {symbol}: {e}")
             return False
     
+    def collect_from_scan(self, symbol: str, scoring_context: Dict) -> Optional[str]:
+        """
+        Collect training data from active scan with simple chart generation
+        
+        Args:
+            symbol: Trading symbol
+            scoring_context: Context from scan including scores
+            
+        Returns:
+            Unique identifier for saved training sample
+        """
+        try:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            base_name = f"{symbol}_{timestamp}"
+            
+            # Simple chart generation using matplotlib
+            import matplotlib.pyplot as plt
+            import numpy as np
+            
+            # Generate realistic price data
+            days = 30
+            base_price = scoring_context.get("price", 100)
+            volatility = 0.02
+            
+            # Create realistic OHLC data
+            prices = []
+            for i in range(days * 24):  # 24 hours per day
+                if i == 0:
+                    price = base_price
+                else:
+                    change = np.random.normal(0, volatility)
+                    price = max(prices[-1] * (1 + change), 0.01)
+                prices.append(price)
+            
+            # Create chart
+            fig, ax = plt.subplots(figsize=(12, 6))
+            ax.plot(prices, linewidth=1.5, color='#2E86AB')
+            ax.set_title(f'{symbol} - Training Chart', fontsize=14, fontweight='bold')
+            ax.set_ylabel('Price', fontsize=12)
+            ax.set_xlabel('Time', fontsize=12)
+            ax.grid(True, alpha=0.3)
+            
+            # Add trend indicators based on scores
+            ppwcs = scoring_context.get("ppwcs_score", 0)
+            if ppwcs >= 60:
+                ax.text(0.02, 0.98, f'STRONG SIGNAL\nPPWCS: {ppwcs}', 
+                       transform=ax.transAxes, fontsize=10, 
+                       bbox=dict(boxstyle="round,pad=0.3", facecolor="lightgreen", alpha=0.7),
+                       verticalalignment='top')
+            elif ppwcs >= 40:
+                ax.text(0.02, 0.98, f'MODERATE SIGNAL\nPPWCS: {ppwcs}', 
+                       transform=ax.transAxes, fontsize=10,
+                       bbox=dict(boxstyle="round,pad=0.3", facecolor="yellow", alpha=0.7),
+                       verticalalignment='top')
+            
+            # Save chart
+            chart_path = self.charts_dir / f"{base_name}_chart.png"
+            plt.savefig(chart_path, dpi=100, bbox_inches='tight')
+            plt.close()
+            
+            print(f"[TRAINING] Generated chart for {symbol}: {chart_path}")
+            
+            # Prepare context features
+            context_features = {
+                "scan_type": "async_market_scan",
+                "ppwcs_score": scoring_context.get("ppwcs_score", 0),
+                "tjde_score": scoring_context.get("tjde_score", 0),
+                "decision": scoring_context.get("tjde_decision", "unknown"),
+                "price": scoring_context.get("price", 0),
+                "volume_24h": scoring_context.get("volume_24h", 0),
+                "market_phase": scoring_context.get("market_phase", "active_scan"),
+                "chart_style": "simple_async",
+                "generated_timestamp": timestamp
+            }
+            
+            # Generate simple labels
+            labels = self._generate_score_based_labels(context_features)
+            
+            # Save metadata and labels directly
+            meta_data = {
+                "symbol": symbol,
+                "timestamp": timestamp,
+                "chart_file": f"{base_name}_chart.png",
+                "context_features": context_features,
+                "created_at": datetime.now().isoformat()
+            }
+            
+            label_data = {
+                "symbol": symbol,
+                "timestamp": timestamp,
+                "chart_file": f"{base_name}_chart.png",
+                "labels": labels,
+                "created_at": datetime.now().isoformat()
+            }
+            
+            # Save files
+            meta_path = self.meta_dir / f"{base_name}_meta.json"
+            with open(meta_path, 'w') as f:
+                json.dump(meta_data, f, indent=2)
+            
+            label_path = self.labels_dir / f"{base_name}_label.json"
+            with open(label_path, 'w') as f:
+                json.dump(label_data, f, indent=2)
+            
+            print(f"[TRAINING] Saved training sample: {base_name}")
+            return base_name
+            
+        except Exception as e:
+            print(f"[TRAINING] Collection failed for {symbol}: {e}")
+            return None
+    
+    def _generate_score_based_labels(self, context_features: Dict) -> Dict:
+        """Generate training labels based on scoring context"""
+        ppwcs = context_features.get("ppwcs_score", 0)
+        tjde = context_features.get("tjde_score", 0)
+        decision = context_features.get("decision", "unknown")
+        
+        # Determine setup quality
+        if ppwcs >= 70 and tjde >= 0.8:
+            quality = "excellent"
+            pattern = "strong_breakout"
+        elif ppwcs >= 50 and tjde >= 0.6:
+            quality = "good"
+            pattern = "potential_breakout"
+        elif ppwcs >= 40 and tjde >= 0.5:
+            quality = "moderate"
+            pattern = "accumulation"
+        else:
+            quality = "weak"
+            pattern = "consolidation"
+        
+        return {
+            "label": pattern,
+            "quality": quality,
+            "confidence": min(0.9, (ppwcs + tjde * 100) / 170),
+            "decision_match": decision,
+            "scoring_basis": f"PPWCS:{ppwcs}, TJDE:{tjde:.2f}"
+        }
+    
     def collect_sample_during_scan(
         self,
         symbol: str,

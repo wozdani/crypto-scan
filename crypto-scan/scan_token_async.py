@@ -410,6 +410,8 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     
             except Exception as e:
                 print(f"[TRAINING ERROR] {symbol} → {e}")
+        else:
+            print(f"[TRAINING SKIP] {symbol} → Below thresholds (PPWCS: {ppwcs_score}, TJDE: {tjde_score:.3f})")
         
         # Alert processing with diagnostics
         alert_sent = False
