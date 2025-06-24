@@ -263,6 +263,13 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Critical Import Fix**: Resolved missing logging imports in trader_ai_engine.py and utils/scoring.py preventing B2USDT TJDE errors
 - **Production Integration**: All debug logs visible in console and automatically saved to logs/debug.log for comprehensive system monitoring
 
+### June 24, 2025 - Market Phase Modifier Fix + Feedback Loop Score Changes Table - PRODUCTION READY ✅
+- **Market Phase Modifier Fixed**: Implemented complete market_phase_modifier() function in utils/market_phase.py with proper phase mapping (bull_trend: +0.15, breakout-continuation: +0.12, distribution: -0.15, etc.)
+- **Score Changes Table Restored**: Added print_adjustment_summary() call in crypto_scan_service.py to display feedback loop weight changes table after each scan cycle
+- **TJDE Enhancement**: Market phase modifier now properly influences TJDE scoring instead of always returning +0.0, significantly improving decision accuracy
+- **Debug Integration**: Added comprehensive logging for market phase detection and modifier application with [MARKET_PHASE_MODIFIER] tags
+- **Production Validation**: Tested with breakout-continuation phase showing correct +0.120 modifier application and improved TJDE scores
+
 ## User Preferences
 
 - Language: Polish for user-facing messages and alerts
