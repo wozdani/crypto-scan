@@ -273,6 +273,15 @@ Fixed critical "CLIP Confidence: N/A" issue by implementing comprehensive CLIP p
 - **Debug Integration**: Added comprehensive logging for market phase detection and modifier application with [MARKET_PHASE_MODIFIER] tags
 - **Production Validation**: Tested with breakout-continuation phase showing correct +0.120 modifier application and improved TJDE scores
 
+### June 24, 2025 - TJDE Training Chart System Completely Rebuilt - PRODUCTION READY ✅
+- **User-Requested TJDE Chart Function**: Implemented generate_tjde_training_chart_simple() exactly as specified with yellow annotation box, proper labeling
+- **Updated Trigger Conditions**: Charts generated when tjde_score >= 0.4 AND tjde_decision != "avoid" (replacing old PPWCS logic)
+- **Price Series Flattening**: New flatten_candles() function combines 15m + 5m candles into 200-300 point series for detailed visualization
+- **Enhanced Metadata**: Automatic JSON metadata saved alongside each chart with TJDE score, phase, CLIP confidence, setup labels
+- **Professional Format**: Charts display "SYMBOL - TJDE Chart" title with comprehensive annotation: "PHASE | TJDE: score | CLIP: confidence | Setup: label"
+- **Production Integration**: Complete replacement of old PPWCS chart generation with TJDE-focused system in scan_token_async.py
+- **Training Folder Management**: Automatic training_charts folder creation with timestamp-based naming convention
+
 ### June 24, 2025 - TJDE Training Chart Generation Fixed - PRODUCTION READY ✅
 - **PPWCS Dependency Removed**: Training charts now generated exclusively based on TJDE score ≥ 0.6 (no PPWCS requirement)
 - **TJDE-Focused Chart Layout**: New generate_tjde_training_chart() function with proper title "SYMBOL – TJDE Training Chart"

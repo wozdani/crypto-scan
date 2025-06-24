@@ -128,6 +128,98 @@ Decision: {decision.upper()}"""
         import traceback
         traceback.print_exc()
         return None
+
+
+def generate_tjde_training_chart_simple(symbol, price_series, tjde_score, tjde_phase, tjde_decision, tjde_clip_confidence=None, setup_label=None):
+    """
+    Generate simplified TJDE training chart as requested by user
+    
+    Args:
+        symbol: Trading symbol
+        price_series: Flattened price data from candles
+        tjde_score: TJDE final score
+        tjde_phase: Market phase from TJDE
+        tjde_decision: TJDE decision
+        tjde_clip_confidence: Optional CLIP confidence
+        setup_label: Optional setup description
+        
+    Returns:
+        Path to generated chart file or None
+    """
+    try:
+        import matplotlib.pyplot as plt
+        from datetime import datetime
+        import os
+
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M")
+        folder = "training_charts"
+        os.makedirs(folder, exist_ok=True)
+
+        label = f"{tjde_phase.upper()} | TJDE: {round(tjde_score, 3)}"
+        if tjde_clip_confidence is not None:
+            label += f" | CLIP: {round(tjde_clip_confidence, 3)}"
+        if setup_label:
+            label += f" | Setup: {setup_label}"
+
+        plt.figure(figsize=(10, 5))
+        plt.plot(price_series, linewidth=1.5, color='#2196f3')
+        plt.title(f"{symbol} - TJDE Chart", fontsize=14, weight='bold')
+        plt.xlabel("Time")
+        plt.ylabel("Price")
+        plt.grid(True, alpha=0.3)
+
+        # Adnotacja box z metadanymi
+        plt.gca().annotate(label,
+                           xy=(0.02, 0.95), xycoords='axes fraction',
+                           fontsize=10,
+                           bbox=dict(boxstyle="round,pad=0.3", fc="yellow", ec="black", lw=1))
+
+        filename = f"{symbol}_{timestamp}_tjde.png"
+        filepath = os.path.join(folder, filename)
+        plt.tight_layout()
+        plt.savefig(filepath, dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        print(f"[TJDE CHART] {symbol}: Saved to {filepath}")
+        return filepath
+        
+    except Exception as e:
+        print(f"[TJDE CHART ERROR] {symbol}: {e}")
+        return None
+
+
+def flatten_candles(candles_15m, candles_5m=None):
+    """
+    Flatten candle data to price series for chart plotting
+    
+    Args:
+        candles_15m: 15-minute candles
+        candles_5m: Optional 5-minute candles
+        
+    Returns:
+        List of close prices
+    """
+    try:
+        price_series = []
+        
+        # Use 15m candles as primary data
+        if candles_15m:
+            price_series.extend([float(candle[4]) for candle in candles_15m])
+        
+        # Optionally add 5m candles for more detail
+        if candles_5m and len(price_series) < 200:
+            price_5m = [float(candle[4]) for candle in candles_5m]
+            price_series.extend(price_5m)
+        
+        # Limit to reasonable size for visualization
+        if len(price_series) > 300:
+            price_series = price_series[-300:]
+            
+        return price_series
+        
+    except Exception as e:
+        print(f"[FLATTEN ERROR] Failed to flatten candles: {e}")
+        return []
     try:
         # Create output directory
         if not os.path.exists(output_dir):

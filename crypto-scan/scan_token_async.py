@@ -466,34 +466,33 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         
         # TJDE-based training chart generation for quality setups
         training_chart_saved = False
-        if tjde_score >= 0.6:  # Remove PPWCS dependency
+        if tjde_score >= 0.4 and tjde_decision != "avoid":  # User's requested conditions
             print(f"[TRAINING] {symbol} → Generating TJDE training chart (Score: {tjde_score:.3f}, Decision: {tjde_decision})")
             try:
-                # Import TJDE chart generator
-                from chart_generator import generate_tjde_training_chart
+                # Import TJDE chart generators
+                from chart_generator import generate_tjde_training_chart_simple, flatten_candles
                 
-                # Extract TJDE result data
-                tjde_full_result = {
-                    "final_score": tjde_score,
-                    "decision": tjde_decision,
-                    "market_phase": features.get("market_phase", "unknown"),
-                    "setup_type": features.get("price_action_pattern", "unknown")
-                }
+                # Flatten candles to price series
+                price_series = flatten_candles(candles_15m, candles_5m)
                 
-                # Extract CLIP info if available
-                clip_analysis = {
-                    "predicted_phase": features.get("clip_phase", "N/A"),
-                    "confidence": features.get("clip_confidence", 0.0)
-                }
+                if not price_series:
+                    print(f"[TRAINING ERROR] {symbol} → No price data available for chart")
+                    continue
                 
-                # Generate TJDE-focused training chart
-                chart_path = generate_tjde_training_chart(
+                # Extract TJDE data
+                tjde_phase = features.get("market_phase", "unknown")
+                tjde_clip_confidence = features.get("clip_confidence", 0.0) if features.get("clip_confidence", 0.0) > 0 else None
+                setup_label = features.get("price_action_pattern", None)
+                
+                # Generate simplified TJDE training chart
+                chart_path = generate_tjde_training_chart_simple(
                     symbol=symbol,
-                    candles_15m=candles_15m,
-                    candles_5m=candles_5m,
-                    tjde_result=tjde_full_result,
-                    clip_info=clip_analysis,
-                    output_dir="training_charts"
+                    price_series=price_series,
+                    tjde_score=tjde_score,
+                    tjde_phase=tjde_phase,
+                    tjde_decision=tjde_decision,
+                    tjde_clip_confidence=tjde_clip_confidence,
+                    setup_label=setup_label
                 )
                 
                 if chart_path:
