@@ -67,7 +67,7 @@ class VisionPhaseClassifier:
         try:
             print("[VISION] Loading CLIP model for chart analysis...")
             self.model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
-            self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+            self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32", use_fast=True)
             print("[VISION] ✅ Model loaded successfully")
         except Exception as e:
             print(f"[VISION] ❌ Model loading failed: {e}")

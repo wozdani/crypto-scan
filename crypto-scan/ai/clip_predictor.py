@@ -52,7 +52,7 @@ class CLIPPredictor:
             if TRANSFORMERS_AVAILABLE:
                 print("[CLIP MODEL] Loading openai/clip-vit-base-patch32...")
                 self.model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
-                self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+                self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32", use_fast=True)
                 
                 if self.device == "cuda":
                     self.model = self.model.cuda()

@@ -98,8 +98,8 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 24, 2025 - CLIP Confidence N/A Problem Solved + Professional Charts - PRODUCTION READY ✅
-Fixed critical "CLIP Confidence: N/A" issue by implementing comprehensive CLIP predictor with OpenAI ViT-B/32 model and transformers fallback. Enhanced ai/clip_predictor.py with detailed debugging, automatic chart generation for CLIP analysis, and global predict_clip_chart() function. Integrated professional chart_generator.py with 96-candle 15M charts featuring TJDE results, decision colors, and metadata JSON. System now generates real CLIP confidence values and predictions for visual analysis integration with TJDE scoring.
+### June 24, 2025 - CLIP Processor use_fast=True Fix + Chart Generation Restored - PRODUCTION READY ✅
+Fixed critical CLIPProcessor slow image processor warning by adding use_fast=True parameter to all CLIPProcessor.from_pretrained() calls across 5 modules (ai/clip_predictor.py, ai/clip_model.py, utils/vision_phase_classifier.py, vision_ai/predict_cv_setup.py, vision_ai/train_cv_model.py). Resolved chart generation matplotlib linewidth parameter error and enhanced TJDE fallback scoring to ensure training charts are generated for tokens with sufficient candle data. System now properly loads fast CLIP processor eliminating "CLIP Confidence: N/A" issues and successfully generates alert-focused training charts with 100+20 candle context windows.
 
 ### June 21, 2025 - Alert System Integration Fix - PRODUCTION READY
 - **Critical Alert Function Fixed**: Naprawiono process_alert() w alert_system.py - KERNELUSDT score 57 teraz wysyła alerty

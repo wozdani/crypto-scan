@@ -52,7 +52,7 @@ class VisionAITrainer:
         """Load CLIP model and processor"""
         try:
             self.model = CLIPModel.from_pretrained(self.model_name)
-            self.processor = CLIPProcessor.from_pretrained(self.model_name)
+            self.processor = CLIPProcessor.from_pretrained(self.model_name, use_fast=True)
             self.model.to(self.device)
             self.model.eval()
             

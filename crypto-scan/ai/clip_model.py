@@ -32,7 +32,7 @@ class CLIPWrapper:
             from transformers import CLIPModel, CLIPProcessor
             
             self.model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
-            self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+            self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32", use_fast=True)
             self.model.to(self.device)
             self.initialized = True
             
