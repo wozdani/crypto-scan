@@ -132,7 +132,7 @@ def scan_cycle():
     except Exception as e:
         print(f"Async scan failed ({e}), falling back to simple scan...")
         
-        # Fallback to simple sequential scan
+        # Fallback to async batch scan with reduced concurrency
         simple_scan_fallback(symbols)
     
     # Show timing
@@ -140,29 +140,36 @@ def scan_cycle():
     print(f"Scan cycle completed in {elapsed:.1f}s")
 
 def simple_scan_fallback(symbols):
-    """Fallback simple sequential scan when async fails"""
-    print("Running simple sequential scan fallback...")
-    
-    # Whale priority
-    symbols, priority_symbols, priority_info = prioritize_whale_tokens(symbols)
-    
-    # Simple sequential scan (not async)
-    processed = 0
-    results = []
+    """Fallback using async batch scan with lower concurrency"""
+    print("Running async batch fallback with reduced concurrency...")
     
     try:
-        for symbol in symbols[:20]:  # Limit to 20 for fallback
+        # Use async batch scanning even in fallback but with lower concurrency
+        import asyncio
+        from scan_all_tokens_async import scan_symbols_async
+        
+        # Run with lower concurrency for stability
+        results = asyncio.run(scan_symbols_async(symbols[:100], max_concurrent=8))
+        print(f"Async batch fallback processed {len(results)} tokens")
+        return results
+        
+    except Exception as e:
+        print(f"Async batch fallback failed: {e}")
+        print("Using simple sequential scan as last resort...")
+        
+        # Ultimate fallback - simple sequential for core functionality only
+        processed = 0
+        results = []
+        
+        for symbol in symbols[:10]:  # Very limited fallback
             result = scan_single_token(symbol)
             if result:
                 results.append(result)
                 processed += 1
-                print(f"[{processed}/20] {symbol}: PPWCS {result.get('final_score', 0):.1f}")
+                print(f"[{processed}/10] {symbol}: PPWCS {result.get('final_score', 0):.1f}")
         
         print(f"Sequential fallback processed {processed} tokens")
         return results
-        
-    except Exception as e:
-        print(f"Sequential scan error: {e}")
         return []
 
 def wait_for_next_candle():
