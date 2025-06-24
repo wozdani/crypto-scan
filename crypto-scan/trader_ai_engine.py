@@ -796,6 +796,7 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
                         break
                 
                 if chart_path:
+                    # Use global CANDIDATE_PHASES defined at module level
                     chart_prediction = predict_clip_chart(chart_path, CANDIDATE_PHASES)
                     
                     if chart_prediction.get("success"):

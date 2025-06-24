@@ -19,12 +19,16 @@ PPWCS_AVAILABLE = True  # Always available with realistic calculation
 print("[IMPORT SUCCESS] Realistic PPWCS calculation implemented")
 
 try:
-    from trader_ai_engine import simulate_trader_decision_advanced
+    from trader_ai_engine import simulate_trader_decision_advanced, CANDIDATE_PHASES
     TJDE_AVAILABLE = True
-    print("[IMPORT SUCCESS] simulate_trader_decision_advanced imported successfully")
+    print("[IMPORT SUCCESS] simulate_trader_decision_advanced and CANDIDATE_PHASES imported successfully")
 except ImportError as e:
-    print(f"[IMPORT ERROR] simulate_trader_decision_advanced: {e}")
+    print(f"[IMPORT ERROR] trader_ai_engine components: {e}")
     TJDE_AVAILABLE = False
+    CANDIDATE_PHASES = [
+        "breakout-continuation", "pullback-in-trend", "range-accumulation", 
+        "trend-reversal", "consolidation", "fake-breakout"
+    ]
 
 try:
     from utils.alerts import send_alert
