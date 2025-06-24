@@ -107,17 +107,19 @@ def scan_cycle():
     # Build cache
     build_coingecko_cache()
     
-    # Try async scan first, fallback to simple scan
+    # Use enhanced async scan with TJDE and chart generation
     try:
-        from scan_token_async import flush_async_results
-        print("Attempting async scan integration...")
+        print("Running enhanced async scan with TJDE analysis...")
         
-        # Import and run async scan
+        # Import and run full async scan cycle with TJDE
         import asyncio
         from scan_all_tokens_async import async_scan_cycle
         
-        # Run async scan cycle
-        asyncio.run(async_scan_cycle())
+        # Run enhanced async scan cycle
+        result = asyncio.run(async_scan_cycle())
+        processed_count = result if isinstance(result, int) else 0
+        
+        print(f"Enhanced async scan processed {processed_count} tokens with TJDE analysis")
         print("Async scan completed successfully")
         
         # Flush results
