@@ -635,7 +635,7 @@ def generate_chart_async_safe(
         decision = tjde_result.get("decision", "unknown")
         
         # Generate chart
-        chart_path = generate_trend_mode_chart(
+        chart_path = generate_tjde_training_chart_contextual(
             symbol=symbol,
             candles_15m=candles_15m,
             candles_5m=candles_5m,
@@ -675,7 +675,7 @@ def test_chart_generation():
         sample_candles.append([timestamp, open_price, high_price, low_price, close_price, volume])
     
     # Test chart generation
-    result = generate_trend_mode_chart(
+    result = generate_tjde_training_chart_contextual(
         symbol="TESTUSDT",
         candles_15m=sample_candles,
         candles_5m=[],
