@@ -18,6 +18,7 @@ from utils.data_fetchers import get_market_data
 from utils.alert_system import process_alert
 from utils.coingecko import build_coingecko_cache
 from utils.whale_priority import prioritize_whale_tokens
+from utils.training_data_manager import TrainingDataManager
 
 def scan_single_token(symbol):
     """Simple, fast token scan"""
@@ -52,6 +53,35 @@ def scan_single_token(symbol):
         alert_level = get_alert_level(final_score, checklist_score)
         if alert_level >= 2:
             process_alert(symbol, final_score, signals, None)
+
+        # Training chart generation for quality setups
+        if final_score >= 40 or checklist_score >= 35:
+            print(f"[TRAINING] {symbol} → Generating training chart (PPWCS: {final_score}, Checklist: {checklist_score})")
+            try:
+                # Initialize training data manager
+                training_manager = TrainingDataManager()
+                
+                # Prepare context features for training
+                context_features = {
+                    "ppwcs_score": final_score,
+                    "checklist_score": checklist_score,
+                    "alert_level": alert_level,
+                    "price": signals.get("price", 0),
+                    "volume_24h": signals.get("volume_24h", 0),
+                    "market_phase": "simple_scan",
+                    "scan_timestamp": datetime.now().isoformat(),
+                    "signals_count": len([k for k, v in signals.items() if v and k != 'price' and k != 'volume_24h'])
+                }
+                
+                # Generate and save training chart
+                chart_id = training_manager.collect_from_scan(symbol, context_features)
+                if chart_id:
+                    print(f"[TRAINING] {symbol} → Chart saved: {chart_id}")
+                else:
+                    print(f"[TRAINING] {symbol} → Chart generation failed")
+                    
+            except Exception as e:
+                print(f"[TRAINING ERROR] {symbol} → {e}")
 
         return {
             'symbol': symbol,

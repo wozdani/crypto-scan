@@ -9,6 +9,7 @@ import asyncio
 import json
 import os
 import sys
+import time
 from datetime import datetime
 from typing import Optional, Dict, Any
 
@@ -427,9 +428,10 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         else:
             print(f"[ALERT SKIP] {symbol} → Below thresholds (PPWCS: {ppwcs_score:.1f}, TJDE: {tjde_score:.3f})")
         
-        # Save results with diagnostics
+        # Save results with diagnostics (if save function available)
         try:
-            await save_async_result(symbol, ppwcs_score, tjde_score, tjde_decision, market_data)
+            if 'save_async_result' in globals():
+                await save_async_result(symbol, ppwcs_score, tjde_score, tjde_decision, market_data)
         except Exception as e:
             print(f"[SAVE ERROR] {symbol} → {e}")
         
@@ -451,6 +453,8 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         # Check if scores are suspicious (identical fallback values)
         if ppwcs_score == 40 and tjde_score == 0.4:
             print(f"[SUSPICIOUS] {symbol} → Both scores are fallback values - likely errors in scoring functions")
+        
+        processing_time = time.time() - start_time if 'start_time' in locals() else 0.0
         
         print(f"✅ {symbol}: PPWCS {ppwcs_score:.1f}, TJDE {tjde_score:.3f} ({tjde_decision}), {len(candles_15m)}x15M, {len(candles_5m)}x5M")
         result = {
