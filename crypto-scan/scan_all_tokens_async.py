@@ -215,8 +215,19 @@ async def main():
 # Direct execution functions for integration
 async def scan_symbols_async(symbols: List[str], max_concurrent: int = 15) -> List[Dict]:
     """Direct function to scan list of symbols asynchronously with configurable concurrency"""
-    async with AsyncTokenScanner(max_concurrent=max_concurrent) as scanner:
-        return await scanner.scan_all_tokens(symbols)
+    scan_start_time = time.time()
+    try:
+        async with AsyncTokenScanner(max_concurrent=max_concurrent) as scanner:
+            results = await scanner.scan_all_tokens(symbols)
+        
+        scan_duration = time.time() - scan_start_time
+        print(f"scan_symbols_async completed in {scan_duration:.1f}s")
+        return results
+        
+    except Exception as e:
+        scan_duration = time.time() - scan_start_time
+        print(f"scan_symbols_async error after {scan_duration:.1f}s: {e}")
+        return []
 
 def run_async_scan(symbols: List[str]) -> List[Dict]:
     """Synchronous wrapper for async scanning"""
