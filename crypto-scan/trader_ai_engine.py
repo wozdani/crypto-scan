@@ -634,25 +634,29 @@ def compute_trader_score(features: Dict, symbol: str = None) -> Dict:
         candles_5m = features.get('candles_5m', [])
         symbol = features.get('symbol', 'UNKNOWN')
         
-        # Calculate real TJDE component scores
-        if candles_15m and len(candles_15m) >= 20:
-            trend_strength = compute_trend_strength(candles_15m, symbol)
-            pullback_quality = compute_pullback_quality(candles_15m, symbol)
-            support_reaction = compute_support_reaction(candles_15m, symbol)
-            volume_behavior_score = compute_volume_behavior_score(candles_15m, symbol)
-            psych_score = compute_psych_score(candles_15m, symbol)
-            
-            # Update features with calculated values
-            features['trend_strength'] = trend_strength
-            features['pullback_quality'] = pullback_quality
-            features['support_reaction_strength'] = support_reaction
-            features['volume_behavior_score'] = volume_behavior_score
-            features['psych_score'] = psych_score
-            
-            print(f"[TJDE CALC] {symbol}: trend={trend_strength:.3f}, pullback={pullback_quality:.3f}, support={support_reaction:.3f}")
-            print(f"[TJDE CALC] {symbol}: volume={volume_behavior_score:.3f}, psych={psych_score:.3f}")
-        else:
-            print(f"[TJDE CALC] {symbol}: Insufficient candle data ({len(candles_15m)} candles)")
+        # Calculate real TJDE component scores - ALWAYS execute calculations
+        print(f"[TJDE CALC DEBUG] {symbol}: Starting calculations with {len(candles_15m)} candles")
+        
+        # Calculate with available data (even if less than 20 candles)
+        trend_strength = compute_trend_strength(candles_15m, symbol)
+        pullback_quality = compute_pullback_quality(candles_15m, symbol)
+        support_reaction = compute_support_reaction(candles_15m, symbol)
+        volume_behavior_score = compute_volume_behavior_score(candles_15m, symbol)
+        psych_score = compute_psych_score(candles_15m, symbol)
+        
+        # Update features with calculated values
+        features['trend_strength'] = trend_strength
+        features['pullback_quality'] = pullback_quality
+        features['support_reaction_strength'] = support_reaction
+        features['volume_behavior_score'] = volume_behavior_score
+        features['psych_score'] = psych_score
+        
+        print(f"[TJDE CALC] {symbol}: trend={trend_strength:.3f}, pullback={pullback_quality:.3f}, support={support_reaction:.3f}")
+        print(f"[TJDE CALC] {symbol}: volume={volume_behavior_score:.3f}, psych={psych_score:.3f}")
+        
+        # Validate calculations were successful
+        if all(val == 0.0 for val in [trend_strength, pullback_quality, support_reaction, volume_behavior_score, psych_score]):
+            print(f"[TJDE CALC WARNING] {symbol}: All components returned 0.0 - calculation functions may have failed")
         
         # Calculate weighted score
         score_breakdown = {}
@@ -695,6 +699,16 @@ def compute_trader_score(features: Dict, symbol: str = None) -> Dict:
         
         # Enhanced logging dla tradera
         if symbol:
+            # Show individual component values from features (after calculation)
+            calc_trend = features.get('trend_strength', 0.0)
+            calc_pullback = features.get('pullback_quality', 0.0)
+            calc_support = features.get('support_reaction_strength', 0.0)
+            calc_volume = features.get('volume_behavior_score', 0.0)
+            calc_psych = features.get('psych_score', 0.0)
+            
+            print(f"[TJDE SCORE] trend_strength={calc_trend:.2f}, pullback_quality={calc_pullback:.2f}, final_score={final_score:.2f}")
+            print(f"[TJDE SCORE] volume_behavior_score={calc_volume:.1f}, psych_score={calc_psych:.1f}, support_reaction={calc_support:.1f}")
+            
             breakdown_str = ", ".join([f"{k.split('_')[0]}={v:.3f}" for k, v in score_breakdown.items()])
             print(f"[TRADER SCORE] {symbol} → {final_score:.3f} ({quality_grade}) [{context_adjustment}]")
             print(f"[TRADER SCORE] {symbol}: {breakdown_str}")
