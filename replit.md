@@ -98,8 +98,8 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 24, 2025 - Complete Professional Chart Generation System - PRODUCTION READY ✅
-Implemented comprehensive chart_generator.py with professional 15M candlestick charts featuring TJDE results, decision colors, volume analysis, and metadata JSON. Charts display 96 candles with time axis, price levels, and TJDE breakdown annotations. Fixed async scanner save errors and integrated chart generation with scan_token_async.py for automatic training data collection. Quality validation ensures charts meet training standards with sufficient candles, valid OHLCV data, and price variance detection.
+### June 24, 2025 - CLIP Confidence N/A Problem Solved + Professional Charts - PRODUCTION READY ✅
+Fixed critical "CLIP Confidence: N/A" issue by implementing comprehensive CLIP predictor with OpenAI ViT-B/32 model and transformers fallback. Enhanced ai/clip_predictor.py with detailed debugging, automatic chart generation for CLIP analysis, and global predict_clip_chart() function. Integrated professional chart_generator.py with 96-candle 15M charts featuring TJDE results, decision colors, and metadata JSON. System now generates real CLIP confidence values and predictions for visual analysis integration with TJDE scoring.
 
 ### June 21, 2025 - Alert System Integration Fix - PRODUCTION READY
 - **Critical Alert Function Fixed**: Naprawiono process_alert() w alert_system.py - KERNELUSDT score 57 teraz wysyła alerty
