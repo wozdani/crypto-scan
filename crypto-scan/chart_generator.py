@@ -130,13 +130,61 @@ Decision: {decision.upper()}"""
         return None
 
 
-def generate_tjde_training_chart_simple(symbol, price_series, tjde_score, tjde_phase, tjde_decision, tjde_clip_confidence=None, setup_label=None):
+def detect_alert_point(candles_15m, tjde_score=None):
     """
-    Generate simplified TJDE training chart as requested by user
+    Detect the optimal alert point in candle data based on price action
+    
+    Args:
+        candles_15m: 15-minute candle data
+        tjde_score: Optional TJDE score for weighting
+        
+    Returns:
+        Index of alert point in candles array
+    """
+    try:
+        if not candles_15m or len(candles_15m) < 20:
+            return len(candles_15m) - 10 if candles_15m else 0
+            
+        closes = [float(c[4]) for c in candles_15m]
+        volumes = [float(c[5]) for c in candles_15m]
+        
+        # Calculate price momentum and volume spikes
+        alert_scores = []
+        for i in range(10, len(closes) - 5):
+            # Price momentum (recent vs past)
+            recent_price = sum(closes[i-3:i+1]) / 4
+            past_price = sum(closes[i-10:i-6]) / 4
+            price_momentum = abs(recent_price - past_price) / past_price if past_price > 0 else 0
+            
+            # Volume spike
+            recent_vol = volumes[i]
+            avg_vol = sum(volumes[i-10:i]) / 10 if i >= 10 else recent_vol
+            volume_spike = recent_vol / avg_vol if avg_vol > 0 else 1.0
+            
+            # Combined alert score
+            alert_score = price_momentum * 0.7 + min(volume_spike - 1, 2.0) * 0.3
+            alert_scores.append((i, alert_score))
+        
+        # Find best alert point (highest combined score)
+        if alert_scores:
+            best_point = max(alert_scores, key=lambda x: x[1])
+            return best_point[0]
+        
+        # Fallback: use 75% through the data
+        return int(len(candles_15m) * 0.75)
+        
+    except Exception as e:
+        print(f"[ALERT POINT ERROR] {e}")
+        return len(candles_15m) - 10 if candles_15m else 0
+
+
+def generate_tjde_training_chart_contextual(symbol, candles_15m, tjde_score, tjde_phase, tjde_decision, tjde_clip_confidence=None, setup_label=None):
+    """
+    Generate context-aware TJDE training chart focused on alert moment
     
     Args:
         symbol: Trading symbol
-        price_series: Flattened price data from candles
+        candles_15m: 15-minute candle data
         tjde_score: TJDE final score
         tjde_phase: Market phase from TJDE
         tjde_decision: TJDE decision
@@ -145,6 +193,154 @@ def generate_tjde_training_chart_simple(symbol, price_series, tjde_score, tjde_p
         
     Returns:
         Path to generated chart file or None
+    """
+    try:
+        import matplotlib.pyplot as plt
+        import matplotlib.dates as mdates
+        from datetime import datetime, timezone
+        import os
+        import numpy as np
+
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M")
+        folder = "training_charts"
+        os.makedirs(folder, exist_ok=True)
+
+        # Detect alert point in the data
+        alert_index = detect_alert_point(candles_15m, tjde_score)
+        
+        # Extract context window: 100 candles before, 20 after alert
+        context_before = 100
+        context_after = 20
+        
+        start_idx = max(0, alert_index - context_before)
+        end_idx = min(len(candles_15m), alert_index + context_after)
+        
+        context_candles = candles_15m[start_idx:end_idx]
+        alert_position = alert_index - start_idx  # Position of alert in context window
+        
+        if len(context_candles) < 10:
+            print(f"[CHART ERROR] {symbol}: Insufficient context data")
+            return None
+        
+        # Extract OHLCV data
+        timestamps = [datetime.fromtimestamp(c[0] / 1000, tz=timezone.utc) for c in context_candles]
+        opens = [float(c[1]) for c in context_candles]
+        highs = [float(c[2]) for c in context_candles]
+        lows = [float(c[3]) for c in context_candles]
+        closes = [float(c[4]) for c in context_candles]
+        volumes = [float(c[5]) for c in context_candles]
+
+        # Determine phase colors
+        phase_colors = {
+            'trend-following': '#4CAF50',    # Green
+            'pullback': '#2196F3',           # Blue  
+            'breakout': '#FF9800',           # Orange
+            'consolidation': '#9C27B0',      # Purple
+            'reversal': '#F44336',           # Red
+            'accumulation': '#607D8B'        # Blue Grey
+        }
+        
+        primary_color = phase_colors.get(tjde_phase.lower(), '#2196F3')
+        
+        # Create figure with enhanced layout
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), 
+                                      gridspec_kw={'height_ratios': [4, 1]},
+                                      facecolor='white')
+        
+        # Price chart with candlesticks
+        for i in range(len(timestamps)):
+            color = '#26a69a' if closes[i] >= opens[i] else '#ef5350'
+            
+            # Highlight alert area
+            if i == alert_position:
+                color = primary_color
+                alpha = 1.0
+                linewidth = 3
+            else:
+                alpha = 0.8
+                linewidth = 1.5
+                
+            # Candlestick wicks
+            ax1.plot([timestamps[i], timestamps[i]], [lows[i], highs[i]], 
+                    color=color, linewidth=linewidth, alpha=alpha)
+            
+            # Candlestick bodies
+            body_height = abs(closes[i] - opens[i])
+            body_bottom = min(opens[i], closes[i])
+            width = 0.6 if i == alert_position else 0.4
+            
+            ax1.bar(timestamps[i], body_height, bottom=body_bottom, 
+                   color=color, width=width/24, alpha=alpha)
+
+        # Add trend line
+        ax1.plot(timestamps, closes, color=primary_color, linewidth=1, alpha=0.6)
+        
+        # Mark alert point
+        if alert_position < len(timestamps):
+            ax1.axvline(x=timestamps[alert_position], color=primary_color, 
+                       linestyle='--', linewidth=2, alpha=0.8, label='Alert Point')
+            ax1.scatter(timestamps[alert_position], closes[alert_position], 
+                       color=primary_color, s=100, zorder=5)
+
+        # Enhanced title with full context
+        title = f"{symbol} | {tjde_phase.upper()} | TJDE: {tjde_score:.2f}"
+        if setup_label:
+            title += f" | {setup_label.upper()}"
+        ax1.set_title(title, fontsize=14, weight='bold', color=primary_color)
+
+        # Create comprehensive annotation
+        annotation_text = f"PHASE: {tjde_phase}\nSETUP: {setup_label or 'N/A'}\nTJDE: {tjde_score:.3f}\nDECISION: {tjde_decision}"
+        if tjde_clip_confidence is not None:
+            annotation_text += f"\nCLIP: {tjde_clip_confidence:.3f}"
+        
+        # Add phase-colored background box
+        bbox_props = dict(boxstyle="round,pad=0.5", facecolor=primary_color, alpha=0.15, edgecolor=primary_color, linewidth=2)
+        ax1.text(0.02, 0.98, annotation_text, transform=ax1.transAxes, 
+                fontsize=10, verticalalignment='top', fontweight='bold',
+                bbox=bbox_props, family='monospace')
+
+        # Volume chart with alert highlighting
+        colors_vol = [primary_color if i == alert_position else '#64B5F6' for i in range(len(volumes))]
+        ax2.bar(timestamps, volumes, color=colors_vol, alpha=0.7, width=0.5/24)
+        ax2.axvline(x=timestamps[alert_position], color=primary_color, 
+                   linestyle='--', linewidth=2, alpha=0.8)
+
+        # Format axes
+        ax1.set_ylabel('Price (USDT)', fontweight='bold')
+        ax2.set_ylabel('Volume', fontweight='bold')
+        ax2.set_xlabel('Time (Alert Context)', fontweight='bold')
+        
+        # Format time axis
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        ax2.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        
+        ax1.grid(True, alpha=0.3)
+        ax2.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+
+        # Generate filename with context info
+        filename = f"{symbol}_{timestamp}_{tjde_phase}_{tjde_decision}_tjde.png"
+        filepath = os.path.join(folder, filename)
+        
+        plt.savefig(filepath, dpi=300, bbox_inches='tight', facecolor='white')
+        plt.close()
+        
+        print(f"[CONTEXTUAL CHART] {symbol}: Alert context saved to {filepath}")
+        print(f"[CHART CONTEXT] Alert at candle {alert_position}/{len(context_candles)}, Score: {tjde_score:.3f}")
+        
+        return filepath
+        
+    except Exception as e:
+        print(f"[CONTEXTUAL CHART ERROR] {symbol}: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+def generate_tjde_training_chart_simple(symbol, price_series, tjde_score, tjde_phase, tjde_decision, tjde_clip_confidence=None, setup_label=None):
+    """
+    Fallback: Generate simplified TJDE training chart 
     """
     try:
         import matplotlib.pyplot as plt
@@ -162,13 +358,12 @@ def generate_tjde_training_chart_simple(symbol, price_series, tjde_score, tjde_p
             label += f" | Setup: {setup_label}"
 
         plt.figure(figsize=(10, 5))
-        plt.plot(price_series, linewidth=1.5, color='#2196f3')
+        plt.plot(price_series, linewidth=1.5, color='#2196F3')
         plt.title(f"{symbol} - TJDE Chart", fontsize=14, weight='bold')
         plt.xlabel("Time")
         plt.ylabel("Price")
         plt.grid(True, alpha=0.3)
 
-        # Adnotacja box z metadanymi
         plt.gca().annotate(label,
                            xy=(0.02, 0.95), xycoords='axes fraction',
                            fontsize=10,

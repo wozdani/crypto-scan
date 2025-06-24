@@ -273,6 +273,16 @@ Fixed critical "CLIP Confidence: N/A" issue by implementing comprehensive CLIP p
 - **Debug Integration**: Added comprehensive logging for market phase detection and modifier application with [MARKET_PHASE_MODIFIER] tags
 - **Production Validation**: Tested with breakout-continuation phase showing correct +0.120 modifier application and improved TJDE scores
 
+### June 24, 2025 - Context-Aware TJDE Training Charts with Alert Detection - PRODUCTION READY ✅
+- **Alert Point Detection**: New detect_alert_point() function finds optimal chart focus using price momentum + volume spike analysis
+- **Context Window Extraction**: Charts show 100 candles before alert + 20 after, providing complete trading context instead of random data
+- **Phase-Based Visualization**: Color-coded charts by market phase (trend-following=green, pullback=blue, breakout=orange, etc.)
+- **Alert Highlighting**: Visual markers at exact alert moment with enhanced candlestick styling and trend line overlay
+- **Enhanced Annotations**: Comprehensive phase/setup/score/decision info with phase-colored background boxes
+- **Professional Candlestick Charts**: Full OHLCV visualization with volume spike highlighting at alert points
+- **Contextual Filenames**: Charts named with phase and decision for easy CLIP training organization
+- **Fallback System**: Automatic fallback to simple chart generation if contextual method fails
+
 ### June 24, 2025 - TJDE Training Chart System Completely Rebuilt - PRODUCTION READY ✅
 - **User-Requested TJDE Chart Function**: Implemented generate_tjde_training_chart_simple() exactly as specified with yellow annotation box, proper labeling
 - **Updated Trigger Conditions**: Charts generated when tjde_score >= 0.4 AND tjde_decision != "avoid" (replacing old PPWCS logic)

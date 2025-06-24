@@ -469,31 +469,45 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         if tjde_score >= 0.4 and tjde_decision != "avoid":  # User's requested conditions
             print(f"[TRAINING] {symbol} → Generating TJDE training chart (Score: {tjde_score:.3f}, Decision: {tjde_decision})")
             try:
-                # Import TJDE chart generators
-                from chart_generator import generate_tjde_training_chart_simple, flatten_candles
-                
-                # Flatten candles to price series
-                price_series = flatten_candles(candles_15m, candles_5m)
-                
-                if not price_series:
-                    print(f"[TRAINING ERROR] {symbol} → No price data available for chart")
-                    continue
+                # Import contextual TJDE chart generator
+                from chart_generator import generate_tjde_training_chart_contextual, generate_tjde_training_chart_simple
                 
                 # Extract TJDE data
                 tjde_phase = features.get("market_phase", "unknown")
                 tjde_clip_confidence = features.get("clip_confidence", 0.0) if features.get("clip_confidence", 0.0) > 0 else None
                 setup_label = features.get("price_action_pattern", None)
                 
-                # Generate simplified TJDE training chart
-                chart_path = generate_tjde_training_chart_simple(
-                    symbol=symbol,
-                    price_series=price_series,
-                    tjde_score=tjde_score,
-                    tjde_phase=tjde_phase,
-                    tjde_decision=tjde_decision,
-                    tjde_clip_confidence=tjde_clip_confidence,
-                    setup_label=setup_label
-                )
+                # Generate contextual TJDE training chart (preferred method)
+                chart_path = None
+                if candles_15m and len(candles_15m) >= 20:
+                    chart_path = generate_tjde_training_chart_contextual(
+                        symbol=symbol,
+                        candles_15m=candles_15m,
+                        tjde_score=tjde_score,
+                        tjde_phase=tjde_phase,
+                        tjde_decision=tjde_decision,
+                        tjde_clip_confidence=tjde_clip_confidence,
+                        setup_label=setup_label
+                    )
+                
+                # Fallback to simple chart if contextual fails
+                if not chart_path:
+                    from chart_generator import flatten_candles
+                    price_series = flatten_candles(candles_15m, candles_5m)
+                    
+                    if price_series:
+                        chart_path = generate_tjde_training_chart_simple(
+                            symbol=symbol,
+                            price_series=price_series,
+                            tjde_score=tjde_score,
+                            tjde_phase=tjde_phase,
+                            tjde_decision=tjde_decision,
+                            tjde_clip_confidence=tjde_clip_confidence,
+                            setup_label=setup_label
+                        )
+                    else:
+                        print(f"[TRAINING ERROR] {symbol} → No chart data available")
+                        continue
                 
                 if chart_path:
                     print(f"[TRAINING SUCCESS] {symbol} → Chart saved: {chart_path}")
