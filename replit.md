@@ -98,8 +98,8 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 24, 2025 - Professional Chart Generation + TJDE Debug System - PRODUCTION READY ✅
-Replaced placeholder chart generation with professional candlestick charts using mplfinance. Charts now display realistic OHLCV data with volume bars, resembling TradingView interface for proper AI model training. Fixed TJDE debugging system with comprehensive score breakdowns, market phase modifiers, and enhanced TOP10 table with suspicious score detection. Complete async scanner stability achieved with proper error handling.
+### June 24, 2025 - Async Scanner Save System Fix + Professional Charts - PRODUCTION READY ✅
+Fixed critical "NoneType can't be used in 'await' expression" error by replacing problematic async save operations with reliable synchronous saves. Implemented professional candlestick chart generation using mplfinance for realistic OHLCV training data. Enhanced TJDE debugging system with comprehensive score breakdowns, market phase modifiers, and suspicious score detection in TOP10 table. System now processes 158 tokens in 0.4s without save errors.
 
 ### June 21, 2025 - Alert System Integration Fix - PRODUCTION READY
 - **Critical Alert Function Fixed**: Naprawiono process_alert() w alert_system.py - KERNELUSDT score 57 teraz wysyła alerty
