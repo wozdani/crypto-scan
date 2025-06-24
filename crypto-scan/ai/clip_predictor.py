@@ -54,6 +54,13 @@ class CLIPPredictor:
                 self.model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
                 self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32", use_fast=True)
                 
+                # Initialize label texts for transformers backend
+                self.label_texts = [
+                    "breakout-continuation", "pullback-in-trend", "trend-reversal",
+                    "range-accumulation", "consolidation", "fake-breakout", 
+                    "volume-backed breakout", "exhaustion pattern", "no-trend noise"
+                ]
+                
                 if self.device == "cuda":
                     self.model = self.model.cuda()
                     print("[CLIP MODEL] Moved to CUDA")
@@ -78,6 +85,15 @@ class CLIPPredictor:
             self.model = None
             self.processor = None
             self.preprocess = None
+            
+        # Ensure label_texts is always available
+        if not hasattr(self, 'label_texts') or not self.label_texts:
+            self.label_texts = [
+                "breakout-continuation", "pullback-in-trend", "trend-reversal",
+                "range-accumulation", "consolidation", "fake-breakout", 
+                "volume-backed breakout", "exhaustion pattern", "no-trend noise"
+            ]
+            print(f"[CLIP MODEL] Initialized fallback label_texts with {len(self.label_texts)} labels")
 
     def predict_chart_setup(self, image_path: str) -> Optional[Dict]:
         """
