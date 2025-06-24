@@ -34,18 +34,9 @@ try:
 except ImportError:
     get_orderbook_snapshot = None
 
-# Import TJDE calculation functions with proper error handling
-try:
-    import sys
-    import os
-    sys.path.append(os.path.dirname(__file__))
-    
-    from trend_mode_legacy import compute_trend_strength
-    print("[TJDE IMPORT] compute_trend_strength imported successfully")
-    TJDE_FUNCTIONS_AVAILABLE = True
-except ImportError as e:
-    print(f"[TJDE ERROR] Failed to import from trend_mode_legacy.py: {e}")
-    TJDE_FUNCTIONS_AVAILABLE = False
+# Use enhanced TJDE calculation functions (defined in this file)
+TJDE_FUNCTIONS_AVAILABLE = True
+print("[TJDE IMPORT] Enhanced TJDE functions available in trader_ai_engine.py")
 
 # Enhanced fallback implementations that calculate meaningful values (module level)
 def compute_trend_strength(candles, symbol=None):

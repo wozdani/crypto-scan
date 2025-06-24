@@ -123,7 +123,11 @@ def scan_cycle():
         print("Async scan completed successfully")
         
         # Flush results
-        flush_async_results()
+        try:
+            from scan_token_async import flush_async_results
+            flush_async_results()
+        except Exception as flush_e:
+            print(f"Flush error: {flush_e}")
         
     except Exception as e:
         print(f"Async scan failed ({e}), falling back to simple scan...")
@@ -136,32 +140,29 @@ def scan_cycle():
     print(f"Scan cycle completed in {elapsed:.1f}s")
 
 def simple_scan_fallback(symbols):
-    """Fallback simple scan when async fails"""
-    print("Running simple scan fallback...")
+    """Fallback simple sequential scan when async fails"""
+    print("Running simple sequential scan fallback...")
     
     # Whale priority
     symbols, priority_symbols, priority_info = prioritize_whale_tokens(symbols)
     
-    # Async scan using scan_all_tokens_async
-    import asyncio
-    from scan_all_tokens_async import scan_symbols_async
+    # Simple sequential scan (not async)
+    processed = 0
+    results = []
     
     try:
-        results = asyncio.run(scan_symbols_async(symbols))
-        # Note: duration calculation moved to scan_symbols_async function
-        processed = len(results) if results else 0
-        print(f"Fallback scan processed {processed} tokens")
+        for symbol in symbols[:20]:  # Limit to 20 for fallback
+            result = scan_single_token(symbol)
+            if result:
+                results.append(result)
+                processed += 1
+                print(f"[{processed}/20] {symbol}: PPWCS {result.get('final_score', 0):.1f}")
         
-        # Flush any remaining async results to storage
-        try:
-            from scan_token_async import flush_async_results
-            asyncio.run(flush_async_results())
-        except:
-            pass
-        
+        print(f"Sequential fallback processed {processed} tokens")
         return results
+        
     except Exception as e:
-        print(f"Async scan error: {e}")
+        print(f"Sequential scan error: {e}")
         return []
 
 def wait_for_next_candle():

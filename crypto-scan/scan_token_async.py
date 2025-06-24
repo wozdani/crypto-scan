@@ -27,18 +27,8 @@ try:
     TJDE_AVAILABLE = True
     print("[IMPORT SUCCESS] simulate_trader_decision_advanced and CANDIDATE_PHASES imported successfully")
     
-    # Test TJDE function availability with correct signature
-    test_data = {
-        'symbol': 'TEST',
-        'candles': [],
-        'candles_5m': [],
-        'orderbook': None
-    }
-    test_result = simulate_trader_decision_advanced(test_data)
-    if isinstance(test_result, dict) and 'final_score' in test_result:
-        print("[TJDE TEST] simulate_trader_decision_advanced working correctly")
-    else:
-        print("[TJDE WARNING] simulate_trader_decision_advanced returned unexpected format")
+    # TJDE function available - skip sync test in async environment
+    print("[TJDE READY] simulate_trader_decision_advanced available for async scanning")
         
 except ImportError as e:
     print(f"[IMPORT ERROR] trader_ai_engine import failed: {e}")
