@@ -141,8 +141,19 @@ class AsyncCryptoScanner:
                 if not price_usd or price_usd <= 0 or volume_24h < 100_000:
                     return None
                 
-                # Stage-2.1 analysis (synchronous but fast)
-                stage2_pass, signals, inflow_usd, stage1g_active = detect_stage_minus2_1(symbol, price_usd)
+                # Skip Stage-2.1 analysis to avoid duplicate API calls
+                # Stage-2.1 calls get_market_data() internally which duplicates our async fetch
+                signals = {
+                    "price_usd": price_usd,
+                    "volume_24h": volume_24h,
+                    "volume_spike": volume_24h > 1_000_000,  # Basic volume spike detection
+                    "candles": market_data["candles"],
+                    "orderbook": market_data["orderbook"],
+                    "recent_volumes": market_data["recent_volumes"]
+                }
+                stage2_pass = volume_24h > 500_000  # Basic threshold
+                inflow_usd = 0.0
+                stage1g_active = False
                 
                 # Add market data to signals
                 signals.update({

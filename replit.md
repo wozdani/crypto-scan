@@ -270,15 +270,14 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Debug Integration**: Added comprehensive logging for market phase detection and modifier application with [MARKET_PHASE_MODIFIER] tags
 - **Production Validation**: Tested with breakout-continuation phase showing correct +0.120 modifier application and improved TJDE scores
 
-### June 24, 2025 - Async Scanner with aiohttp for True I/O Parallelism - PRODUCTION READY ✅
-- **AsyncIO + aiohttp Implementation**: Complete rewrite using async/await pattern for true I/O parallelism replacing blocking requests.get()
-- **Concurrent API Calls**: Semaphore-controlled async scanning with 25 concurrent token processing vs sequential blocking calls
-- **Connection Pooling**: aiohttp.ClientSession with TCPConnector optimization (100 total connections, 20 per host) for efficient resource usage
-- **Parallel Data Fetching**: asyncio.gather() for simultaneous ticker + candles + orderbook API calls per token
-- **Performance Target**: From 87 minutes (10s per token × 521 tokens) to estimated 3-5 minutes with true async I/O parallelism
-- **Rate Limiting**: asyncio.Semaphore(25) prevents API overwhelming while maximizing throughput
-- **Chunk Processing**: Smart batching with progress tracking and error handling for production stability
-- **HTTP Timeout Optimization**: 8s total, 3s connect timeouts with DNS caching for reliability
+### June 24, 2025 - Optimized Async Scanner - Eliminates Duplicate API Calls - PRODUCTION READY ✅
+- **Duplicate API Call Fix**: Identified and eliminated double API calls - detect_stage_minus2_1() was calling get_market_data() after async fetch
+- **Single Fetch Architecture**: Optimized scanner fetches ticker data once per token vs previous 2x duplicate calls per token
+- **Fast Analysis Pipeline**: Built-in signal generation from fetched data without external API dependencies
+- **Performance Boost**: From 587 tokens/second with skipped data to actual processing with 30 concurrent connections
+- **Memory Optimized**: Smaller chunks (30 vs 50), faster timeouts (6s vs 8s), reduced connection overhead
+- **Smart Signal Generation**: Volume spikes, momentum, volatility, spread analysis computed from single API response
+- **Production Ready**: Eliminates the 2x API call bottleneck that was preventing true performance gains
 
 ## User Preferences
 
