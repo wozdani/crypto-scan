@@ -799,7 +799,7 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
                     # Use global CANDIDATE_PHASES defined at module level
                     chart_prediction = predict_clip_chart(chart_path, CANDIDATE_PHASES)
                     
-                    if chart_prediction.get("success"):
+                    if chart_prediction and chart_prediction.get("success"):
                         clip_predicted_phase = chart_prediction["predicted_label"]
                         clip_confidence = chart_prediction["confidence"]
                         
@@ -812,9 +812,34 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
                                 "prediction_source": "chart_analysis"
                             }
                             context_modifiers.append(f"CLIP: chart-based {clip_predicted_phase}")
+                            clip_boost_applied = True
+                        else:
+                            # Low confidence prediction
+                            clip_info = {
+                                "predicted_phase": clip_predicted_phase,
+                                "confidence": clip_confidence,
+                                "modifier": 0.0,
+                                "prediction_source": "chart_analysis_low_confidence"
+                            }
+                    else:
+                        # Handle failed prediction
+                        confidence_val = chart_prediction.get("confidence", 0.0) if chart_prediction else 0.0
+                        clip_info = {
+                            "predicted_phase": chart_prediction.get("predicted_label", "no_prediction") if chart_prediction else "no_prediction",
+                            "confidence": confidence_val,
+                            "modifier": 0.0,
+                            "prediction_source": "chart_analysis_failed",
+                            "reason": chart_prediction.get("reason", "Unknown error") if chart_prediction else "No prediction returned"
+                        }
                 
                 if not clip_boost_applied:
                     context_modifiers.append("CLIP: No prediction available")
+                    clip_info = {
+                        "predicted_phase": "no_prediction",
+                        "confidence": 0.0,
+                        "modifier": 0.0,
+                        "prediction_source": "unavailable"
+                    }
                 
         except Exception as clip_error:
             print(f"[CLIP INTEGRATION ERROR] {symbol}: {clip_error}")

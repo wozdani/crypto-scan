@@ -108,22 +108,26 @@ def predict_clip_chart(chart_path: str, candidate_phases: list = None, confidenc
             print(f"[CLIP DEBUG] Low confidence prediction rejected: {result['confidence']:.3f} < {confidence_threshold}")
             logging.debug(f"[CLIP DEBUG] Low confidence prediction for {symbol}: {result['confidence']:.3f} < {confidence_threshold}")
             return {
-                "label": "no-clear-pattern",
+                "success": False,
+                "predicted_label": result["label"],
                 "confidence": result["confidence"],
+                "reason": f"Low confidence: {result['confidence']:.3f} < {confidence_threshold}",
+                "symbol": symbol,
                 "chart_path": chart_path,
-                "method": "clip_optimized",
-                "all_scores": result["all_scores"]
+                "method": "clip_optimized"
             }
             
         print(f"[CLIP DEBUG] Valid prediction accepted for {symbol}: {result['label']} ({result['confidence']:.3f})")
         logging.debug(f"[CLIP DEBUG] Accepted prediction for {symbol}: {result['label']} with confidence {result['confidence']:.3f}")
         
         return {
-            "label": result["label"],
-            "confidence": result["confidence"], 
+            "success": True,
+            "predicted_label": result["label"],
+            "confidence": result["confidence"],
+            "symbol": symbol,
             "chart_path": chart_path,
             "method": "clip_optimized",
-            "all_scores": result["all_scores"]
+            "all_predictions": result.get("all_scores", [])
         }
         
     except Exception as e:
