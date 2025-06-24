@@ -26,7 +26,12 @@ from utils.alert_system import process_alert
 from utils.reports import save_stage_signal, save_conditional_reports, compress_reports_to_zip
 from utils.take_profit_engine import forecast_take_profit_levels
 from utils.whale_priority import prioritize_whale_tokens, save_priority_report, get_whale_boost_for_symbol
-from utils.performance_monitor import perf_monitor, time_operation, log_scan_performance
+# Performance monitoring (optional)
+try:
+    from utils.performance_monitor import perf_monitor, log_scan_performance
+    PERF_MONITORING = True
+except ImportError:
+    PERF_MONITORING = False
 
 # Pre-import optional modules with fallbacks
 try:
@@ -190,22 +195,8 @@ def scan_cycle():
     symbols = get_bybit_symbols_cached()
     symbols_bybit = symbols  # Używaj symboli z Bybit cache manager
     
-    # 🔍 SYMBOL VALIDATION - Filter out inactive/delisted symbols
-    try:
-        from utils.symbol_validator import validate_symbols_before_scan, get_validator_stats
-        
-        print(f"🔍 [VALIDATOR] Validating {len(symbols)} symbols for health...")
-        healthy_symbols = validate_symbols_before_scan(symbols)
-        
-        # Log validation results
-        validator_stats = get_validator_stats()
-        print(f"✅ [VALIDATOR] {len(healthy_symbols)}/{len(symbols)} symbols healthy ({validator_stats.get('healthy_rate', 0):.1f}%)")
-        
-        symbols = healthy_symbols
-        symbols_bybit = healthy_symbols
-        
-    except Exception as validator_error:
-        print(f"⚠️ [VALIDATOR] Symbol validation failed, using all symbols: {validator_error}")
+    # Skip validation for faster scanning - use all symbols
+    print(f"🚀 [FAST MODE] Using all {len(symbols)} symbols without validation")
     
     # 🐋 WHALE PRIORITY SYSTEM - Priorytetowanie na podstawie wcześniejszej aktywności whale
     symbols, priority_symbols, priority_info = prioritize_whale_tokens(symbols)
@@ -265,45 +256,27 @@ def scan_cycle():
             # Parallel analysis execution using ThreadPoolExecutor for sub-tasks
             analysis_start = time.time()
             
-            # Fast parallel analysis with timeouts
-            with ThreadPoolExecutor(max_workers=3) as analysis_executor:
-                # Submit analysis tasks with shorter timeouts
-                stage2_future = analysis_executor.submit(detect_stage_minus2_1, symbol, price_usd)
-                
-                trend_future = None
-                if TREND_MODE_AVAILABLE:
-                    try:
-                        candles_15m, is_ready = safe_trend_analysis_check(symbol, data)
-                        if is_ready and candles_15m:
-                            trend_future = analysis_executor.submit(analyze_trend_opportunity, symbol, candles_15m)
-                    except:
-                        pass
-                
-                stage1_future = None
-                candles_data = data.get('candles')
-                if candles_data and isinstance(candles_data, list) and len(candles_data) >= 6:
-                    stage1_future = analysis_executor.submit(detect_stage_minus1, candles_data)
-                
-                # Collect results with strict timeouts to prevent slowdowns
+            # Direct analysis - fastest approach
+            stage2_pass, signals, inflow_usd, stage1g_active = detect_stage_minus2_1(symbol, price_usd)
+            
+            # TJDE trend analysis (only if available and fast)
+            trend_analysis = None
+            if TREND_MODE_AVAILABLE:
                 try:
-                    stage2_pass, signals, inflow_usd, stage1g_active = stage2_future.result(timeout=3)
+                    candles_15m, is_ready = safe_trend_analysis_check(symbol, data)
+                    if is_ready and candles_15m:
+                        trend_analysis = analyze_trend_opportunity(symbol, candles_15m)
                 except:
-                    print(f"⚠️ [TIMEOUT] Stage-2.1 analysis timeout for {symbol}")
-                    stage2_pass, signals, inflow_usd, stage1g_active = False, {}, 0, False
-                
-                trend_analysis = None
-                if trend_future:
-                    try:
-                        trend_analysis = trend_future.result(timeout=2)
-                    except:
-                        print(f"⚠️ [TIMEOUT] TJDE analysis timeout for {symbol}")
-                
-                stage_minus1_detected, stage_minus1_description = False, "Brak detekcji"
-                if stage1_future:
-                    try:
-                        stage_minus1_detected, stage_minus1_description = stage1_future.result(timeout=1)
-                    except:
-                        print(f"⚠️ [TIMEOUT] Stage-1 analysis timeout for {symbol}")
+                    pass
+            
+            # Stage -1 analysis
+            stage_minus1_detected, stage_minus1_description = False, "Brak detekcji"
+            candles_data = data.get('candles')
+            if candles_data and isinstance(candles_data, list) and len(candles_data) >= 6:
+                try:
+                    stage_minus1_detected, stage_minus1_description = detect_stage_minus1(candles_data)
+                except:
+                    pass
             
             analysis_time = time.time() - analysis_start
             
@@ -403,17 +376,18 @@ def scan_cycle():
                 print(f"⏱️ [SLOW] {symbol}: {token_time:.1f}s (API: {api_time:.1f}s, Analysis: {analysis_time:.1f}s, Scoring: {scoring_time:.1f}s)")
                 
                 # Log to performance monitor for analysis
-                perf_monitor.log_slow_operation(
-                    symbol, 
-                    "token_scan", 
-                    token_time,
-                    {
-                        "api_time": api_time,
-                        "analysis_time": analysis_time, 
-                        "scoring_time": scoring_time,
-                        "final_score": final_score
-                    }
-                )
+                if PERF_MONITORING:
+                    perf_monitor.log_slow_operation(
+                        symbol, 
+                        "token_scan", 
+                        token_time,
+                        {
+                            "api_time": api_time,
+                            "analysis_time": analysis_time, 
+                            "scoring_time": scoring_time,
+                            "final_score": final_score
+                        }
+                    )
 
             return {
                 'symbol': symbol,
@@ -460,7 +434,8 @@ def scan_cycle():
     print(f"🏁 [PARALLEL SCAN] Completed in {scan_duration:.1f}s, processed {len(scan_results)} tokens")
     
     # Log scan performance
-    log_scan_performance(len(symbols), scan_duration, len(scan_results))
+    if PERF_MONITORING:
+        log_scan_performance(len(symbols), scan_duration, len(scan_results))
 
     # Save stage signal data and handle special alerts
     for result in scan_results:
