@@ -192,26 +192,39 @@ class EnhancedCLIPPredictor:
     def __init__(self):
         self.model = None
         self.processor = None
+        self.fallback_predictor = None
         self._initialize_model()
     
     def _initialize_model(self):
-        """Initialize CLIP model with enhanced error handling"""
+        """Initialize CLIP model with enhanced error handling and fallback"""
         try:
+            # Try existing CLIP predictor first
+            from ai.clip_predictor import CLIPPredictor
+            self.fallback_predictor = CLIPPredictor()
+            
+            if self.fallback_predictor.model:
+                print("[VISION-AI] ✅ Using existing CLIP predictor for Vision-AI")
+                return
+            
+        except Exception as e:
+            print(f"[VISION-AI] Existing CLIP predictor unavailable: {e}")
+        
+        try:
+            # Try transformers approach
             from transformers import CLIPProcessor, CLIPModel
             
             print("[VISION-AI] Loading openai/clip-vit-base-patch32...")
             self.model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
             self.processor = CLIPProcessor.from_pretrained(
                 "openai/clip-vit-base-patch32", 
-                use_fast=True  # Enhanced tokenizer performance
+                use_fast=True
             )
             
             print("[VISION-AI] ✅ CLIP model loaded successfully")
             
         except Exception as e:
-            print(f"[VISION-AI ERROR] Failed to load CLIP model: {e}")
-            self.model = None
-            self.processor = None
+            print(f"[VISION-AI] Transformers CLIP unavailable: {e}")
+            print("[VISION-AI] Operating in chart analysis mode without CLIP predictions")
     
     def predict_clip_confidence(self, image_path: str, 
                               labels: List[str] = None) -> Tuple[str, float]:
@@ -225,9 +238,6 @@ class EnhancedCLIPPredictor:
         Returns:
             Tuple of (predicted_label, confidence_score)
         """
-        if not self.model or not self.processor:
-            return "unknown", 0.0
-        
         if labels is None:
             labels = [
                 "trend-following", 
@@ -239,35 +249,53 @@ class EnhancedCLIPPredictor:
                 "reversal-pattern"
             ]
         
-        try:
-            # Load and process image
-            image = Image.open(image_path).convert('RGB')
-            
-            # Process inputs with enhanced settings
-            inputs = self.processor(
-                text=labels, 
-                images=image, 
-                return_tensors="pt", 
-                padding=True
-            )
-            
-            # Get model outputs
-            outputs = self.model(**inputs)
-            logits_per_image = outputs.logits_per_image[0]
-            probs = logits_per_image.softmax(dim=0)
-            
-            # Get top prediction
-            top_label_idx = probs.argmax().item()
-            confidence = probs[top_label_idx].item()
-            predicted_label = labels[top_label_idx]
-            
-            print(f"[VISION-AI CLIP] {image_path}: {predicted_label} (confidence: {confidence:.3f})")
-            
-            return predicted_label, confidence
-            
-        except Exception as e:
-            print(f"[VISION-AI CLIP ERROR] {e}")
-            return "unknown", 0.0
+        # Try existing CLIP predictor first
+        if self.fallback_predictor and self.fallback_predictor.model:
+            try:
+                result = self.fallback_predictor.predict_chart_setup(image_path)
+                if result and result.get('confidence', 0) > 0:
+                    predicted_label = result['label']
+                    confidence = result['confidence']
+                    
+                    print(f"[VISION-AI CLIP] {image_path}: {predicted_label} (confidence: {confidence:.3f})")
+                    return predicted_label, confidence
+                    
+            except Exception as e:
+                print(f"[VISION-AI CLIP FALLBACK ERROR] {e}")
+        
+        # Try transformers approach
+        if self.model and self.processor:
+            try:
+                # Load and process image
+                image = Image.open(image_path).convert('RGB')
+                
+                # Process inputs with enhanced settings
+                inputs = self.processor(
+                    text=labels, 
+                    images=image, 
+                    return_tensors="pt", 
+                    padding=True
+                )
+                
+                # Get model outputs
+                outputs = self.model(**inputs)
+                logits_per_image = outputs.logits_per_image[0]
+                probs = logits_per_image.softmax(dim=0)
+                
+                # Get top prediction
+                top_label_idx = probs.argmax().item()
+                confidence = probs[top_label_idx].item()
+                predicted_label = labels[top_label_idx]
+                
+                print(f"[VISION-AI CLIP] {image_path}: {predicted_label} (confidence: {confidence:.3f})")
+                
+                return predicted_label, confidence
+                
+            except Exception as e:
+                print(f"[VISION-AI CLIP ERROR] {e}")
+        
+        # Fallback to pattern-based analysis
+        return self._pattern_based_analysis(image_path)
 
 
 def integrate_clip_with_tjde(tjde_score: float, tjde_phase: str, 

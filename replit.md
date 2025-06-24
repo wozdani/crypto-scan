@@ -98,8 +98,8 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 24, 2025 - Chart Generation Optimization + mplfinance Warning Fix - PRODUCTION READY ✅
-Optimized chart generation by implementing TOP 5 TJDE-only chart creation through generate_top_tjde_charts() function, eliminating hundreds of unnecessary charts for low-scoring tokens. Fixed mplfinance "TOO MUCH DATA" warnings by limiting chart data to 200 candles max with df.tail(200) and warn_too_much_data=500 parameter. Enhanced context window handling with 150-candle limits while preserving alert positioning. Disabled individual token chart generation in scan_token_async.py, replaced with efficient batch processing for top performers. System now generates focused training charts only for meaningful TJDE setups while maintaining async batch processing performance.
+### June 24, 2025 - Complete Vision-AI CLIP Pipeline Implementation - PRODUCTION READY ✅
+Implemented comprehensive Vision-AI CLIP Pipeline for Trend-Mode system with auto-labeled training data generation. Created vision_ai_pipeline.py with EnhancedCLIPPredictor using fallback architecture (existing CLIP → transformers → pattern analysis). Added save_training_chart() with professional DPI=150 styling and save_label_jsonl() for comprehensive training labels. Enhanced TJDE system with Vision-AI integration providing clip_phase, clip_confidence, and vision_ai_enhancement in results. Implemented TOP 5 token selection with complete chart+label generation pipeline. Added tjde_vision_integration.py for seamless TJDE-CLIP scoring enhancement. System generates focused training data for meaningful setups with fallback support ensuring reliability without transformers dependency.
 
 ### June 21, 2025 - Alert System Integration Fix - PRODUCTION READY
 - **Critical Alert Function Fixed**: Naprawiono process_alert() w alert_system.py - KERNELUSDT score 57 teraz wysyła alerty
