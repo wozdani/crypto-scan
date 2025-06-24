@@ -125,15 +125,23 @@ def plot_custom_candlestick_chart(df_ohlc: pd.DataFrame, df_volume: pd.DataFrame
         # 4. GRADIENT SCORING BAR - Right edge
         if tjde_score is not None:
             # Create gradient effect
-            x_max = df_ohlc['timestamp'].max()
+            x_positions = df_ohlc['timestamp'].values
+            x_max = x_positions[-1]
             y_min, y_max = ax1.get_ylim()
+            
+            # Calculate offset for gradient bar
+            x_range = x_positions[-1] - x_positions[0]
+            x_offset = x_range * 0.01
             
             # Gradient from red to green based on score
             gradient_color = (1-tjde_score, tjde_score, 0.1)  # RGB with slight blue
             
             # Vertical gradient bar
             gradient_height = (y_max - y_min) * tjde_score
-            ax1.fill_between([x_max * 1.001, x_max * 1.003], 
+            bar_x1 = x_max + x_offset
+            bar_x2 = x_max + (x_offset * 1.5)
+            
+            ax1.fill_between([bar_x1, bar_x2], 
                            y_min, y_min + gradient_height,
                            color=gradient_color, alpha=0.8, 
                            label=f'Score: {tjde_score:.1%}')
@@ -145,11 +153,12 @@ def plot_custom_candlestick_chart(df_ohlc: pd.DataFrame, df_volume: pd.DataFrame
             entry_idx = len(df_ohlc) - recent_candles + np.argmax(df_volume['volume'][-recent_candles:])
             
             entry_x = df_ohlc.iloc[entry_idx]['timestamp']
-            entry_y = df_ohlc.iloc[entry_idx]['high'] * 1.02
+            entry_y = df_ohlc.iloc[entry_idx]['high']
+            entry_y_offset = entry_y + (entry_y * 0.02)  # 2% above high
             
             arrow_color = '#00FF00' if decision == 'join_trend' else '#FFFF00'
             ax1.annotate('🎯 ENTRY', xy=(entry_x, entry_y), 
-                        xytext=(entry_x, entry_y * 1.05),
+                        xytext=(entry_x, entry_y_offset),
                         arrowprops=dict(facecolor=arrow_color, shrink=0.05, width=2),
                         fontsize=10, fontweight='bold', color=arrow_color,
                         ha='center')

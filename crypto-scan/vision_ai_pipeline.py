@@ -198,7 +198,7 @@ def generate_vision_ai_training_data(tjde_results: List[Dict]) -> int:
             df = pd.DataFrame(df_data)
             df.index = pd.date_range(start='2025-01-01', periods=len(df), freq='15T')
             
-                # Generate custom training chart with metadata
+            # Generate custom training chart with metadata
             chart_path = save_training_chart(
                 df=df, 
                 symbol=symbol, 
