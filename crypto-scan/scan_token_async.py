@@ -170,25 +170,58 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             "ticker": ticker
         }
         
-        # PPWCS Scoring (if available)
+        # PPWCS Scoring with detailed debugging
         try:
+            print(f"[DEBUG] {symbol} → Running PPWCS scoring")
+            print(f"[DEBUG] {symbol} → market_data keys: {list(market_data.keys()) if isinstance(market_data, dict) else 'NOT DICT'}")
+            print(f"[DEBUG] {symbol} → market_data type: {type(market_data)}")
+            
             signals = compute_ppwcs_score(market_data)
-            ppwcs_score = signals.get("final_score", 0)
-        except:
+            ppwcs_score = signals.get("final_score", 0) if signals else 0
+            
+            print(f"[PPWCS SUCCESS] {symbol}: score={ppwcs_score}, signals_count={len(signals.get('signals', {}) if signals else {})}")
+            
+        except Exception as e:
+            print(f"[PPWCS FALLBACK] {symbol}: {type(e).__name__}: {e}")
+            print(f"[PPWCS FALLBACK] {symbol} → market_data structure:")
+            if isinstance(market_data, dict):
+                for key, value in market_data.items():
+                    print(f"  {key}: {type(value)} = {str(value)[:100]}")
             ppwcs_score = calculate_basic_score(market_data)
             signals = {"final_score": ppwcs_score, "signals": {}}
         
-        # TJDE Analysis (if available)
+        # TJDE Analysis with detailed debugging
         try:
+            print(f"[DEBUG] {symbol} → Running TJDE analysis")
+            print(f"[DEBUG] {symbol} → candles_15m: {len(candles_15m) if candles_15m and isinstance(candles_15m, list) else 'INVALID'}")
+            print(f"[DEBUG] {symbol} → candles_5m: {len(candles_5m) if candles_5m and isinstance(candles_5m, list) else 'INVALID'}")
+            print(f"[DEBUG] {symbol} → orderbook: {type(orderbook)} = {str(orderbook)[:100] if orderbook else 'None'}")
+            print(f"[DEBUG] {symbol} → price: {price} ({type(price)})")
+            print(f"[DEBUG] {symbol} → volume_24h: {volume_24h} ({type(volume_24h)})")
+            
             tjde_result = simulate_trader_decision_advanced(
                 symbol=symbol,
                 market_data=market_data,
                 enable_debug=False
             )
-            tjde_score = tjde_result.get("score", 0)
-            tjde_decision = tjde_result.get("decision", "avoid")
-        except:
-            tjde_score = ppwcs_score / 100  # Convert to 0-1 range
+            
+            tjde_score = tjde_result.get("score", 0) if tjde_result else 0
+            tjde_decision = tjde_result.get("decision", "avoid") if tjde_result else "avoid"
+            
+            print(f"[TJDE SUCCESS] {symbol}: score={tjde_score}, decision={tjde_decision}")
+            if tjde_result and isinstance(tjde_result, dict):
+                print(f"[TJDE SUCCESS] {symbol} → result keys: {list(tjde_result.keys())}")
+            
+        except Exception as e:
+            print(f"[TJDE FALLBACK] {symbol}: {type(e).__name__}: {e}")
+            print(f"[TJDE FALLBACK] {symbol} → Input validation:")
+            print(f"  candles_15m: {type(candles_15m)} len={len(candles_15m) if candles_15m and hasattr(candles_15m, '__len__') else 'N/A'}")
+            print(f"  candles_5m: {type(candles_5m)} len={len(candles_5m) if candles_5m and hasattr(candles_5m, '__len__') else 'N/A'}")
+            print(f"  orderbook: {type(orderbook)}")
+            print(f"  price: {price} ({type(price)})")
+            print(f"  volume_24h: {volume_24h} ({type(volume_24h)})")
+            
+            tjde_score = ppwcs_score / 100 if ppwcs_score else 0.4  # Convert to 0-1 range
             tjde_decision = "monitor" if tjde_score > 0.5 else "avoid"
         
         # Alert processing
