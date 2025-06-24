@@ -46,12 +46,12 @@ try:
 except ImportError as e:
     print(f"[TJDE ERROR] Failed to import from trend_mode_legacy.py: {e}")
     TJDE_FUNCTIONS_AVAILABLE = False
-    
-    # Enhanced fallback implementations that calculate meaningful values
-    def compute_trend_strength(candles, symbol=None):
-        """Enhanced trend strength calculation"""
-        if not candles or len(candles) < 20:
-            return 0.15  # Minimum baseline value
+
+# Enhanced fallback implementations that calculate meaningful values (module level)
+def compute_trend_strength(candles, symbol=None):
+    """Enhanced trend strength calculation"""
+    if not candles or len(candles) < 20:
+        return 0.15  # Minimum baseline value
         
         try:
             closes = [float(c[4]) for c in candles[-20:]]
@@ -86,7 +86,6 @@ except ImportError as e:
                 print(f"[TJDE ERROR] {symbol}: trend_strength calculation failed: {e}")
             return 0.15
 
-# Enhanced TJDE component calculations
 def compute_pullback_quality(candles, symbol=None):
     """Enhanced pullback quality calculation"""
     if not candles or len(candles) < 10:
