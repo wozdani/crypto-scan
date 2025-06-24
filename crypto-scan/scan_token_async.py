@@ -398,6 +398,8 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     "price_action_pattern": "continuation",
                     "volume_behavior": "neutral",
                     "htf_trend_match": True,
+                    "candles_15m": candles_15m,  # Critical: Pass candles for TJDE calculations
+                    "candles_5m": candles_5m,   # Critical: Pass 5m candles
                     **trend_features
                 }
                 
