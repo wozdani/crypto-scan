@@ -90,7 +90,7 @@ async def get_ticker_async(symbol: str, session: aiohttp.ClientSession) -> Optio
         return None
 
 async def get_orderbook_async(symbol: str, session: aiohttp.ClientSession, depth: int = 25) -> Optional[Dict]:
-    """Async orderbook fetch"""
+    """Async orderbook fetch with production diagnostics"""
     try:
         url = "https://api.bybit.com/v5/market/orderbook"
         params = {
@@ -101,18 +101,23 @@ async def get_orderbook_async(symbol: str, session: aiohttp.ClientSession, depth
         
         async with session.get(url, params=params, timeout=5) as response:
             if response.status != 200:
+                print(f"[ORDERBOOK PROD] {symbol} → HTTP {response.status}")
                 return None
             
             data = await response.json()
             result = data.get("result", {})
             
-            return {
+            orderbook_data = {
                 "symbol": symbol,
                 "bids": [[float(bid[0]), float(bid[1])] for bid in result.get("b", [])],
                 "asks": [[float(ask[0]), float(ask[1])] for ask in result.get("a", [])]
             }
             
-    except Exception:
+            print(f"[ORDERBOOK PROD] {symbol} → {len(orderbook_data['bids'])} bids, {len(orderbook_data['asks'])} asks")
+            return orderbook_data
+            
+    except Exception as e:
+        print(f"[ORDERBOOK PROD ERROR] {symbol} → {e}")
         return None
 
 async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority_info: Dict = None) -> Optional[Dict]:
@@ -224,16 +229,26 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             tjde_score = ppwcs_score / 100 if ppwcs_score else 0.4  # Convert to 0-1 range
             tjde_decision = "monitor" if tjde_score > 0.5 else "avoid"
         
-        # Alert processing
+        # Alert processing with diagnostics
         alert_sent = False
+        print(f"[ALERT CHECK] {symbol} → PPWCS: {ppwcs_score}, TJDE: {tjde_score}")
+        
         if ppwcs_score >= 40 or tjde_score >= 0.7:
+            print(f"[ALERT TRIGGER] {symbol} → Sending alert (PPWCS≥40 or TJDE≥0.7)")
             try:
                 alert_sent = await send_async_alert(symbol, ppwcs_score, tjde_score, tjde_decision, market_data)
-            except:
-                pass
+                print(f"[ALERT RESULT] {symbol} → Alert sent: {alert_sent}")
+            except Exception as e:
+                print(f"[ALERT ERROR] {symbol} → {e}")
+        else:
+            print(f"[ALERT SKIP] {symbol} → Below thresholds (PPWCS: {ppwcs_score:.1f}, TJDE: {tjde_score:.3f})")
         
-        # Save results
-        save_async_result(symbol, ppwcs_score, tjde_score, tjde_decision, market_data)
+        # Save results with diagnostics
+        try:
+            save_async_result(symbol, ppwcs_score, tjde_score, tjde_decision, market_data)
+            print(f"[SAVE RESULT] {symbol} → Results saved successfully")
+        except Exception as e:
+            print(f"[SAVE ERROR] {symbol} → {e}")
         
         result = {
             "symbol": symbol,
