@@ -80,18 +80,19 @@ def scan_cycle():
     # Whale priority
     symbols, priority_symbols, priority_info = prioritize_whale_tokens(symbols)
     
-    # Sequential scan
-    results = []
-    for i, symbol in enumerate(symbols, 1):
-        result = scan_single_token(symbol)
-        if result:
-            results.append(result)
-            print(f"[{i}/{len(symbols)}] {symbol}: Score {result['final_score']:.1f}")
-        else:
-            print(f"[{i}/{len(symbols)}] {symbol}: Skipped")
+    # Async scan using scan_all_tokens_async
+    import asyncio
+    from scan_all_tokens_async import scan_symbols_async
     
-    duration = time.time() - start_time
-    print(f"Scan completed in {duration:.1f}s, processed {len(results)} tokens")
+    try:
+        results = asyncio.run(scan_symbols_async(symbols))
+        duration = time.time() - start_time
+        processed = len(results) if results else 0
+        print(f"Async scan completed in {duration:.1f}s, processed {processed} tokens")
+        return results
+    except Exception as e:
+        print(f"Async scan error: {e}")
+        return []
 
 def wait_for_next_candle():
     """Wait for next 15-minute candle"""
