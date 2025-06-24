@@ -35,7 +35,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd crypto-scan && python async_scanner_optimized.py"
+args = "cd crypto-scan && python single_call_scanner.py"
 
 [deployment]
 run = ["sh", "-c", "uv run python app.py"]
