@@ -889,6 +889,7 @@ def detect_liquidity_behavior(symbol, data, price_usd=None):
         traceback.print_exc()
         return False, 0, {}
 
+@time_operation("stage_minus2_1")
 def detect_stage_minus2_1(symbol, price_usd=None):
 
     
