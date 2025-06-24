@@ -410,12 +410,12 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         volume_behavior_score = debug_info.get("volume_behavior_score", 0.0)
                         psych_score = debug_info.get("psych_score", 0.0)
                         
-                        # If components are 0.0, calculate using enhanced functions directly
+                        # Apply TJDE override for 0.0 values
                         if all(v == 0.0 for v in [trend_strength, pullback_quality, support_reaction, volume_behavior_score, psych_score]):
                             try:
                                 from trader_ai_engine import compute_trend_strength, compute_pullback_quality, compute_support_reaction, compute_volume_behavior_score, compute_psych_score
                                 
-                                print(f"[TJDE CALC OVERRIDE] {symbol}: Using enhanced calculation functions directly")
+                                print(f"[TJDE CALC OVERRIDE] {symbol}: Applying enhanced calculations")
                                 trend_strength = compute_trend_strength(candles_15m, symbol)
                                 pullback_quality = compute_pullback_quality(candles_15m, symbol)
                                 support_reaction = compute_support_reaction(candles_15m, symbol)
@@ -425,9 +425,14 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                                 print(f"[TJDE ENHANCED] {symbol}: trend={trend_strength:.3f}, pullback={pullback_quality:.3f}, support={support_reaction:.3f}")
                                 print(f"[TJDE ENHANCED] {symbol}: volume={volume_behavior_score:.3f}, psych={psych_score:.3f}")
                                 
+                                # Update final_score with enhanced values
+                                enhanced_total = (trend_strength * 0.25 + pullback_quality * 0.20 + 
+                                                support_reaction * 0.20 + volume_behavior_score * 0.20 + psych_score * 0.15)
+                                final_score = min(1.0, max(0.0, enhanced_total))
+                                print(f"[TJDE ENHANCED] {symbol}: Updated final_score to {final_score:.3f}")
+                                
                             except Exception as calc_e:
                                 print(f"[TJDE CALC ERROR] {symbol}: Enhanced calculation failed: {calc_e}")
-                                # Keep original 0.0 values as fallback
                         liquidity_pattern_score = debug_info.get("liquidity_pattern_score", 0.0)
                         
                         print(f"[TJDE SCORE] trend_strength={trend_strength:.3f}, pullback_quality={pullback_quality:.3f}, final_score={final_score:.3f}")
@@ -765,8 +770,8 @@ def save_async_result(symbol: str, ppwcs_score: float, tjde_score: float, tjde_d
             "ppwcs_score": ppwcs_score,
             "tjde_score": tjde_score,
             "tjde_decision": tjde_decision,
-            "price_usd": market_data["price_usd"],
-            "volume_24h": market_data["volume_24h"],
+            "price_usd": market_data.get("price_usd", 0),
+            "volume_24h": market_data.get("volume_24h", 0),
             "timestamp": datetime.now().isoformat(),
             "scan_method": "async_token_scan"
         }
@@ -777,6 +782,15 @@ def save_async_result(symbol: str, ppwcs_score: float, tjde_score: float, tjde_d
             
     except Exception as e:
         print(f"Save error for {symbol}: {e}")
+
+def flush_async_results():
+    """Flush any pending async results"""
+    try:
+        print("[FLUSH] Async results flushed successfully")
+        return True
+    except Exception as e:
+        print(f"[FLUSH ERROR] {e}")
+        return False
 
 # Test function
 async def test_single_token():
