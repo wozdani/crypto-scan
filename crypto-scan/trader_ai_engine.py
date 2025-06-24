@@ -660,17 +660,7 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
         
         symbol = features.get("symbol", "UNKNOWN")
         print(f"[TJDE DEBUG] Final decision for {symbol}: {decision}, Score: {score:.3f}")
-        # Store CLIP info in features for debug output
-        features["clip_confidence"] = clip_info.get("confidence", "N/A")
-        features["clip_phase"] = clip_info.get("predicted_phase", "N/A")
-        
-        print(f"[TJDE DEBUG] Phase: {features.get('market_phase')} | CLIP Confidence: {features.get('clip_confidence', 'N/A')}")
-        
-        # Enhanced CLIP debug logging
-        if clip_info.get("confidence", 0) > 0:
-            print(f"[CLIP SUCCESS] Prediction: {clip_info.get('predicted_phase')} (confidence: {clip_info.get('confidence'):.3f})")
-        else:
-            print(f"[CLIP STATUS] No valid prediction available")
+        print(f"[TJDE DEBUG] Phase: {features.get('market_phase')} | CLIP Confidence: N/A")
         logging.debug(f"[TJDE DEBUG] Complete decision for {symbol}: decision={decision}, score={score:.3f}, grade={grade}, phase={features.get('market_phase')}")
         
         if context_modifiers:
@@ -680,8 +670,19 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
         # === ETAP 6: ADVANCED CLIP INTEGRATION WITH CONTEXTUAL BOOSTS ===
         clip_modifier = 0.0
         clip_predicted_phase = ""
-        clip_info = {}
+        clip_info = {
+            "predicted_phase": "N/A",
+            "confidence": 0.0,
+            "modifier": 0.0,
+            "prediction_source": "unavailable"
+        }
         clip_boost_applied = False
+        cluster_enhanced = False
+        cluster_modifier = 0.0
+        cluster_info = {}
+        ai_pattern_matched = False
+        ai_pattern_info = {}
+        original_decision = decision
         
         try:
             from utils.clip_prediction_loader import load_clip_prediction
@@ -964,6 +965,16 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
             print(f"[AI PATTERN ERROR] {features.get('symbol', 'UNKNOWN')}: {ai_error}")
         
         # === ETAP 9: FINAL RESULT ASSEMBLY WITH ALL ENHANCEMENTS ===
+        
+        # Store CLIP info in features for debug output after CLIP processing
+        features["clip_confidence"] = clip_info.get("confidence", "N/A")
+        features["clip_phase"] = clip_info.get("predicted_phase", "N/A")
+        
+        # Enhanced CLIP debug logging
+        if clip_info.get("confidence", 0) > 0:
+            print(f"[CLIP SUCCESS] Prediction: {clip_info.get('predicted_phase')} (confidence: {clip_info.get('confidence'):.3f})")
+        else:
+            print(f"[CLIP STATUS] No valid prediction available")
         
         # Prepare enhanced debug info for alerts and logging
         debug_info = {
