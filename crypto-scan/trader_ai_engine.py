@@ -12,6 +12,22 @@ import numpy as np
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 
+# CLIP Integration - Market Phase Labels
+CANDIDATE_PHASES = [
+    "breakout-continuation",
+    "pullback-in-trend", 
+    "range-accumulation",
+    "trend-reversal",
+    "consolidation",
+    "fake-breakout",
+    "trending-up",
+    "trending-down",
+    "bullish-momentum",
+    "bearish-momentum", 
+    "exhaustion-pattern",
+    "volume-backed-breakout"
+]
+
 # Import existing utilities
 try:
     from utils.bybit_orderbook import get_orderbook_snapshot

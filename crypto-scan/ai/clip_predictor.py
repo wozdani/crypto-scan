@@ -62,12 +62,13 @@ def get_clip_predictor():
         _global_predictor = CLIPPredictor()
     return _global_predictor
 
-def predict_clip_chart(chart_path: str, confidence_threshold: float = 0.3) -> Optional[Dict[str, Any]]:
+def predict_clip_chart(chart_path: str, candidate_phases: list = None, confidence_threshold: float = 0.3) -> Optional[Dict[str, Any]]:
     """
     Predict market phase from chart image using CLIP model
     
     Args:
         chart_path: Path to chart image
+        candidate_phases: List of phase labels to predict (optional, uses default if None)
         confidence_threshold: Minimum confidence for valid prediction
         
     Returns:
@@ -84,8 +85,20 @@ def predict_clip_chart(chart_path: str, confidence_threshold: float = 0.3) -> Op
         print(f"[CLIP DEBUG] Predicting phase/setup for {symbol}...")
         logging.debug(f"[CLIP DEBUG] Starting prediction for {symbol} using chart: {chart_path}")
         
+        # Use provided candidate phases or default from CLIPPredictor
         predictor = get_clip_predictor()
+        if candidate_phases:
+            # Override predictor's labels temporarily
+            original_labels = predictor.label_texts
+            predictor.label_texts = candidate_phases
+            predictor.tokenized_labels = clip.tokenize(candidate_phases).to(predictor.device)
+        
         result = predictor.predict(chart_path)
+        
+        # Restore original labels if they were overridden
+        if candidate_phases:
+            predictor.label_texts = original_labels
+            predictor.tokenized_labels = clip.tokenize(original_labels).to(predictor.device)
         
         print(f"[CLIP DEBUG] CLIP prediction: {result['label']}, confidence: {result['confidence']:.4f}")
         logging.debug(f"[CLIP DEBUG] Full prediction result for {symbol}: {result}")
