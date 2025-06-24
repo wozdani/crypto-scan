@@ -660,7 +660,17 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
         
         symbol = features.get("symbol", "UNKNOWN")
         print(f"[TJDE DEBUG] Final decision for {symbol}: {decision}, Score: {score:.3f}")
+        # Store CLIP info in features for debug output
+        features["clip_confidence"] = clip_info.get("confidence", "N/A")
+        features["clip_phase"] = clip_info.get("predicted_phase", "N/A")
+        
         print(f"[TJDE DEBUG] Phase: {features.get('market_phase')} | CLIP Confidence: {features.get('clip_confidence', 'N/A')}")
+        
+        # Enhanced CLIP debug logging
+        if clip_info.get("confidence", 0) > 0:
+            print(f"[CLIP SUCCESS] Prediction: {clip_info.get('predicted_phase')} (confidence: {clip_info.get('confidence'):.3f})")
+        else:
+            print(f"[CLIP STATUS] No valid prediction available")
         logging.debug(f"[TJDE DEBUG] Complete decision for {symbol}: decision={decision}, score={score:.3f}, grade={grade}, phase={features.get('market_phase')}")
         
         if context_modifiers:

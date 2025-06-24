@@ -3,39 +3,182 @@
 import os
 import torch
 from PIL import Image
-import clip
 import logging
 from typing import Dict, Any, Optional
+
+# Use transformers CLIP implementation for better compatibility
+try:
+    from transformers import CLIPModel, CLIPProcessor
+    TRANSFORMERS_AVAILABLE = True
+    print("[CLIP INIT] Using transformers CLIP implementation")
+except ImportError:
+    try:
+        import clip
+        TRANSFORMERS_AVAILABLE = False
+        print("[CLIP INIT] Using OpenAI CLIP implementation")
+    except ImportError:
+        print("[CLIP ERROR] No CLIP implementation available")
+        TRANSFORMERS_AVAILABLE = None
 
 logger = logging.getLogger(__name__)
 
 class CLIPPredictor:
+    """CLIP-based chart pattern predictor with enhanced debugging"""
+    
     def __init__(self, device=None):
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-        self.model, self.preprocess = clip.load("ViT-B/32", device=self.device)
+        self.model = None
+        self.processor = None
+        self.preprocess = None
+        
+        print(f"[CLIP INIT] Using device: {self.device}")
+        
+        if TRANSFORMERS_AVAILABLE is None:
+            print("[CLIP INIT] ❌ No CLIP implementation available")
+            return
+            
+        try:
+            self._load_model()
+            if self.model is not None:
+                print("[CLIP INIT] ✅ Model loaded successfully")
+            else:
+                print("[CLIP INIT] ❌ Model failed to load")
+        except Exception as e:
+            print(f"[CLIP INIT ERROR] Failed to load model: {e}")
+    
+    def _load_model(self):
+        """Load CLIP model with enhanced error handling"""
+        try:
+            if TRANSFORMERS_AVAILABLE:
+                print("[CLIP MODEL] Loading openai/clip-vit-base-patch32...")
+                self.model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+                self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+                
+                if self.device == "cuda":
+                    self.model = self.model.cuda()
+                    print("[CLIP MODEL] Moved to CUDA")
+                    
+                self.model.eval()
+                print("[CLIP MODEL] ✅ transformers CLIP ready")
+            else:
+                print("[CLIP MODEL] Loading ViT-B/32...")
+                self.model, self.preprocess = clip.load("ViT-B/32", device=self.device)
+                
+                self.label_texts = [
+                    "breakout-continuation", "pullback-in-trend", "trend-reversal",
+                    "range-accumulation", "consolidation", "fake-breakout", 
+                    "volume-backed breakout", "exhaustion pattern", "no-trend noise"
+                ]
+                self.tokenized_labels = clip.tokenize(self.label_texts).to(self.device)
+                print("[CLIP MODEL] ✅ OpenAI CLIP ready")
+                
+        except Exception as e:
+            print(f"[CLIP MODEL ERROR] {e}")
+            print("[CLIP MODEL] Setting model to None - CLIP predictions will return N/A")
+            self.model = None
+            self.processor = None
+            self.preprocess = None
 
-        self.label_texts = [
-            "breakout-continuation",
-            "pullback-in-trend",
-            "trend-reversal",
-            "range-accumulation",
-            "consolidation",
-            "fakeout",
-            "volume-backed",
-            "low-volume",
-            "trending-up",
-            "trending-down"
-        ]
-        self.tokenized_labels = clip.tokenize(self.label_texts).to(self.device)
-
-    def predict(self, image_path):
+    def predict_chart_setup(self, image_path: str) -> Optional[Dict]:
+        """
+        Predict chart setup using CLIP with comprehensive debugging
+        
+        Args:
+            image_path: Path to chart image
+            
+        Returns:
+            Dictionary with label and confidence or None
+        """
+        print(f"[CLIP PREDICT] Starting prediction for: {image_path}")
+        
+        # Check if model is loaded
+        if not self.model:
+            print(f"[CLIP PREDICT] ❌ Model not loaded")
+            return None
+            
+        # Check if image exists
         if not os.path.exists(image_path):
-            raise FileNotFoundError(f"Image not found: {image_path}")
-
-        image = self.preprocess(Image.open(image_path)).unsqueeze(0).to(self.device)
+            print(f"[CLIP PREDICT] ❌ Image file does not exist: {image_path}")
+            return None
+            
+        try:
+            print(f"[CLIP PREDICT] Loading image: {image_path}")
+            image = Image.open(image_path).convert("RGB")
+            print(f"[CLIP PREDICT] Image loaded, size: {image.size}")
+            
+            if TRANSFORMERS_AVAILABLE and self.processor:
+                return self._predict_with_transformers(image)
+            elif self.preprocess:
+                return self._predict_with_openai_clip(image)
+            else:
+                print(f"[CLIP PREDICT] ❌ No valid prediction method available")
+                return None
+                
+        except Exception as e:
+            print(f"[CLIP PREDICT ERROR] {e}")
+            import traceback
+            print(f"[CLIP PREDICT ERROR] Traceback: {traceback.format_exc()}")
+            return None
+    
+    def _predict_with_transformers(self, image):
+        """Predict using transformers CLIP"""
+        candidate_labels = [
+            "breakout-continuation", "pullback-in-trend", "range-accumulation",
+            "trend-reversal", "consolidation", "fake-breakout", 
+            "volume-backed breakout", "exhaustion pattern", "no-trend noise"
+        ]
+        print(f"[CLIP PREDICT] Using {len(candidate_labels)} candidate labels")
+        
+        # Process inputs
+        print(f"[CLIP PREDICT] Processing inputs...")
+        inputs = self.processor(
+            text=candidate_labels,
+            images=image,
+            return_tensors="pt",
+            padding=True
+        )
+        
+        if self.device == "cuda":
+            inputs = {k: v.cuda() for k, v in inputs.items()}
+            print(f"[CLIP PREDICT] Moved inputs to CUDA")
+        
+        # Get predictions
+        print(f"[CLIP PREDICT] Running model inference...")
+        with torch.no_grad():
+            outputs = self.model(**inputs)
+            logits_per_image = outputs.logits_per_image
+            probs = logits_per_image.softmax(dim=1)
+        
+        # Get best prediction
+        best_idx = probs.argmax().item()
+        confidence = probs[0][best_idx].item()
+        label = candidate_labels[best_idx]
+        
+        print(f"[CLIP PREDICT] ✅ Prediction: {label} (confidence: {confidence:.3f})")
+        
+        result = {
+            "label": label,
+            "confidence": confidence,
+            "all_predictions": {
+                candidate_labels[i]: probs[0][i].item() 
+                for i in range(len(candidate_labels))
+            }
+        }
+        
+        # Debug: show top 3 predictions
+        sorted_preds = sorted(result["all_predictions"].items(), key=lambda x: x[1], reverse=True)
+        print(f"[CLIP PREDICT] Top 3: {sorted_preds[:3]}")
+        
+        return result
+    
+    def _predict_with_openai_clip(self, image):
+        """Predict using OpenAI CLIP"""
+        print(f"[CLIP PREDICT] Using OpenAI CLIP with {len(self.label_texts)} labels")
+        
+        image_tensor = self.preprocess(image).unsqueeze(0).to(self.device)
 
         with torch.no_grad():
-            image_features = self.model.encode_image(image)
+            image_features = self.model.encode_image(image_tensor)
             text_features = self.model.encode_text(self.tokenized_labels)
 
             image_features /= image_features.norm(dim=-1, keepdim=True)
@@ -45,9 +188,13 @@ class CLIPPredictor:
 
         probs = similarities.softmax(dim=0)
         top_index = torch.argmax(probs).item()
+        confidence = probs[top_index].item()
+        label = self.label_texts[top_index]
+        
+        print(f"[CLIP PREDICT] ✅ Prediction: {label} (confidence: {confidence:.3f})")
 
         return {
-            "label": self.label_texts[top_index],
+            "label": label,
             "confidence": round(probs[top_index].item(), 4),
             "all_scores": dict(zip(self.label_texts, [round(p.item(), 4) for p in probs]))
         }
