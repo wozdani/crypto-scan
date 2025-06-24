@@ -548,8 +548,8 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         
         # Save results with diagnostics (if save function available)
         try:
-            if 'save_async_result' in globals():
-                await save_async_result(symbol, ppwcs_score, tjde_score, tjde_decision, market_data)
+            save_async_result(symbol, ppwcs_score, tjde_score, tjde_decision, market_data)
+            print(f"[SAVE SUCCESS] {symbol} → Result saved")
         except Exception as e:
             print(f"[SAVE ERROR] {symbol} → {e}")
         
