@@ -18,7 +18,9 @@ def plot_custom_candlestick_chart(df_ohlc: pd.DataFrame, df_volume: pd.DataFrame
                                 clip_confidence: Optional[float] = None, 
                                 tjde_score: Optional[float] = None,
                                 market_phase: Optional[str] = None,
-                                decision: Optional[str] = None) -> str:
+                                decision: Optional[str] = None,
+                                tjde_breakdown: Optional[Dict] = None,
+                                alert_sent: Optional[bool] = None) -> str:
     """
     Rysuje wykres świecowy i zapisuje jako PNG z pełną kontrolą wizualizacji.
 
@@ -53,6 +55,20 @@ def plot_custom_candlestick_chart(df_ohlc: pd.DataFrame, df_volume: pd.DataFrame
         ax2.bar(df_volume['timestamp'], df_volume['volume'], 
                width=0.0008, color=colors, alpha=0.6)
 
+        # 1. MARKET PHASE BACKGROUND COLORS
+        phase_backgrounds = {
+            'trend-following': '#001100',    # Dark green
+            'accumulation': '#000011',       # Dark blue
+            'distribution': '#110000',       # Dark red
+            'breakout': '#111100',          # Dark yellow
+            'pullback': '#001111',          # Dark cyan
+            'consolidation': '#110011'       # Dark magenta
+        }
+        
+        phase_bg = phase_backgrounds.get(market_phase.lower() if market_phase else 'unknown', '#1a1a1a')
+        ax1.set_facecolor(phase_bg)
+        ax2.set_facecolor(phase_bg)
+        
         # Enhanced styling
         ax1.set_title(title, fontsize=14, fontweight='bold', color='white', pad=20)
         ax1.grid(True, linestyle='--', alpha=0.3, color='gray')
@@ -62,56 +78,93 @@ def plot_custom_candlestick_chart(df_ohlc: pd.DataFrame, df_volume: pd.DataFrame
         ax1.xaxis_date()
         ax2.xaxis_date()
         fig.autofmt_xdate()
-
-        # Professional metadata overlay
-        metadata_y = 0.95
-        if tjde_score is not None:
-            # Color-coded TJDE score
+        
+        # 2. SCORING ANNOTATIONS - Left side comprehensive
+        if tjde_breakdown:
+            annotations_y = 0.95
+            annotation_spacing = 0.05
+            
+            # TJDE Score with color coding
             tjde_color = '#00FF00' if tjde_score >= 0.75 else '#FFFF00' if tjde_score >= 0.5 else '#FF6600'
-            ax1.text(0.02, metadata_y, f'TJDE Score: {tjde_score:.3f}', 
+            ax1.text(0.02, annotations_y, f'TJDE: {tjde_score:.3f}', 
                     transform=ax1.transAxes, fontsize=10, fontweight='bold',
-                    color=tjde_color, bbox=dict(boxstyle="round,pad=0.3", 
-                    facecolor='black', alpha=0.7))
-            metadata_y -= 0.06
-
-        if clip_confidence is not None:
-            # CLIP confidence with reliability indicator
+                    color=tjde_color, bbox=dict(boxstyle="round,pad=0.2", 
+                    facecolor='black', alpha=0.8))
+            annotations_y -= annotation_spacing
+            
+            # Individual component scores
+            components = [
+                ('Trend', tjde_breakdown.get('trend_strength', 0)),
+                ('Pullback', tjde_breakdown.get('pullback_quality', 0)), 
+                ('Support', tjde_breakdown.get('support_reaction_strength', 0)),
+                ('Volume', tjde_breakdown.get('volume_behavior_score', 0)),
+                ('Psych', tjde_breakdown.get('psych_score', 0))
+            ]
+            
+            for comp_name, comp_score in components:
+                comp_color = '#00AA00' if comp_score >= 0.7 else '#AAAA00' if comp_score >= 0.4 else '#AA4400'
+                ax1.text(0.02, annotations_y, f'{comp_name}: {comp_score:.2f}', 
+                        transform=ax1.transAxes, fontsize=9,
+                        color=comp_color, bbox=dict(boxstyle="round,pad=0.15", 
+                        facecolor='black', alpha=0.7))
+                annotations_y -= (annotation_spacing - 0.01)
+        
+        # 3. CLIP PHASE ANNOTATION - Right side top
+        if clip_confidence is not None and clip_confidence > 0:
             clip_color = '#00FFFF' if clip_confidence >= 0.7 else '#FFAA00'
-            ax1.text(0.02, metadata_y, f'CLIP Confidence: {clip_confidence:.3f}', 
+            ax1.text(0.98, 0.95, f'CLIP: {market_phase}', 
                     transform=ax1.transAxes, fontsize=10, fontweight='bold',
-                    color=clip_color, bbox=dict(boxstyle="round,pad=0.3", 
-                    facecolor='black', alpha=0.7))
-            metadata_y -= 0.06
+                    color=clip_color, bbox=dict(boxstyle="round,pad=0.2", 
+                    facecolor='black', alpha=0.8), ha='right')
+            
+            ax1.text(0.98, 0.90, f'Conf: {clip_confidence:.3f}', 
+                    transform=ax1.transAxes, fontsize=9,
+                    color=clip_color, bbox=dict(boxstyle="round,pad=0.15", 
+                    facecolor='black', alpha=0.7), ha='right')
+        
+        # 4. GRADIENT SCORING BAR - Right edge
+        if tjde_score is not None:
+            # Create gradient effect
+            x_max = df_ohlc['timestamp'].max()
+            y_min, y_max = ax1.get_ylim()
+            
+            # Gradient from red to green based on score
+            gradient_color = (1-tjde_score, tjde_score, 0.1)  # RGB with slight blue
+            
+            # Vertical gradient bar
+            gradient_height = (y_max - y_min) * tjde_score
+            ax1.fill_between([x_max * 1.001, x_max * 1.003], 
+                           y_min, y_min + gradient_height,
+                           color=gradient_color, alpha=0.8, 
+                           label=f'Score: {tjde_score:.1%}')
+        
+        # 5. DECISION ARROWS AND ENTRY POINTS
+        if tjde_score is not None and tjde_score >= 0.7:
+            # Find optimal entry point (highest volume in recent candles)
+            recent_candles = min(10, len(df_ohlc))
+            entry_idx = len(df_ohlc) - recent_candles + np.argmax(df_volume['volume'][-recent_candles:])
+            
+            entry_x = df_ohlc.iloc[entry_idx]['timestamp']
+            entry_y = df_ohlc.iloc[entry_idx]['high'] * 1.02
+            
+            arrow_color = '#00FF00' if decision == 'join_trend' else '#FFFF00'
+            ax1.annotate('🎯 ENTRY', xy=(entry_x, entry_y), 
+                        xytext=(entry_x, entry_y * 1.05),
+                        arrowprops=dict(facecolor=arrow_color, shrink=0.05, width=2),
+                        fontsize=10, fontweight='bold', color=arrow_color,
+                        ha='center')
+        
+        # 6. ALERT STATUS INDICATOR - Bottom right
+        if alert_sent is not None:
+            alert_text = "🚀 ALERT SENT" if alert_sent else "❌ NO ALERT"
+            alert_color = '#00FF00' if alert_sent else '#FF4444'
+            
+            ax1.text(0.98, 0.05, alert_text, 
+                    transform=ax1.transAxes, fontsize=11, fontweight='bold',
+                    color=alert_color, bbox=dict(boxstyle="round,pad=0.3", 
+                    facecolor='black', alpha=0.9), ha='right')
 
-        if market_phase is not None:
-            # Market phase with phase-specific colors
-            phase_colors = {
-                'trend-following': '#00AA00',
-                'breakout': '#FF8800', 
-                'pullback': '#0088FF',
-                'consolidation': '#AA00AA',
-                'distribution': '#FF0000'
-            }
-            phase_color = phase_colors.get(market_phase.lower(), '#FFFFFF')
-            ax1.text(0.02, metadata_y, f'Phase: {market_phase.upper()}', 
-                    transform=ax1.transAxes, fontsize=10, fontweight='bold',
-                    color=phase_color, bbox=dict(boxstyle="round,pad=0.3", 
-                    facecolor='black', alpha=0.7))
-            metadata_y -= 0.06
-
-        if decision is not None:
-            # Decision with action-specific colors
-            decision_colors = {
-                'join_trend': '#00FF00',
-                'consider_entry': '#FFFF00',
-                'watch_closely': '#FF8800',
-                'avoid': '#FF0000'
-            }
-            decision_color = decision_colors.get(decision.lower(), '#FFFFFF')
-            ax1.text(0.02, metadata_y, f'Decision: {decision.upper()}', 
-                    transform=ax1.transAxes, fontsize=10, fontweight='bold',
-                    color=decision_color, bbox=dict(boxstyle="round,pad=0.3", 
-                    facecolor='black', alpha=0.7))
+        # Remove old metadata overlay - replaced with enhanced annotations above
 
         # Professional dark theme
         fig.patch.set_facecolor('#1a1a1a')
@@ -196,7 +249,8 @@ def prepare_ohlcv_dataframes(candles: List) -> tuple:
 
 
 def generate_trend_mode_chart(symbol: str, candles_15m: List, tjde_result: Dict,
-                            output_dir: str = "training_charts") -> Optional[str]:
+                            output_dir: str = "training_charts", 
+                            alert_sent: bool = False) -> Optional[str]:
     """
     Generate custom trend-mode chart for Vision-AI training
     
@@ -222,13 +276,13 @@ def generate_trend_mode_chart(symbol: str, candles_15m: List, tjde_result: Dict,
         market_phase = tjde_result.get('market_phase', 'unknown')
         decision = tjde_result.get('decision', 'unknown')
         clip_confidence = tjde_result.get('clip_confidence', None)
+        tjde_breakdown = tjde_result.get('breakdown', {})
         
-        # Generate filename
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-        phase_short = market_phase.replace('-', '')[:8]
-        decision_short = decision.replace('_', '')[:4]
+        # Generate enhanced filename with TJDE score
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        score_str = f"score{tjde_score:.2f}".replace('.', '')
         
-        filename = f"{symbol}_{timestamp}_{phase_short}_{decision_short}_trend.png"
+        filename = f"{symbol}_{timestamp}_{score_str}.png"
         save_path = os.path.join(output_dir, filename)
         
         # Create title

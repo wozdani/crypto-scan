@@ -98,8 +98,8 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 24, 2025 - Custom Candlestick Chart Migration for Vision-AI Training - PRODUCTION READY ✅
-Migrated from mplfinance to custom matplotlib + candlestick_ohlc system for enhanced Vision-AI training compatibility. Created trend_charting.py with plot_custom_candlestick_chart() featuring professional dark theme, color-coded metadata overlays, and DPI=150 quality. Updated vision_ai_pipeline.py and scan_all_tokens_async.py to use custom chart generation. Enhanced charts include TJDE scores, CLIP confidence, market phases, and decisions with phase-specific colors. Generate_trend_mode_chart() produces focused training charts for TOP 5 TJDE tokens only. System provides full visualization control eliminating generic mplfinance appearance, ensuring optimal charts for CLIP/ViT training with comprehensive metadata integration.
+### June 24, 2025 - Enhanced Contextual Chart Layers for Vision-AI Training - PRODUCTION READY ✅
+Implemented comprehensive contextual chart layers for superior CLIP/ViT training. Added market phase background colors (trend-following=dark green, accumulation=dark blue, distribution=dark red), comprehensive scoring annotations with color-coded TJDE components (trend, pullback, support, volume, psych), CLIP phase annotations, gradient scoring bars, entry point arrows for high scores, and alert status indicators. Enhanced filename format includes TJDE score (SYMBOL_TIMESTAMP_scoreXX.png). Charts now feature full contextual information with professional visualization optimized for Vision-AI pattern recognition. TOP 5 TJDE token selection maintained with alert-based chart generation for meaningful trading setups only.
 
 ### June 21, 2025 - Alert System Integration Fix - PRODUCTION READY
 - **Critical Alert Function Fixed**: Naprawiono process_alert() w alert_system.py - KERNELUSDT score 57 teraz wysyła alerty

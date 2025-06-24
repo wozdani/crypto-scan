@@ -54,7 +54,10 @@ def save_training_chart(df: pd.DataFrame, symbol: str, timestamp: str,
         # Enhanced chart path
         chart_path = f"{folder}/{symbol}_{timestamp}_vision_chart.png"
         
-        # Generate custom chart
+        # Generate custom chart with enhanced context
+        from trend_charting import plot_custom_candlestick_chart
+        import matplotlib.dates as mdates
+        
         saved_path = plot_custom_candlestick_chart(
             df_ohlc=df_ohlc,
             df_volume=df_volume,
@@ -63,7 +66,15 @@ def save_training_chart(df: pd.DataFrame, symbol: str, timestamp: str,
             clip_confidence=clip_confidence,
             tjde_score=tjde_score,
             market_phase=market_phase,
-            decision=decision
+            decision=decision,
+            tjde_breakdown={
+                'trend_strength': 0.75,
+                'pullback_quality': 0.65,
+                'support_reaction_strength': 0.70,
+                'volume_behavior_score': 0.60,
+                'psych_score': 0.55
+            },  # Mock breakdown for Vision-AI training
+            alert_sent=tjde_score >= 0.7 if tjde_score else False
         )
         
         if saved_path:
@@ -187,7 +198,7 @@ def generate_vision_ai_training_data(tjde_results: List[Dict]) -> int:
             df = pd.DataFrame(df_data)
             df.index = pd.date_range(start='2025-01-01', periods=len(df), freq='15T')
             
-            # Generate custom training chart with metadata
+                # Generate custom training chart with metadata
             chart_path = save_training_chart(
                 df=df, 
                 symbol=symbol, 

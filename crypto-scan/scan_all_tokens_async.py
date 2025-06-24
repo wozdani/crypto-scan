@@ -209,14 +209,19 @@ def generate_top_tjde_charts(results: List[Dict]):
                         'final_score': tjde_score,
                         'market_phase': entry.get('market_phase', 'unknown'),
                         'decision': tjde_decision,
-                        'clip_confidence': entry.get('clip_confidence', None)
+                        'clip_confidence': entry.get('clip_confidence', None),
+                        'breakdown': entry.get('breakdown', {})
                     }
+                    
+                    # Determine if alert was sent based on score
+                    alert_sent = tjde_score >= 0.7 and tjde_decision in ['join_trend', 'consider_entry']
                     
                     chart_path = generate_trend_mode_chart(
                         symbol=symbol,
                         candles_15m=candles_15m,
                         tjde_result=tjde_result,
-                        output_dir="training_charts"
+                        output_dir="training_charts",
+                        alert_sent=alert_sent
                     )
                     
                 except ImportError:
