@@ -213,9 +213,9 @@ async def main():
         print("Async scanner stopped.")
 
 # Direct execution functions for integration
-async def scan_symbols_async(symbols: List[str]) -> List[Dict]:
-    """Direct function to scan list of symbols asynchronously"""
-    async with AsyncTokenScanner(max_concurrent=20) as scanner:
+async def scan_symbols_async(symbols: List[str], max_concurrent: int = 15) -> List[Dict]:
+    """Direct function to scan list of symbols asynchronously with configurable concurrency"""
+    async with AsyncTokenScanner(max_concurrent=max_concurrent) as scanner:
         return await scanner.scan_all_tokens(symbols)
 
 def run_async_scan(symbols: List[str]) -> List[Dict]:
