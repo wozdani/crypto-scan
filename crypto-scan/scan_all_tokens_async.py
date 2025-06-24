@@ -201,16 +201,36 @@ def generate_top_tjde_charts(results: List[Dict]):
                     print(f"   [SKIP] {symbol}: Insufficient candle data")
                     continue
                 
-                # Generate chart
-                chart_path = generate_alert_focused_training_chart(
-                    symbol=symbol,
-                    candles_15m=candles_15m,
-                    tjde_score=tjde_score,
-                    tjde_phase=entry.get('market_phase', 'unknown'),
-                    tjde_decision=tjde_decision,
-                    tjde_clip_confidence=entry.get('clip_confidence', None),
-                    setup_label=entry.get('setup_type', None)
-                )
+                # Generate custom trend-mode chart
+                try:
+                    from trend_charting import generate_trend_mode_chart
+                    
+                    tjde_result = {
+                        'final_score': tjde_score,
+                        'market_phase': entry.get('market_phase', 'unknown'),
+                        'decision': tjde_decision,
+                        'clip_confidence': entry.get('clip_confidence', None)
+                    }
+                    
+                    chart_path = generate_trend_mode_chart(
+                        symbol=symbol,
+                        candles_15m=candles_15m,
+                        tjde_result=tjde_result,
+                        output_dir="training_charts"
+                    )
+                    
+                except ImportError:
+                    # Fallback to original chart generation
+                    from chart_generator import generate_alert_focused_training_chart
+                    chart_path = generate_alert_focused_training_chart(
+                        symbol=symbol,
+                        candles_15m=candles_15m,
+                        tjde_score=tjde_score,
+                        tjde_phase=entry.get('market_phase', 'unknown'),
+                        tjde_decision=tjde_decision,
+                        tjde_clip_confidence=entry.get('clip_confidence', None),
+                        setup_label=entry.get('setup_type', None)
+                    )
                 
                 if chart_path:
                     chart_count += 1

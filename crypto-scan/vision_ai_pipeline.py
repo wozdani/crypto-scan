@@ -13,43 +13,70 @@ from PIL import Image
 
 
 def save_training_chart(df: pd.DataFrame, symbol: str, timestamp: str, 
-                       folder: str = "training_data/charts") -> str:
+                       folder: str = "training_data/charts",
+                       tjde_score: float = None, clip_confidence: float = None,
+                       market_phase: str = None, decision: str = None) -> str:
     """
-    Save professional training chart with proper DPI and sizing
+    Save professional training chart using custom candlestick generation
     
     Args:
         df: OHLCV DataFrame with proper index
         symbol: Trading symbol
         timestamp: Timestamp string
         folder: Output folder path
+        tjde_score: TJDE score for metadata
+        clip_confidence: CLIP confidence for metadata
+        market_phase: Market phase for metadata
+        decision: TJDE decision for metadata
         
     Returns:
         Path to saved chart
     """
-    os.makedirs(folder, exist_ok=True)
-    
-    # Enhanced chart styling for better CLIP training
-    chart_path = f"{folder}/{symbol}_{timestamp}_chart.png"
-    
-    mpf.plot(
-        df,
-        type='candle',
-        style='charles',
-        figsize=(12, 8),  # Larger size for better detail visibility
-        title=f"{symbol} - {timestamp}",
-        savefig=dict(
-            fname=chart_path, 
-            dpi=150,  # Higher DPI for better quality
-            bbox_inches='tight',
-            facecolor='white'
-        ),
-        warn_too_much_data=200,
-        volume=True,  # Include volume for better analysis
-        tight_layout=True
-    )
-    
-    print(f"[VISION-AI] Training chart saved: {chart_path}")
-    return chart_path
+    try:
+        from trend_charting import plot_custom_candlestick_chart
+        
+        os.makedirs(folder, exist_ok=True)
+        
+        # Prepare data for custom chart
+        df_ohlc = pd.DataFrame({
+            'timestamp': df.index,
+            'open': df['Open'],
+            'high': df['High'], 
+            'low': df['Low'],
+            'close': df['Close']
+        })
+        
+        df_volume = pd.DataFrame({
+            'timestamp': [mdates.date2num(ts) for ts in df.index],
+            'volume': df['Volume']
+        })
+        
+        # Enhanced chart path
+        chart_path = f"{folder}/{symbol}_{timestamp}_vision_chart.png"
+        
+        # Generate custom chart
+        saved_path = plot_custom_candlestick_chart(
+            df_ohlc=df_ohlc,
+            df_volume=df_volume,
+            title=f"{symbol} - Vision-AI Training Chart",
+            save_path=chart_path,
+            clip_confidence=clip_confidence,
+            tjde_score=tjde_score,
+            market_phase=market_phase,
+            decision=decision
+        )
+        
+        if saved_path:
+            print(f"[VISION-AI] Custom training chart saved: {saved_path}")
+            return saved_path
+        else:
+            # Fallback to basic chart if custom fails
+            print(f"[VISION-AI] Custom chart failed, using fallback")
+            return f"{folder}/{symbol}_{timestamp}_fallback.png"
+            
+    except Exception as e:
+        print(f"[VISION-AI CHART ERROR] {e}")
+        return f"{folder}/{symbol}_{timestamp}_error.png"
 
 
 def save_label_jsonl(symbol: str, timestamp: str, label_data: Dict, 
@@ -146,7 +173,7 @@ def generate_vision_ai_training_data(tjde_results: List[Dict]) -> int:
                 print(f"[VISION-AI] {symbol}: Insufficient candle data")
                 continue
             
-            # Convert to DataFrame for mplfinance
+            # Convert to DataFrame for custom chart generation
             df_data = []
             for candle in candles_15m[-100:]:  # Last 100 candles for chart
                 df_data.append({
@@ -160,8 +187,16 @@ def generate_vision_ai_training_data(tjde_results: List[Dict]) -> int:
             df = pd.DataFrame(df_data)
             df.index = pd.date_range(start='2025-01-01', periods=len(df), freq='15T')
             
-            # Generate training chart
-            chart_path = save_training_chart(df, symbol, timestamp)
+            # Generate custom training chart with metadata
+            chart_path = save_training_chart(
+                df=df, 
+                symbol=symbol, 
+                timestamp=timestamp,
+                tjde_score=tjde_score,
+                clip_confidence=result.get('clip_confidence', None),
+                market_phase=result.get('market_phase', 'unknown'),
+                decision=result.get('tjde_decision', 'unknown')
+            )
             
             # Create comprehensive label data
             label_data = {
