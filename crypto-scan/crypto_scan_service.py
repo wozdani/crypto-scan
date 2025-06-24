@@ -89,6 +89,14 @@ def scan_cycle():
         duration = time.time() - start_time
         processed = len(results) if results else 0
         print(f"Async scan completed in {duration:.1f}s, processed {processed} tokens")
+        
+        # Flush any remaining async results to storage
+        try:
+            from scan_token_async import flush_async_results
+            asyncio.run(flush_async_results())
+        except:
+            pass
+        
         return results
     except Exception as e:
         print(f"Async scan error: {e}")
