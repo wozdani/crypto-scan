@@ -192,6 +192,23 @@ def scan_cycle():
     symbols = get_bybit_symbols_cached()
     symbols_bybit = symbols  # Używaj symboli z Bybit cache manager
     
+    # 🔍 SYMBOL VALIDATION - Filter out inactive/delisted symbols
+    try:
+        from utils.symbol_validator import validate_symbols_before_scan, get_validator_stats
+        
+        print(f"🔍 [VALIDATOR] Validating {len(symbols)} symbols for health...")
+        healthy_symbols = validate_symbols_before_scan(symbols)
+        
+        # Log validation results
+        validator_stats = get_validator_stats()
+        print(f"✅ [VALIDATOR] {len(healthy_symbols)}/{len(symbols)} symbols healthy ({validator_stats.get('healthy_rate', 0):.1f}%)")
+        
+        symbols = healthy_symbols
+        symbols_bybit = healthy_symbols
+        
+    except Exception as validator_error:
+        print(f"⚠️ [VALIDATOR] Symbol validation failed, using all symbols: {validator_error}")
+    
     # 🐋 WHALE PRIORITY SYSTEM - Priorytetowanie na podstawie wcześniejszej aktywności whale
     from utils.whale_priority import prioritize_whale_tokens, save_priority_report, get_whale_boost_for_symbol
     
@@ -201,8 +218,22 @@ def scan_cycle():
     if priority_info:
         save_priority_report(priority_info)
         
+    # Handle empty symbols list
+    if not symbols:
+        print("⚠️ [SCAN] No symbols available - using essential fallback")
+        essential_symbols = [
+            "BTCUSDT", "ETHUSDT", "SOLUSDT", "ADAUSDT", "BNBUSDT", "XRPUSDT",
+            "DOGEUSDT", "AVAXUSDT", "LINKUSDT", "MATICUSDT", "LTCUSDT", "UNIUSDT",
+            "NEARUSDT", "AAVEUSDT", "ARBUSDT", "OPUSDT", "APTUSDT", "SUIUSDT"
+        ]
+        symbols = essential_symbols
+        symbols_bybit = essential_symbols
+        priority_symbols = []
+        priority_info = {}
+    
     # Dynamiczne zarządzanie wątkami - min(CPU cores, liczba symboli, max 16)
     max_workers = min(multiprocessing.cpu_count(), len(symbols), 16)
+    max_workers = max(1, max_workers)  # Ensure at least 1 worker
     print(f"🚀 [PARALLEL SCAN] Using {max_workers} workers for {len(symbols)} symbols")
     
     scan_results = []

@@ -79,6 +79,57 @@ def get_last_candles(symbol):
     return candles[-2], candles[-1]  # poprzednia i obecna swieca
 
 def get_all_data(symbol):
+    """Enhanced get_all_data with improved error handling and retry logic"""
+    try:
+        # Try robust API first
+        from utils.robust_api import robust_api
+        
+        # Get candles with retry logic
+        candles = robust_api.get_bybit_kline_v5(symbol, "15", 10)
+        if not candles or len(candles) < 2:
+            print(f"❌ [get_all_data] No sufficient candle data for {symbol}")
+            return None
+        
+        # Parse latest and previous candles
+        last_candle = candles[0]  # Most recent
+        prev_candle = candles[1] if len(candles) > 1 else candles[0]
+        
+        # Kandle format: [startTime, openPrice, highPrice, lowPrice, closePrice, volume, turnover]
+        open_price = float(last_candle[1])
+        close_price = float(last_candle[4])
+        high = float(last_candle[2])
+        low = float(last_candle[3])
+        volume = float(last_candle[5])
+        
+        price_change = close_price - open_price
+        candle_body = abs(close_price - open_price)
+        candle_range = high - low
+        if candle_range == 0:  # zabezpieczenie przed zerem
+            candle_range = 0.0001
+        body_ratio = candle_body / candle_range
+
+        return {
+            "open": open_price,
+            "close": close_price,
+            "high": high,
+            "low": low,
+            "volume": volume,
+            "price_change": price_change,
+            "body_ratio": round(body_ratio, 4),
+            "prev_candle": prev_candle,
+            "last_candle": last_candle,
+            "candles": candles  # Include full candle array
+        }
+        
+    except ImportError:
+        # Fallback to legacy method
+        return get_all_data_legacy(symbol)
+    except Exception as e:
+        print(f"❌ [get_all_data] Enhanced method failed for {symbol}: {e}")
+        return get_all_data_legacy(symbol)
+
+def get_all_data_legacy(symbol):
+    """Legacy get_all_data implementation"""
     prev_candle, last_candle = get_last_candles(symbol)
     if not last_candle:
         return None
@@ -229,8 +280,41 @@ def get_fallback_symbols():
     return get_symbols_cached()
 
 def get_market_data(symbol):
+    """
+    Enhanced market data fetcher with robust retry logic
+    Uses new RobustAPIClient for improved reliability
+    """
+    try:
+        # Use new robust API client
+        from utils.robust_api import get_robust_market_data, get_data_fallback
+        
+        # Primary attempt with robust retry logic
+        success, data, price, is_valid = get_robust_market_data(symbol)
+        if success and data and price > 0:
+            print(f"✅ [ROBUST API] {symbol}: ${price}, Volume: ${data.get('volume', 0):,.0f}")
+            return success, data, price, is_valid
+        
+        # Fallback attempt
+        print(f"🔄 [FALLBACK] Attempting fallback for {symbol}")
+        fallback_data = get_data_fallback(symbol)
+        if fallback_data and fallback_data.get("price", 0) > 0:
+            fallback_price = fallback_data["price"]
+            print(f"✅ [FALLBACK SUCCESS] {symbol}: ${fallback_price}")
+            return True, fallback_data, fallback_price, True
+        
+        print(f"❌ [ALL METHODS FAILED] {symbol} - no data available")
+        return False, {}, 0.0, False
+        
+    except ImportError:
+        # Fallback to original method if robust_api not available
+        print(f"🔄 [LEGACY FALLBACK] Using original method for {symbol}")
+        return get_market_data_legacy(symbol)
+    except Exception as e:
+        print(f"❌ [CRITICAL ERROR] {symbol}: {e}")
+        return False, {}, 0.0, False
 
-    
+def get_market_data_legacy(symbol):
+    """Legacy market data fetcher - kept for compatibility"""
     # Najpierw spróbuj pobrać dane z tickers endpoint dla prawidłowego wolumenu
     try:
         url = f"https://api.bybit.com/v5/market/tickers?category=linear&symbol={symbol}"
@@ -258,7 +342,7 @@ def get_market_data(symbol):
                         "volume24h": float(ticker.get("volume24h", 0)),
                         "price_change_pct": float(ticker.get("price24hPcnt", 0)) * 100
                     }
-                    print(f"✅ [get_market_data] Ticker data dla {symbol}: cena=${price}, volume=${volume_usdt:,.0f}")
+                    print(f"✅ [LEGACY] Ticker data dla {symbol}: cena=${price}, volume=${volume_usdt:,.0f}")
                     return True, ticker_market_data, price, True
         else:
             print(f"❌ Ticker API status: {response.status_code} dla {symbol}")
