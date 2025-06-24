@@ -1,0 +1,17 @@
+{
+  "symbol": "TESTUSDT",
+  "timestamp": "20250624_192225",
+  "chart_file": "TESTUSDT_20250624_192225_chart.png",
+  "context_features": {
+    "scan_type": "async_market_scan",
+    "ppwcs_score": 65,
+    "tjde_score": 0.75,
+    "decision": "consider_entry",
+    "price": 45000,
+    "volume_24h": 1500000,
+    "market_phase": "test_phase",
+    "chart_style": "simple_async",
+    "generated_timestamp": "20250624_192225"
+  },
+  "created_at": "2025-06-24T19:22:30.426172"
+}
