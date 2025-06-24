@@ -160,7 +160,10 @@ def generate_alert_focused_training_chart(
                                        facecolor='white')
         
         # Candlestick chart z volume
-        mpf.plot(df, type='candle', style='charles', 
+        # Limit data to prevent mplfinance warning
+        df_limited = df.tail(200) if len(df) > 200 else df
+        
+        mpf.plot(df_limited, type='candle', style='charles', warn_too_much_data=500,
                  ax=ax1, volume=ax2, 
                  show_nontrading=False,
                  warn_too_much_data=False)

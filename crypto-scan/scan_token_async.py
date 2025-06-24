@@ -622,39 +622,8 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         except Exception as e:
             print(f"[SAVE ERROR] {symbol} → {e}")
         
-        # Alert-Focused Training Chart Generation
-        training_chart_saved = False
-        try:
-            if tjde_score >= 0.4 and tjde_decision != "avoid":  # Warunki dla wykresów alert-focused
-                from chart_generator import generate_alert_focused_training_chart
-                
-                # Extract TJDE context data for alert-focused chart
-                tjde_phase = features.get("market_phase", "unknown") if 'features' in locals() else "unknown"
-                tjde_clip_confidence = features.get("clip_confidence", 0.0) if 'features' in locals() and features.get("clip_confidence", 0.0) > 0 else None
-                setup_label = features.get("price_action_pattern", None) if 'features' in locals() else None
-                
-                print(f"[CHART TRIGGER] {symbol}: Generowanie wykresu alert-focused (TJDE: {tjde_score:.3f}, Faza: {tjde_phase}, Decyzja: {tjde_decision})")
-                
-                chart_path = generate_alert_focused_training_chart(
-                    symbol=symbol,
-                    candles_15m=candles_15m,
-                    tjde_score=tjde_score,
-                    tjde_phase=tjde_phase,
-                    tjde_decision=tjde_decision,
-                    tjde_clip_confidence=tjde_clip_confidence,
-                    setup_label=setup_label
-                )
-                
-                if chart_path:
-                    training_chart_saved = True
-                    print(f"[ALERT CHART SUCCESS] {symbol}: Wykres skupiony na momencie alertu → {chart_path}")
-                else:
-                    print(f"[CHART SKIP] {symbol}: Generowanie wykresu pominięte (niewystarczające dane)")
-            else:
-                print(f"[CHART SKIP] {symbol}: Warunki nie spełnione - TJDE: {tjde_score:.3f}, Decyzja: {tjde_decision}, Dane: {len(candles_15m) if candles_15m else 0} świec")
-                    
-        except Exception as chart_e:
-            print(f"[CHART ERROR] {symbol}: {chart_e}")
+        # Skip individual chart generation - will be done for TOP 5 TJDE tokens only
+        print(f"[CHART SKIP] {symbol}: Individual chart generation disabled - TOP 5 TJDE charts generated in batch")
             training_chart_saved = False
 
         result = {

@@ -145,6 +145,9 @@ async def async_scan_cycle():
         # Save summary
         save_scan_summary(results)
         
+        # Generate training charts for TOP 5 TJDE tokens only
+        generate_top_tjde_charts(results)
+        
         # Check for high-value setups
         high_score_setups = [r for r in results if r.get('ppwcs_score', 0) >= 50 or r.get('tjde_score', 0) >= 0.8]
         if high_score_setups:
@@ -153,6 +156,64 @@ async def async_scan_cycle():
                 print(f"   {setup['symbol']}: PPWCS {setup['ppwcs_score']:.1f}, TJDE {setup['tjde_decision']}")
     
     return results
+
+def generate_top_tjde_charts(results: List[Dict]):
+    """Generate training charts for TOP 5 TJDE tokens only"""
+    try:
+        # Filter out results without valid TJDE scores
+        valid_results = [r for r in results if r.get('tjde_score', 0) > 0]
+        
+        if not valid_results:
+            print("[CHART GEN] No valid TJDE results for chart generation")
+            return
+            
+        # Sort by TJDE score descending and take TOP 5
+        top_5_tjde = sorted(valid_results, key=lambda x: x.get('tjde_score', 0), reverse=True)[:5]
+        
+        print(f"\n📊 GENERATING CHARTS FOR TOP 5 TJDE TOKENS:")
+        
+        chart_count = 0
+        for i, entry in enumerate(top_5_tjde, 1):
+            symbol = entry.get('symbol', 'UNKNOWN')
+            tjde_score = entry.get('tjde_score', 0)
+            tjde_decision = entry.get('tjde_decision', 'unknown')
+            market_data = entry.get('market_data', {})
+            
+            print(f"{i}. {symbol}: TJDE {tjde_score:.3f} ({tjde_decision})")
+            
+            try:
+                from chart_generator import generate_alert_focused_training_chart
+                
+                # Extract candle data from market_data
+                candles_15m = market_data.get('candles', [])
+                if not candles_15m or len(candles_15m) < 20:
+                    print(f"   [SKIP] {symbol}: Insufficient candle data")
+                    continue
+                
+                # Generate chart
+                chart_path = generate_alert_focused_training_chart(
+                    symbol=symbol,
+                    candles_15m=candles_15m,
+                    tjde_score=tjde_score,
+                    tjde_phase=entry.get('market_phase', 'unknown'),
+                    tjde_decision=tjde_decision,
+                    tjde_clip_confidence=entry.get('clip_confidence', None),
+                    setup_label=entry.get('setup_type', None)
+                )
+                
+                if chart_path:
+                    chart_count += 1
+                    print(f"   ✅ Chart generated: {chart_path}")
+                else:
+                    print(f"   ❌ Chart generation failed")
+                    
+            except Exception as chart_e:
+                print(f"   ❌ Chart error for {symbol}: {chart_e}")
+        
+        print(f"📊 Generated {chart_count}/{len(top_5_tjde)} training charts for TOP TJDE tokens")
+        
+    except Exception as e:
+        print(f"[CHART GEN ERROR] {e}")
 
 def save_scan_summary(results: List[Dict]):
     """Save scan summary for dashboard"""
