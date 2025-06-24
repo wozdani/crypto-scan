@@ -120,6 +120,8 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
     Complete async token scan with scoring, TJDE analysis, and alerts
     Replaces blocking scan_token() function
     """
+    print(f"[SCAN START] {symbol} → Beginning async scan")
+    
     try:
         # Parallel data fetching
         ticker_task = get_ticker_async(symbol, session)
@@ -132,15 +134,21 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             return_exceptions=True
         )
         
-        # Validate core data
+        # Validate core data with debugging
+        print(f"[DATA VALIDATION] {symbol} → ticker: {type(ticker)}, 15m: {type(candles_15m)}, 5m: {type(candles_5m)}, orderbook: {type(orderbook)}")
+        
         if isinstance(ticker, Exception) or not ticker:
+            print(f"[DATA VALIDATION FAILED] {symbol} → No ticker data: {ticker}")
             return None
             
         if isinstance(candles_15m, Exception):
+            print(f"[DATA VALIDATION] {symbol} → 15m candles failed: {candles_15m}")
             candles_15m = []
         if isinstance(candles_5m, Exception):
+            print(f"[DATA VALIDATION] {symbol} → 5m candles failed: {candles_5m}")
             candles_5m = []
         if isinstance(orderbook, Exception):
+            print(f"[DATA VALIDATION] {symbol} → orderbook failed: {orderbook}")
             orderbook = {"bids": [], "asks": []}
         
         # Basic filtering
@@ -206,6 +214,13 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             "timestamp": datetime.now().isoformat()
         }
         
+        # Final result summary
+        print(f"[FINAL RESULT] {symbol} → PPWCS: {ppwcs_score:.1f}, TJDE: {tjde_score:.3f} ({tjde_decision})")
+        
+        # Check if scores are suspicious (identical fallback values)
+        if ppwcs_score == 40 and tjde_score == 0.4:
+            print(f"[SUSPICIOUS] {symbol} → Both scores are fallback values - likely errors in scoring functions")
+        
         print(f"✅ {symbol}: PPWCS {ppwcs_score:.1f}, TJDE {tjde_score:.3f} ({tjde_decision}), {len(candles_15m)}x15M, {len(candles_5m)}x5M")
         return result
         
@@ -215,28 +230,44 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
 
 def calculate_basic_score(market_data: Dict) -> float:
     """Basic scoring when PPWCS unavailable"""
-    score = 0.0
+    print(f"[BASIC SCORE] Calculating fallback score")
     
-    volume_24h = market_data.get("volume_24h", 0)
-    price_change = abs(market_data.get("price_change_24h", 0))
+    if not market_data:
+        print(f"[BASIC SCORE] No market_data provided")
+        return 40.0
     
-    # Volume scoring
-    if volume_24h > 10_000_000:
-        score += 40
-    elif volume_24h > 5_000_000:
-        score += 25
-    elif volume_24h > 1_000_000:
-        score += 15
-    
-    # Price movement scoring
-    if price_change > 15:
-        score += 35
-    elif price_change > 10:
-        score += 25
-    elif price_change > 5:
-        score += 15
-    
-    return min(100, score)
+    try:
+        print(f"[BASIC SCORE] market_data available: {list(market_data.keys()) if isinstance(market_data, dict) else 'NOT DICT'}")
+        
+        score = 0.0
+        volume_24h = market_data.get("volume_24h", 0)
+        price_change = abs(market_data.get("price_change_24h", 0))
+        
+        print(f"[BASIC SCORE] volume_24h: {volume_24h}, price_change_24h: {price_change}%")
+        
+        # Volume scoring
+        if volume_24h > 10_000_000:
+            score += 40
+        elif volume_24h > 5_000_000:
+            score += 25
+        elif volume_24h > 1_000_000:
+            score += 15
+        
+        # Price movement scoring
+        if price_change > 15:
+            score += 35
+        elif price_change > 10:
+            score += 25
+        elif price_change > 5:
+            score += 15
+        
+        final_score = min(100, score) if score > 0 else 45.0
+        print(f"[BASIC SCORE] Final calculated score: {final_score}")
+        return final_score
+        
+    except Exception as e:
+        print(f"[BASIC SCORE] Error calculating: {e}")
+        return 40.0
 
 async def send_async_alert(symbol: str, ppwcs_score: float, tjde_score: float, tjde_decision: str, market_data: Dict) -> bool:
     """Send alert for high-scoring tokens"""
