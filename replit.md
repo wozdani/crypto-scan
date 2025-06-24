@@ -270,14 +270,14 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 - **Debug Integration**: Added comprehensive logging for market phase detection and modifier application with [MARKET_PHASE_MODIFIER] tags
 - **Production Validation**: Tested with breakout-continuation phase showing correct +0.120 modifier application and improved TJDE scores
 
-### June 24, 2025 - Fixed Import Errors in Async Scanner - PRODUCTION READY ✅
-- **Import Validation Fixed**: Corrected function names - compute_ppwcs (not compute_ppwcs_score) and proper TJDE parameter structure
-- **Function Availability Checking**: Added PPWCS_AVAILABLE and TJDE_AVAILABLE flags with detailed import success/failure logging
-- **TJDE Parameter Structure**: Fixed simulate_trader_decision_advanced() to use proper features dict instead of individual parameters
-- **Score Field Mapping**: Corrected tjde_result.get("final_score") instead of "score" to match trader_ai_engine.py output format
-- **Production Import Diagnostics**: System now shows exactly which scoring functions are available vs. using fallbacks
-- **Async Pipeline Ready**: All import errors resolved for production server where API calls work correctly
-- **Fallback Behavior**: Clear separation between import failures vs. runtime errors in scoring functions
+### June 24, 2025 - Implemented Realistic PPWCS and TJDE Scoring in Async Scanner - PRODUCTION READY ✅
+- **Realistic PPWCS Implementation**: Replaced legacy compute_ppwcs() (always returned 0.0) with realistic calculation based on volume, price movement, volatility, momentum, and orderbook pressure
+- **PPWCS Scoring Components**: Volume analysis (0-25pts), price movement (0-25pts), volatility/range (0-20pts), momentum SMA crossover (0-15pts), orderbook bid/ask pressure (0-15pts)
+- **TJDE Feature Extraction**: Built proper features dict from candle data with trend_strength, pullback_quality, support_reaction based on actual price/volume analysis
+- **Market Data Integration**: Both PPWCS and TJDE now use authentic API data (candles_15m, candles_5m, orderbook, price, volume_24h) for realistic scoring
+- **Score Range Validation**: PPWCS 0-100 range with realistic distribution, TJDE 0.0-1.0 range with proper decision thresholds (0.7+ join_trend, 0.45+ consider_entry)
+- **Production Ready Scoring**: No more fallback 0.0 scores - all tokens receive realistic analysis-based scores reflecting actual market conditions
+- **Debug Logging Enhanced**: Comprehensive scoring breakdown showing contribution of each component for troubleshooting and validation
 
 ## User Preferences
 
