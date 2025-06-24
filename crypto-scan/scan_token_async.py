@@ -200,28 +200,28 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 print(f"[DEBUG] {symbol} → market_data keys: {list(market_data.keys()) if isinstance(market_data, dict) else 'NOT DICT'}")
                 print(f"[DEBUG] {symbol} → market_data type: {type(market_data)}")
                 
-                # Use realistic PPWCS calculation based on market data analysis
+                # Use conservative PPWCS calculation to prevent spam alerts
                 def calculate_realistic_ppwcs(candles_15m, candles_5m, price, volume_24h, orderbook):
-                    """Calculate realistic PPWCS from market data like original system"""
-                    score = 0
+                    """Calculate conservative PPWCS scores - most tokens 15-45 range"""
+                    score = 15.0  # Start with low base
                     
                     if not candles_15m or len(candles_15m) < 10:
-                        return 25.0  # Minimal score for insufficient data
+                        return 20.0  # Low score for insufficient data
                     
-                    # 1. Volume Analysis (0-25 points)
+                    # 1. Volume Analysis (0-15 points max) - Very conservative
                     try:
                         recent_volumes = [candle[5] for candle in candles_15m[-5:]]
                         avg_volume = sum(recent_volumes) / len(recent_volumes)
-                        if volume_24h > avg_volume * 50:  # High volume
-                            score += 20
-                        elif volume_24h > avg_volume * 20:
+                        if volume_24h > avg_volume * 100:  # Extreme volume spike
                             score += 15
-                        elif volume_24h > avg_volume * 5:
+                        elif volume_24h > avg_volume * 50:  # Very high volume
                             score += 10
-                        else:
+                        elif volume_24h > avg_volume * 20:  # High volume
                             score += 5
+                        else:
+                            score += 1  # Minimal points
                     except:
-                        score += 5
+                        score += 1
                     
                     # 2. Price Movement Analysis (0-25 points)
                     try:
@@ -252,39 +252,62 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     except:
                         score += 5
                     
-                    # 4. Momentum Analysis (0-15 points)
+                    # 3. Momentum Analysis (0-8 points max) - Conservative
                     try:
-                        short_sma = sum(candle[4] for candle in candles_15m[-3:]) / 3
-                        long_sma = sum(candle[4] for candle in candles_15m[-10:]) / 10
-                        if short_sma > long_sma * 1.01:  # Upward momentum
-                            score += 12
-                        elif short_sma > long_sma:
-                            score += 8
+                        if len(candles_5m) >= 12:
+                            recent_closes = [candle[4] for candle in candles_5m[-12:]]
+                            momentum = abs((recent_closes[-1] - recent_closes[0]) / recent_closes[0])
+                            if momentum > 0.15:  # Very strong momentum
+                                score += 8
+                            elif momentum > 0.10:  # Strong momentum  
+                                score += 5
+                            elif momentum > 0.05:  # Medium momentum
+                                score += 2
+                            else:
+                                score += 0  # No points for weak momentum
                         else:
-                            score += 3
+                            score += 0
                     except:
-                        score += 3
+                        score += 0
                     
-                    # 5. Orderbook Pressure (0-15 points)
+                    # 4. Special Conditions (0-12 points max) - Only for exceptional cases
+                    special_points = 0
+                    
+                    # Orderbook analysis if available
                     if orderbook and orderbook.get('bids') and orderbook.get('asks'):
                         try:
-                            bid_depth = sum(bid[1] for bid in orderbook['bids'][:5])
-                            ask_depth = sum(ask[1] for ask in orderbook['asks'][:5])
-                            if bid_depth > ask_depth * 1.2:  # Strong bid support
-                                score += 12
-                            elif bid_depth > ask_depth:
-                                score += 8
-                            else:
-                                score += 4
+                            bid_depth = sum([float(bid[1]) for bid in orderbook['bids'][:5]])
+                            ask_depth = sum([float(ask[1]) for ask in orderbook['asks'][:5]])
+                            if bid_depth > ask_depth * 10:  # Extreme bid pressure
+                                special_points += 12
+                            elif bid_depth > ask_depth * 5:  # Very strong bid pressure
+                                special_points += 6
+                            elif bid_depth > ask_depth * 2:  # Strong bid pressure
+                                special_points += 3
                         except:
-                            score += 4
-                    else:
-                        score += 4
+                            pass
                     
-                    return min(score, 100.0)
+                    score += special_points
+                    
+                    # Cap at realistic maximum - most tokens should be 15-50
+                    return min(max(score, 15.0), 60.0)  # Range 15-60 for normal market conditions
                 
                 ppwcs_score = calculate_realistic_ppwcs(candles_15m, candles_5m, price, volume_24h, orderbook)
-                signals = {"final_score": ppwcs_score, "signals": {}}
+                
+                # Calculate checklist score using market data
+                from utils.scoring import compute_checklist_score
+                
+                signals = {
+                    'volume_spike': volume_24h > 10000000,  # 10M+ volume
+                    'price_movement': abs(market_data.get('price_change_24h', 0)) > 0.15,  # 15%+ change
+                    'whale_activity': ppwcs_score > 50,  # High score indicates activity
+                    'dex_inflow': False,  # Would need DEX data
+                    'social_momentum': ppwcs_score > 55,  # Very high activity
+                    'stage_minus1_detected': ppwcs_score > 45,  # Market tension
+                    'orderbook_anomaly': orderbook is not None and len(orderbook.get('bids', [])) > 10
+                }
+                
+                checklist_score, checklist_summary = compute_checklist_score(signals)
                 
                 print(f"[PPWCS SUCCESS] {symbol}: score={ppwcs_score}, signals_count={len(signals.get('signals', {}) if signals else {})}")
                 
