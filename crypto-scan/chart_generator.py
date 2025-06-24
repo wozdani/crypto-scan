@@ -1,15 +1,265 @@
 #!/usr/bin/env python3
 """
-Chart Generator for Trend Mode Training
-Generates professional charts with TJDE results for Vision-AI training
+Alert-Focused Chart Generator for TJDE Training
+Generuje wykresy treningowe skupione na momencie alertu z kontekstem decyzyjnym
 """
 
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import mplfinance as mpf
+import pandas as pd
+import numpy as np
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
+
+
+def detect_alert_moment(candles_15m, tjde_score=None, tjde_decision=None):
+    """
+    Wykrywa dokładny moment alertu TJDE w danych świecowych
+    
+    Args:
+        candles_15m: Dane świec 15-minutowych
+        tjde_score: Score TJDE dla kontekstu
+        tjde_decision: Decyzja TJDE
+        
+    Returns:
+        Index świecy, która wygenerowała alert
+    """
+    if not candles_15m or len(candles_15m) < 10:
+        return max(0, len(candles_15m) - 1)
+    
+    try:
+        # Szukamy ostatniego znaczącego momentu decision-making
+        recent_length = min(15, len(candles_15m))
+        recent_candles = candles_15m[-recent_length:]
+        
+        closes = [float(c[4]) for c in recent_candles]
+        volumes = [float(c[5]) for c in recent_candles]
+        highs = [float(c[2]) for c in recent_candles]
+        lows = [float(c[3]) for c in recent_candles]
+        
+        # 1. Szukamy volume spike + price action
+        avg_volume = sum(volumes[:-3]) / len(volumes[:-3]) if len(volumes) > 3 else sum(volumes) / len(volumes)
+        
+        # 2. Priorytet dla ostatnich 5 świec z volume spike
+        for i in range(len(recent_candles) - 5, len(recent_candles)):
+            if i >= 0 and volumes[i] > avg_volume * 1.3:
+                return len(candles_15m) - (len(recent_candles) - i)
+        
+        # 3. Szukamy breakout lub bounce pattern
+        for i in range(len(recent_candles) - 3, len(recent_candles)):
+            if i > 0:
+                price_move = abs(closes[i] - closes[i-1]) / closes[i-1]
+                if price_move > 0.01:  # 1%+ move
+                    return len(candles_15m) - (len(recent_candles) - i)
+        
+        # 4. Default - ostatnie 2-3 świece
+        return len(candles_15m) - 2
+        
+    except Exception as e:
+        print(f"[ALERT DETECTION ERROR] {e}")
+        return max(0, len(candles_15m) - 2)
+
+
+def generate_alert_focused_training_chart(
+    symbol: str, 
+    candles_15m: List, 
+    tjde_score: float, 
+    tjde_phase: str, 
+    tjde_decision: str, 
+    tjde_clip_confidence: float = None, 
+    setup_label: str = None
+) -> Optional[str]:
+    """
+    Generuje wykres treningowy skupiony na momencie alertu TJDE
+    
+    KONTEKST DECYZYJNY:
+    - 100 świec przed alertem, 20 po (maks 120 total)
+    - Oznaczenie momentu alertu pionową linią i kropką
+    - Tytuł z pełnym kontekstem: PHASE | SETUP | SCORE | DECISION
+    - Kolor tła/ramki zależny od fazy rynku
+    
+    Args:
+        symbol: Symbol tradingowy
+        candles_15m: Dane świec 15-minutowych
+        tjde_score: Final score TJDE 
+        tjde_phase: Faza rynku z TJDE
+        tjde_decision: Decyzja TJDE
+        tjde_clip_confidence: CLIP confidence (opcjonalne)
+        setup_label: Opis setupu (opcjonalne)
+        
+    Returns:
+        Ścieżka do wygenerowanego wykresu lub None
+    """
+    try:
+        if not candles_15m or len(candles_15m) < 20:
+            print(f"[CHART WARNING] {symbol}: Za mało danych świecowych ({len(candles_15m) if candles_15m else 0})")
+            return None
+        
+        # 1. WYKRYJ MOMENT ALERTU
+        alert_idx = detect_alert_moment(candles_15m, tjde_score, tjde_decision)
+        print(f"[ALERT MOMENT] {symbol}: Alert wykryty na świecy {alert_idx}/{len(candles_15m)}")
+        
+        # 2. KONTEKST OKNO: 100 przed, 20 po alertem
+        context_before = 100
+        context_after = 20
+        
+        start_idx = max(0, alert_idx - context_before)
+        end_idx = min(len(candles_15m), alert_idx + context_after)
+        
+        context_candles = candles_15m[start_idx:end_idx]
+        alert_relative_idx = alert_idx - start_idx  # Pozycja alertu w kontekście
+        
+        print(f"[CONTEXT WINDOW] {symbol}: Świece {start_idx}-{end_idx} (total: {len(context_candles)}, alert na: {alert_relative_idx})")
+        
+        if len(context_candles) < 10:
+            print(f"[CHART ERROR] {symbol}: Za mało świec w kontekście ({len(context_candles)})")
+            return None
+        
+        # 3. PRZYGOTUJ DANE DLA WYKRESU
+        df_data = []
+        for candle in context_candles:
+            timestamp = datetime.fromtimestamp(int(candle[0]) / 1000, tz=timezone.utc)
+            df_data.append({
+                'Date': timestamp,
+                'Open': float(candle[1]),
+                'High': float(candle[2]),
+                'Low': float(candle[3]),
+                'Close': float(candle[4]),
+                'Volume': float(candle[5])
+            })
+        
+        df = pd.DataFrame(df_data)
+        df.set_index('Date', inplace=True)
+        
+        # 4. KOLORY FAZOWE DLA KONTEKSTU WIZUALNEGO
+        phase_colors = {
+            "trend-following": "#2E8B57",      # Zielony - trend
+            "pullback-in-trend": "#4682B4",   # Niebieski - pullback  
+            "breakout-continuation": "#FF8C00", # Pomarańczowy - breakout
+            "consolidation": "#9370DB",        # Fioletowy - konsolidacja
+            "trend-reversal": "#DC143C",       # Czerwony - reversal
+            "fakeout": "#8B0000",             # Ciemno czerwony - fakeout
+            "bullish-momentum": "#32CD32",     # Lime - momentum wzrostowy
+            "bearish-momentum": "#FF6347",     # Tomato - momentum spadkowy
+            "exhaustion": "#800080",          # Purple - wyczerpanie
+            "volume-backed": "#FFD700",       # Gold - volume spike
+            "no-trend": "#708090",            # Szary - brak trendu
+            "unknown": "#696969"              # Ciemno szary - nieznane
+        }
+        
+        phase_color = phase_colors.get(tjde_phase, phase_colors["unknown"])
+        
+        # 5. GENERUJ WYKRES Z KONTEKSTEM
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 12), 
+                                       gridspec_kw={'height_ratios': [4, 1]}, 
+                                       facecolor='white')
+        
+        # Candlestick chart z volume
+        mpf.plot(df, type='candle', style='charles', 
+                 ax=ax1, volume=ax2, 
+                 show_nontrading=False,
+                 warn_too_much_data=False)
+        
+        # 6. OZNACZ MOMENT ALERTU
+        if 0 <= alert_relative_idx < len(df):
+            alert_time = df.index[alert_relative_idx]
+            alert_price = df.iloc[alert_relative_idx]['Close']
+            alert_high = df.iloc[alert_relative_idx]['High']
+            
+            # Pionowa linia alertu
+            ax1.axvline(x=alert_relative_idx, color='red', linestyle='--', linewidth=3, alpha=0.8, label='🚨 ALERT MOMENT')
+            
+            # Kropka na świecy alertu
+            ax1.scatter(alert_relative_idx, alert_price, color='red', s=150, zorder=10, 
+                       marker='o', edgecolors='darkred', linewidths=2, label='TJDE ENTRY')
+            
+            # Strzałka wskazująca alert
+            ax1.annotate('ALERT HERE', xy=(alert_relative_idx, alert_high), 
+                        xytext=(alert_relative_idx, alert_high * 1.02),
+                        arrowprops=dict(arrowstyle='->', color='red', lw=2),
+                        fontsize=10, fontweight='bold', color='red', ha='center')
+        
+        # 7. TYTUŁ Z PEŁNYM KONTEKSTEM DECYZYJNYM
+        setup_text = f" | SETUP: {setup_label.upper()}" if setup_label else ""
+        clip_text = f" | CLIP: {tjde_clip_confidence:.3f}" if tjde_clip_confidence and tjde_clip_confidence > 0 else ""
+        
+        title_main = f"{symbol} | PHASE: {tjde_phase.upper()}{setup_text}"
+        title_metrics = f"SCORE: {tjde_score:.3f} | DECISION: {tjde_decision.upper()}{clip_text}"
+        
+        ax1.set_title(title_main, fontsize=14, fontweight='bold', color=phase_color, pad=10)
+        ax1.text(0.5, 0.98, title_metrics, transform=ax1.transAxes, fontsize=12, 
+                ha='center', va='top', bbox=dict(boxstyle="round,pad=0.3", facecolor=phase_color, alpha=0.3))
+        
+        # 8. RAMKA FAZOWA
+        for spine in ax1.spines.values():
+            spine.set_color(phase_color)
+            spine.set_linewidth(3)
+        
+        ax1.legend(loc='upper left', fontsize=10)
+        ax1.grid(True, alpha=0.3)
+        ax2.set_title('Volume', fontsize=10)
+        
+        # 9. ZAPISZ WYKRES
+        os.makedirs("training_charts", exist_ok=True)
+        timestamp_str = datetime.now().strftime("%Y%m%d_%H%M")
+        
+        # Nazwa pliku z kontekstem
+        phase_short = tjde_phase.replace('-', '').replace('_', '')[:8]
+        decision_short = tjde_decision.replace('_', '')[:4]
+        filename = f"{symbol}_{timestamp_str}_{phase_short}_{decision_short}_alert.png"
+        filepath = os.path.join("training_charts", filename)
+        
+        plt.tight_layout()
+        plt.savefig(filepath, dpi=150, bbox_inches='tight', facecolor='white', edgecolor=phase_color, linewidth=3)
+        plt.close()
+        
+        # 10. METADATA Z KONTEKSTEM ALERTU
+        metadata = {
+            "symbol": symbol,
+            "timestamp": timestamp_str,
+            "chart_type": "alert_focused_training",
+            "tjde_analysis": {
+                "score": tjde_score,
+                "phase": tjde_phase,
+                "decision": tjde_decision,
+                "setup_label": setup_label
+            },
+            "clip_analysis": {
+                "confidence": tjde_clip_confidence
+            },
+            "alert_context": {
+                "alert_candle_index": alert_idx,
+                "alert_relative_position": alert_relative_idx,
+                "context_window_start": start_idx,
+                "context_window_end": end_idx,
+                "total_context_candles": len(context_candles),
+                "candles_before_alert": context_before,
+                "candles_after_alert": context_after
+            },
+            "visual_cues": {
+                "phase_color": phase_color,
+                "alert_marked": True,
+                "has_volume": True
+            }
+        }
+        
+        metadata_path = filepath.replace('.png', '_metadata.json')
+        with open(metadata_path, 'w') as f:
+            json.dump(metadata, f, indent=2)
+        
+        print(f"✅ [ALERT CHART] {symbol}: Wykres skupiony na momencie alertu → {filepath}")
+        print(f"📊 [CONTEXT] Alert na świecy {alert_idx}, kontekst: {len(context_candles)} świec")
+        
+        return filepath
+        
+    except Exception as e:
+        print(f"❌ [CHART ERROR] {symbol}: Błąd generowania wykresu alertu: {e}")
+        return None
 
 
 def generate_tjde_training_chart(
@@ -635,10 +885,9 @@ def generate_chart_async_safe(
         decision = tjde_result.get("decision", "unknown")
         
         # Generate chart
-        chart_path = generate_tjde_training_chart_contextual(
+        chart_path = generate_alert_focused_training_chart(
             symbol=symbol,
             candles_15m=candles_15m,
-            candles_5m=candles_5m,
             tjde_score=tjde_score,
             decision=decision,
             tjde_breakdown=tjde_breakdown,
@@ -675,10 +924,9 @@ def test_chart_generation():
         sample_candles.append([timestamp, open_price, high_price, low_price, close_price, volume])
     
     # Test chart generation
-    result = generate_tjde_training_chart_contextual(
+    result = generate_alert_focused_training_chart(
         symbol="TESTUSDT",
         candles_15m=sample_candles,
-        candles_5m=[],
         tjde_score=0.75,
         decision="consider_entry",
         tjde_breakdown={

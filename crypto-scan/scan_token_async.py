@@ -600,37 +600,36 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         except Exception as e:
             print(f"[SAVE ERROR] {symbol} → {e}")
         
-        # Professional chart generation for training data
+        # Alert-Focused Training Chart Generation
         training_chart_saved = False
         try:
-            if tjde_score >= 0.6 or ppwcs_score >= 50:
-                from chart_generator import generate_chart_async_safe
+            if tjde_score >= 0.4 and tjde_decision != "avoid":  # Warunki dla wykresów alert-focused
+                from chart_generator import generate_alert_focused_training_chart
                 
-                # Prepare market data for chart generation
-                chart_market_data = {
-                    "candles": candles_15m,
-                    "candles_5m": candles_5m
-                }
+                # Extract TJDE context data for alert-focused chart
+                tjde_phase = features.get("market_phase", "unknown") if 'features' in locals() else "unknown"
+                tjde_clip_confidence = features.get("clip_confidence", 0.0) if 'features' in locals() and features.get("clip_confidence", 0.0) > 0 else None
+                setup_label = features.get("price_action_pattern", None) if 'features' in locals() else None
                 
-                # Prepare TJDE result for chart generation
-                chart_tjde_result = {
-                    "final_score": tjde_score,
-                    "decision": tjde_decision
-                }
+                print(f"[CHART TRIGGER] {symbol}: Generowanie wykresu alert-focused (TJDE: {tjde_score:.3f}, Faza: {tjde_phase}, Decyzja: {tjde_decision})")
                 
-                # Generate professional trend mode chart
-                chart_path = generate_chart_async_safe(
+                chart_path = generate_alert_focused_training_chart(
                     symbol=symbol,
-                    market_data=chart_market_data,
-                    tjde_result=chart_tjde_result,
-                    tjde_breakdown=features if 'features' in locals() else {}
+                    candles_15m=candles_15m,
+                    tjde_score=tjde_score,
+                    tjde_phase=tjde_phase,
+                    tjde_decision=tjde_decision,
+                    tjde_clip_confidence=tjde_clip_confidence,
+                    setup_label=setup_label
                 )
                 
                 if chart_path:
                     training_chart_saved = True
-                    print(f"[CHART GENERATED] {symbol}: Professional trend chart with TJDE {tjde_score:.3f} ({tjde_decision})")
+                    print(f"[ALERT CHART SUCCESS] {symbol}: Wykres skupiony na momencie alertu → {chart_path}")
                 else:
-                    print(f"[CHART SKIP] {symbol}: Chart generation skipped (insufficient data)")
+                    print(f"[CHART SKIP] {symbol}: Generowanie wykresu pominięte (niewystarczające dane)")
+            else:
+                print(f"[CHART SKIP] {symbol}: Nie spełnia warunków (TJDE: {tjde_score:.3f}, Decyzja: {tjde_decision})")
                     
         except Exception as chart_e:
             print(f"[CHART ERROR] {symbol}: {chart_e}")
