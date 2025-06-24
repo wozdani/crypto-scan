@@ -464,22 +464,55 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             tjde_score = ppwcs_score / 100 if ppwcs_score else 0.4  # Convert to 0-1 range
             tjde_decision = "monitor" if tjde_score > 0.5 else "avoid"
         
-        # Training chart generation for quality setups
+        # TJDE-based training chart generation for quality setups
         training_chart_saved = False
-        if ppwcs_score >= 40 or tjde_score >= 0.6:
-            print(f"[TRAINING] {symbol} → Generating training chart (PPWCS: {ppwcs_score}, TJDE: {tjde_score})")
+        if tjde_score >= 0.6:  # Remove PPWCS dependency
+            print(f"[TRAINING] {symbol} → Generating TJDE training chart (Score: {tjde_score:.3f}, Decision: {tjde_decision})")
             try:
-                # Initialize training data manager
-                training_manager = TrainingDataManager()
+                # Import TJDE chart generator
+                from chart_generator import generate_tjde_training_chart
                 
-                # Prepare context features for training
-                context_features = {
-                    "ppwcs_score": ppwcs_score,
-                    "tjde_score": tjde_score,
-                    "tjde_decision": tjde_decision,
-                    "price": price,
-                    "volume_24h": volume_24h,
-                    "market_phase": "active_scan",
+                # Extract TJDE result data
+                tjde_full_result = {
+                    "final_score": tjde_score,
+                    "decision": tjde_decision,
+                    "market_phase": features.get("market_phase", "unknown"),
+                    "setup_type": features.get("price_action_pattern", "unknown")
+                }
+                
+                # Extract CLIP info if available
+                clip_analysis = {
+                    "predicted_phase": features.get("clip_phase", "N/A"),
+                    "confidence": features.get("clip_confidence", 0.0)
+                }
+                
+                # Generate TJDE-focused training chart
+                chart_path = generate_tjde_training_chart(
+                    symbol=symbol,
+                    candles_15m=candles_15m,
+                    candles_5m=candles_5m,
+                    tjde_result=tjde_full_result,
+                    clip_info=clip_analysis,
+                    output_dir="training_charts"
+                )
+                
+                if chart_path:
+                    print(f"[TRAINING SUCCESS] {symbol} → Chart saved: {chart_path}")
+                    training_chart_saved = True
+                    
+                    # Initialize training data manager for metadata
+                    training_manager = TrainingDataManager()
+                    
+                    # Prepare TJDE-based context features
+                    context_features = {
+                        "tjde_score": tjde_score,
+                        "tjde_decision": tjde_decision,
+                        "market_phase": features.get("market_phase", "unknown"),
+                        "setup_type": features.get("price_action_pattern", "unknown"),
+                        "clip_phase": features.get("clip_phase", "N/A"),
+                        "clip_confidence": features.get("clip_confidence", 0.0),
+                        "price": price,
+                        "volume_24h": volume_24h,
                     "scan_timestamp": datetime.now().isoformat(),
                     "candle_count_15m": len(candles_15m) if candles_15m else 0,
                     "candle_count_5m": len(candles_5m) if candles_5m else 0

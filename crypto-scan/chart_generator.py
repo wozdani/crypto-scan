@@ -12,30 +12,122 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
 
-def generate_trend_mode_chart(
+def generate_tjde_training_chart(
     symbol: str, 
     candles_15m: List, 
-    candles_5m: List, 
-    tjde_score: float, 
-    decision: str,
-    tjde_breakdown: Dict = None,
+    candles_5m: List = None, 
+    tjde_result: Dict = None,
+    clip_info: Dict = None,
     output_dir: str = "training_charts"
 ) -> Optional[str]:
     """
-    Generate professional trend mode chart with TJDE results
+    Generate TJDE-based training chart with complete analysis overlay
     
     Args:
         symbol: Trading symbol
-        candles_15m: 15-minute candle data
-        candles_5m: 5-minute candle data  
-        tjde_score: TJDE final score
-        decision: TJDE decision (long/short/avoid/consider_entry)
-        tjde_breakdown: Optional detailed score breakdown
+        candles_15m: 15-minute candle data (used for chart display)
+        candles_5m: 5-minute candle data (optional, for additional analysis)  
+        tjde_result: Complete TJDE result dictionary with score, decision, breakdown
+        clip_info: CLIP analysis results with phase and confidence
         output_dir: Output directory for charts
         
     Returns:
         Path to generated chart or None if failed
     """
+    try:
+        # Create output directory
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+            
+        # Validate inputs
+        if not candles_15m or len(candles_15m) < 10:
+            print(f"[CHART ERROR] {symbol}: Insufficient 15m candles ({len(candles_15m) if candles_15m else 0})")
+            return None
+            
+        # Extract TJDE data
+        if not tjde_result or not isinstance(tjde_result, dict):
+            print(f"[CHART ERROR] {symbol}: Missing or invalid TJDE result")
+            return None
+            
+        tjde_score = tjde_result.get("final_score", 0.0)
+        decision = tjde_result.get("decision", "unknown")
+        market_phase = tjde_result.get("market_phase", "unknown")
+        setup_type = tjde_result.get("setup_type", "unknown")
+        
+        # Extract CLIP data if available
+        clip_phase = "N/A"
+        clip_confidence = 0.0
+        if clip_info and isinstance(clip_info, dict):
+            clip_phase = clip_info.get("predicted_phase", "N/A")
+            clip_confidence = clip_info.get("confidence", 0.0)
+            
+        # Use last 96 candles (24 hours at 15M intervals)
+        candles_to_plot = candles_15m[-96:] if len(candles_15m) >= 96 else candles_15m
+        
+        # Prepare data for plotting
+        timestamps = [candle[0] for candle in candles_to_plot]
+        opens = [float(candle[1]) for candle in candles_to_plot]
+        highs = [float(candle[2]) for candle in candles_to_plot]
+        lows = [float(candle[3]) for candle in candles_to_plot]
+        closes = [float(candle[4]) for candle in candles_to_plot]
+        volumes = [float(candle[5]) for candle in candles_to_plot]
+        
+        # Create chart
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(15, 10), gridspec_kw={'height_ratios': [3, 1]})
+        
+        # Price chart
+        for i in range(len(timestamps)):
+            color = 'green' if closes[i] >= opens[i] else 'red'
+            ax1.plot([i, i], [lows[i], highs[i]], color=color, linewidth=1)
+            ax1.plot([i, i], [opens[i], closes[i]], color=color, linewidth=3)
+        
+        # Create TJDE-focused title
+        title = f"{symbol} – TJDE Training Chart"
+        ax1.set_title(title, fontsize=16, fontweight='bold')
+        
+        # Create analysis text overlay
+        analysis_text = f"""Phase: {market_phase}
+Setup: {setup_type}
+TJDE Score: {tjde_score:.3f}
+Decision: {decision.upper()}"""
+        
+        if clip_confidence > 0:
+            analysis_text += f"\nCLIP: {clip_phase} ({clip_confidence:.2f})"
+            
+        # Add TJDE analysis overlay in top-right corner
+        ax1.text(0.98, 0.98, analysis_text, transform=ax1.transAxes, 
+                fontsize=10, verticalalignment='top', horizontalalignment='right',
+                bbox=dict(boxstyle="round,pad=0.5", facecolor='lightblue', alpha=0.9),
+                family='monospace')
+        
+        # Volume chart
+        ax2.bar(range(len(volumes)), volumes, alpha=0.7, color='blue')
+        ax2.set_ylabel('Volume')
+        ax2.set_xlabel('Time (15M candles)')
+        
+        # Format and save
+        ax1.set_ylabel('Price (USDT)')
+        ax1.grid(True, alpha=0.3)
+        ax2.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        
+        # Generate filename with timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"{symbol}_{timestamp}_tjde_chart.png"
+        filepath = os.path.join(output_dir, filename)
+        
+        plt.savefig(filepath, dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        print(f"[CHART SUCCESS] {symbol}: TJDE chart saved to {filepath}")
+        return filepath
+        
+    except Exception as e:
+        print(f"[CHART ERROR] {symbol}: Failed to generate chart - {e}")
+        import traceback
+        traceback.print_exc()
+        return None
     try:
         # Create output directory
         if not os.path.exists(output_dir):

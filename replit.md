@@ -273,6 +273,15 @@ Fixed critical "CLIP Confidence: N/A" issue by implementing comprehensive CLIP p
 - **Debug Integration**: Added comprehensive logging for market phase detection and modifier application with [MARKET_PHASE_MODIFIER] tags
 - **Production Validation**: Tested with breakout-continuation phase showing correct +0.120 modifier application and improved TJDE scores
 
+### June 24, 2025 - TJDE Training Chart Generation Fixed - PRODUCTION READY ✅
+- **PPWCS Dependency Removed**: Training charts now generated exclusively based on TJDE score ≥ 0.6 (no PPWCS requirement)
+- **TJDE-Focused Chart Layout**: New generate_tjde_training_chart() function with proper title "SYMBOL – TJDE Training Chart"
+- **Complete Analysis Overlay**: Charts display Phase, Setup, TJDE Score, Decision, and CLIP analysis in formatted overlay
+- **Data Source Corrected**: Charts use candles_15m (96 candles max) for display instead of mixed market_data sources
+- **Enhanced Metadata**: Training pairs saved with TJDE-specific context including market_phase, setup_type, clip_phase, clip_confidence
+- **Professional Visualization**: Candlestick charts with volume bars, proper scaling, and comprehensive TJDE analysis annotations
+- **Production Integration**: Complete integration with scan_token_async.py for automatic TJDE-based chart generation during live scanning
+
 ### June 24, 2025 - Production-Ready Async Scanner with Complete Error Handling - PRODUCTION READY ✅
 - **Realistic PPWCS Implementation**: Replaced legacy compute_ppwcs() with 5-component analysis: volume (25pts), price movement (25pts), volatility (20pts), momentum (15pts), orderbook pressure (15pts)
 - **Enhanced Async Infrastructure**: Added asyncio.Semaphore(15) rate limiting, comprehensive retry logic with exponential backoff, 429/502 error handling
