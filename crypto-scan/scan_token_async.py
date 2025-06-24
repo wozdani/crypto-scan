@@ -421,10 +421,43 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         if ppwcs_score >= 40 or tjde_score >= 0.7:
             print(f"[ALERT TRIGGER] {symbol} → Sending alert (PPWCS≥40 or TJDE≥0.7)")
             try:
-                alert_sent = await send_async_alert(symbol, ppwcs_score, tjde_score, tjde_decision, market_data)
-                print(f"[ALERT RESULT] {symbol} → Alert sent: {alert_sent}")
+                # Use synchronous alert function with proper context
+                from utils.alert_system import process_alert
+                
+                # Prepare signals for alert
+                signals = {
+                    "ppwcs_score": ppwcs_score,
+                    "tjde_score": tjde_score,
+                    "decision": tjde_decision,
+                    "price": price,
+                    "volume_24h": volume_24h,
+                    "timestamp": datetime.now().isoformat()
+                }
+                
+                # Send alert using existing system and save locally
+                process_alert(symbol, ppwcs_score, signals, None)
+                
+                # Also save to alerts directory for tracking
+                os.makedirs("data/alerts", exist_ok=True)
+                alert_data = {
+                    "symbol": symbol,
+                    "ppwcs_score": ppwcs_score,
+                    "tjde_score": tjde_score,
+                    "tjde_decision": tjde_decision,
+                    "message": f"🚀 ASYNC ALERT: {symbol} - PPWCS: {ppwcs_score:.1f} | TJDE: {tjde_score:.3f} ({tjde_decision})",
+                    "timestamp": datetime.now().isoformat(),
+                    "type": "async_scan_alert",
+                    "telegram_status": "pending_config"
+                }
+                
+                with open(f"data/alerts/{symbol}_async_alert.json", "w") as f:
+                    json.dump(alert_data, f, indent=2)
+                
+                alert_sent = True
+                print(f"[ALERT RESULT] {symbol} → Alert logged locally (Telegram config pending)")
             except Exception as e:
                 print(f"[ALERT ERROR] {symbol} → {e}")
+                alert_sent = False
         else:
             print(f"[ALERT SKIP] {symbol} → Below thresholds (PPWCS: {ppwcs_score:.1f}, TJDE: {tjde_score:.3f})")
         
