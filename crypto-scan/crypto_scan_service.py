@@ -95,7 +95,7 @@ def scan_single_token(symbol):
         return None
 
 def scan_cycle():
-    """Simple sequential scan"""
+    """Enhanced scan cycle with async integration"""
     print(f"\nStarting scan cycle at {datetime.now().strftime('%H:%M:%S')}")
     
     start_time = time.time()
@@ -106,6 +106,36 @@ def scan_cycle():
     
     # Build cache
     build_coingecko_cache()
+    
+    # Try async scan first, fallback to simple scan
+    try:
+        from scan_token_async import flush_async_results
+        print("Attempting async scan integration...")
+        
+        # Import and run async scan
+        import asyncio
+        from scan_all_tokens_async import async_scan_cycle
+        
+        # Run async scan cycle
+        asyncio.run(async_scan_cycle())
+        print("Async scan completed successfully")
+        
+        # Flush results
+        flush_async_results()
+        
+    except Exception as e:
+        print(f"Async scan failed ({e}), falling back to simple scan...")
+        
+        # Fallback to simple sequential scan
+        simple_scan_fallback(symbols)
+    
+    # Show timing
+    elapsed = time.time() - start_time
+    print(f"Scan cycle completed in {elapsed:.1f}s")
+
+def simple_scan_fallback(symbols):
+    """Fallback simple scan when async fails"""
+    print("Running simple scan fallback...")
     
     # Whale priority
     symbols, priority_symbols, priority_info = prioritize_whale_tokens(symbols)
