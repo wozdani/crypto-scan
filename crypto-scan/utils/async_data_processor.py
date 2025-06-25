@@ -113,12 +113,19 @@ def process_async_data_enhanced(symbol: str, ticker_data: Optional[Dict], candle
         "symbol": symbol,
         "price_usd": price_usd,
         "volume_24h": volume_24h,
-        "candles_15m": candles,
+        "candles": candles,  # Use 'candles' key for compatibility
+        "candles_15m": candles,  # Also provide original key
         "candles_5m": [],  # Not fetched in current async implementation
+        "orderbook": {"bids": bids, "asks": asks},  # Nested structure for compatibility
         "bids": bids,
         "asks": asks,
+        "best_bid": bids[0]["price"] if bids else price_usd * 0.999,
+        "best_ask": asks[0]["price"] if asks else price_usd * 1.001,
+        "volume": volume_24h,
+        "recent_volumes": [c["volume"] for c in candles[-7:]] if candles else [],
         "ticker_data": ticker_data,
         "orderbook_data": orderbook_data,
+        "partial_data": not (ticker_data and has_orderbook and orderbook_data),
         "is_partial": not (ticker_data and has_orderbook and orderbook_data),
         "data_sources": components,
         "price_change_24h": 0.0  # Cannot calculate without historical data

@@ -25,7 +25,8 @@ from utils.alert_system import process_alert
 from utils.coingecko import build_coingecko_cache
 from utils.whale_priority import prioritize_whale_tokens
 from utils.data_validation import validate_market_data_enhanced
-from utils.enhanced_error_logging import log_api_error, log_data_validation_error
+from utils.enhanced_error_logging import log_api_error
+from utils.async_data_processor import process_async_data_enhanced, log_data_validation_error
 # Enhanced data validation for partial validity support
 
 class AsyncCryptoScanner:
@@ -53,33 +54,54 @@ class AsyncCryptoScanner:
             await self.session.close()
     
     async def fetch_bybit_data_enhanced(self, symbol: str) -> Optional[Dict]:
-        """Enhanced async fetch with data validation and fallback mechanisms"""
+        """Enhanced async fetch using direct data processing without validation"""
+        
+        # Fetch data with multiple fallbacks
+        ticker_data = None
+        candles_data = None
+        orderbook_data = None
+        
         try:
-            # STEP 1: Try async fetch with multiple endpoint fallbacks
-            market_data = await self._fetch_with_fallbacks(symbol)
-            
-            # STEP 2: If async fetch fails, use enhanced synchronous validation
-            if not market_data:
-                print(f"[ASYNC FALLBACK] {symbol}: Using enhanced validation system")
-                validation_result = validate_market_data_enhanced(symbol)
+            # Fetch all data sources concurrently with fallbacks
+            async with aiohttp.ClientSession() as session:
+                # Try ticker data (can fail without blocking)
+                try:
+                    ticker_url = f"https://api.bybit.com/v5/market/tickers?category=spot&symbol={symbol}"
+                    async with session.get(ticker_url) as response:
+                        if response.status == 200:
+                            ticker_data = await response.json()
+                except:
+                    pass  # Ticker failure is acceptable
                 
-                if validation_result.is_valid:
-                    # Convert validation result to async format
-                    market_data = self._convert_validation_to_async_format(validation_result)
-                    if market_data:
-                        print(f"[VALIDATION SUCCESS] {symbol}: {validation_result.get_summary()}")
-                        return market_data
-                else:
-                    print(f"[VALIDATION FAILED] {symbol}: {validation_result.get_summary()}")
-                    for issue in validation_result.validation_issues:
-                        print(f"[VALIDATION ISSUE] {symbol}: {issue}")
-                    return None
-            
-            return market_data
-            
+                # Fetch candles (critical for analysis)
+                try:
+                    candles_url = f"https://api.bybit.com/v5/market/kline?category=spot&symbol={symbol}&interval=15&limit=200"
+                    async with session.get(candles_url) as response:
+                        if response.status == 200:
+                            candles_data = await response.json()
+                        else:
+                            # Try linear category as fallback
+                            candles_url = f"https://api.bybit.com/v5/market/kline?category=linear&symbol={symbol}&interval=15&limit=200"
+                            async with session.get(candles_url) as response:
+                                if response.status == 200:
+                                    candles_data = await response.json()
+                except:
+                    pass
+                
+                # Try orderbook (can fail without blocking)
+                try:
+                    orderbook_url = f"https://api.bybit.com/v5/market/orderbook?category=spot&symbol={symbol}&limit=25"
+                    async with session.get(orderbook_url) as response:
+                        if response.status == 200:
+                            orderbook_data = await response.json()
+                except:
+                    pass  # Orderbook failure is acceptable
+                    
         except Exception as e:
             log_api_error(symbol, "async_fetch_enhanced", "critical_error", None, e)
-            return None
+        
+        # Use enhanced data processor to handle partial data scenarios
+        return process_async_data_enhanced(symbol, ticker_data, candles_data, orderbook_data)
     
     async def _fetch_with_fallbacks(self, symbol: str) -> Optional[Dict]:
         """Async fetch with multiple endpoint and category fallbacks"""
@@ -169,18 +191,6 @@ class AsyncCryptoScanner:
         
         # Use enhanced processing
         return process_async_data_enhanced(symbol, ticker_data, candles_data, orderbook_data)
-            "symbol": symbol,
-            "price_usd": price_usd,
-            "volume_24h": volume_24h,
-            "candles": candles,
-            "orderbook": {"bids": bids, "asks": asks},
-            "best_bid": bids[0]["price"] if bids else price_usd * 0.999,
-            "best_ask": asks[0]["price"] if asks else price_usd * 1.001,
-            "volume": volume_24h,
-            "recent_volumes": [c["volume"] for c in candles[-7:]] if candles else [],
-            "partial_data": not (ticker_data and candles and bids and asks),
-            "data_sources": components
-        }
     
     def _convert_validation_to_async_format(self, validation_result) -> Optional[Dict]:
         """Convert validation result to async scanner format"""
