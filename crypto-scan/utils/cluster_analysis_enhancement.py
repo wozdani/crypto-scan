@@ -41,11 +41,9 @@ def cluster_analysis_enhancement(symbol, market_data, debug=False):
         else:
             print(f"[CLUSTER DEBUG] No candles available for format check")
         
-        if not candles_15m or len(candles_15m) < 10:
-            print(f"[DATA WARNING] {symbol} has insufficient candles: {len(candles_15m) if candles_15m else 0} (need ≥10)")
-            if debug:
-                print(f"- Insufficient data: Need ≥10 candles, got {len(candles_15m) if candles_15m else 0}")
-                print(f"- Final Modifier: 0.000, Quality: 0.500")
+        if not candles_15m or len(candles_15m) < 3:  # Reduced threshold from 10 to 3
+            print(f"[CLUSTER FALLBACK] {symbol}: Insufficient candles: {len(candles_15m) if candles_15m else 0} (need ≥3)")
+            print(f"[CLUSTER FALLBACK] Pattern: insufficient_data, Strength: 0.000, Quality: 0.500")
             return 0.0, 0.5
 
         # Calculate volume clusters and patterns
@@ -200,30 +198,30 @@ def cluster_analysis_enhancement(symbol, market_data, debug=False):
             print(f"  * Consistency (CV {volume_cv:.3f} < 0.5): +{consistency_score:.3f}")
             print(f"- Pattern score: {pattern_score:.3f}")
 
-        # Determine final modifier and quality
+        # Determine final modifier and quality with enhanced debug
         pattern_found = pattern_score >= 0.3
         
+        print(f"[CLUSTER PATTERN] {symbol}: Score {pattern_score:.3f}, Threshold 0.3, Found: {pattern_found}")
+        print(f"[CLUSTER DEBUG] Pattern: {'volume_clustering' if pattern_found else 'insufficient_pattern'}, Strength: {pattern_score:.3f}, Quality: {min(1.0, 0.5 + pattern_score):.3f}")
+        
         if not pattern_found:
-            if debug:
-                print(f"- Pattern threshold check: {pattern_score:.3f} < 0.3 (minimum)")
-                print(f"- Fallback triggered: No valid volume pattern found")
-                print(f"- Final Modifier: 0.000, Quality: 0.500")
+            print(f"[CLUSTER THRESHOLD] {symbol}: Pattern score {pattern_score:.3f} < 0.3 minimum")
+            print(f"[CLUSTER FALLBACK] Pattern: weak_clustering, Strength: {pattern_score:.3f}, Quality: 0.500")
             return 0.0, 0.5  # Weak pattern
         
         # Scale modifier based on pattern strength
         modifier = min(0.15, pattern_score * 0.5)  # Max 0.15 boost
         quality = min(1.0, 0.5 + pattern_score)  # Quality score 0.5-1.0
         
-        if debug:
-            print(f"- Pattern validation: PASSED ({pattern_score:.3f} ≥ 0.3)")
-            print(f"- Modifier calculation: min(0.15, {pattern_score:.3f} * 0.5) = {modifier:.3f}")
-            print(f"- Quality calculation: min(1.0, 0.5 + {pattern_score:.3f}) = {quality:.3f}")
-            print(f"- Final Modifier: {modifier:.3f}, Quality: {quality:.3f}")
+        print(f"[CLUSTER SUCCESS] {symbol}: Pattern validation PASSED ({pattern_score:.3f} ≥ 0.3)")
+        print(f"[CLUSTER CALC] Modifier: min(0.15, {pattern_score:.3f} * 0.5) = {modifier:.3f}")
+        print(f"[CLUSTER CALC] Quality: min(1.0, 0.5 + {pattern_score:.3f}) = {quality:.3f}")
+        print(f"[CLUSTER DEBUG] Pattern: volume_clustering, Strength: {pattern_score:.3f}, Quality: {quality:.3f}")
         
-        # Check for fallback values before returning
+        # Final validation before return
         if modifier == 0.0 and quality == 0.5:
-            print(f"[CLUSTER FALLBACK] {symbol}: Default values returned - insufficient data or calculation failed")
-            print(f"[CLUSTER FALLBACK] Candles: {len(candles_15m) if candles_15m else 0}, Orderbook: {bool(orderbook_data)}")
+            print(f"[CLUSTER WARNING] {symbol}: Unexpected fallback values despite passing validation")
+            print(f"[CLUSTER WARNING] Candles: {len(candles_15m)}, Pattern Score: {pattern_score:.3f}")
         
         return modifier, quality
         

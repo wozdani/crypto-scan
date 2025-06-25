@@ -1063,6 +1063,44 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
             clip_prediction = load_clip_prediction(symbol)
             print(f"[CLIP LOAD] {symbol}: Prediction result = {clip_prediction}")
             
+            # FALLBACK: If no file-based prediction but FastCLIPPredictor is available
+            if clip_prediction is None:
+                try:
+                    from ai.clip_predictor_fast import FastCLIPPredictor
+                    fast_predictor = FastCLIPPredictor()
+                    
+                    # Try to find chart for symbol
+                    chart_patterns = [
+                        f"training_charts/{symbol}_*.png",
+                        f"charts/{symbol}_*.png", 
+                        f"exports/{symbol}_*.png"
+                    ]
+                    
+                    chart_path = None
+                    for pattern in chart_patterns:
+                        import glob
+                        charts = glob.glob(pattern)
+                        if charts:
+                            chart_path = charts[0]
+                            break
+                    
+                    if chart_path:
+                        fast_result = fast_predictor.predict_fast(chart_path)
+                        if fast_result:
+                            clip_prediction = {
+                                'trend_label': fast_result.get('trend_label', 'unknown'),
+                                'confidence': fast_result.get('confidence', 0.6),
+                                'setup_type': fast_result.get('setup_type', 'pattern-based')
+                            }
+                            print(f"[CLIP FALLBACK] {symbol}: Using FastCLIP prediction: {clip_prediction}")
+                        else:
+                            print(f"[CLIP FALLBACK] {symbol}: FastCLIP returned None")
+                    else:
+                        print(f"[CLIP FALLBACK] {symbol}: No chart found for FastCLIP")
+                        
+                except Exception as e:
+                    print(f"[CLIP FALLBACK ERROR] {symbol}: {e}")
+            
             # Try to load GPT commentary for mapping
             gpt_commentary = ""
             try:
