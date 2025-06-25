@@ -848,18 +848,18 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
     
     # Apply intelligent phase-specific adjustments
     weights = apply_phase_adjustments(base_weights, market_phase)
-        print(f"[TJDE WEIGHTS] Phase-adjusted weights applied for {market_phase}")
-        
-        # === ETAP 3: SCORING Z DYNAMICZNYMI WAGAMI ===
-        score = (
-            trend_strength * weights["trend_strength"] +
-            pullback_quality * weights["pullback_quality"] +
-            support_reaction * weights["support_reaction"] +
-            liquidity_pattern_score * weights["liquidity_pattern_score"] +
-            psych_score * weights["psych_score"] +
-            htf_supportive_score * weights["htf_supportive_score"] +
-            market_phase_modifier * weights["market_phase_modifier"]
-        )
+    print(f"[TJDE WEIGHTS] Phase-adjusted weights applied for {market_phase}")
+    
+    # === ETAP 3: SCORING Z DYNAMICZNYMI WAGAMI ===
+    score = (
+        trend_strength * weights["trend_strength"] +
+        pullback_quality * weights["pullback_quality"] +
+        support_reaction * weights["support_reaction"] +
+        liquidity_pattern_score * weights["liquidity_pattern_score"] +
+        psych_score * weights["psych_score"] +
+        htf_supportive_score * weights["htf_supportive_score"] +
+        market_phase_modifier * weights["market_phase_modifier"]
+    )
         
         print(f"[TRADER SCORE] Base score: {score:.3f}")
         
