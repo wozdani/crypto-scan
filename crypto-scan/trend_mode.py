@@ -326,6 +326,7 @@ def analyze_trend_opportunity(symbol: str, candles: List[List] = None, enable_vi
         
         # Use new adaptive trader decision engine
         from trader_ai_engine import simulate_trader_decision_advanced
+from perception_sync import simulate_trader_decision_perception_sync
         adaptive_result = simulate_trader_decision_advanced(features)
         
         # Map result to trend_context format

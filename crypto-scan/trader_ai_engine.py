@@ -837,26 +837,7 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
     Returns:
         dict: Enhanced decision with CLIP + GPT integration
     """
-    try:
-        score_breakdown = {}
-        context_modifiers = []
-        
-        # === ETAP 1: WYCIĄGANIE CECH Z WEJŚCIA ===
-        trend_strength = features.get("trend_strength", 0.0)
-        pullback_quality = features.get("pullback_quality", 0.0)
-        support_reaction = features.get("support_reaction", 0.0)
-        liquidity_pattern_score = features.get("liquidity_pattern_score", 0.0)
-        psych_score = features.get("psych_score", 0.0)
-        htf_supportive_score = features.get("htf_supportive_score", 0.0)
-        market_phase = features.get("market_phase", "unknown")
-        market_phase_modifier = features.get("market_phase_modifier", 0.0)
-        price_action_pattern = features.get("price_action_pattern", "none")
-        volume_behavior = features.get("volume_behavior", "neutral")
-        htf_trend_match = features.get("htf_trend_match", False)
-        
-        # Extract CLIP features if available
-        clip_trend_match = features.get("clip_trend_match", "unknown")
-        clip_confidence = features.get("clip_confidence", 0.0)
+
         
         print(f"[TRADER ADAPTIVE] Analyzing features: phase={market_phase}, trend={trend_strength:.3f}, pullback={pullback_quality:.3f}")
         
