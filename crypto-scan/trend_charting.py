@@ -45,9 +45,10 @@ def plot_custom_candlestick_chart(df_ohlc: pd.DataFrame, df_volume: pd.DataFrame
         df_ohlc_copy = df_ohlc.copy()
         df_ohlc_copy['timestamp'] = mdates.date2num(df_ohlc_copy['timestamp'])
         
-        # Świece z enhanced styling
+        # 1. 💡 Zoptymalizowany styl świec - cieńsze i bardziej przejrzyste
         candlestick_ohlc(ax1, df_ohlc_copy[['timestamp', 'open', 'high', 'low', 'close']].values, 
-                        width=0.0008, colorup='#00FF88', colordown='#FF4444', alpha=0.8)
+                        width=0.0008, colorup='#00FF88', colordown='#FF4444', 
+                        linewidths=0.5, alpha=0.9)
 
         # Volume z gradient effect
         colors = ['#00AA44' if close >= open else '#AA2222' 
@@ -294,8 +295,9 @@ def generate_trend_mode_chart(symbol: str, candles_15m: List, tjde_result: Dict,
         filename = f"{symbol}_{timestamp}_{score_str}.png"
         save_path = os.path.join(output_dir, filename)
         
-        # Create title
-        title = f"{symbol} - Trend Mode Analysis"
+        # Create enhanced title with interval
+        interval = "15M"
+        title = f"{symbol} | {interval} | {market_phase.upper()} | TJDE: {tjde_score:.2f} | {decision.upper()}"
         
         # Generate chart
         chart_path = plot_custom_candlestick_chart(
