@@ -1039,13 +1039,15 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
         try:
             from utils.clip_prediction_loader import load_clip_prediction
             
-            # Symbol already extracted at function start
+            print(f"[CLIP ENTRY] Starting CLIP prediction loading for {symbol}")
             
             # Load CLIP prediction
             clip_prediction = load_clip_prediction(symbol)
+            print(f"[CLIP LOAD] {symbol}: Prediction result = {clip_prediction}")
             
             if clip_prediction:
                 prediction_str = clip_prediction.lower()
+                print(f"[CLIP VALID] {symbol}: Found prediction = '{prediction_str}'")
                 
                 # Apply contextual boosts based on CLIP prediction
                 if "breakout-continuation" in prediction_str:
@@ -1208,6 +1210,7 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                         }
                 
                 if not clip_boost_applied:
+                    print(f"[CLIP STATUS] No valid prediction available for {symbol}")
                     context_modifiers.append("CLIP: No prediction available")
                     clip_info = {
                         "predicted_phase": "no_prediction",

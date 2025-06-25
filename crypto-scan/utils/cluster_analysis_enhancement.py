@@ -16,19 +16,33 @@ def cluster_analysis_enhancement(symbol, market_data, debug=False):
     Returns:
         tuple: (modifier, quality_score)
     """
+    print(f"[CLUSTER ENTRY] Starting cluster_analysis_enhancement for {symbol}")
+    
     try:
         # Extract data from market_data dictionary
         candles_15m = market_data.get('candles_15m', market_data.get('candles', []))
         orderbook_data = market_data.get('orderbook', {})
         price_usd = market_data.get('price_usd', market_data.get('price', 0))
         
-        if debug:
-            print(f"[CLUSTER DEBUG] {symbol}")
-            print(f"- Input validation: {len(candles_15m) if candles_15m else 0} candles")
-            print(f"- Orderbook available: {bool(orderbook_data)}")
-            print(f"- Price: {price_usd}")
+        # Enhanced debug logging
+        print(f"[CLUSTER DEBUG] {symbol}")
+        print(f"- Input validation: {len(candles_15m) if candles_15m else 0} candles")
+        print(f"- Orderbook available: {bool(orderbook_data)}")
+        print(f"- Price: {price_usd}")
+        
+        if candles_15m and len(candles_15m) > 0:
+            first_candle = candles_15m[0]
+            if isinstance(first_candle, dict):
+                print(f"[CLUSTER DEBUG] Candle format: dict, Keys: {list(first_candle.keys())}")
+            elif isinstance(first_candle, list):
+                print(f"[CLUSTER DEBUG] Candle format: list, Length: {len(first_candle)}")
+            else:
+                print(f"[CLUSTER DEBUG] Candle format: {type(first_candle)}")
+        else:
+            print(f"[CLUSTER DEBUG] No candles available for format check")
         
         if not candles_15m or len(candles_15m) < 20:
+            print(f"[DATA WARNING] {symbol} has insufficient candles: {len(candles_15m) if candles_15m else 0} (need ≥20)")
             if debug:
                 print(f"- Insufficient data: Need ≥20 candles, got {len(candles_15m) if candles_15m else 0}")
                 print(f"- Final Modifier: 0.000, Quality: 0.500")
@@ -198,10 +212,9 @@ def cluster_analysis_enhancement(symbol, market_data, debug=False):
         return modifier, quality
         
     except Exception as e:
-        if debug:
-            print(f"- Exception occurred: {e}")
-            print(f"- Final Modifier: 0.000, Quality: 0.500")
-        print(f"[CLUSTER_ERROR] {symbol}: {e}")
+        print(f"[CLUSTER ERROR] {symbol}: Unexpected exception: {e}")
+        import traceback
+        print(f"[CLUSTER TRACEBACK] {traceback.format_exc()}")
         return 0.0, 0.5
 
 def test_cluster_analysis_debug():

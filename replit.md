@@ -98,6 +98,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 25, 2025 - Enhanced Debug System for Trend-Mode - Cluster Analysis + CLIP Prediction Issue Detection ✅
+Implemented comprehensive debug logging system to detect fallback triggers in cluster analysis and CLIP prediction flow:
+- **Cluster Analysis Debug**: Added detailed entry logging, market_data validation, candle format detection, and exception tracking with full traceback in cluster_analysis_enhancement()
+- **CLIP Prediction Debug**: Enhanced load_clip_prediction() with file search logging, age validation, data structure inspection, and prediction field extraction tracking
+- **Trader AI Engine Debug**: Added debug markers for cluster calling, input validation, result tracking, and CLIP prediction loading flow in simulate_trader_decision_advanced()
+- **Fallback Detection**: Clear identification when cluster returns Modifier: +0.000, Quality: 0.500 and CLIP shows "No valid prediction available"
+- **Data Validation**: Enhanced logging of market_data keys, candle count validation, file existence checks, and prediction data structure analysis
+- **Error Chain Tracking**: Complete traceback capture for both cluster analysis exceptions and CLIP loading failures enabling precise problem identification
+- **Production Debugging**: Debug logs active in production revealing exact trigger points for fallback behaviors without affecting performance
+Enhanced debugging now reveals why cluster analysis defaults to +0.000 modifier and why CLIP predictions fail to load, enabling targeted optimization.
+
 ### June 25, 2025 - Complete Vision-AI Pipeline Fix - All matplotlib.dates Import Errors Resolved ✅
 Fixed comprehensive Vision-AI chart generation errors across entire pipeline preventing training data creation:
 - **Complete Import Chain Fix**: Added matplotlib backend configuration and mdates imports to vision_ai_pipeline.py and trend_charting.py eliminating all "name 'mdates' is not defined" errors
