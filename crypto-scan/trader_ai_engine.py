@@ -839,7 +839,7 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
     """
 
         
-        print(f"[TRADER ADAPTIVE] Analyzing features: phase={market_phase}, trend={trend_strength:.3f}, pullback={pullback_quality:.3f}")
+            print(f"[TRADER ADAPTIVE] Analyzing features: phase={market_phase}, trend={trend_strength:.3f}, pullback={pullback_quality:.3f}")
         
         # === ETAP 2: DYNAMIC TJDE WEIGHTS LOADING ===
         from utils.scoring import load_tjde_weights, apply_phase_adjustments
