@@ -393,7 +393,7 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     **trend_features
                 }
                 
-                tjde_result = simulate_trader_decision_advanced(features)
+                tjde_result = simulate_trader_decision_advanced(symbol, market_data, features)
                 
                 if tjde_result and isinstance(tjde_result, dict):
                     final_score = tjde_result.get("final_score", 0.4)
