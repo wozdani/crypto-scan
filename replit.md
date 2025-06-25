@@ -98,6 +98,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 25, 2025 - Complete JSONL Dataset Generator for Vision-AI Training - PRODUCTION READY ✅
+Implemented comprehensive dataset generation system for centralized Vision-AI training data management:
+- **JSONL Dataset Generator**: New generate_dataset_jsonl() function scans training_charts/ directory and creates centralized training_dataset.jsonl from PNG+JSON pairs
+- **Complete Metadata Extraction**: Automatic extraction of symbol, alerts, phase, setup, decision, score, timestamp, and multi-alert flags from JSON metadata files
+- **Dataset Quality Analysis**: Built-in analyze_dataset_distribution() providing statistics on phases, decisions, symbols, score distributions, and multi-alert ratios
+- **Quality Validation System**: validate_dataset_quality() function ensures dataset completeness with 90% quality threshold and missing file detection
+- **Training Pipeline Integration**: Enhanced vision_ai_pipeline.py with generate_complete_training_dataset() for automatic JSONL generation after chart creation
+- **Production-Ready Format**: JSONL output optimized for PyTorch, TensorFlow, CLIP, and modern Vision-AI training frameworks
+- **Error Handling**: Comprehensive error detection for missing files, invalid JSON, and corrupted training pairs
+System now generates complete, validated training datasets ready for advanced Vision-AI model development with centralized data management.
+
 ### June 25, 2025 - Vision-AI Training Data with JSON Metadata Export - PRODUCTION READY ✅
 Enhanced Vision-AI system with comprehensive training metadata export for advanced AI model development:
 - **JSON Metadata Export**: Automatic generation of paired .json files alongside .png charts containing symbol, alerts, phase, setup, decision, score, and timestamp data
