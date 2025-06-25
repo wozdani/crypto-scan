@@ -1219,6 +1219,29 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
         signals["clip_confidence"] = clip_info.get("confidence", "N/A")
         signals["clip_phase"] = clip_info.get("predicted_phase", "N/A")
         
+        # Build final result dictionary
+        result = {
+            "symbol": symbol,
+            "final_score": enhanced_score,
+            "decision": decision,
+            "quality_grade": grade,
+            "market_phase": market_phase,
+            "trend_strength": trend_strength,
+            "pullback_quality": pullback_quality,
+            "support_reaction": support_reaction,
+            "score_breakdown": {
+                "base_score": score,
+                "phase_modifier": phase_modifier,
+                "clip_modifier": clip_modifier,
+                "enhanced_score": enhanced_score
+            },
+            "context_modifiers": context_modifiers,
+            "clip_info": clip_info,
+            "ai_pattern_matched": ai_pattern_matched,
+            "ai_pattern_info": ai_pattern_info,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+        
         # Enhanced CLIP debug logging
         if clip_info.get("confidence", 0) > 0:
             print(f"[CLIP SUCCESS] Prediction: {clip_info.get('predicted_phase')} (confidence: {clip_info.get('confidence'):.3f})")
