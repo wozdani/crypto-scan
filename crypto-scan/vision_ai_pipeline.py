@@ -206,6 +206,21 @@ def save_training_chart(df: pd.DataFrame, symbol: str, timestamp: str,
                                     json.dump(metadata, f, indent=2)
                                     
                             print(f"[GPT LABEL EXTRACTION] {symbol}: Setup = '{extracted_setup}'")
+                            
+                            # AUTOMATIC FILE RENAMING: Rename files with GPT-extracted labels
+                            try:
+                                from gpt_commentary import rename_chart_files_with_gpt_label
+                                
+                                new_png_path, new_json_path = rename_chart_files_with_gpt_label(
+                                    saved_path, chart_commentary
+                                )
+                                
+                                if new_png_path != saved_path:
+                                    print(f"[AUTO RENAME] {symbol}: Files renamed with GPT label '{extracted_setup}'")
+                                    saved_path = new_png_path  # Update path for return
+                                    
+                            except Exception as e:
+                                print(f"[AUTO RENAME ERROR] {symbol}: {e}")
                         
                     except Exception as e:
                         print(f"[GPT LABEL EXTRACTION ERROR] {symbol}: {e}")

@@ -90,6 +90,115 @@ def extract_primary_label_from_commentary(commentary: str) -> str:
             return "neutral_pattern"
 
 
+def extract_primary_label(gpt_commentary: str) -> str:
+    """
+    Ekstrahuje główną etykietę trendu/setupu z komentarza GPT.
+    Zwraca nazwę labela w formacie: trend_setup_type
+    
+    Args:
+        gpt_commentary: GPT commentary text
+        
+    Returns:
+        Setup label in format: trend_setup_type
+    """
+    if not gpt_commentary:
+        return "unknown"
+    
+    gpt_commentary = gpt_commentary.lower()
+
+    # Detailed pattern detection for CLIP training (Polish patterns)
+    if "pullback" in gpt_commentary and any(word in gpt_commentary for word in ["reakcja", "reakcją", "odbicie", "odbicia"]):
+        return "trend_pullback_reacted"
+    elif "pullback" in gpt_commentary and any(word in gpt_commentary for word in ["brak reakcji", "brak odbicia", "bez reakcji"]):
+        return "trend_pullback_failed"
+    elif any(phrase in gpt_commentary for phrase in ["kontynuacja trendu", "dynamiczna kontynuacja", "kontynuacji trendu"]):
+        return "trend_continuation"
+    elif any(phrase in gpt_commentary for phrase in ["wyczerpanie trendu", "osłabienie trendu", "wyczerpaniu trendu"]):
+        return "trend_exhaustion"
+    elif "fakeout" in gpt_commentary and any(word in gpt_commentary for word in ["opór", "oporu", "oporze"]):
+        return "fakeout_on_resistance"
+    elif "fakeout" in gpt_commentary and any(word in gpt_commentary for word in ["wsparcie", "wsparcia", "wsparciu"]):
+        return "fakeout_on_support"
+    elif any(word in gpt_commentary for word in ["konsolidacja", "konsolidacji", "konsolidacją"]):
+        return "range_consolidation"
+    elif any(phrase in gpt_commentary for phrase in ["brak trendu", "bez trendu", "brak wyraźnego trendu"]):
+        return "no_trend"
+    
+    # English patterns for broader compatibility
+    elif "pullback" in gpt_commentary and ("reaction" in gpt_commentary or "bounce" in gpt_commentary):
+        return "trend_pullback_reacted"
+    elif "pullback" in gpt_commentary and ("failed" in gpt_commentary or "no reaction" in gpt_commentary):
+        return "trend_pullback_failed"
+    elif "trend continuation" in gpt_commentary or "momentum continuation" in gpt_commentary:
+        return "trend_continuation"
+    elif "trend exhaustion" in gpt_commentary or "weakening trend" in gpt_commentary:
+        return "trend_exhaustion"
+    elif "fake breakout" in gpt_commentary or "false breakout" in gpt_commentary:
+        return "fakeout_breakout"
+    elif "consolidation" in gpt_commentary or "ranging" in gpt_commentary:
+        return "range_consolidation"
+    elif "no clear trend" in gpt_commentary or "sideways" in gpt_commentary:
+        return "no_trend"
+    else:
+        return "unknown"
+
+
+def rename_chart_files_with_gpt_label(original_png_path: str, gpt_commentary: str) -> tuple[str, str]:
+    """
+    Rename chart files (.png and .json) with GPT-extracted label
+    
+    Args:
+        original_png_path: Original PNG file path
+        gpt_commentary: GPT commentary for label extraction
+        
+    Returns:
+        Tuple of (new_png_path, new_json_path)
+    """
+    try:
+        # Extract label from GPT commentary
+        extracted_label = extract_primary_label(gpt_commentary)
+        
+        # Skip renaming if no meaningful label extracted
+        if extracted_label == "unknown":
+            return original_png_path, original_png_path.replace('.png', '.json')
+        
+        # Parse original filename
+        import os
+        from pathlib import Path
+        
+        original_path = Path(original_png_path)
+        filename_parts = original_path.stem.split('_')
+        
+        # Expected format: SYMBOL_timestamp_phase_decision_tjde.png
+        if len(filename_parts) >= 2:
+            symbol = filename_parts[0]
+            timestamp = filename_parts[1]
+            
+            # Create new filename with GPT label
+            new_filename = f"{symbol}_{timestamp}_{extracted_label}"
+            new_png_path = str(original_path.parent / f"{new_filename}.png")
+            new_json_path = str(original_path.parent / f"{new_filename}.json")
+            
+            # Rename files if they exist
+            if os.path.exists(original_png_path):
+                os.rename(original_png_path, new_png_path)
+                print(f"[GPT RENAME] PNG: {original_path.name} → {Path(new_png_path).name}")
+                
+            original_json_path = original_png_path.replace('.png', '.json')
+            if os.path.exists(original_json_path):
+                os.rename(original_json_path, new_json_path)
+                print(f"[GPT RENAME] JSON: {Path(original_json_path).name} → {Path(new_json_path).name}")
+                
+            return new_png_path, new_json_path
+        else:
+            print(f"[GPT RENAME] Cannot parse filename: {original_path.name}")
+            return original_png_path, original_png_path.replace('.png', '.json')
+            
+    except Exception as e:
+        print(f"[GPT RENAME ERROR] Failed to rename files: {e}")
+        return original_png_path, original_png_path.replace('.png', '.json')
+
+
 def generate_chart_commentary(image_path: str, tjde_score: float, decision: str, 
                             clip_prediction: Optional[Dict] = None, symbol: str = "UNKNOWN") -> Optional[str]:
     """
@@ -535,32 +644,75 @@ def should_audit_scoring(tjde_data: Dict) -> bool:
     return False
 
 
+def test_gpt_label_extraction():
+    """Test GPT label extraction and file renaming system"""
+    
+    # Test cases for label extraction
+    test_cases = [
+        ("Market pokazuje silny pullback z reakcją na poziomie wsparcia", "trend_pullback_reacted"),
+        ("Widzimy pullback ale brak reakcji kupujących", "trend_pullback_failed"),
+        ("Kontynuacja trendu wzrostowego z dynamiczną kontynuacją", "trend_continuation"),
+        ("Trend pokazuje wyczerpanie trendu i osłabienie", "trend_exhaustion"),
+        ("Fakeout na poziomie oporu z odrzuceniem", "fakeout_on_resistance"),
+        ("Konsolidacja boczna bez wyraźnego kierunku", "range_consolidation"),
+        ("Pullback shows strong reaction and bounce from support level", "trend_pullback_reacted"),
+        ("Trend continuation with momentum continuation pattern", "trend_continuation"),
+        ("Fake breakout above resistance level failed", "fakeout_breakout"),
+        ("No clear trend direction, sideways movement", "no_trend"),
+        ("Random commentary without specific patterns", "unknown")
+    ]
+    
+    print("[GPT LABEL TEST] Testing label extraction...")
+    
+    for i, (commentary, expected) in enumerate(test_cases, 1):
+        extracted = extract_primary_label(commentary)
+        status = "✅" if extracted == expected else "❌"
+        print(f"{status} Test {i}: '{commentary[:50]}...' → '{extracted}' (expected: '{expected}')")
+        
+    # Test file renaming function
+    print("\n[FILE RENAME TEST] Testing automatic renaming...")
+    
+    import tempfile
+    import os
+    
+    try:
+        # Create temporary files for testing
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create test PNG and JSON files
+            test_png = os.path.join(temp_dir, "BTCUSDT_2025-06-25_20:30:00_phase_decision_tjde.png")
+            test_json = os.path.join(temp_dir, "BTCUSDT_2025-06-25_20:30:00_phase_decision_tjde.json")
+            
+            # Create dummy files
+            with open(test_png, 'w') as f:
+                f.write("dummy png content")
+            with open(test_json, 'w') as f:
+                f.write('{"symbol": "BTCUSDT", "setup": "unknown"}')
+            
+            # Test renaming with GPT commentary
+            test_commentary = "Market shows strong pullback with reaction from support level"
+            new_png, new_json = rename_chart_files_with_gpt_label(test_png, test_commentary)
+            
+            # Check if files were renamed correctly
+            expected_label = extract_primary_label(test_commentary)
+            if expected_label in new_png:
+                print(f"✅ File renaming successful: {os.path.basename(new_png)}")
+            else:
+                print(f"❌ File renaming failed: expected '{expected_label}' in filename")
+                
+    except Exception as e:
+        print(f"❌ File rename test error: {e}")
+    
+    print("\n[GPT LABEL TEST] Testing completed")
+
+
 def main():
     """Test GPT commentary system"""
-    print("Testing GPT Commentary System...")
+    print("Testing GPT Commentary System with Label Extraction...")
     
-    # Test with mock data
-    test_tjde_data = {
-        'final_score': 0.742,
-        'decision': 'consider_entry',
-        'market_phase': 'trend-following',
-        'trend_strength': 0.8,
-        'pullback_quality': 0.6,
-        'volume_behavior_score': 0.7
-    }
+    # Run label extraction tests
+    test_gpt_label_extraction()
     
-    test_clip_prediction = {
-        'decision': 'consider_entry',
-        'confidence': 0.78
-    }
-    
-    # Test Telegram commentary (doesn't require image)
-    telegram_comment = generate_telegram_alert_commentary(
-        "TESTUSDT", test_tjde_data
-    )
-    
-    print(f"Telegram Commentary: {telegram_comment}")
-    print("GPT Commentary System ready for production integration")
+    print("\nGPT Commentary System ready for production integration")
 
 
 if __name__ == "__main__":
