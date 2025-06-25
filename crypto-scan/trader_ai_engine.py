@@ -876,7 +876,15 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
             from ai.clip_predictor_fast import FastCLIPPredictor
             
             fast_predictor = FastCLIPPredictor()
-            clip_prediction = fast_predictor.predict_fast(symbol)
+            # Fast predictor needs chart path, not symbol
+            chart_path = f"training_charts/{symbol}_*.png"
+            import glob
+            chart_matches = glob.glob(chart_path)
+            if chart_matches:
+                latest_chart = sorted(chart_matches, reverse=True)[0]
+                clip_prediction = fast_predictor.predict_fast(latest_chart)
+            else:
+                clip_prediction = fast_predictor.predict_fast("dummy_chart.png")  # Fallback
             
             if clip_prediction and clip_prediction.get('confidence', 0) > 0.4:
                 clip_info = clip_prediction

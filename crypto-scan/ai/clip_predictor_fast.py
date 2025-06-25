@@ -20,6 +20,18 @@ class FastCLIPPredictor:
         ]
         print("[FAST CLIP] Initialized with intelligent pattern recognition")
     
+    def predict_fast(self, image_path: str) -> Optional[Dict[str, Any]]:
+        """
+        Fast chart prediction using pattern analysis
+        
+        Args:
+            image_path: Path to chart image
+            
+        Returns:
+            Prediction result dictionary
+        """
+        return self.predict_chart_setup(image_path)
+    
     def predict_chart_setup(self, image_path: str) -> Optional[Dict[str, Any]]:
         """
         Fast chart prediction using pattern analysis

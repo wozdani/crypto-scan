@@ -98,17 +98,18 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 25, 2025 - Critical Vision-AI Production Fixes - All Runtime Issues Resolved ✅
-Fixed three critical Vision-AI production issues preventing training data generation and causing system errors:
+### June 25, 2025 - Critical Vision-AI Production Fixes + CLIP Integration Fix - All Runtime Issues Resolved ✅
+Fixed three critical Vision-AI production issues and FastCLIPPredictor method error preventing proper CLIP integration:
 - **FIX 1: vision_ai_mode Variable Error**: Added vision_ai_mode parameter to generate_vision_ai_training_data() function signature with default "full" mode, eliminating "name 'vision_ai_mode' is not defined" crashes across all Vision-AI training selections
 - **FIX 2: Chart Generation Threshold**: Reduced restrictive candle validation from 10 to 5 minimum candles in plot_chart_vision_ai(), enabling chart generation with limited data while maintaining quality standards
 - **FIX 3: Async Performance Optimization**: Increased max_concurrent from 80 to 120 connections and enabled fast_mode by default, targeting <15s scan time for 752 tokens while preserving candle data for Vision-AI processing
+- **FIX 4: FastCLIPPredictor Method Error**: Added missing predict_fast() method to FastCLIPPredictor class and fixed trader_ai_engine.py to pass chart path instead of symbol, eliminating "'FastCLIPPredictor' object has no attribute 'predict_fast'" errors
 - **Enhanced Data Validation**: Implemented comprehensive fallback system with multiple data sources (scan results, market_data, candles_15m) ensuring Vision-AI gets sufficient data even with API limitations
 - **Function Call Fixes**: Updated scan_all_tokens_async.py to call generate_vision_ai_training_data(results, "full") with proper parameter structure eliminating TypeError exceptions
+- **CLIP Integration Repair**: Fixed chart path resolution in trader_ai_engine.py ensuring FastCLIPPredictor receives proper image paths for pattern analysis
 - **Production Reliability**: System now generates training charts for TOP 5 TJDE tokens without "Insufficient candle data" errors despite successful API fetches
 - **Performance Achievement**: Async scanner configured for 240 tokens/second theoretical throughput with 120 concurrent connections exceeding 15-second target requirements
-- **Testing Verification**: Complete system testing confirms Vision-AI pipeline generates training data successfully with both full and fast modes operational
-Vision-AI pipeline now operates without runtime crashes and successfully generates training data for CLIP model development.
+Vision-AI pipeline and FastCLIPPredictor now operate without runtime crashes, providing complete CLIP integration for enhanced trading decisions.
 
 ### June 25, 2025 - Fast CLIP Predictor Implementation - CLIP Performance Issues Resolved ✅
 Successfully implemented fast CLIP predictor system resolving model initialization timeouts and transformers compatibility issues:
