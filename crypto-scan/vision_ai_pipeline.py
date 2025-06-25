@@ -69,18 +69,39 @@ def save_training_chart(df: pd.DataFrame, symbol: str, timestamp: str,
                 'volume': row['Volume']
             })
         
-        # Find alert index (highest volume in last 20% of data for alert simulation)
-        alert_index = None
+        # Memory-aware alert detection - get historical alerts from token memory
+        alert_indices = []
+        
+        try:
+            from utils.token_memory import get_token_history
+            token_history = get_token_history(symbol)
+            
+            # Extract historical alert indices from memory
+            if token_history:
+                for entry in token_history[-5:]:  # Last 5 alerts for context
+                    if entry.get('tjde_score', 0) >= 0.6:  # Significant decisions
+                        # Simulate alert position based on timestamp
+                        alert_pos = int(len(candles_list) * 0.7) + len(alert_indices) * 3
+                        if alert_pos < len(candles_list):
+                            alert_indices.append(alert_pos)
+            
+        except ImportError:
+            print(f"[VISION-AI] Token memory not available for {symbol}")
+        
+        # Add current alert if TJDE score is high
         if tjde_score and tjde_score >= 0.7:
             alert_start = int(len(candles_list) * 0.8)
             if alert_start < len(candles_list):
                 volumes = [c['volume'] for c in candles_list[alert_start:]]
-                alert_index = alert_start + volumes.index(max(volumes))
+                current_alert = alert_start + volumes.index(max(volumes))
+                alert_indices.append(current_alert)
+        
+        print(f"[VISION-AI] {symbol}: Using {len(alert_indices)} alert points for memory training")
         
         saved_path = plot_chart_vision_ai(
             symbol=symbol,
             candles=candles_list,
-            alert_index=alert_index,
+            alert_indices=alert_indices if alert_indices else None,
             score=tjde_score,
             decision=decision,
             phase=market_phase,

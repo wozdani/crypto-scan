@@ -16,14 +16,15 @@ import matplotlib.ticker as mticker
 import matplotlib as mpl
 
 
-def plot_chart_vision_ai(symbol, candles, alert_index=None, score=None, decision=None, phase=None, setup=None, save_path="chart.png"):
+def plot_chart_vision_ai(symbol, candles, alert_indices=None, alert_index=None, score=None, decision=None, phase=None, setup=None, save_path="chart.png"):
     """
-    Vision-AI optimized chart generation for CLIP training
+    Vision-AI optimized chart generation for CLIP training with memory-aware alerts
     
     Args:
         symbol: Trading symbol
         candles: List of candle data with timestamp, open, high, low, close, volume
-        alert_index: Index of alert candle for highlighting
+        alert_indices: List of historical alert indices for memory learning (new feature)
+        alert_index: Single alert index for backward compatibility
         score: TJDE score
         decision: Trading decision
         phase: Market phase
@@ -66,10 +67,36 @@ def plot_chart_vision_ai(symbol, candles, alert_index=None, score=None, decision
         # Professional candlesticks
         candlestick_ohlc(ax_main, ohlc, width=0.4, colorup='#00ff00', colordown='#ff3333', alpha=0.9)
 
-        # Alert highlight with lime green background
-        if alert_index is not None and alert_index < len(ohlc):
-            ax_main.axvspan(ohlc[alert_index][0] - 0.25, ohlc[alert_index][0] + 0.25, 
-                          color='lime', alpha=0.15)
+        # Memory-aware multi-alert highlighting system
+        alerts_to_highlight = []
+        
+        # Support both new alert_indices and legacy alert_index
+        if alert_indices:
+            alerts_to_highlight = alert_indices
+        elif alert_index is not None:
+            alerts_to_highlight = [alert_index]
+        
+        # Highlight multiple historical alerts for memory learning
+        if alerts_to_highlight:
+            for i, idx in enumerate(alerts_to_highlight):
+                if idx < len(ohlc):
+                    # Color coding: current alert = lime, historical = orange/yellow
+                    is_current = (i == len(alerts_to_highlight) - 1)
+                    color = 'lime' if is_current else 'orange'
+                    alpha = 0.20 if is_current else 0.12
+                    
+                    ax_main.axvspan(
+                        ohlc[idx][0] - 0.25, 
+                        ohlc[idx][0] + 0.25,
+                        color=color, 
+                        alpha=alpha,
+                        label=f"Current Alert" if is_current and i == 0 else None
+                    )
+                    
+                    # Add alert markers on volume chart for better visibility
+                    if idx < len(volume):
+                        ax_volume.axvline(x=timestamps[idx], color=color, linestyle='--', 
+                                        alpha=0.8, linewidth=1.5)
 
         # Professional volume bars
         ax_volume.bar(timestamps, volume, color='steelblue', edgecolor='black', 

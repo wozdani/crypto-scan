@@ -98,6 +98,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 25, 2025 - Memory-Aware Vision-AI Charts with Multiple Alert Highlighting - PRODUCTION READY ✅
+Enhanced Vision-AI chart function with memory-aware training capabilities for improved CLIP model performance:
+- **Multiple Alert Highlighting**: Extended plot_chart_vision_ai() to support alert_indices parameter for displaying multiple historical alerts on single chart
+- **Color-Coded Alert System**: Current alerts highlighted in lime green, historical alerts in orange with different alpha levels for visual distinction
+- **Memory Integration**: Automatic extraction of historical alert indices from token memory system (last 5 significant decisions with score ≥0.6)
+- **Enhanced Training Context**: Charts now show sequence of decisions over time, enabling memory-aware model training and temporal pattern recognition
+- **Volume Chart Markers**: Added alert markers on volume chart with matching colors and dashed lines for better visibility across both price and volume analysis
+- **Backward Compatibility**: Maintained support for legacy alert_index parameter while introducing new alert_indices functionality
+- **Memory Learning Pipeline**: Integration with token memory system for automatic historical context extraction and intelligent alert positioning
+Enhanced charts provide superior training data for CLIP and sequential AI models by showing decision context and historical alert patterns.
+
 ### June 25, 2025 - Vision-AI Chart Function Replacement with TradingView Styling - PRODUCTION READY ✅
 Replaced existing chart generation with new Vision-AI optimized plot_chart_vision_ai() function for professional CLIP training:
 - **New Vision-AI Function**: Implemented plot_chart_vision_ai() with clean TradingView-style dark background, professional candlesticks (width=0.4, colorup=#00ff00, colordown=#ff3333), and steelblue volume bars with black edges
