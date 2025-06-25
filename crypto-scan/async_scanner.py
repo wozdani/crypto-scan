@@ -28,12 +28,12 @@ from utils.whale_priority import prioritize_whale_tokens
 class AsyncCryptoScanner:
     """Async crypto scanner with aiohttp for I/O parallelism"""
     
-    def __init__(self, max_concurrent: int = 80, fast_mode: bool = False):  # Enhanced for <15s target
-        self.fast_mode = fast_mode
+    def __init__(self, max_concurrent: int = 80):  # Enhanced for <15s target
         self.max_concurrent = max_concurrent
         self.semaphore = asyncio.Semaphore(max_concurrent)
         self.session = None
         self.results = []
+        self.fast_mode = False  # Can be set after initialization
         
     async def __aenter__(self):
         """Async context manager entry"""
@@ -165,7 +165,7 @@ class AsyncCryptoScanner:
                     "recent_volumes": market_data["recent_volumes"]
                 })
                 
-                # Fast scoring
+                # Enhanced fast scoring with TJDE integration
                 final_score = compute_ppwcs(signals, symbol)
                 if isinstance(final_score, tuple):
                     final_score = final_score[0]
@@ -175,6 +175,35 @@ class AsyncCryptoScanner:
                 if isinstance(checklist_score, tuple):
                     checklist_score = checklist_score[0]
                 checklist_score = float(checklist_score) if checklist_score else 0.0
+                
+                # TJDE analysis for promising tokens only
+                tjde_score = 0.0
+                tjde_decision = "avoid"
+                
+                # Performance threshold: only run TJDE for high-scoring tokens
+                tjde_threshold = 40 if self.fast_mode else 35
+                
+                if final_score >= tjde_threshold:
+                    try:
+                        from trader_ai_engine import simulate_trader_decision_advanced
+                        
+                        # Prepare market data for TJDE
+                        market_data_formatted = {
+                            'price_usd': price_usd,
+                            'volume_24h': volume_24h,
+                            'candles': market_data["candles"],
+                            'candles_5m': market_data.get("candles_5m", []),
+                            'orderbook': market_data["orderbook"]
+                        }
+                        
+                        tjde_result = simulate_trader_decision_advanced(symbol, market_data_formatted, signals)
+                        if tjde_result and isinstance(tjde_result, dict):
+                            tjde_score = float(tjde_result.get('score', 0))
+                            tjde_decision = tjde_result.get('decision', 'avoid')
+                            
+                    except Exception as e:
+                        if not self.fast_mode:
+                            print(f"[TJDE ERROR] {symbol}: {e}")
                 
                 # Save and alert (async-safe)
                 save_score(symbol, final_score, signals)
@@ -186,15 +215,30 @@ class AsyncCryptoScanner:
                 
                 scan_time = time.time() - start_time
                 
-                return {
+                result_data = {
                     "symbol": symbol,
-                    "final_score": final_score,
+                    "ppwcs_score": final_score,
+                    "tjde_score": tjde_score,
+                    "tjde_decision": tjde_decision,
                     "signals": signals,
                     "checklist_score": checklist_score,
                     "scan_time": scan_time,
                     "price_usd": price_usd,
-                    "volume_24h": volume_24h
+                    "volume_24h": volume_24h,
+                    "candles": market_data["candles"],
+                    "market_data": market_data
                 }
+                
+                # Fast mode: only return detailed data for high-scoring tokens
+                if self.fast_mode and final_score < 30 and tjde_score < 0.5:
+                    return {
+                        "symbol": symbol,
+                        "ppwcs_score": final_score,
+                        "tjde_score": tjde_score,
+                        "scan_time": scan_time
+                    }
+                
+                return result_data
                 
             except Exception as e:
                 print(f"Error scanning {symbol}: {e}")
