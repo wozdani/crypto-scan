@@ -45,21 +45,65 @@ class DataValidationResult:
         })
     
     def calculate_validity(self):
-        """Calculate overall validity status"""
+        """Calculate overall validity status - Enhanced for partial validity"""
         has_candles = len(self.candles_15m) > 0 or len(self.candles_5m) > 0
         has_ticker = self.ticker_data is not None
         has_orderbook = self.orderbook_data is not None
         has_price = self.price_usd > 0
         
+        # Complete validity: All components available
         if has_ticker and has_candles and has_orderbook and has_price:
             self.is_valid = True
             self.is_partial = False
-        elif (has_candles and has_price) or (has_ticker and has_price):
+        # Enhanced partial validity: Accept tokens with valid candles even without ticker
+        elif has_candles:
+            # If we have candles but no price, try to extract it
+            if not has_price:
+                self.price_usd = self._extract_price_from_candles()
+                has_price = self.price_usd > 0
+            
+            # Accept any token with candles and valid price
+            if has_price:
+                self.is_valid = True
+                self.is_partial = True
+            else:
+                # Accept candles even without price for processing
+                self.is_valid = True
+                self.is_partial = True
+                print(f"[VALIDATION] {self.symbol}: Accepting with candles only (no price)")
+        # Ticker-only fallback
+        elif has_ticker and has_price:
             self.is_valid = True
             self.is_partial = True
         else:
             self.is_valid = False
             self.is_partial = False
+    
+    def _extract_price_from_candles(self) -> float:
+        """Extract price from candle data when ticker is unavailable"""
+        # Try 15m candles first
+        if self.candles_15m:
+            try:
+                latest_candle = self.candles_15m[0]
+                price = latest_candle.get("close", 0)
+                if price > 0:
+                    print(f"[PRICE EXTRACT] {self.symbol}: ${float(price)} from 15m candles")
+                    return float(price)
+            except (ValueError, TypeError, IndexError):
+                pass
+        
+        # Try 5m candles as fallback
+        if self.candles_5m:
+            try:
+                latest_candle = self.candles_5m[0]
+                price = latest_candle.get("close", 0)
+                if price > 0:
+                    print(f"[PRICE EXTRACT] {self.symbol}: ${float(price)} from 5m candles")
+                    return float(price)
+            except (ValueError, TypeError, IndexError):
+                pass
+        
+        return 0.0
     
     def get_summary(self) -> str:
         """Get validation summary"""

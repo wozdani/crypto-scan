@@ -26,7 +26,7 @@ from utils.coingecko import build_coingecko_cache
 from utils.whale_priority import prioritize_whale_tokens
 from utils.data_validation import validate_market_data_enhanced
 from utils.enhanced_error_logging import log_api_error
-from utils.async_data_processor import process_async_data_enhanced, log_data_validation_error
+from utils.async_data_processor import process_async_data_enhanced
 # Enhanced data validation for partial validity support
 
 class AsyncCryptoScanner:
