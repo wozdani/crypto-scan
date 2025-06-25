@@ -823,16 +823,19 @@ def compute_trader_score(features: Dict, symbol: str = None) -> Dict:
 
 def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: dict, debug_info: dict = None) -> dict:
     """
-    🧠 Nowa Generacja Adaptacyjnego Scoringu - Profesjonalna, kontekstowa wersja decyzyjna
+    🧠 Phase 1: Perception Synchronization - CLIP + TJDE + GPT Integration
     
-    Wykorzystuje adaptacyjne ważenie scoringu oraz modyfikatory zależne od fazy rynku i psychologii.
-    Bez sztywnych reguł - myśli jak profesjonalny trader oceniając sytuację wielowarstwowo.
+    Unified pipeline connecting CLIP predictions, TJDE scoring, and GPT interpretation
+    for master-level market perception and decision making.
     
     Args:
-        features: Dict z cechami rynku i kontekstem
+        symbol: Trading symbol
+        market_data: Market data dictionary
+        signals: Feature signals dictionary
+        debug_info: Optional debug information
         
     Returns:
-        dict: Adaptacyjna decyzja tradera z dynamicznym scoringiem
+        dict: Enhanced decision with CLIP + GPT integration
     """
     try:
         score_breakdown = {}
@@ -850,6 +853,10 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
         price_action_pattern = features.get("price_action_pattern", "none")
         volume_behavior = features.get("volume_behavior", "neutral")
         htf_trend_match = features.get("htf_trend_match", False)
+        
+        # Extract CLIP features if available
+        clip_trend_match = features.get("clip_trend_match", "unknown")
+        clip_confidence = features.get("clip_confidence", 0.0)
         
         print(f"[TRADER ADAPTIVE] Analyzing features: phase={market_phase}, trend={trend_strength:.3f}, pullback={pullback_quality:.3f}")
         
