@@ -38,6 +38,7 @@ def plot_chart_vision_ai(symbol: str, candles: List, alert_index: int = None, al
                         save_path: str = None, context_days: int = 2) -> Optional[str]:
     """
     Generate professional Vision-AI optimized chart with TradingView styling
+    Enhanced with data validation to prevent distorted training charts
     
     Args:
         symbol: Trading symbol
@@ -175,10 +176,28 @@ def plot_chart_vision_ai(symbol: str, candles: List, alert_index: int = None, al
             ax.spines['right'].set_color('#333333')
             ax.spines['left'].set_color('#333333')
         
-        # Save chart
-        plt.tight_layout()
-        plt.savefig(save_path, dpi=200, bbox_inches='tight', facecolor='#1e1e1e')
-        plt.close()
+        # Enhanced chart title with validation info
+        title_info = f"Score: {score:.2f} | {decision.upper()}" if score and decision else "Training Data"
+        fig.suptitle(f"{symbol} - Vision AI | {title_info} | Candles: {len(ohlc_data)}", 
+                    fontsize=14, color='white')
+        
+        # Save chart with enhanced error handling
+        try:
+            plt.tight_layout()
+            plt.savefig(save_path, dpi=200, bbox_inches='tight', facecolor='#1e1e1e')
+            plt.close('all')  # Complete cleanup
+            
+            # Validate saved file
+            if os.path.exists(save_path) and os.path.getsize(save_path) > 1024:  # At least 1KB
+                print(f"[VISION CHART] ✅ Saved quality chart: {save_path} ({os.path.getsize(save_path)} bytes)")
+            else:
+                print(f"[CHART ERROR] {symbol}: Generated file too small or missing")
+                return None
+                
+        except Exception as e:
+            print(f"[CHART ERROR] {symbol}: Save failed: {e}")
+            plt.close('all')
+            return None
         
         # Create metadata file
         metadata_path = save_path.replace('.png', '.json')

@@ -58,27 +58,76 @@ def plot_chart_with_context(symbol, candles, alert_indices=None, alert_index=Non
         context_candles = int(context_days * 96)  # 96 candles per day (15m intervals)
         display_candles = candles[-context_candles:] if len(candles) > context_candles else candles
         
-        # Prepare OHLC data with extended context
+        # Prepare OHLC data with enhanced timestamp validation
         ohlc = []
+        timestamps_for_debug = []
+        
         for i, c in enumerate(display_candles):
-            if isinstance(c, dict):
-                ts = mdates.date2num(datetime.fromtimestamp(c['timestamp']/1000))
-                ohlc.append((ts, c['open'], c['high'], c['low'], c['close']))
-            elif isinstance(c, list):
-                # Handle list format [timestamp, open, high, low, close, volume]
-                ts = mdates.date2num(datetime.fromtimestamp(int(c[0])/1000))
-                ohlc.append((ts, float(c[1]), float(c[2]), float(c[3]), float(c[4])))
+            try:
+                if isinstance(c, dict):
+                    # Validate timestamp format
+                    timestamp_raw = c.get('timestamp', 0)
+                    if timestamp_raw > 1e12:  # Milliseconds
+                        timestamp = timestamp_raw / 1000
+                    else:  # Already in seconds
+                        timestamp = timestamp_raw
+                    
+                    ts = mdates.date2num(datetime.fromtimestamp(timestamp))
+                    timestamps_for_debug.append(datetime.fromtimestamp(timestamp))
+                    ohlc.append((ts, c['open'], c['high'], c['low'], c['close']))
+                elif isinstance(c, list) and len(c) >= 5:
+                    # Handle list format [timestamp, open, high, low, close, volume]
+                    timestamp_raw = int(c[0])
+                    if timestamp_raw > 1e12:  # Milliseconds
+                        timestamp = timestamp_raw / 1000
+                    else:  # Already in seconds
+                        timestamp = timestamp_raw
+                    
+                    ts = mdates.date2num(datetime.fromtimestamp(timestamp))
+                    timestamps_for_debug.append(datetime.fromtimestamp(timestamp))
+                    ohlc.append((ts, float(c[1]), float(c[2]), float(c[3]), float(c[4])))
+            except (ValueError, OSError, OverflowError) as e:
+                print(f"[CHART WARNING] {symbol}: Invalid timestamp at index {i}: {e}")
+                continue
+        
+        if len(ohlc) < 10:
+            print(f"[CHART ERROR] {symbol}: Insufficient valid OHLC data after timestamp validation: {len(ohlc)}")
+            return None
+            
+        # Debug timestamp range
+        if timestamps_for_debug:
+            print(f"[CHART TIMESTAMPS] {symbol}: {timestamps_for_debug[0]} → {timestamps_for_debug[-1]}")
 
         volume = []
         timestamps = []
         for c in display_candles:
-            if isinstance(c, dict):
-                volume.append(c['volume'])
-                timestamps.append(datetime.fromtimestamp(c['timestamp']/1000))
-            elif isinstance(c, list):
-                volume.append(float(c[5]))
-                timestamps.append(datetime.fromtimestamp(int(c[0])/1000))
+            try:
+                if isinstance(c, dict):
+                    vol = c.get('volume', 0)
+                    if vol > 0:  # Only include positive volumes
+                        volume.append(vol)
+                        timestamp_raw = c.get('timestamp', 0)
+                        timestamp = timestamp_raw / 1000 if timestamp_raw > 1e12 else timestamp_raw
+                        timestamps.append(datetime.fromtimestamp(timestamp))
+                elif isinstance(c, list) and len(c) >= 6:
+                    vol = float(c[5])
+                    if vol > 0:  # Only include positive volumes
+                        volume.append(vol)
+                        timestamp_raw = int(c[0])
+                        timestamp = timestamp_raw / 1000 if timestamp_raw > 1e12 else timestamp_raw
+                        timestamps.append(datetime.fromtimestamp(timestamp))
+            except (ValueError, OSError, OverflowError, IndexError):
+                continue
+        
+        if not volume:
+            print(f"[CHART WARNING] {symbol}: No valid volume data available")
+            volume = [1] * len(ohlc)  # Use minimal volume as fallback
 
+        # CRITICAL: Clear any existing plots to prevent overlay issues
+        plt.clf()
+        plt.cla()
+        plt.close('all')  # Ensure clean slate
+        
         # Professional styling
         mpl.rcParams['font.family'] = 'DejaVu Sans'
         plt.style.use("dark_background")
@@ -86,6 +135,8 @@ def plot_chart_with_context(symbol, candles, alert_indices=None, alert_index=Non
         fig, (ax_main, ax_volume) = plt.subplots(2, 1, sharex=True, figsize=(12, 6), 
                                                gridspec_kw={'height_ratios': [3, 1]})
         fig.tight_layout(pad=2)
+        
+        print(f"[CHART RENDER] {symbol}: Creating clean chart with {len(ohlc)} price points")
 
         # Professional candlesticks
         candlestick_ohlc(ax_main, ohlc, width=0.4, colorup='#00ff00', colordown='#ff3333', alpha=0.9)
