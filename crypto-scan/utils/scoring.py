@@ -48,20 +48,18 @@ def load_tjde_weights(filepath: str = "data/weights/tjde_weights.json") -> Dict[
         logging.debug(f"[TJDE WEIGHTS] Successfully loaded weights file: {filepath}")
         
         # Extract only the weight values (ignore metadata)
-        # Ensure CLIP weight exists
-        if "clip_confidence_score" not in data:
-            data["clip_confidence_score"] = 0.12
-            print(f"[TJDE WEIGHTS] Added missing CLIP confidence weight: 0.12")
-        
-        return data
         weights = {}
         for key in DEFAULT_TJDE_WEIGHTS.keys():
             if key in data and isinstance(data[key], (int, float)):
                 weights[key] = float(data[key])
             else:
-                weights[key] = DEFAULT_TJDE_WEIGHTS[key]
-                
-        print(f"[TJDE WEIGHTS] Loaded weights from file: {weights}")
+                weights[key] = float(DEFAULT_TJDE_WEIGHTS[key])
+        
+        # Ensure CLIP weight exists
+        if "clip_confidence_score" not in weights:
+            weights["clip_confidence_score"] = 0.12
+            print(f"[TJDE WEIGHTS] Added missing CLIP confidence weight: 0.12")
+        
         return weights
         
     except Exception as e:

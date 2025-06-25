@@ -880,10 +880,10 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
             
             if clip_prediction and clip_prediction.get('confidence', 0) > 0.4:
                 clip_info = clip_prediction
-                clip_confidence = clip_prediction.get('confidence', 0.0)
+                clip_confidence = float(clip_prediction.get('confidence', 0.0))
                 
                 # Enhanced pattern-based confidence adjustment
-                pattern = clip_prediction.get('pattern', '')
+                pattern = clip_prediction.get('predicted_label', clip_prediction.get('pattern', ''))
                 if pattern in ['breakout-continuation', 'trend-following']:
                     clip_confidence *= 1.2  # Boost for bullish patterns
                 elif pattern in ['consolidation', 'pullback-in-trend']:
@@ -900,23 +900,37 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
             print(f"[CLIP ERROR] {e}")
         
         # Calculate weighted score WITH CLIP confidence integration
+        # Ensure all values are float
+        trend_strength = float(trend_strength)
+        pullback_quality = float(pullback_quality) 
+        support_reaction = float(support_reaction)
+        clip_confidence = float(clip_confidence)
+        liquidity_pattern_score = float(liquidity_pattern_score)
+        psych_score = float(psych_score)
+        htf_supportive_score = float(htf_supportive_score)
+        market_phase_modifier = float(market_phase_modifier)
+        
         score = (
-            trend_strength * weights["trend_strength"] +
-            pullback_quality * weights["pullback_quality"] +
-            support_reaction * weights["support_reaction"] +
-            clip_confidence * weights.get("clip_confidence_score", 0.12) +  # CLIP integration
-            liquidity_pattern_score * weights["liquidity_pattern_score"] +
-            psych_score * weights["psych_score"] +
-            htf_supportive_score * weights["htf_supportive_score"] +
-            market_phase_modifier * weights["market_phase_modifier"]
+            trend_strength * float(weights["trend_strength"]) +
+            pullback_quality * float(weights["pullback_quality"]) +
+            support_reaction * float(weights["support_reaction"]) +
+            clip_confidence * float(weights.get("clip_confidence_score", 0.12)) +  # CLIP integration
+            liquidity_pattern_score * float(weights["liquidity_pattern_score"]) +
+            psych_score * float(weights["psych_score"]) +
+            htf_supportive_score * float(weights["htf_supportive_score"]) +
+            market_phase_modifier * float(weights["market_phase_modifier"])
         )
         
         # Show CLIP contribution in scoring
-        clip_contribution = clip_confidence * weights.get("clip_confidence_score", 0.12)
+        clip_contribution = clip_confidence * float(weights.get("clip_confidence_score", 0.12))
         if clip_contribution > 0:
             print(f"[CLIP INTEGRATION] Confidence: {clip_confidence:.3f} × Weight: {weights.get('clip_confidence_score', 0.12):.3f} = {clip_contribution:.3f}")
         
         print(f"[TRADER SCORE] Base score (with CLIP): {score:.3f}")
+        
+        # Add score breakdown for debugging
+        print(f"[SCORE BREAKDOWN] Trend: {trend_strength:.3f}×{weights['trend_strength']:.3f}={trend_strength*float(weights['trend_strength']):.3f}")
+        print(f"[SCORE BREAKDOWN] CLIP: {clip_confidence:.3f}×{weights.get('clip_confidence_score', 0.12):.3f}={clip_contribution:.3f}")
         
         # Initialize phase_modifier variable
         phase_modifier = 0.0
