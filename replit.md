@@ -98,6 +98,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 25, 2025 - Vision-AI Training Data with JSON Metadata Export - PRODUCTION READY ✅
+Enhanced Vision-AI system with comprehensive training metadata export for advanced AI model development:
+- **JSON Metadata Export**: Automatic generation of paired .json files alongside .png charts containing symbol, alerts, phase, setup, decision, score, and timestamp data
+- **Structured Training Data**: Complete metadata including alert_count, multi_alert flag, chart_type classification, and ISO timestamp for temporal analysis
+- **Zero-Shot Classification Support**: Structured data enables advanced queries like "Does this chart show late-stage trend exhaustion with pullback?" for CLIP/ViT training
+- **Enhanced Data Pipeline**: Integrated metadata verification in vision_ai_pipeline.py with automatic file confirmation and error handling
+- **Training Data Pairing**: Each training_charts/ entry now includes both visual (PNG) and structured (JSON) data for comprehensive AI training
+- **Advanced Model Preparation**: Foundation for supervised learning, few-shot classification, and memory-aware pattern recognition systems
+System now generates complete training datasets optimized for modern Vision-AI architectures with full contextual metadata.
+
 ### June 25, 2025 - Memory-Aware Vision-AI Charts with Multiple Alert Highlighting - PRODUCTION READY ✅
 Enhanced Vision-AI chart function with memory-aware training capabilities for improved CLIP model performance:
 - **Multiple Alert Highlighting**: Extended plot_chart_vision_ai() to support alert_indices parameter for displaying multiple historical alerts on single chart

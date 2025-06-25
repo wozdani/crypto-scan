@@ -110,7 +110,15 @@ def save_training_chart(df: pd.DataFrame, symbol: str, timestamp: str,
         )
         
         if saved_path:
-            print(f"[VISION-AI] Custom training chart saved: {saved_path}")
+            print(f"[VISION-AI] Training chart and metadata saved: {saved_path}")
+            
+            # Verify JSON metadata was created
+            json_path = saved_path.replace('.png', '.json')
+            if os.path.exists(json_path):
+                print(f"[VISION-AI] Metadata file confirmed: {json_path}")
+            else:
+                print(f"[VISION-AI] Warning: Metadata file not found")
+            
             return saved_path
         else:
             # Fallback to basic chart if custom fails

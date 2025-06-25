@@ -127,6 +127,31 @@ def plot_chart_vision_ai(symbol, candles, alert_indices=None, alert_index=None, 
         plt.savefig(save_path, dpi=200, bbox_inches='tight', facecolor='black')
         plt.close()
         
+        # Export training metadata to JSON for enhanced AI training
+        import json
+        from datetime import datetime as dt
+        
+        metadata = {
+            "symbol": symbol,
+            "alerts": alert_indices if alert_indices else ([] if alert_index is None else [alert_index]),
+            "phase": phase,
+            "setup": setup,
+            "decision": decision,
+            "score": score,
+            "timestamp": dt.utcnow().isoformat(),
+            "chart_type": "vision_ai_training",
+            "multi_alert": len(alert_indices) > 1 if alert_indices else False,
+            "alert_count": len(alert_indices) if alert_indices else (1 if alert_index is not None else 0)
+        }
+        
+        json_path = save_path.replace(".png", ".json")
+        try:
+            with open(json_path, "w") as f:
+                json.dump(metadata, f, indent=2)
+            print(f"[VISION-AI] Metadata saved: {json_path}")
+        except Exception as e:
+            print(f"[VISION-AI] Failed to save metadata: {e}")
+        
         return save_path
         
     except Exception as e:
