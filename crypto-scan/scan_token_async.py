@@ -161,41 +161,41 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             return_exceptions=True
         )
         
-        # Validate core data with debugging
+        # Process data using enhanced data processor
         print(f"[DATA VALIDATION] {symbol} → ticker: {type(ticker)}, 15m: {type(candles_15m)}, 5m: {type(candles_5m)}, orderbook: {type(orderbook)}")
         
-        if isinstance(ticker, Exception) or not ticker:
-            print(f"[DATA VALIDATION FAILED] {symbol} → No ticker data: {ticker}")
-            return None
-            
+        # Convert exceptions to None for enhanced processor
+        if isinstance(ticker, Exception):
+            ticker = None
         if isinstance(candles_15m, Exception):
-            print(f"[DATA VALIDATION] {symbol} → 15m candles failed: {candles_15m}")
-            candles_15m = []
+            candles_15m = None
         if isinstance(candles_5m, Exception):
-            print(f"[DATA VALIDATION] {symbol} → 5m candles failed: {candles_5m}")
-            candles_5m = []
+            candles_5m = None
         if isinstance(orderbook, Exception):
-            print(f"[DATA VALIDATION] {symbol} → orderbook failed: {orderbook}")
-            orderbook = {"bids": [], "asks": []}
+            orderbook = None
         
-        # Basic filtering
-        price = ticker["price"]
-        volume_24h = ticker["volume_24h"]
+        # Convert to enhanced processor format
+        ticker_data = {"result": {"list": [ticker]}} if ticker else None
+        candles_data = {"result": {"list": candles_15m}} if candles_15m else None
+        orderbook_data = {"result": orderbook} if orderbook else None
+        
+        # Use enhanced data processor
+        from utils.async_data_processor import process_async_data_enhanced
+        market_data = process_async_data_enhanced(symbol, ticker_data, candles_data, orderbook_data)
+        
+        if not market_data:
+            print(f"[DATA VALIDATION FAILED] {symbol} → Enhanced processor rejected data")
+            return None
+        
+        # Basic filtering using processed market data
+        price = market_data["price_usd"]
+        volume_24h = market_data["volume_24h"]
         
         if price <= 0 or volume_24h < 500_000:
             return None
         
-        # Build market data structure
-        market_data = {
-            "symbol": symbol,
-            "price_usd": price,
-            "volume_24h": volume_24h,
-            "price_change_24h": ticker["price_change_24h"],
-            "candles": candles_15m,
-            "candles_5m": candles_5m,
-            "orderbook": orderbook,
-            "ticker": ticker
-        }
+        # market_data is already properly structured from enhanced processor
+        print(f"[MARKET DATA SUCCESS] {symbol} → Price: ${price}, Volume: {volume_24h}")
         
         # PPWCS Scoring with import validation
         if PPWCS_AVAILABLE:

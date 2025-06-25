@@ -101,7 +101,10 @@ class AsyncCryptoScanner:
             log_api_error(symbol, "async_fetch_enhanced", "critical_error", None, e)
         
         # Use enhanced data processor to handle partial data scenarios
-        return process_async_data_enhanced(symbol, ticker_data, candles_data, orderbook_data)
+        result = process_async_data_enhanced(symbol, ticker_data, candles_data, orderbook_data)
+        if result:
+            print(f"[ASYNC DATA SUCCESS] {symbol}: Processed with enhanced processor")
+        return result
     
     async def _fetch_with_fallbacks(self, symbol: str) -> Optional[Dict]:
         """Async fetch with multiple endpoint and category fallbacks"""

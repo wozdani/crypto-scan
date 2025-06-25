@@ -87,18 +87,29 @@ def process_async_data_enhanced(symbol: str, ticker_data: Optional[Dict], candle
         asks = [{"price": price_usd + spread, "size": 100.0}]
         print(f"[ORDERBOOK SYNTHETIC] {symbol}: Created synthetic orderbook")
     
-    # VALIDATION: Check minimum requirements
+    # ENHANCED VALIDATION: Accept tokens with candles even without price
     has_price = price_usd > 0
     has_candles = len(candles) > 0
     has_orderbook = len(bids) > 0 and len(asks) > 0
     
-    if not has_price:
-        print(f"[VALIDATION FAILED] {symbol}: No valid price data")
-        return None
-    
+    # Must have candles for processing
     if not has_candles:
         print(f"[VALIDATION FAILED] {symbol}: No candle data")
         return None
+    
+    # If no price but we have candles, try final price extraction
+    if not has_price and has_candles:
+        # Try to extract from any candle
+        for candle in candles:
+            if candle.get("close", 0) > 0:
+                price_usd = candle["close"]
+                print(f"[PRICE RECOVERY] {symbol}: Extracted ${price_usd} from candle fallback")
+                break
+        
+        # If still no price, use 1.0 as placeholder for processing
+        if price_usd <= 0:
+            price_usd = 1.0
+            print(f"[PRICE PLACEHOLDER] {symbol}: Using placeholder price for candle-only processing")
     
     # SUCCESS: Return processed data with partial status tracking
     components = []
