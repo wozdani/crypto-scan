@@ -129,6 +129,18 @@ Fixed critical Vision-AI chart generation error preventing training data creatio
 - **Import Chain Complete**: Full matplotlib import chain (plt, mdates, mpl) now available in all Vision-AI chart generation modules
 Enhanced Vision-AI pipeline now generates training charts successfully without any matplotlib import errors, enabling effective CLIP model development.
 
+### June 25, 2025 - Vision-AI Chart Logic Sync Fix - Eliminated Duplicate Chart Generation Conflicts ✅
+Fixed serious logical conflict between Vision-AI chart generation systems causing contradictory success/failure messages:
+- **Chart Generation Sync**: Enhanced generate_top_tjde_charts() to check for existing Vision-AI generated charts preventing duplicate work
+- **Data Source Priority**: Modified chart generation to use candles from scan results first, avoiding unnecessary API re-fetching
+- **Existing Chart Detection**: Added 30-minute recent chart checking with glob patterns preventing regeneration of already successful charts  
+- **Debug Enhancement**: Added comprehensive logging showing candle availability, data sources, and chart generation decision flow
+- **Logic Unification**: Synchronized generate_vision_ai_training_data() success (5/5 pairs) with TJDE chart validation eliminating contradictory messages
+- **Error Message Accuracy**: Eliminated contradictory "Generated 5 training pairs" followed by "SKIP: Insufficient candle data" for same tokens
+- **Performance Optimization**: Reduced duplicate API calls and chart generation for tokens already processed by Vision-AI pipeline
+- **Production Reliability**: Clear separation between Vision-AI training data generation and TJDE chart verification with proper fallback chains
+Enhanced system now shows consistent success messages without logical conflicts between chart generation pipelines.
+
 ### June 25, 2025 - Enhanced Debug System for Trend-Mode - Cluster Analysis + CLIP Prediction Issue Detection ✅
 Implemented comprehensive debug logging system to detect fallback triggers in cluster analysis and CLIP prediction flow:
 - **Cluster Analysis Debug**: Added detailed entry logging, market_data validation, candle format detection, and exception tracking with full traceback in cluster_analysis_enhancement()

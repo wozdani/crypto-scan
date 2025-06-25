@@ -204,10 +204,38 @@ def generate_top_tjde_charts(results: List[Dict]):
             try:
                 from chart_generator import generate_alert_focused_training_chart
                 
-                # Extract candle data from market_data
+                # CRITICAL FIX: Check if Vision-AI already generated charts for this token
+                import glob
+                import os
+                from datetime import datetime, timedelta
+                
+                # Check for recent charts (last 30 minutes) to avoid duplicate work
+                current_time = datetime.now()
+                recent_pattern = f"training_charts/{symbol}_*.png"
+                existing_charts = glob.glob(recent_pattern)
+                
+                recent_chart_found = False
+                for chart_path in existing_charts:
+                    try:
+                        # Check if chart is recent (within last 30 minutes)
+                        file_mtime = datetime.fromtimestamp(os.path.getmtime(chart_path))
+                        if (current_time - file_mtime).total_seconds() < 1800:  # 30 minutes
+                            print(f"   ✅ Using existing Vision-AI chart: {chart_path}")
+                            chart_count += 1
+                            recent_chart_found = True
+                            break
+                    except:
+                        continue
+                
+                if recent_chart_found:
+                    continue  # Skip regeneration if recent chart exists
+                
+                # Extract candle data from market_data - prioritize scan result data
                 candles_15m = market_data.get('candles', [])
+                print(f"[TJDE CHART DEBUG] {symbol} → 15M candles: {len(candles_15m)}, recent_candle timestamp: {candles_15m[-1][0] if candles_15m else 'N/A'}")
+                
                 if not candles_15m or len(candles_15m) < 20:
-                    print(f"   [SKIP] {symbol}: Insufficient candle data")
+                    print(f"   [SKIP] {symbol}: Insufficient candle data after Vision-AI check")
                     continue
                 
                 # Generate custom trend-mode chart
@@ -255,7 +283,7 @@ def generate_top_tjde_charts(results: List[Dict]):
             except Exception as chart_e:
                 print(f"   ❌ Chart error for {symbol}: {chart_e}")
         
-        print(f"📊 Generated {chart_count}/{len(top_5_tjde)} training charts for TOP TJDE tokens")
+        print(f"📊 Processed {chart_count}/{len(top_5_tjde)} training charts for TOP TJDE tokens (includes existing Vision-AI charts)")
         
     except Exception as e:
         print(f"[CHART GEN ERROR] {e}")
