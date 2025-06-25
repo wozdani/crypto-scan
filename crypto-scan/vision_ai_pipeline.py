@@ -220,31 +220,34 @@ def fetch_candles_for_vision(symbol: str) -> Optional[List]:
         # Próba 1: Sprawdź async results cache (enhanced)
         print(f"[VISION-AI FETCH] {symbol}: Checking async scan results...")
         
-        # Check multiple async file patterns (prioritize larger cache files)
-        async_patterns = [
-            f"data/async_results/{symbol}.json",        # Larger cache files with candle data
-            f"data/async_results/{symbol}_async.json"   # Summary files from recent scans
-        ]
+        # Check enhanced async results with proper field access
+        async_file = f"data/async_results/{symbol}_async.json"
         
-        for async_file in async_patterns:
-            if os.path.exists(async_file):
-                try:
-                    with open(async_file, 'r') as f:
-                        async_data = json.load(f)
-                        candles = async_data.get("candles", [])
+        if os.path.exists(async_file):
+            try:
+                # Check file age to prioritize recent files
+                file_age = time.time() - os.path.getmtime(async_file)
+                recent_file = file_age < 300  # 5 minutes
+                
+                with open(async_file, 'r') as f:
+                    async_data = json.load(f)
+                    # Enhanced: Check for candles_15m field (new format)
+                    candles = async_data.get("candles_15m", async_data.get("candles", []))
+                    
+                    print(f"[VISION-AI ASYNC] {symbol}: Found {len(candles)} candles in {async_file} (age: {file_age:.1f}s)")
+                    
+                    # Lower threshold for recent files with enhanced data
+                    min_candles = 20 if recent_file else 30
+                    if candles and len(candles) >= min_candles:
+                        print(f"[VISION-AI ASYNC SUCCESS] {symbol}: Using {len(candles)} enhanced cached candles")
+                        return candles
+                    elif candles:
+                        print(f"[VISION-AI ASYNC PARTIAL] {symbol}: Only {len(candles)} candles (need {min_candles}+)")
+                    else:
+                        print(f"[VISION-AI ASYNC EMPTY] {symbol}: No candles in cached data")
                         
-                        print(f"[VISION-AI ASYNC] {symbol}: Found {len(candles)} candles in {async_file}")
-                        
-                        if candles and len(candles) >= 30:
-                            print(f"[VISION-AI ASYNC SUCCESS] {symbol}: Using {len(candles)} cached candles")
-                            return candles
-                        elif candles:
-                            print(f"[VISION-AI ASYNC PARTIAL] {symbol}: Only {len(candles)} candles (need 30+)")
-                        else:
-                            print(f"[VISION-AI ASYNC EMPTY] {symbol}: No candles in cached data")
-                            
-                except Exception as e:
-                    print(f"[VISION-AI ASYNC ERROR] {symbol}: Error reading {async_file}: {e}")
+            except Exception as e:
+                print(f"[VISION-AI ASYNC ERROR] {symbol}: Error reading {async_file}: {e}")
         
         print(f"[VISION-AI ASYNC] {symbol}: No valid async cache found")
         
