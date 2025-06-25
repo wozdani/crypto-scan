@@ -5,6 +5,7 @@ Professional TradingView-style charts with clean dark theme
 
 import matplotlib
 matplotlib.use('Agg')  # Ensure non-interactive backend
+import matplotlib as mpl
 import os
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
