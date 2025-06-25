@@ -98,16 +98,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 25, 2025 - Complete Performance Optimization: 752 Tokens in <15s Production Ready ✅
-Successfully resolved all critical performance bottlenecks and achieved production-ready scanning performance for trend-mode system:
-- **Vision-AI mdates Fix**: Created complete vision_ai_chart_generator.py with proper `import matplotlib.dates as mdates` resolving all chart generation crashes
-- **High-Speed Async Scanner**: Optimized async_scanner.py with aggressive batching (100 tokens/batch), tight timeouts (8s), and fast_mode achieving 50+ tokens/s
-- **TJDE Integration**: Enhanced async scanner with selective TJDE analysis (threshold 35-40 PPWCS) and complete market data formatting for trader_ai_engine
-- **Performance Monitoring**: Real-time rate tracking, early termination at 12s in fast mode, and comprehensive metrics reporting for production validation
-- **Constructor Fix**: Resolved `fast_mode` argument error by setting scanner.fast_mode after initialization ensuring compatibility with existing codebase
-- **Batch Optimization**: Implemented 100-token batches with 80 concurrent workers and 8s timeouts targeting 752 tokens in <15s performance
-- **Result Optimization**: Fast mode returns lightweight results for low-scoring tokens while preserving full data for high-value setups (PPWCS≥60, TJDE≥0.6)
-System now processes 752 tokens with full TJDE+Vision-AI capabilities in target <15s timeframe achieving production-ready performance.
+### June 25, 2025 - CLIP Visual Intelligence Integration in TJDE Scoring - PRODUCTION READY ✅
+Implemented complete CLIP visual intelligence integration into TJDE scoring system ensuring visual pattern recognition directly influences trading decisions:
+- **CLIP Confidence Scoring**: Added clip_confidence_score as weighted factor (12% of total score) in simulate_trader_decision_advanced() function
+- **Enhanced Weight Distribution**: Rebalanced scoring weights (volume 22%, momentum 18%, CLIP 12%) to incorporate visual intelligence while maintaining algorithmic reliability
+- **Visual Pattern Recognition**: CLIP confidence extracted first, pattern-adjusted (breakout +20%, consolidation neutral, bearish -20%), and integrated into base scoring calculation
+- **Adaptive Decision Thresholds**: CLIP confidence adjusts decision thresholds (-0.05 for high confidence >0.7, +0.03 for low confidence <0.3) making system more/less aggressive based on visual clarity
+- **Pattern-Based Overrides**: Strong CLIP patterns (confidence >0.75) can upgrade decisions (monitor→consider, watch→monitor) for breakout-continuation patterns
+- **Complete Integration Flow**: CLIP confidence → base scoring → cluster modifier → phase modifier → CLIP-adjusted thresholds → pattern overrides → final decision
+- **Visual Intelligence Status**: Added visual_intelligence_active flag and detailed CLIP logging showing pattern recognition impact on final decisions
+System now achieves true visual-algorithmic fusion where CLIP predictions have measurable impact on trading decisions, completing adaptive trader intelligence.
 
 ### June 25, 2025 - Fast CLIP Predictor Implementation - CLIP Performance Issues Resolved ✅
 Successfully implemented fast CLIP predictor system resolving model initialization timeouts and transformers compatibility issues:
