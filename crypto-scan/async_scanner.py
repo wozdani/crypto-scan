@@ -162,95 +162,13 @@ class AsyncCryptoScanner:
             return None
     
     def _process_async_data(self, symbol: str, ticker_data: Optional[Dict], candles_data: Optional[Dict], orderbook_data: Optional[Dict]) -> Optional[Dict]:
-        """Process async data with partial validity support using enhanced validation"""
+        """Process async data with enhanced fallback mechanisms"""
         
-        # Use enhanced validation system for partial validity support
-        validation_result = validate_market_data_enhanced(symbol)
+        # Import the enhanced processor
+        from utils.async_data_processor import process_async_data_enhanced
         
-        if not validation_result.is_valid:
-            log_data_validation_error(symbol, "Enhanced validation failed", validation_result.validation_issues)
-            return None
-        
-        # Extract validated data
-        price_usd = validation_result.price_usd
-        volume_24h = 0.0
-        
-        # Priority 1: Ticker data
-        if ticker_data and ticker_data.get("result", {}).get("list"):
-            ticker = ticker_data["result"]["list"][0]
-            price_usd = float(ticker.get("lastPrice", 0))
-            volume_24h = float(ticker.get("volume24h", 0))
-        
-        # Priority 2: Extract price from candles if ticker failed
-        candles = []
-        if candles_data and candles_data.get("result", {}).get("list"):
-            for candle in candles_data["result"]["list"]:
-                try:
-                    candles.append({
-                        "timestamp": int(candle[0]),
-                        "open": float(candle[1]),
-                        "high": float(candle[2]), 
-                        "low": float(candle[3]),
-                        "close": float(candle[4]),
-                        "volume": float(candle[5])
-                    })
-                except (ValueError, IndexError):
-                    continue
-            
-            # Extract price from latest candle if ticker failed
-            if price_usd <= 0 and candles:
-                price_usd = candles[0]["close"]
-                # Estimate volume from candles
-                volume_24h = sum(c["volume"] for c in candles[-24:]) if len(candles) >= 24 else sum(c["volume"] for c in candles) * (24 / len(candles))
-        
-        # Process orderbook with synthetic fallback
-        bids = []
-        asks = []
-        if orderbook_data and orderbook_data.get("result"):
-            result = orderbook_data["result"]
-            if result.get("b"):
-                for bid in result["b"][:5]:
-                    try:
-                        bids.append({"price": float(bid[0]), "size": float(bid[1])})
-                    except (ValueError, IndexError):
-                        continue
-            if result.get("a"):
-                for ask in result["a"][:5]:
-                    try:
-                        asks.append({"price": float(ask[0]), "size": float(ask[1])})
-                    except (ValueError, IndexError):
-                        continue
-        
-        # Synthetic orderbook if missing but we have price
-        if not bids and not asks and price_usd > 0:
-            spread = price_usd * 0.001  # 0.1% spread
-            bids = [{"price": price_usd - spread, "size": 100.0}]
-            asks = [{"price": price_usd + spread, "size": 100.0}]
-            print(f"[ORDERBOOK SYNTHETIC] {symbol}: Created synthetic orderbook")
-        
-        # Validate minimum requirements for processing
-        has_price = price_usd > 0
-        has_candles = len(candles) > 0
-        has_orderbook = len(bids) > 0 and len(asks) > 0
-        
-        if not has_price:
-            print(f"[ASYNC VALIDATION FAILED] {symbol}: No valid price data")
-            return None
-        
-        if not has_candles and not has_orderbook:
-            print(f"[ASYNC VALIDATION FAILED] {symbol}: No candles or orderbook data")
-            return None
-        
-        # Success - return processed data
-        components = []
-        if ticker_data: components.append("ticker")
-        if candles: components.append(f"candles({len(candles)})")
-        if bids and asks: components.append("orderbook")
-        
-        partial_status = " (PARTIAL)" if not (ticker_data and candles and bids and asks) else ""
-        print(f"[ASYNC SUCCESS{partial_status}] {symbol}: {', '.join(components)} - Price ${price_usd}")
-        
-        return {
+        # Use enhanced processing
+        return process_async_data_enhanced(symbol, ticker_data, candles_data, orderbook_data)
             "symbol": symbol,
             "price_usd": price_usd,
             "volume_24h": volume_24h,
