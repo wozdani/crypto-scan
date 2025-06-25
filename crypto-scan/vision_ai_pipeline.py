@@ -254,20 +254,54 @@ def generate_vision_ai_training_data(tjde_results: List[Dict]) -> int:
             tjde_score = result.get('tjde_score', 0)
             market_data = result.get('market_data', {})
             
-            # Enhanced candle fetching with comprehensive fallback chain
-            from utils.candle_fallback import get_safe_candles, plot_empty_chart
-            from utils.candle_cache import load_candles_from_cache
+            # Get candle data with comprehensive fallback system
+            candles_15m = result.get("candles", [])
             
-            candles_15m = get_safe_candles(symbol, interval="15m", try_alt_sources=True)
-            
-            # FIX 2: Enhanced fallback logic with cache priority
-            if not candles_15m or len(candles_15m) < 48:
-                # Try local cache as primary fallback
-                candles_15m = load_candles_from_cache(symbol, interval="15m")
-                if candles_15m and len(candles_15m) >= 48:
-                    print(f"[VISION-AI CACHE] {symbol}: Using {len(candles_15m)} cached candles")
-                else:
-                    print(f"[VISION-AI SKIP] {symbol}: Insufficient candle data even in cache")
+            # Try multiple data sources if insufficient
+            if len(candles_15m) < 20:
+                # Try async results first
+                async_file = f"data/async_results/{symbol}.json"
+                if os.path.exists(async_file):
+                    try:
+                        with open(async_file, 'r') as f:
+                            async_data = json.load(f)
+                            async_candles = async_data.get("candles", [])
+                            if len(async_candles) >= 20:
+                                candles_15m = async_candles
+                                print(f"[VISION-AI ASYNC] {symbol}: Using {len(candles_15m)} async candles")
+                    except Exception as e:
+                        print(f"[VISION-AI ERROR] {symbol}: Async data error - {e}")
+                
+                # If still insufficient, try direct API fetch
+                if len(candles_15m) < 20:
+                    try:
+                        import requests
+                        print(f"[VISION-AI API] {symbol}: Fetching fresh candle data...")
+                        
+                        response = requests.get(
+                            "https://api.bybit.com/v5/market/kline",
+                            params={
+                                'category': 'linear',
+                                'symbol': symbol,
+                                'interval': '15',
+                                'limit': '96'
+                            },
+                            timeout=10
+                        )
+                        
+                        if response.status_code == 200:
+                            api_data = response.json()
+                            if api_data.get('retCode') == 0:
+                                api_candles = api_data.get('result', {}).get('list', [])
+                                if len(api_candles) >= 20:
+                                    candles_15m = api_candles
+                                    print(f"[VISION-AI API] {symbol}: Fetched {len(candles_15m)} fresh candles")
+                    except Exception as e:
+                        print(f"[VISION-AI API ERROR] {symbol}: {e}")
+                
+                # Final check - skip if still insufficient
+                if len(candles_15m) < 20:
+                    print(f"[VISION-AI SKIP] {symbol}: Only {len(candles_15m)} candles available after all fallbacks")
                     continue
             
             # Convert to DataFrame for custom chart generation - use available candles

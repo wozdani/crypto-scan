@@ -1,183 +1,166 @@
-"""
-Candle Data Fallback System for Vision-AI Chart Generation
-Implements alternative data sources and cache loading for insufficient candle data
-"""
+# utils/candle_fallback.py
 
-import os
+import requests
 import json
-import logging
-from datetime import datetime, timedelta
+import os
 from typing import List, Dict, Optional
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
+import time
 
-def get_safe_candles(symbol: str, interval: str = "15m", try_alt_sources: bool = True) -> Optional[List]:
+def get_safe_candles(symbol: str, interval: str = "15m", limit: int = 96, try_alt_sources: bool = True) -> List:
     """
-    Enhanced candle fetching with fallback mechanisms including local cache
+    Enhanced candle fetching with comprehensive fallback system
     
     Args:
         symbol: Trading symbol
-        interval: Time interval (15m, 5m, etc.)
-        try_alt_sources: Enable alternative data sources
+        interval: Candle interval (15m, 5m, etc.)
+        limit: Number of candles to fetch
+        try_alt_sources: Whether to try alternative data sources
         
     Returns:
-        List of candles or None
+        List of candle data
     """
-    try:
-        # Primary source - try current scan results
-        candles = _load_from_scan_results(symbol)
-        if candles and len(candles) >= 48:
-            # Save successful fetch to cache for future fallback
-            from utils.candle_cache import save_candles_to_cache
-            save_candles_to_cache(symbol, candles, interval)
-            return candles
-            
-        # FIX 2: Enhanced fallback with cache when API fails
-        if try_alt_sources:
-            # Fallback 1: Local cache (prioritized for reliability)
-            from utils.candle_cache import load_candles_from_cache
-            cached_candles = load_candles_from_cache(symbol, interval)
-            if cached_candles and len(cached_candles) >= 48:
-                print(f"[CANDLE FALLBACK] {symbol}: Using {len(cached_candles)} cached candles")
-                return cached_candles
-                
-            # Fallback 2: Legacy cache files
-            candles = load_candles_from_cache_legacy(symbol, interval)
-            if candles and len(candles) >= 48:
-                return candles
-                
-            # Fallback 3: Historical data files
-            candles = _load_from_historical_data(symbol, interval)
-            if candles and len(candles) >= 48:
-                return candles
-                
-        logging.debug(f"get_safe_candles: {symbol} insufficient data from all sources")
-        return None
-        
-    except Exception as e:
-        logging.error(f"get_safe_candles error for {symbol}: {e}")
-        return None
-
-def load_candles_from_cache_legacy(symbol: str, interval: str = "15m") -> Optional[List]:
-    """Load candles from various cache locations"""
-    cache_locations = [
-        f"data/cache/{symbol}_candles_{interval}.json",
-        f"data/async_results/{symbol}_async.json",
-        f"data/charts/{symbol}_*.json",
-        f"data/results/{symbol}_*.json"
-    ]
+    candles = []
     
-    for cache_path in cache_locations:
-        if '*' in cache_path:
-            # Handle wildcard patterns
-            import glob
-            files = glob.glob(cache_path)
-            if files:
-                cache_path = max(files, key=os.path.getmtime)  # Most recent
-        
-        if os.path.exists(cache_path):
+    # Source 1: Try async results
+    if try_alt_sources:
+        async_file = f"data/async_results/{symbol}.json"
+        if os.path.exists(async_file):
             try:
-                with open(cache_path, 'r') as f:
+                with open(async_file, 'r') as f:
                     data = json.load(f)
-                    
-                # Extract candles from various data structures
-                candles = None
-                if isinstance(data, list):
-                    candles = data
-                elif isinstance(data, dict):
-                    candles = (data.get('candles_15m') or 
-                             data.get('candles') or 
-                             data.get('market_data', {}).get('candles', []))
-                
-                if candles and len(candles) >= 48:
-                    logging.debug(f"load_candles_from_cache: {symbol} loaded {len(candles)} candles from {cache_path}")
-                    return candles
-                    
+                    candles = data.get("candles", [])
+                    if len(candles) >= 20:
+                        print(f"[CANDLE FALLBACK] {symbol}: Using {len(candles)} async candles")
+                        return candles
             except Exception as e:
-                logging.debug(f"load_candles_from_cache: Failed to load {cache_path}: {e}")
-                continue
-                
-    return None
-
-def _load_from_scan_results(symbol: str) -> Optional[List]:
-    """Load candles from latest scan results"""
-    try:
-        results_files = [
-            "data/latest_scan_results.json",
-            "data/async_results/latest.json"
-        ]
-        
-        for file_path in results_files:
-            if os.path.exists(file_path):
-                with open(file_path, 'r') as f:
+                print(f"[CANDLE FALLBACK] {symbol}: Async source error - {e}")
+    
+    # Source 2: Try candle cache
+    if try_alt_sources and len(candles) < 20:
+        cache_file = f"data/candles_cache/{symbol}_{interval}.json"
+        if os.path.exists(cache_file):
+            try:
+                with open(cache_file, 'r') as f:
                     data = json.load(f)
-                    
-                if isinstance(data, list):
-                    for entry in data:
-                        if entry.get('symbol') == symbol:
-                            market_data = entry.get('market_data', {})
-                            candles = market_data.get('candles_15m') or market_data.get('candles', [])
-                            if candles:
-                                return candles
-                                
-    except Exception as e:
-        logging.debug(f"_load_from_scan_results error: {e}")
-        
-    return None
+                    candles = data.get("candles", [])
+                    if len(candles) >= 20:
+                        print(f"[CANDLE FALLBACK] {symbol}: Using {len(candles)} cached candles")
+                        return candles
+            except Exception as e:
+                print(f"[CANDLE FALLBACK] {symbol}: Cache source error - {e}")
+    
+    # Source 3: Direct API fetch
+    if len(candles) < 20:
+        try:
+            print(f"[CANDLE FALLBACK] {symbol}: Fetching from Bybit API...")
+            
+            bybit_interval = interval.replace("m", "")  # "15m" -> "15"
+            response = requests.get(
+                "https://api.bybit.com/v5/market/kline",
+                params={
+                    'category': 'linear',
+                    'symbol': symbol,
+                    'interval': bybit_interval,
+                    'limit': str(limit)
+                },
+                timeout=15
+            )
+            
+            if response.status_code == 200:
+                api_data = response.json()
+                if api_data.get('retCode') == 0:
+                    candles = api_data.get('result', {}).get('list', [])
+                    if len(candles) >= 20:
+                        print(f"[CANDLE FALLBACK] {symbol}: Fetched {len(candles)} fresh candles")
+                        
+                        # Save to cache for future use
+                        save_candles_to_cache(symbol, interval, candles)
+                        return candles
+                else:
+                    print(f"[CANDLE FALLBACK] {symbol}: API error - {api_data.get('retMsg', 'Unknown')}")
+            else:
+                print(f"[CANDLE FALLBACK] {symbol}: HTTP {response.status_code}")
+                
+        except Exception as e:
+            print(f"[CANDLE FALLBACK] {symbol}: API fetch error - {e}")
+    
+    print(f"[CANDLE FALLBACK] {symbol}: All sources failed, returning {len(candles)} candles")
+    return candles
 
-def _load_from_historical_data(symbol: str, interval: str) -> Optional[List]:
-    """Load from historical data directory"""
+def save_candles_to_cache(symbol: str, interval: str, candles: List) -> bool:
+    """Save candles to cache for future use"""
     try:
-        hist_path = f"data/historical/{symbol}_{interval}.json"
-        if os.path.exists(hist_path):
-            with open(hist_path, 'r') as f:
-                return json.load(f)
-    except Exception as e:
-        logging.debug(f"_load_from_historical_data error: {e}")
+        os.makedirs("data/candles_cache", exist_ok=True)
+        cache_file = f"data/candles_cache/{symbol}_{interval}.json"
         
-    return None
+        cache_data = {
+            "symbol": symbol,
+            "interval": interval,
+            "candles": candles,
+            "timestamp": time.time()
+        }
+        
+        with open(cache_file, 'w') as f:
+            json.dump(cache_data, f)
+        
+        print(f"[CANDLE CACHE] {symbol}: Saved {len(candles)} candles to cache")
+        return True
+        
+    except Exception as e:
+        print(f"[CANDLE CACHE ERROR] {symbol}: {e}")
+        return False
 
-def plot_empty_chart(symbol: str, output_dir: str = "training_charts") -> Optional[str]:
+def generate_synthetic_candles(symbol: str, base_price: float = 1.0, count: int = 50) -> List:
+    """
+    Generate synthetic candle data for testing purposes only
+    Note: This should only be used for development/testing
+    """
+    print(f"[SYNTHETIC CANDLES] {symbol}: Generating {count} synthetic candles for testing")
+    
+    candles = []
+    current_price = base_price
+    
+    for i in range(count):
+        # Small random price movements
+        import random
+        price_change = random.uniform(-0.02, 0.02)  # ±2% movement
+        new_price = current_price * (1 + price_change)
+        
+        # Generate OHLCV
+        high = new_price * random.uniform(1.001, 1.01)
+        low = new_price * random.uniform(0.99, 0.999)
+        close = random.uniform(low, high)
+        volume = random.uniform(1000, 10000)
+        
+        # Bybit format: [timestamp, open, high, low, close, volume]
+        timestamp = str(int(time.time() * 1000) - (count - i) * 900000)  # 15min intervals
+        candle = [timestamp, str(current_price), str(high), str(low), str(close), str(volume)]
+        candles.append(candle)
+        
+        current_price = close
+    
+    return candles
+
+def plot_empty_chart(symbol: str, save_path: str, message: str = "Insufficient Data") -> Optional[str]:
     """
     Generate placeholder chart when candle data is unavailable
-    
-    Args:
-        symbol: Trading symbol
-        output_dir: Output directory
-        
-    Returns:
-        Path to generated placeholder chart
+    For development use only
     """
     try:
-        os.makedirs(output_dir, exist_ok=True)
+        import matplotlib.pyplot as plt
         
-        fig, ax = plt.subplots(figsize=(12, 8), facecolor='#1a1a1a')
-        ax.set_facecolor('#1a1a1a')
+        fig, ax = plt.subplots(figsize=(12, 8))
+        ax.text(0.5, 0.5, f"{symbol}\n{message}", 
+                ha='center', va='center', fontsize=16,
+                transform=ax.transAxes)
+        ax.set_title(f"{symbol} - Chart Generation Failed")
         
-        # Placeholder content
-        ax.text(0.5, 0.6, f"{symbol}", 
-               ha='center', va='center', fontsize=24, fontweight='bold', color='white')
-        ax.text(0.5, 0.4, "Insufficient Candle Data", 
-               ha='center', va='center', fontsize=16, color='orange')
-        ax.text(0.5, 0.3, "Chart will be generated when data becomes available", 
-               ha='center', va='center', fontsize=12, color='gray')
-        
-        # Styling
-        ax.set_xlim(0, 1)
-        ax.set_ylim(0, 1)
-        ax.axis('off')
-        
-        # Save
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{symbol}_{timestamp}_placeholder.png"
-        filepath = os.path.join(output_dir, filename)
-        
-        plt.savefig(filepath, dpi=150, bbox_inches='tight', facecolor='#1a1a1a')
+        plt.savefig(save_path, dpi=200, bbox_inches='tight')
         plt.close()
         
-        logging.info(f"plot_empty_chart: Generated placeholder for {symbol}")
-        return filepath
+        print(f"[PLACEHOLDER CHART] {symbol}: Generated placeholder at {save_path}")
+        return save_path
         
     except Exception as e:
-        logging.error(f"plot_empty_chart error for {symbol}: {e}")
+        print(f"[PLACEHOLDER ERROR] {symbol}: {e}")
         return None
