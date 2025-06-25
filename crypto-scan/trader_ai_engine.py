@@ -1140,19 +1140,19 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                     "boosts_applied": [mod for mod in context_modifiers if "CLIP:" in mod]
                 }
                 
-                    print(f"[CLIP INTEGRATION] {symbol}: {prediction_str}")
-                    print(f"[CLIP BOOSTS] Applied: {clip_modifier:+.3f} with contextual modifiers")
-                    clip_boost_applied = True
-                    clip_already_used = True
-                    
-                    # Cache the file-based result
-                    _clip_session_cache[session_key] = clip_info
-                    
-                else:
-                    print(f"[CLIP STATUS] No valid file prediction available")
-                    
-            except Exception as e:
-                print(f"[CLIP ERROR] {symbol}: Failed to load file prediction: {e}")
+                print(f"[CLIP INTEGRATION] {symbol}: {prediction_str}")
+                print(f"[CLIP BOOSTS] Applied: {clip_modifier:+.3f} with contextual modifiers")
+                clip_boost_applied = True
+                clip_already_used = True
+                
+                # Cache the file-based result
+                _clip_session_cache[session_key] = clip_info
+                
+            else:
+                print(f"[CLIP STATUS] No valid file prediction available")
+                
+        except Exception as e:
+            print(f"[CLIP ERROR] {symbol}: Failed to load file prediction: {e}")
             
             # Fallback to FastCLIP only if no file prediction and not cached
             if not clip_already_used:
