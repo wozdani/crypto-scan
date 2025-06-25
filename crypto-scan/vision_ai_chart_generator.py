@@ -3,6 +3,8 @@ Vision-AI Chart Generator with Professional TradingView Styling
 Complete implementation with matplotlib.dates for CLIP training optimization
 """
 
+import matplotlib
+matplotlib.use('Agg')  # Ensure non-interactive backend
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import pandas as pd
@@ -11,11 +13,25 @@ from datetime import datetime
 import os
 import json
 from typing import Optional, Dict, List
+
+# Import candlestick_ohlc with proper error handling
 try:
     from mplfinance.original_flavor import candlestick_ohlc
 except ImportError:
-    # Fallback if mplfinance not available
-    candlestick_ohlc = None
+    try:
+        from matplotlib.finance import candlestick_ohlc
+    except ImportError:
+        # Manual candlestick implementation as fallback
+        def candlestick_ohlc(ax, quotes, width=0.2, colorup='g', colordown='r'):
+            """Simple candlestick implementation"""
+            for quote in quotes:
+                date, open_price, high, low, close = quote
+                color = colorup if close >= open_price else colordown
+                ax.plot([date, date], [low, high], color='black', linewidth=1)
+                height = abs(close - open_price)
+                bottom = min(open_price, close)
+                ax.add_patch(plt.Rectangle((date - width/2, bottom), width, height, 
+                                         facecolor=color, edgecolor='black', alpha=0.8))
 
 def plot_chart_vision_ai(symbol: str, candles: List, alert_index: int = None, alert_indices: List = None, 
                         score: float = None, decision: str = None, phase: str = None, setup: str = None,
