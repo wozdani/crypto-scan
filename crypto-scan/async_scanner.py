@@ -24,6 +24,8 @@ from utils.scoring import compute_ppwcs, compute_checklist_score, get_alert_leve
 from utils.alert_system import process_alert
 from utils.coingecko import build_coingecko_cache
 from utils.whale_priority import prioritize_whale_tokens
+from utils.data_validation import validate_market_data_enhanced
+from utils.enhanced_error_logging import log_api_error, log_data_validation_error
 
 class AsyncCryptoScanner:
     """Async crypto scanner with aiohttp for I/O parallelism"""
@@ -49,46 +51,133 @@ class AsyncCryptoScanner:
         if self.session:
             await self.session.close()
     
-    async def fetch_bybit_data(self, symbol: str) -> Optional[Dict]:
-        """Async fetch market data from Bybit API"""
+    async def fetch_bybit_data_enhanced(self, symbol: str) -> Optional[Dict]:
+        """Enhanced async fetch with data validation and fallback mechanisms"""
+        try:
+            # STEP 1: Try async fetch with multiple endpoint fallbacks
+            market_data = await self._fetch_with_fallbacks(symbol)
+            
+            # STEP 2: If async fetch fails, use enhanced synchronous validation
+            if not market_data:
+                print(f"[ASYNC FALLBACK] {symbol}: Using enhanced validation system")
+                validation_result = validate_market_data_enhanced(symbol)
+                
+                if validation_result.is_valid:
+                    # Convert validation result to async format
+                    market_data = self._convert_validation_to_async_format(validation_result)
+                    if market_data:
+                        print(f"[VALIDATION SUCCESS] {symbol}: {validation_result.get_summary()}")
+                        return market_data
+                else:
+                    print(f"[VALIDATION FAILED] {symbol}: {validation_result.get_summary()}")
+                    for issue in validation_result.validation_issues:
+                        print(f"[VALIDATION ISSUE] {symbol}: {issue}")
+                    return None
+            
+            return market_data
+            
+        except Exception as e:
+            log_api_error(symbol, "async_fetch_enhanced", "critical_error", None, e)
+            return None
+    
+    async def _fetch_with_fallbacks(self, symbol: str) -> Optional[Dict]:
+        """Async fetch with multiple endpoint and category fallbacks"""
+        # FALLBACK 1: Spot category (preferred)
+        result = await self._fetch_single_category(symbol, "spot")
+        if result:
+            return result
+        
+        # FALLBACK 2: Linear category
+        result = await self._fetch_single_category(symbol, "linear")
+        if result:
+            print(f"[ASYNC FALLBACK] {symbol}: Using linear category")
+            return result
+        
+        return None
+    
+    async def _fetch_single_category(self, symbol: str, category: str) -> Optional[Dict]:
+        """Fetch data from single category with error handling"""
         try:
             # Bybit V5 API endpoints
             ticker_url = "https://api.bybit.com/v5/market/tickers"
             candles_url = "https://api.bybit.com/v5/market/kline"
             orderbook_url = "https://api.bybit.com/v5/market/orderbook"
             
-            params_ticker = {"category": "spot", "symbol": symbol}
-            params_candles = {"category": "spot", "symbol": symbol, "interval": "15", "limit": "20"}
-            params_orderbook = {"category": "spot", "symbol": symbol, "limit": "10"}
+            params_ticker = {"category": category, "symbol": symbol}
+            params_candles = {"category": category, "symbol": symbol, "interval": "15", "limit": "20"}
+            params_orderbook = {"category": category, "symbol": symbol, "limit": "10"}
             
-            # Parallel fetch all data
-            async with self.session.get(ticker_url, params=params_ticker) as ticker_resp:
-                if ticker_resp.status != 200:
-                    return None
-                ticker_data = await ticker_resp.json()
-                
-            async with self.session.get(candles_url, params=params_candles) as candles_resp:
-                if candles_resp.status != 200:
-                    return None
-                candles_data = await candles_resp.json()
-                
-            async with self.session.get(orderbook_url, params=params_orderbook) as orderbook_resp:
-                if orderbook_resp.status != 200:
-                    return None
-                orderbook_data = await orderbook_resp.json()
+            ticker_data = None
+            candles_data = None
+            orderbook_data = None
             
-            # Process ticker data
-            if not ticker_data.get("result", {}).get("list"):
-                return None
+            # FETCH 1: Ticker data with error handling
+            try:
+                async with self.session.get(ticker_url, params=params_ticker) as ticker_resp:
+                    if ticker_resp.status == 200:
+                        ticker_data = await ticker_resp.json()
+                        if ticker_data.get("result", {}).get("list"):
+                            print(f"[TICKER OK] {symbol}: Got ticker from {category}")
+                        else:
+                            ticker_data = None
+                    else:
+                        print(f"[TICKER ERROR] {symbol}: HTTP {ticker_resp.status} from {category}")
+            except Exception as e:
+                log_api_error(symbol, f"ticker_{category}", "fetch_error", None, e)
                 
+            # FETCH 2: Candles data with error handling
+            try:
+                async with self.session.get(candles_url, params=params_candles) as candles_resp:
+                    if candles_resp.status == 200:
+                        candles_data = await candles_resp.json()
+                        if candles_data.get("result", {}).get("list"):
+                            print(f"[CANDLES OK] {symbol}: Got {len(candles_data['result']['list'])} candles from {category}")
+                        else:
+                            candles_data = None
+                    else:
+                        print(f"[CANDLES ERROR] {symbol}: HTTP {candles_resp.status} from {category}")
+            except Exception as e:
+                log_api_error(symbol, f"candles_{category}", "fetch_error", None, e)
+                
+            # FETCH 3: Orderbook data with error handling
+            try:
+                async with self.session.get(orderbook_url, params=params_orderbook) as orderbook_resp:
+                    if orderbook_resp.status == 200:
+                        orderbook_data = await orderbook_resp.json()
+                        if orderbook_data.get("result", {}).get("b") and orderbook_data.get("result", {}).get("a"):
+                            print(f"[ORDERBOOK OK] {symbol}: Got orderbook from {category}")
+                        else:
+                            orderbook_data = None
+                    else:
+                        print(f"[ORDERBOOK ERROR] {symbol}: HTTP {orderbook_resp.status} from {category}")
+            except Exception as e:
+                log_api_error(symbol, f"orderbook_{category}", "fetch_error", None, e)
+            
+            # STEP 4: Process available data with partial validity support
+            return self._process_async_data(symbol, ticker_data, candles_data, orderbook_data)
+            
+        except Exception as e:
+            log_api_error(symbol, f"fetch_{category}", "category_error", None, e)
+            return None
+    
+    def _process_async_data(self, symbol: str, ticker_data: Optional[Dict], candles_data: Optional[Dict], orderbook_data: Optional[Dict]) -> Optional[Dict]:
+        """Process async data with partial validity support"""
+        
+        # Extract price from available sources
+        price_usd = 0.0
+        volume_24h = 0.0
+        
+        # Priority 1: Ticker data
+        if ticker_data and ticker_data.get("result", {}).get("list"):
             ticker = ticker_data["result"]["list"][0]
             price_usd = float(ticker.get("lastPrice", 0))
             volume_24h = float(ticker.get("volume24h", 0))
-            
-            # Process candles
-            candles = []
-            if candles_data.get("result", {}).get("list"):
-                for candle in candles_data["result"]["list"]:
+        
+        # Priority 2: Extract price from candles if ticker failed
+        candles = []
+        if candles_data and candles_data.get("result", {}).get("list"):
+            for candle in candles_data["result"]["list"]:
+                try:
                     candles.append({
                         "timestamp": int(candle[0]),
                         "open": float(candle[1]),
@@ -97,32 +186,123 @@ class AsyncCryptoScanner:
                         "close": float(candle[4]),
                         "volume": float(candle[5])
                     })
+                except (ValueError, IndexError):
+                    continue
             
-            # Process orderbook
-            bids = []
-            asks = []
-            if orderbook_data.get("result", {}).get("b"):
-                for bid in orderbook_data["result"]["b"][:5]:
-                    bids.append({"price": float(bid[0]), "size": float(bid[1])})
-            if orderbook_data.get("result", {}).get("a"):
-                for ask in orderbook_data["result"]["a"][:5]:
-                    asks.append({"price": float(ask[0]), "size": float(ask[1])})
-            
-            return {
-                "symbol": symbol,
-                "price_usd": price_usd,
-                "volume_24h": volume_24h,
-                "candles": candles,
-                "orderbook": {"bids": bids, "asks": asks},
-                "best_bid": bids[0]["price"] if bids else price_usd * 0.999,
-                "best_ask": asks[0]["price"] if asks else price_usd * 1.001,
-                "volume": volume_24h,
-                "recent_volumes": [c["volume"] for c in candles[-7:]]  # Last 7 candles for volume analysis
-            }
-            
-        except Exception as e:
-            print(f"Error fetching {symbol}: {e}")
+            # Extract price from latest candle if ticker failed
+            if price_usd <= 0 and candles:
+                price_usd = candles[0]["close"]
+                # Estimate volume from candles
+                volume_24h = sum(c["volume"] for c in candles[-24:]) if len(candles) >= 24 else sum(c["volume"] for c in candles) * (24 / len(candles))
+        
+        # Process orderbook with synthetic fallback
+        bids = []
+        asks = []
+        if orderbook_data and orderbook_data.get("result"):
+            result = orderbook_data["result"]
+            if result.get("b"):
+                for bid in result["b"][:5]:
+                    try:
+                        bids.append({"price": float(bid[0]), "size": float(bid[1])})
+                    except (ValueError, IndexError):
+                        continue
+            if result.get("a"):
+                for ask in result["a"][:5]:
+                    try:
+                        asks.append({"price": float(ask[0]), "size": float(ask[1])})
+                    except (ValueError, IndexError):
+                        continue
+        
+        # Synthetic orderbook if missing but we have price
+        if not bids and not asks and price_usd > 0:
+            spread = price_usd * 0.001  # 0.1% spread
+            bids = [{"price": price_usd - spread, "size": 100.0}]
+            asks = [{"price": price_usd + spread, "size": 100.0}]
+            print(f"[ORDERBOOK SYNTHETIC] {symbol}: Created synthetic orderbook")
+        
+        # Validate minimum requirements for processing
+        has_price = price_usd > 0
+        has_candles = len(candles) > 0
+        has_orderbook = len(bids) > 0 and len(asks) > 0
+        
+        if not has_price:
+            print(f"[ASYNC VALIDATION FAILED] {symbol}: No valid price data")
             return None
+        
+        if not has_candles and not has_orderbook:
+            print(f"[ASYNC VALIDATION FAILED] {symbol}: No candles or orderbook data")
+            return None
+        
+        # Success - return processed data
+        components = []
+        if ticker_data: components.append("ticker")
+        if candles: components.append(f"candles({len(candles)})")
+        if bids and asks: components.append("orderbook")
+        
+        partial_status = " (PARTIAL)" if not (ticker_data and candles and bids and asks) else ""
+        print(f"[ASYNC SUCCESS{partial_status}] {symbol}: {', '.join(components)} - Price ${price_usd}")
+        
+        return {
+            "symbol": symbol,
+            "price_usd": price_usd,
+            "volume_24h": volume_24h,
+            "candles": candles,
+            "orderbook": {"bids": bids, "asks": asks},
+            "best_bid": bids[0]["price"] if bids else price_usd * 0.999,
+            "best_ask": asks[0]["price"] if asks else price_usd * 1.001,
+            "volume": volume_24h,
+            "recent_volumes": [c["volume"] for c in candles[-7:]] if candles else [],
+            "partial_data": not (ticker_data and candles and bids and asks),
+            "data_sources": components
+        }
+    
+    def _convert_validation_to_async_format(self, validation_result) -> Optional[Dict]:
+        """Convert validation result to async scanner format"""
+        if not validation_result.is_valid or validation_result.price_usd <= 0:
+            return None
+        
+        # Convert candles format
+        candles = []
+        for candle in validation_result.candles_15m[:20]:  # Limit to 20 like async
+            candles.append({
+                "timestamp": candle.get("timestamp", 0),
+                "open": candle.get("open", 0),
+                "high": candle.get("high", 0),
+                "low": candle.get("low", 0),
+                "close": candle.get("close", 0),
+                "volume": candle.get("volume", 0)
+            })
+        
+        # Convert orderbook format
+        bids = []
+        asks = []
+        if validation_result.orderbook_data:
+            ob = validation_result.orderbook_data
+            for bid in ob.get("bids", [])[:5]:
+                bids.append({"price": bid[0], "size": bid[1]})
+            for ask in ob.get("asks", [])[:5]:
+                asks.append({"price": ask[0], "size": ask[1]})
+        
+        # Estimate volume from ticker or candles
+        volume_24h = 0.0
+        if validation_result.ticker_data:
+            volume_24h = float(validation_result.ticker_data.get("volume24h", 0))
+        elif candles:
+            volume_24h = sum(c["volume"] for c in candles) * (24 * 4 / len(candles)) if candles else 0  # Estimate 24h from 15m candles
+        
+        return {
+            "symbol": validation_result.symbol,
+            "price_usd": validation_result.price_usd,
+            "volume_24h": volume_24h,
+            "candles": candles,
+            "orderbook": {"bids": bids, "asks": asks},
+            "best_bid": bids[0]["price"] if bids else validation_result.price_usd * 0.999,
+            "best_ask": asks[0]["price"] if asks else validation_result.price_usd * 1.001,
+            "volume": volume_24h,
+            "recent_volumes": [c["volume"] for c in candles[-7:]] if candles else [],
+            "partial_data": validation_result.is_partial,
+            "data_sources": validation_result.fallback_used if validation_result.fallback_used else ["validation_fallback"]
+        }
     
     async def scan_token_async(self, symbol: str, priority_info: Dict = None) -> Optional[Dict]:
         """Async scan single token with concurrency control"""
