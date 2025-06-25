@@ -28,7 +28,7 @@ from utils.whale_priority import prioritize_whale_tokens
 class AsyncCryptoScanner:
     """Async crypto scanner with aiohttp for I/O parallelism"""
     
-    def __init__(self, max_concurrent: int = 25):
+    def __init__(self, max_concurrent: int = 40):  # POPRAWKA 3A: Zwiększona równoległość
         self.max_concurrent = max_concurrent
         self.semaphore = asyncio.Semaphore(max_concurrent)
         self.session = None

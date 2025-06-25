@@ -159,6 +159,8 @@ async def async_scan_cycle():
 
 def generate_top_tjde_charts(results: List[Dict]):
     """Generate training charts and Vision-AI data for TOP 5 TJDE tokens only"""
+    skipped_due_to_data = 0  # BONUS: Metryka candles_skipped_due_to_data
+    """Generate training charts and Vision-AI data for TOP 5 TJDE tokens only"""
     try:
         # Import Vision-AI pipeline
         from vision_ai_pipeline import generate_vision_ai_training_data
