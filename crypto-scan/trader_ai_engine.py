@@ -865,18 +865,58 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
         weights = apply_phase_adjustments(base_weights, market_phase)
         print(f"[TJDE WEIGHTS] Phase-adjusted weights applied for {market_phase}")
         
-        # === ETAP 3: SCORING Z DYNAMICZNYMI WAGAMI ===
+        # === ETAP 3: ENHANCED SCORING WITH CLIP INTEGRATION ===
+        
+        # Extract CLIP confidence first for integrated scoring
+        clip_confidence = 0.0
+        clip_info = None
+        
+        try:
+            print(f"[CLIP FAST] Using fast CLIP predictor for {symbol}")
+            from ai.clip_predictor_fast import FastCLIPPredictor
+            
+            fast_predictor = FastCLIPPredictor()
+            clip_prediction = fast_predictor.predict_fast(symbol)
+            
+            if clip_prediction and clip_prediction.get('confidence', 0) > 0.4:
+                clip_info = clip_prediction
+                clip_confidence = clip_prediction.get('confidence', 0.0)
+                
+                # Enhanced pattern-based confidence adjustment
+                pattern = clip_prediction.get('pattern', '')
+                if pattern in ['breakout-continuation', 'trend-following']:
+                    clip_confidence *= 1.2  # Boost for bullish patterns
+                elif pattern in ['consolidation', 'pullback-in-trend']:
+                    clip_confidence *= 1.0  # Neutral
+                else:
+                    clip_confidence *= 0.8  # Reduce for bearish patterns
+                
+                # Clip confidence to valid range
+                clip_confidence = max(0.0, min(1.0, clip_confidence))
+                
+                print(f"[CLIP CONFIDENCE] Pattern: {pattern}, Confidence: {clip_confidence:.3f}")
+                
+        except Exception as e:
+            print(f"[CLIP ERROR] {e}")
+        
+        # Calculate weighted score WITH CLIP confidence integration
         score = (
             trend_strength * weights["trend_strength"] +
             pullback_quality * weights["pullback_quality"] +
             support_reaction * weights["support_reaction"] +
+            clip_confidence * weights.get("clip_confidence_score", 0.12) +  # CLIP integration
             liquidity_pattern_score * weights["liquidity_pattern_score"] +
             psych_score * weights["psych_score"] +
             htf_supportive_score * weights["htf_supportive_score"] +
             market_phase_modifier * weights["market_phase_modifier"]
         )
         
-        print(f"[TRADER SCORE] Base score: {score:.3f}")
+        # Show CLIP contribution in scoring
+        clip_contribution = clip_confidence * weights.get("clip_confidence_score", 0.12)
+        if clip_contribution > 0:
+            print(f"[CLIP INTEGRATION] Confidence: {clip_confidence:.3f} × Weight: {weights.get('clip_confidence_score', 0.12):.3f} = {clip_contribution:.3f}")
+        
+        print(f"[TRADER SCORE] Base score (with CLIP): {score:.3f}")
         
         # Initialize phase_modifier variable
         phase_modifier = 0.0
@@ -913,8 +953,44 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
             decision = "avoid"
             grade = "weak"
         
+        # Enhanced decision logic with CLIP-adjusted thresholds
+        base_threshold_strong = 0.70
+        base_threshold_consider = 0.45
+        
+        # CLIP confidence adjusts decision thresholds
+        threshold_adjustment = 0.0
+        if clip_confidence > 0.7:
+            threshold_adjustment = -0.05  # Lower thresholds for high visual confidence
+            print(f"[CLIP DECISION] High visual confidence - lowering thresholds by 0.05")
+        elif clip_confidence > 0.5:
+            threshold_adjustment = -0.02  # Slight adjustment for medium confidence
+            print(f"[CLIP DECISION] Medium visual confidence - lowering thresholds by 0.02")
+        elif clip_confidence < 0.3 and clip_confidence > 0:
+            threshold_adjustment = +0.03  # Raise thresholds for low confidence
+            print(f"[CLIP DECISION] Low visual confidence - raising thresholds by 0.03")
+        
+        # Apply CLIP-adjusted decision logic
+        if score >= (base_threshold_strong + threshold_adjustment):
+            decision = "join_trend"
+            grade = "strong"
+        elif score >= (base_threshold_consider + threshold_adjustment):
+            decision = "consider_entry"
+            grade = "moderate"
+        else:
+            decision = "avoid"
+            grade = "weak"
+        
+        # CLIP pattern override for strong visual signals
+        if clip_info and clip_confidence > 0.75:
+            pattern = clip_info.get('pattern', '')
+            if pattern == 'breakout-continuation' and score >= 0.55:
+                print(f"[CLIP OVERRIDE] Strong breakout pattern detected - upgrading decision")
+                if decision == "avoid":
+                    decision = "consider_entry"
+                    grade = "moderate"
+        
         print(f"[TJDE DEBUG] Final decision for {symbol}: {decision}, Score: {score:.3f}")
-        print(f"[TJDE DEBUG] Phase: {market_phase} | CLIP Confidence: N/A")
+        print(f"[TJDE DEBUG] Phase: {market_phase} | CLIP Confidence: {clip_confidence:.3f} | Visual Intelligence Active: {clip_confidence > 0.4}")
         logging.debug(f"[TJDE DEBUG] Complete decision for {symbol}: decision={decision}, score={score:.3f}, grade={grade}, phase={market_phase}")
         
         if context_modifiers:
@@ -1232,9 +1308,11 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
         
         # === ETAP 9: FINAL RESULT ASSEMBLY WITH ALL ENHANCEMENTS ===
         
-        # Store CLIP info in signals for debug output after CLIP processing
-        signals["clip_confidence"] = clip_info.get("confidence", "N/A")
-        signals["clip_phase"] = clip_info.get("predicted_phase", "N/A")
+        # Store enhanced CLIP info in signals for debug output
+        signals["clip_confidence"] = clip_confidence if clip_confidence > 0 else "N/A"
+        signals["clip_phase"] = clip_info.get("pattern", "N/A") if clip_info else "N/A"
+        signals["clip_contribution"] = clip_confidence * weights.get("clip_confidence_score", 0.12)
+        signals["visual_intelligence_active"] = clip_confidence > 0.4
         
         # Build final result dictionary
         result = {

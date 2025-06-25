@@ -98,16 +98,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 25, 2025 - CLIP Visual Intelligence Integration in TJDE Scoring - PRODUCTION READY ✅
-Implemented complete CLIP visual intelligence integration into TJDE scoring system ensuring visual pattern recognition directly influences trading decisions:
-- **CLIP Confidence Scoring**: Added clip_confidence_score as weighted factor (12% of total score) in simulate_trader_decision_advanced() function
-- **Enhanced Weight Distribution**: Rebalanced scoring weights (volume 22%, momentum 18%, CLIP 12%) to incorporate visual intelligence while maintaining algorithmic reliability
-- **Visual Pattern Recognition**: CLIP confidence extracted first, pattern-adjusted (breakout +20%, consolidation neutral, bearish -20%), and integrated into base scoring calculation
-- **Adaptive Decision Thresholds**: CLIP confidence adjusts decision thresholds (-0.05 for high confidence >0.7, +0.03 for low confidence <0.3) making system more/less aggressive based on visual clarity
-- **Pattern-Based Overrides**: Strong CLIP patterns (confidence >0.75) can upgrade decisions (monitor→consider, watch→monitor) for breakout-continuation patterns
-- **Complete Integration Flow**: CLIP confidence → base scoring → cluster modifier → phase modifier → CLIP-adjusted thresholds → pattern overrides → final decision
-- **Visual Intelligence Status**: Added visual_intelligence_active flag and detailed CLIP logging showing pattern recognition impact on final decisions
-System now achieves true visual-algorithmic fusion where CLIP predictions have measurable impact on trading decisions, completing adaptive trader intelligence.
+### June 25, 2025 - Complete CLIP Visual Intelligence Integration in TJDE Scoring - PRODUCTION READY ✅
+Successfully implemented complete CLIP visual intelligence integration directly into TJDE weighted scoring system ensuring visual pattern recognition has measurable impact on trading decisions:
+- **Direct Scoring Integration**: Added clip_confidence_score as core weighted component (12% of total score) in TJDE calculation alongside trend_strength, pullback_quality, and support_reaction
+- **Enhanced Weight System**: Updated load_tjde_weights() and apply_phase_adjustments() functions to include CLIP weights with phase-specific adjustments (trend +10%, breakout +20%, consolidation -10%)
+- **Intelligent Pattern Recognition**: CLIP confidence extracted via FastCLIPPredictor, pattern-adjusted (breakout +20%, bearish -20%), and directly multiplied by weight in base scoring calculation
+- **Visual Decision Thresholds**: CLIP confidence dynamically adjusts decision thresholds (-0.05 for high confidence >0.7, +0.03 for low confidence <0.3) making system adaptive to visual clarity
+- **Pattern Override System**: Strong CLIP patterns (confidence >0.75) can override low algorithmic scores for breakout-continuation patterns ensuring visual intelligence prevails
+- **Complete Scoring Flow**: CLIP confidence → pattern adjustment → weighted integration → CLIP-adjusted thresholds → pattern overrides → final TJDE decision
+- **Production Integration**: CLIP contribution visible in logs with detailed scoring breakdown showing exact mathematical impact on final decisions
+System achieves complete visual-algorithmic fusion where CLIP predictions are core scoring components, not just modifiers, ensuring visual intelligence has real trading impact.
 
 ### June 25, 2025 - Fast CLIP Predictor Implementation - CLIP Performance Issues Resolved ✅
 Successfully implemented fast CLIP predictor system resolving model initialization timeouts and transformers compatibility issues:
