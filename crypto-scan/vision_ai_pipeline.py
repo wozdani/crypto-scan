@@ -6,6 +6,8 @@ Complete implementation of auto-labeled charts and CLIP-based training
 import mplfinance as mpf
 import json
 import os
+import requests
+import time
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 import pandas as pd

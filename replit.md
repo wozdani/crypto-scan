@@ -108,6 +108,7 @@ Implemented comprehensive candle data fetching system with multiple fallbacks to
 - **Pipeline Integration**: Updated generate_vision_ai_training_data() to use enhanced fetching system eliminating "Insufficient candle data" blocks
 - **Data Source Tracking**: Enhanced label metadata with data_source and skip_training flags for training data quality management
 - **Import Fix**: Resolved requests module import issue enabling direct API fallback functionality
+- **Production Fix**: Added missing 'import requests' to vision_ai_pipeline.py eliminating NameError crashes during Bybit API fallback
 System now generates training data consistently for TOP 5 TJDE tokens using only authentic market data ensuring high-quality Vision-AI model development.
 
 ### June 25, 2025 - Critical Vision-AI Production Fixes + CLIP Integration Fix - All Runtime Issues Resolved ✅
