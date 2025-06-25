@@ -405,6 +405,7 @@ def market_phase_modifier(market_phase: str) -> float:
     phase = market_phase.lower() if market_phase else "unknown"
 
     modifiers = {
+        # Original phases
         "bull_trend": +0.15,
         "accumulation": +0.10,
         "consolidation": +0.05,
@@ -418,6 +419,25 @@ def market_phase_modifier(market_phase: str) -> float:
         "distribution": -0.15,
         "reversal": -0.08,
         "exhaustion-pullback": -0.08,
+        # Vision-AI phases (missing phases)
+        "trend-following": +0.03,
+        "trending-up": +0.05,
+        "trending-down": -0.05,
+        "pullback": +0.05,
+        "pullback-in-trend": +0.07,
+        "expansion": +0.02,
+        "compression": +0.04,
+        "late-trend": -0.01,
+        "impulse": +0.08,
+        "bullish-momentum": +0.06,
+        "bearish-momentum": -0.06,
+        "volume-backed-breakout": +0.10,
+        "exhaustion-pattern": -0.08,
+        "trend-reversal": -0.08,
+        "fake-breakout": -0.10,
+        "consolidation": -0.03,
+        "range-accumulation": +0.02,
+        # Fallback phases
         "undefined": 0.00,
         "unknown": 0.00,
         "error": 0.00,
