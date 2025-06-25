@@ -155,18 +155,36 @@ def generate_alert_focused_training_chart(
             print(f"[CHART ERROR] {symbol}: Za mało świec w kontekście ({len(context_candles)})")
             return None
         
-        # 3. PRZYGOTUJ DANE DLA WYKRESU
+        # 3. PRZYGOTUJ DANE DLA WYKRESU - WALIDACJA STRUKTURY
+        if not context_candles or not isinstance(context_candles[0], (list, tuple)):
+            print(f"[CHART ERROR] {symbol}: Invalid or empty context_candles data")
+            return None
+        
         df_data = []
-        for candle in context_candles:
-            timestamp = datetime.fromtimestamp(int(candle[0]) / 1000, tz=timezone.utc)
-            df_data.append({
-                'Date': timestamp,
-                'Open': float(candle[1]),
-                'High': float(candle[2]),
-                'Low': float(candle[3]),
-                'Close': float(candle[4]),
-                'Volume': float(candle[5])
-            })
+        for i, candle in enumerate(context_candles):
+            try:
+                # Walidacja struktury świecy
+                if not candle or len(candle) < 6:
+                    print(f"[CHART WARNING] {symbol}: Incomplete candle data at index {i}")
+                    continue
+                
+                # Bezpieczna konwersja z walidacją
+                timestamp = datetime.fromtimestamp(int(float(candle[0])) / 1000, tz=timezone.utc)
+                df_data.append({
+                    'Date': timestamp,
+                    'Open': float(candle[1]),
+                    'High': float(candle[2]),
+                    'Low': float(candle[3]),
+                    'Close': float(candle[4]),
+                    'Volume': float(candle[5])
+                })
+            except (ValueError, TypeError, IndexError) as e:
+                print(f"[CHART WARNING] {symbol}: Candle conversion error at {i}: {e}")
+                continue
+        
+        if len(df_data) < 10:
+            print(f"[CHART SKIP] {symbol}: Insufficient valid candles after conversion ({len(df_data)})")
+            return None
         
         df = pd.DataFrame(df_data)
         df.set_index('Date', inplace=True)

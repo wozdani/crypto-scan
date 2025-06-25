@@ -1,228 +1,238 @@
 """
-CLIP-GPT Mapping System
-Maps GPT commentary to CLIP labels and enhances decision making
+CLIP-GPT Label Mapper
+Maps unknown CLIP predictions to known labels using GPT commentary fallback
 """
-import re
-from typing import Dict, Optional, List, Tuple
 
-class CLIPGPTMapper:
-    """Maps GPT commentary to CLIP labels and provides enhanced scoring"""
+import os
+import json
+import glob
+from typing import Optional, Dict, Any
+
+# Known CLIP labels for mapping
+KNOWN_CLIP_LABELS = [
+    "breakout-continuation",
+    "pullback-in-trend", 
+    "range-accumulation",
+    "trend-reversal",
+    "consolidation",
+    "fake-breakout",
+    "trending-up",
+    "trending-down",
+    "bullish-momentum",
+    "bearish-momentum",
+    "exhaustion-pattern",
+    "volume-backed-breakout",
+    "support-bounce",
+    "resistance-test",
+    "squeeze-pattern"
+]
+
+# GPT keywords to CLIP label mapping
+GPT_TO_CLIP_MAPPING = {
+    "squeeze": "squeeze-pattern",
+    "pullback": "pullback-in-trend",
+    "retest": "resistance-test",
+    "bounce": "support-bounce",
+    "breakout": "breakout-continuation",
+    "consolidation": "consolidation", 
+    "accumulation": "range-accumulation",
+    "distribution": "trend-reversal",
+    "exhaustion": "exhaustion-pattern",
+    "momentum": "bullish-momentum",
+    "reversal": "trend-reversal",
+    "continuation": "breakout-continuation",
+    "support": "support-bounce",
+    "resistance": "resistance-test",
+    "trend": "trending-up",
+    "volume": "volume-backed-breakout"
+}
+
+def map_clip_label_with_gpt_fallback(symbol: str, clip_prediction: Dict[str, Any], confidence_threshold: float = 0.4) -> Dict[str, Any]:
+    """
+    Map CLIP prediction to known label, using GPT commentary as fallback for unknown labels
     
-    def __init__(self):
-        # GPT commentary patterns to CLIP labels mapping
-        self.gpt_to_clip_patterns = {
-            "pullback-in-trend": [
-                r"pullback.*trend", r"cofnięcie.*trend", r"korekta.*wzrost",
-                r"pullback.*squeeze", r"cofnięcie.*ściśnięcie", 
-                r"retest.*support", r"test.*wsparcie", r"bounce.*dip"
-            ],
-            "breakout-continuation": [
-                r"breakout.*continuation", r"wybicie.*kontynuacja",
-                r"momentum.*breakout", r"strong.*breakout", r"volume.*breakout",
-                r"trend.*acceleration", r"impulse.*move"
-            ],
-            "trend-reversal": [
-                r"reversal.*pattern", r"odwrócenie.*trend", 
-                r"exhaustion.*pattern", r"wyczerpanie.*trend",
-                r"double.*top", r"double.*bottom", r"head.*shoulders"
-            ],
-            "range-accumulation": [
-                r"range.*bound", r"consolidation", r"accumulation",
-                r"sideways.*movement", r"boczny.*ruch", r"akumulacja"
-            ],
-            "support-bounce": [
-                r"support.*bounce", r"wsparcie.*odbicie",
-                r"bounce.*from.*support", r"test.*support.*hold",
-                r"strong.*support", r"key.*support.*level"
-            ],
-            "resistance-rejection": [
-                r"resistance.*rejection", r"opór.*odrzucenie",
-                r"failed.*breakout", r"fake.*breakout", r"false.*break",
-                r"rejection.*resistance"
-            ],
-            "volume-backed": [
-                r"volume.*increase", r"wolumen.*wzrost",
-                r"high.*volume", r"volume.*confirmation",
-                r"buying.*pressure", r"volume.*spike"
-            ],
-            "exhaustion-pattern": [
-                r"exhaustion", r"wyczerpanie", r"tired.*move",
-                r"weakening.*momentum", r"divergence", r"blow.*off.*top"
-            ]
-        }
+    Args:
+        symbol: Trading symbol
+        clip_prediction: CLIP prediction result
+        confidence_threshold: Minimum confidence for using CLIP prediction
         
-        # CLIP confidence boosts based on patterns
-        self.pattern_confidence_boosts = {
-            "pullback-in-trend": 0.05,
-            "breakout-continuation": 0.08,
-            "support-bounce": 0.04,
-            "volume-backed": 0.06,
-            "trend-reversal": -0.03,  # Lower confidence for reversals
-            "exhaustion-pattern": -0.05,
-            "resistance-rejection": -0.04
-        }
+    Returns:
+        Enhanced prediction with mapped label
+    """
+    try:
+        # Extract CLIP prediction details
+        predicted_label = clip_prediction.get("predicted_label", "unknown")
+        confidence = clip_prediction.get("confidence", 0.0)
         
-        # Scoring modifiers based on CLIP+GPT consensus
-        self.consensus_modifiers = {
-            "high_confidence_bullish": 0.10,    # CLIP + GPT both bullish, high confidence
-            "medium_confidence_bullish": 0.05,
-            "neutral_consensus": 0.00,
-            "medium_confidence_bearish": -0.03,
-            "high_confidence_bearish": -0.06,
-            "pattern_conflict": -0.02           # CLIP and GPT disagree
-        }
-    
-    def map_gpt_to_clip_label(self, gpt_commentary: str, current_clip_label: str = "unknown") -> str:
-        """
-        Map GPT commentary to appropriate CLIP label
-        
-        Args:
-            gpt_commentary: GPT generated commentary
-            current_clip_label: Current CLIP label (if any)
-            
-        Returns:
-            Enhanced or corrected CLIP label
-        """
-        if not gpt_commentary or current_clip_label != "unknown":
-            return current_clip_label
-            
-        commentary_lower = gpt_commentary.lower()
-        
-        # Check each pattern category
-        for label, patterns in self.gpt_to_clip_patterns.items():
-            for pattern in patterns:
-                if re.search(pattern, commentary_lower):
-                    print(f"[CLIP-GPT MAP] GPT→CLIP: '{pattern}' → {label}")
-                    return label
-        
-        # Fallback: basic sentiment analysis
-        bullish_terms = ["breakout", "wybicie", "momentum", "strong", "bounce", "support"]
-        bearish_terms = ["rejection", "odrzucenie", "exhaustion", "weak", "resistance"]
-        
-        bullish_score = sum(1 for term in bullish_terms if term in commentary_lower)
-        bearish_score = sum(1 for term in bearish_terms if term in commentary_lower)
-        
-        if bullish_score > bearish_score:
-            return "pullback-in-trend"  # Conservative bullish
-        elif bearish_score > bullish_score:
-            return "resistance-rejection"  # Conservative bearish
-        else:
-            return "range-accumulation"  # Neutral
-    
-    def analyze_clip_gpt_consensus(self, clip_info: Dict, gpt_commentary: str) -> Dict:
-        """
-        Analyze consensus between CLIP prediction and GPT commentary
-        
-        Args:
-            clip_info: CLIP prediction information
-            gpt_commentary: GPT commentary text
-            
-        Returns:
-            Consensus analysis with scoring modifiers
-        """
-        clip_label = clip_info.get("trend_label", "unknown")
-        clip_confidence = clip_info.get("clip_confidence", 0.0)
-        
-        # Map GPT to CLIP if needed
-        if clip_label == "unknown" and gpt_commentary:
-            mapped_label = self.map_gpt_to_clip_label(gpt_commentary, clip_label)
-            if mapped_label != "unknown":
-                clip_label = mapped_label
-                print(f"[CLIP-GPT ENHANCE] Mapped GPT→CLIP: {mapped_label}")
-        
-        # Analyze sentiment alignment
-        commentary_lower = gpt_commentary.lower() if gpt_commentary else ""
-        
-        # Calculate consensus strength
-        consensus_strength = self._calculate_consensus_strength(clip_label, commentary_lower, clip_confidence)
-        
-        # Determine consensus category
-        consensus_category = self._determine_consensus_category(consensus_strength, clip_confidence)
-        
-        # Calculate final modifier
-        base_modifier = self.consensus_modifiers.get(consensus_category, 0.0)
-        pattern_boost = self.pattern_confidence_boosts.get(clip_label, 0.0)
-        
-        total_modifier = base_modifier + (pattern_boost * clip_confidence)
-        
-        return {
-            "enhanced_clip_label": clip_label,
-            "consensus_strength": consensus_strength,
-            "consensus_category": consensus_category,
-            "scoring_modifier": total_modifier,
-            "confidence_boost": pattern_boost,
-            "gpt_mapped": clip_info.get("trend_label", "unknown") == "unknown",
-            "analysis_details": {
-                "original_clip": clip_info.get("trend_label", "unknown"),
-                "gpt_patterns_found": self._extract_gpt_patterns(commentary_lower),
-                "clip_confidence": clip_confidence
+        # If CLIP prediction is good and known, use it directly
+        if confidence >= confidence_threshold and predicted_label in KNOWN_CLIP_LABELS:
+            return {
+                "predicted_label": predicted_label,
+                "confidence": confidence,
+                "mapping_method": "direct_clip",
+                "success": True
             }
+        
+        # If CLIP label is unknown or low confidence, try GPT fallback
+        gpt_label = get_gpt_fallback_label(symbol)
+        if gpt_label:
+            return {
+                "predicted_label": gpt_label,
+                "confidence": max(confidence, 0.45),  # Boost confidence slightly for GPT mapping
+                "mapping_method": "gpt_fallback",
+                "original_clip_label": predicted_label,
+                "success": True
+            }
+        
+        # Last resort: return best available with warning
+        return {
+            "predicted_label": predicted_label if predicted_label != "unknown" else "consolidation",
+            "confidence": max(confidence, 0.3),
+            "mapping_method": "fallback_default",
+            "original_clip_label": predicted_label,
+            "success": False,
+            "warning": "No suitable mapping found"
         }
-    
-    def _calculate_consensus_strength(self, clip_label: str, commentary_lower: str, clip_confidence: float) -> float:
-        """Calculate strength of CLIP-GPT consensus"""
         
-        # Define label sentiment mapping
-        bullish_labels = ["breakout-continuation", "pullback-in-trend", "support-bounce", "volume-backed"]
-        bearish_labels = ["trend-reversal", "resistance-rejection", "exhaustion-pattern"]
-        neutral_labels = ["range-accumulation", "consolidation"]
-        
-        # Determine CLIP sentiment
-        clip_sentiment = 0.0
-        if clip_label in bullish_labels:
-            clip_sentiment = 1.0
-        elif clip_label in bearish_labels:
-            clip_sentiment = -1.0
-        
-        # Analyze GPT sentiment
-        bullish_terms = ["breakout", "momentum", "strong", "bounce", "support", "trend", "acceleration"]
-        bearish_terms = ["rejection", "exhaustion", "weak", "resistance", "reversal", "failed"]
-        
-        gpt_bullish = sum(1 for term in bullish_terms if term in commentary_lower)
-        gpt_bearish = sum(1 for term in bearish_terms if term in commentary_lower)
-        
-        if gpt_bullish + gpt_bearish == 0:
-            gpt_sentiment = 0.0
-        else:
-            gpt_sentiment = (gpt_bullish - gpt_bearish) / (gpt_bullish + gpt_bearish)
-        
-        # Calculate alignment
-        if clip_sentiment == 0.0 and gpt_sentiment == 0.0:
-            return 0.5  # Both neutral
-        elif clip_sentiment * gpt_sentiment > 0:
-            return 0.8 * clip_confidence  # Aligned sentiment
-        elif clip_sentiment * gpt_sentiment < 0:
-            return 0.2 * clip_confidence  # Conflicting sentiment
-        else:
-            return 0.4 * clip_confidence  # One neutral, one directional
-    
-    def _determine_consensus_category(self, consensus_strength: float, clip_confidence: float) -> str:
-        """Determine consensus category for modifier lookup"""
-        
-        if consensus_strength > 0.7 and clip_confidence > 0.6:
-            return "high_confidence_bullish"
-        elif consensus_strength > 0.5 and clip_confidence > 0.4:
-            return "medium_confidence_bullish"
-        elif consensus_strength < 0.3 and clip_confidence > 0.4:
-            if consensus_strength < 0.15:
-                return "high_confidence_bearish"
-            else:
-                return "medium_confidence_bearish"
-        elif consensus_strength < 0.35:
-            return "pattern_conflict"
-        else:
-            return "neutral_consensus"
-    
-    def _extract_gpt_patterns(self, commentary_lower: str) -> List[str]:
-        """Extract recognized patterns from GPT commentary"""
-        patterns_found = []
-        
-        for label, patterns in self.gpt_to_clip_patterns.items():
-            for pattern in patterns:
-                if re.search(pattern, commentary_lower):
-                    patterns_found.append(f"{label}:{pattern}")
-        
-        return patterns_found
+    except Exception as e:
+        print(f"[CLIP MAPPER ERROR] {symbol}: {e}")
+        return {
+            "predicted_label": "consolidation",
+            "confidence": 0.3,
+            "mapping_method": "error_fallback",
+            "success": False,
+            "error": str(e)
+        }
 
-# Global instance
-clip_gpt_mapper = CLIPGPTMapper()
+def get_gpt_fallback_label(symbol: str) -> Optional[str]:
+    """
+    Extract label from GPT commentary files for given symbol
+    
+    Args:
+        symbol: Trading symbol
+        
+    Returns:
+        Mapped label from GPT commentary or None
+    """
+    try:
+        # Search for GPT commentary files for this symbol
+        gpt_patterns = [
+            f"training_charts/{symbol}_*.gpt.json",
+            f"data/gpt_analysis/{symbol}_*.json",
+            f"metadata/{symbol}_*.json"
+        ]
+        
+        for pattern in gpt_patterns:
+            gpt_files = glob.glob(pattern)
+            for gpt_file in sorted(gpt_files, reverse=True):  # Most recent first
+                try:
+                    with open(gpt_file, 'r') as f:
+                        gpt_data = json.load(f)
+                    
+                    # Extract GPT commentary text
+                    commentary = ""
+                    if isinstance(gpt_data, dict):
+                        commentary = gpt_data.get("commentary", gpt_data.get("analysis", gpt_data.get("description", "")))
+                    elif isinstance(gpt_data, str):
+                        commentary = gpt_data
+                    
+                    if commentary:
+                        mapped_label = map_gpt_keywords_to_label(commentary.lower())
+                        if mapped_label:
+                            print(f"[GPT MAPPER] {symbol}: '{commentary[:50]}...' → {mapped_label}")
+                            return mapped_label
+                            
+                except Exception as file_error:
+                    continue
+        
+        return None
+        
+    except Exception as e:
+        print(f"[GPT FALLBACK ERROR] {symbol}: {e}")
+        return None
+
+def map_gpt_keywords_to_label(commentary_text: str) -> Optional[str]:
+    """
+    Map GPT commentary keywords to known CLIP labels
+    
+    Args:
+        commentary_text: GPT commentary text (lowercase)
+        
+    Returns:
+        Mapped label or None
+    """
+    # Score each potential label based on keyword presence
+    label_scores = {}
+    
+    for keyword, label in GPT_TO_CLIP_MAPPING.items():
+        if keyword in commentary_text:
+            label_scores[label] = label_scores.get(label, 0) + 1
+    
+    # Return label with highest score
+    if label_scores:
+        best_label = max(label_scores.items(), key=lambda x: x[1])[0]
+        return best_label
+    
+    return None
+
+def enhance_clip_prediction_with_mapping(symbol: str, tjde_result: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Enhance TJDE result with improved CLIP label mapping
+    
+    Args:
+        symbol: Trading symbol  
+        tjde_result: Original TJDE result with CLIP prediction
+        
+    Returns:
+        Enhanced TJDE result with mapped CLIP label
+    """
+    try:
+        # Extract existing CLIP prediction
+        clip_info = tjde_result.get("clip_prediction", {})
+        if not clip_info:
+            return tjde_result
+        
+        # Apply label mapping
+        mapped_prediction = map_clip_label_with_gpt_fallback(symbol, clip_info)
+        
+        # Update TJDE result with mapped prediction
+        tjde_result["clip_prediction"] = mapped_prediction
+        tjde_result["clip_enhanced"] = True
+        
+        # Log mapping result
+        method = mapped_prediction.get("mapping_method", "unknown")
+        label = mapped_prediction.get("predicted_label", "unknown")
+        confidence = mapped_prediction.get("confidence", 0.0)
+        
+        print(f"[CLIP ENHANCED] {symbol}: {label} (conf: {confidence:.3f}, method: {method})")
+        
+        return tjde_result
+        
+    except Exception as e:
+        print(f"[CLIP ENHANCEMENT ERROR] {symbol}: {e}")
+        return tjde_result
+
+def test_label_mapping():
+    """Test label mapping functionality"""
+    test_cases = [
+        {
+            "symbol": "TESTUSDT",
+            "clip_prediction": {"predicted_label": "unknown", "confidence": 0.2},
+            "expected_fallback": True
+        },
+        {
+            "symbol": "TESTUSDT", 
+            "clip_prediction": {"predicted_label": "pullback-in-trend", "confidence": 0.6},
+            "expected_fallback": False
+        }
+    ]
+    
+    for test in test_cases:
+        result = map_clip_label_with_gpt_fallback(
+            test["symbol"], 
+            test["clip_prediction"]
+        )
+        print(f"Test {test['symbol']}: {result}")
+
+if __name__ == "__main__":
+    test_label_mapping()

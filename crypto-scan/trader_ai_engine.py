@@ -1243,7 +1243,16 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                             elif pattern in ['exhaustion-pattern', 'trend-reversal']:
                                 clip_confidence *= 0.8
                             
-                            clip_modifier = min(clip_confidence * 0.05, 0.03)
+                            # Enhanced CLIP confidence boosting for high-confidence patterns
+                            base_modifier = clip_confidence * 0.05
+                            
+                            # Additional boost for high confidence (>0.55) patterns
+                            if clip_confidence > 0.55:
+                                confidence_boost = 0.03 * (clip_confidence - 0.55) / 0.45  # Scale 0-0.03 for conf 0.55-1.0
+                                base_modifier += confidence_boost
+                                print(f"[CLIP BOOST] {symbol}: High confidence {clip_confidence:.3f} → extra boost +{confidence_boost:.3f}")
+                            
+                            clip_modifier = min(base_modifier, 0.08)  # Increased max boost from 0.03 to 0.08
                             
                             clip_info = {
                                 "predicted_phase": pattern,

@@ -544,66 +544,96 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 tjde_clip_confidence = features.get("clip_confidence", 0.0) if features.get("clip_confidence", 0.0) > 0 else None
                 setup_label = features.get("price_action_pattern", None)
                 
-                # Generate contextual TJDE training chart (preferred method)
+                # Enhanced chart generation with 5M candles fallback logic
                 chart_path = None
-                if candles_15m and len(candles_15m) >= 20:
-                    chart_path = generate_tjde_training_chart_contextual(
-                        symbol=symbol,
-                        candles_15m=candles_15m,
-                        tjde_score=tjde_score,
-                        tjde_phase=tjde_phase,
-                        tjde_decision=tjde_decision,
-                        tjde_clip_confidence=tjde_clip_confidence,
-                        setup_label=setup_label
-                    )
                 
-                # Fallback to simple chart if contextual fails
-                if not chart_path:
-                    from chart_generator import flatten_candles
-                    price_series = flatten_candles(candles_15m, candles_5m)
+                # Validate 15M candles availability
+                if not candles_15m or len(candles_15m) < 20:
+                    print(f"[CHART SKIP] {symbol} → Insufficient 15M candles ({len(candles_15m) if candles_15m else 0})")
+                    chart_path = None
+                else:
+                    # Check 5M candles availability for enhanced chart generation
+                    candles_5m_available = candles_5m and len(candles_5m) > 0
                     
-                    if price_series:
-                        chart_path = generate_tjde_training_chart_simple(
+                    if not candles_5m_available:
+                        print(f"[5M FALLBACK] {symbol} → No 5M candles, using 15M-only mode")
+                    
+                    try:
+                        # Generate contextual chart (handles missing 5M gracefully)
+                        chart_path = generate_tjde_training_chart_contextual(
                             symbol=symbol,
-                            price_series=price_series,
+                            candles_15m=candles_15m,
                             tjde_score=tjde_score,
                             tjde_phase=tjde_phase,
                             tjde_decision=tjde_decision,
                             tjde_clip_confidence=tjde_clip_confidence,
                             setup_label=setup_label
                         )
-                    else:
-                        print(f"[TRAINING ERROR] {symbol} → No chart data available")
+                        
+                        if chart_path:
+                            print(f"[CHART SUCCESS] {symbol} → Generated with 15M data")
+                        
+                    except Exception as chart_error:
+                        print(f"[CHART ERROR] {symbol} → Contextual generation failed: {chart_error}")
+                        chart_path = None
                 
-                # Initialize training data manager (moved outside conditional to fix scope error)
+                # Final fallback to simple chart if contextual fails
+                if not chart_path and candles_15m and len(candles_15m) >= 10:
+                    try:
+                        from chart_generator import flatten_candles
+                        price_series = flatten_candles(candles_15m, None)  # No 5M fallback
+                        
+                        if price_series and len(price_series) >= 10:
+                            chart_path = generate_tjde_training_chart_simple(
+                                symbol=symbol,
+                                price_series=price_series,
+                                tjde_score=tjde_score,
+                                tjde_phase=tjde_phase,
+                                tjde_decision=tjde_decision,
+                                tjde_clip_confidence=tjde_clip_confidence,
+                                setup_label=setup_label
+                            )
+                            print(f"[CHART FALLBACK] {symbol} → Simple chart generated")
+                        else:
+                            print(f"[CHART SKIP] {symbol} → Insufficient price data for simple chart")
+                    except Exception as simple_error:
+                        print(f"[CHART SKIP] {symbol} → Simple chart failed: {simple_error}")
+                        chart_path = None
+                
+                # Initialize training data manager outside conditional to prevent scope errors
                 training_manager = TrainingDataManager()
+                training_chart_saved = False
                 
                 if chart_path:
                     print(f"[TRAINING SUCCESS] {symbol} → Chart saved: {chart_path}")
-                    training_chart_saved = True
                     
-                    # Prepare TJDE-based context features
-                    context_features = {
-                        "tjde_score": tjde_score,
-                        "tjde_decision": tjde_decision,
-                        "market_phase": features.get("market_phase", "unknown"),
-                        "setup_type": features.get("price_action_pattern", "unknown"),
-                        "clip_phase": features.get("clip_phase", "N/A"),
-                        "clip_confidence": features.get("clip_confidence", 0.0),
-                        "price": price,
-                        "volume_24h": volume_24h,
-                    "scan_timestamp": datetime.now().isoformat(),
-                    "candle_count_15m": len(candles_15m) if candles_15m else 0,
-                    "candle_count_5m": len(candles_5m) if candles_5m else 0
-                }
-                
-                # Generate and save training chart
-                chart_id = training_manager.collect_from_scan(symbol, context_features)
-                if chart_id:
-                    training_chart_saved = True
-                    print(f"[TRAINING] {symbol} → Chart saved: {chart_id}")
+                    # Prepare TJDE-based context features with safe variable access
+                    try:
+                        context_features = {
+                            "tjde_score": tjde_score,
+                            "tjde_decision": tjde_decision,
+                            "market_phase": features.get("market_phase", "unknown") if 'features' in locals() else "unknown",
+                            "setup_type": features.get("price_action_pattern", "unknown") if 'features' in locals() else "unknown",
+                            "clip_phase": features.get("clip_phase", "N/A") if 'features' in locals() else "N/A",
+                            "clip_confidence": features.get("clip_confidence", 0.0) if 'features' in locals() else 0.0,
+                            "price": price,
+                            "volume_24h": volume_24h,
+                            "scan_timestamp": datetime.now().isoformat(),
+                            "candle_count_15m": len(candles_15m) if candles_15m else 0,
+                            "candle_count_5m": len(candles_5m) if candles_5m else 0
+                        }
+                        
+                        # Generate and save training chart
+                        chart_id = training_manager.collect_from_scan(symbol, context_features)
+                        if chart_id:
+                            training_chart_saved = True
+                            print(f"[TRAINING] {symbol} → Chart saved: {chart_id}")
+                        else:
+                            print(f"[TRAINING] {symbol} → Chart generation failed")
+                    except Exception as context_error:
+                        print(f"[TRAINING ERROR] {symbol} → Context features error: {context_error}")
                 else:
-                    print(f"[TRAINING] {symbol} → Chart generation failed")
+                    print(f"[TRAINING SKIP] {symbol} → No chart path available")
                     
             except Exception as e:
                 print(f"[TRAINING ERROR] {symbol} → {e}")
