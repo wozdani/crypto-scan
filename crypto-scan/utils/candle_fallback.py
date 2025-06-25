@@ -32,12 +32,13 @@ def get_safe_candles(symbol: str, interval: str = "15m", try_alt_sources: bool =
             save_candles_to_cache(symbol, candles, interval)
             return candles
             
+        # FIX 2: Enhanced fallback with cache when API fails
         if try_alt_sources:
             # Fallback 1: Local cache (prioritized for reliability)
             from utils.candle_cache import load_candles_from_cache
             cached_candles = load_candles_from_cache(symbol, interval)
             if cached_candles and len(cached_candles) >= 48:
-                logging.debug(f"get_safe_candles: {symbol} using cached candles")
+                print(f"[CANDLE FALLBACK] {symbol}: Using {len(cached_candles)} cached candles")
                 return cached_candles
                 
             # Fallback 2: Legacy cache files

@@ -162,6 +162,7 @@ def generate_vision_ai_training_data(tjde_results: List[Dict]) -> int:
     Returns:
         Number of training pairs generated
     """
+    charts_generated = 0  # FIX 1: Initialize counter to prevent UnboundLocalError
     training_pairs_created = 0
     
     # Get TOP 5 tokens by TJDE score
@@ -178,24 +179,20 @@ def generate_vision_ai_training_data(tjde_results: List[Dict]) -> int:
             tjde_score = result.get('tjde_score', 0)
             market_data = result.get('market_data', {})
             
-            # Enhanced candle fetching with local cache fallback
+            # Enhanced candle fetching with comprehensive fallback chain
             from utils.candle_fallback import get_safe_candles, plot_empty_chart
             from utils.candle_cache import load_candles_from_cache
             
             candles_15m = get_safe_candles(symbol, interval="15m", try_alt_sources=True)
             
+            # FIX 2: Enhanced fallback logic with cache priority
             if not candles_15m or len(candles_15m) < 48:
-                # Try local cache as final fallback
-                cached = load_candles_from_cache(symbol, interval="15m")
-                if cached and len(cached) >= 48:
-                    candles_15m = cached
-                    print(f"[VISION-AI] {symbol}: Using candles from local cache")
+                # Try local cache as primary fallback
+                candles_15m = load_candles_from_cache(symbol, interval="15m")
+                if candles_15m and len(candles_15m) >= 48:
+                    print(f"[VISION-AI CACHE] {symbol}: Using {len(candles_15m)} cached candles")
                 else:
-                    # Generate placeholder chart when no data available
-                    placeholder_path = plot_empty_chart(symbol, "training_charts")
-                    if placeholder_path:
-                        charts_generated += 1
-                        print(f"[VISION-AI] {symbol}: Generated placeholder chart - no candles from API or cache")
+                    print(f"[VISION-AI SKIP] {symbol}: Insufficient candle data even in cache")
                     continue
             
             # Convert to DataFrame for custom chart generation

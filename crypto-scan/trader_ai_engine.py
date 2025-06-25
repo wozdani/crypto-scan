@@ -1277,6 +1277,28 @@ def simulate_trader_decision_advanced(features: dict) -> dict:
             "base_score_before_clip": score,
             "debug_info": debug_info
         }
+
+        # FIX 3: Add token memory integration for feedback loop
+        if decision in ["consider_entry", "join_trend"] or enhanced_score >= 0.6:
+            try:
+                from utils.token_memory import update_token_memory
+                
+                memory_data = {
+                    "tjde_score": enhanced_score,
+                    "decision": decision,
+                    "setup": f"{market_phase}_{grade}",
+                    "phase": market_phase,
+                    "gpt_description": f"TJDE {enhanced_score:.3f} | {decision} | {grade}",
+                    "result_after_2h": None  # Will be evaluated later by feedback loop
+                }
+                
+                update_token_memory(features.get("symbol", "UNKNOWN"), memory_data)
+                print(f"[TOKEN MEMORY] {features.get('symbol', 'UNKNOWN')}: Recorded decision for feedback tracking")
+                
+            except Exception as memory_error:
+                print(f"[TOKEN MEMORY ERROR] {features.get('symbol', 'UNKNOWN')}: {memory_error}")
+
+        return result
         
         # Enhanced logging for CLIP integration
         if clip_modifier != 0:
