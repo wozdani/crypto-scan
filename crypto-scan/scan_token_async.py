@@ -631,17 +631,18 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             print(f"[TJDE ALERT FIX] {symbol}: {tjde_alert_fix['original_decision']} → {tjde_alert_fix['enhanced_decision']}")
             print(f"[TJDE ALERT FIX] Reasoning: {'; '.join(tjde_alert_fix['reasoning'])}")
         
-        # Enhanced alert conditions: Original PPWCS/checklist OR high TJDE scores
-        original_alert_condition = (ppwcs_score >= 100 or checklist_score >= 100)
+        # Enhanced alert conditions: SEPARATE PPWCS logic from TJDE trend-mode logic
+        ppwcs_alert_condition = (ppwcs_score >= 100 or checklist_score >= 100)
         tjde_alert_condition = tjde_alert_fix.get("alert_generated", False)
         
-        if original_alert_condition or tjde_alert_condition:
-            print(f"[🚨 PERFECT SCORE ALERT] {symbol} → PPWCS: {ppwcs_score:.1f}/100, Checklist: {checklist_score:.1f}/100")
+        # PPWCS alerts (separate system)
+        if ppwcs_alert_condition:
+            print(f"[🚨 PPWCS ALERT] {symbol} → PPWCS: {ppwcs_score:.1f}/100, Checklist: {checklist_score:.1f}/100")
             try:
                 # Use synchronous alert function with proper context
                 from utils.alert_system import process_alert
                 
-                # Prepare signals for alert
+                # Prepare signals for PPWCS alert
                 signals = {
                     "ppwcs_score": ppwcs_score,
                     "checklist_score": checklist_score,
@@ -652,10 +653,10 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     "timestamp": datetime.now().isoformat()
                 }
                 
-                # Send alert using existing system and save locally
+                # Send PPWCS alert using existing system
                 process_alert(symbol, ppwcs_score, signals, None)
                 
-                # Also save to alerts directory for tracking
+                # Save PPWCS alert to alerts directory
                 os.makedirs("data/alerts", exist_ok=True)
                 alert_data = {
                     "symbol": symbol,
@@ -663,9 +664,9 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     "checklist_score": checklist_score,
                     "tjde_score": tjde_score,
                     "tjde_decision": tjde_decision,
-                    "message": f"🎯 PERFECT SCORE: {symbol} - PPWCS: {ppwcs_score:.1f}/100 | Checklist: {checklist_score:.1f}/100",
+                    "message": f"🎯 PPWCS PERFECT SCORE: {symbol} - PPWCS: {ppwcs_score:.1f}/100 | Checklist: {checklist_score:.1f}/100",
                     "timestamp": datetime.now().isoformat(),
-                    "type": "perfect_score_alert",
+                    "type": "ppwcs_perfect_score_alert",
                     "telegram_status": "ready_to_send"
                 }
                 
@@ -676,9 +677,48 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 print(f"[🎯 PERFECT ALERT SAVED] {symbol} → Telegram ready")
             except Exception as e:
                 print(f"[ALERT ERROR] {symbol} → {e}")
+                alert_sent = True
+            except Exception as e:
+                print(f"[PPWCS ALERT ERROR] {symbol} → {e}")
                 alert_sent = False
         else:
-            print(f"[ALERT SKIP] {symbol} → Need 100 points (PPWCS: {ppwcs_score:.1f}/100, Checklist: {checklist_score:.1f}/100)")
+            print(f"[PPWCS SKIP] {symbol} → Need 100 points (PPWCS: {ppwcs_score:.1f}/100, Checklist: {checklist_score:.1f}/100)")
+        
+        # SEPARATE TJDE TREND-MODE ALERT SYSTEM (Independent from PPWCS)
+        if tjde_alert_condition:
+            alert_level = tjde_alert_fix.get("alert_level", 2)
+            enhanced_decision = tjde_alert_fix.get("enhanced_decision", tjde_decision)
+            print(f"[🚨 TJDE ALERT] {symbol} → TJDE: {tjde_score:.3f} ({enhanced_decision}) Level {alert_level}")
+            
+            try:
+                # Create dedicated TJDE trend-mode alert
+                from utils.tjde_alert_system import send_tjde_trend_alert_with_cooldown
+                
+                tjde_alert_data = {
+                    "symbol": symbol,
+                    "tjde_score": tjde_score,
+                    "tjde_decision": enhanced_decision,
+                    "original_decision": tjde_alert_fix.get("original_decision", tjde_decision),
+                    "alert_level": alert_level,
+                    "reasoning": tjde_alert_fix.get("reasoning", []),
+                    "price": price,
+                    "volume_24h": volume_24h,
+                    "timestamp": datetime.now().isoformat()
+                }
+                
+                # Send TJDE alert (separate from PPWCS system)
+                tjde_alert_success = send_tjde_trend_alert_with_cooldown(tjde_alert_data)
+                
+                if tjde_alert_success:
+                    print(f"[TJDE ALERT SUCCESS] {symbol} → Level {alert_level} alert sent with cooldown")
+                    alert_sent = True
+                else:
+                    print(f"[TJDE ALERT FAILED] {symbol} → Failed to send alert or in cooldown")
+                    
+            except Exception as e:
+                print(f"[TJDE ALERT ERROR] {symbol} → {e}")
+        else:
+            print(f"[TJDE SKIP] {symbol} → TJDE score {tjde_score:.3f} below alert threshold (0.6+)")
         
         # Save results with diagnostics (if save function available)
         try:
