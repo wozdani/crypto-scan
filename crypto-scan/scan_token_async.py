@@ -426,6 +426,17 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     candles_15m = market_data.get('candles', [])
                     candles_5m = market_data.get('candles_5m', [])
                     print(f"[DEBUG] candles_15m: {len(candles_15m)}, candles_5m: {len(candles_5m)}")
+                    
+                    # FIX 1: Allow analysis with 15M candles even if 5M is empty
+                    if len(candles_15m) >= 20:
+                        print(f"[DEBUG] {symbol} → candles_15m: VALID (fallback mode without 5M)")
+                    else:
+                        print(f"[DEBUG] {symbol} → candles_15m: INVALID (insufficient data)")
+                        
+                    if len(candles_5m) >= 60:
+                        print(f"[DEBUG] {symbol} → candles_5m: VALID")
+                    else:
+                        print(f"[DEBUG] {symbol} → candles_5m: INVALID (using 15M fallback)")
                 
                 features = {
                     "symbol": symbol,
@@ -434,7 +445,7 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     "volume_behavior": "neutral",
                     "htf_trend_match": True,
                     "candles_15m": candles_15m,  # Critical: Pass candles for TJDE calculations
-                    "candles_5m": candles_5m,   # Critical: Pass 5m candles
+                    "candles_5m": candles_5m,   # Critical: Pass 5m candles (can be empty)
                     **trend_features
                 }
                 

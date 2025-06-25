@@ -30,8 +30,15 @@ def validate_candle_data(candle) -> dict:
     try:
         if isinstance(candle, dict):
             # Dict format - direct key access with fallbacks
+            # FIX 3: Robust timestamp conversion to handle string timestamps
+            timestamp_val = candle.get('timestamp', candle.get(0, 0))
+            if isinstance(timestamp_val, str):
+                try:
+                    timestamp_val = float(timestamp_val)
+                except (ValueError, TypeError):
+                    timestamp_val = 0
             return {
-                'timestamp': int(candle.get('timestamp', candle.get(0, 0))),
+                'timestamp': int(timestamp_val),
                 'open': float(candle.get('open', candle.get(1, 0))),
                 'high': float(candle.get('high', candle.get(2, 0))),
                 'low': float(candle.get('low', candle.get(3, 0))),
@@ -40,8 +47,15 @@ def validate_candle_data(candle) -> dict:
             }
         elif isinstance(candle, (list, tuple)) and len(candle) >= 6:
             # List/tuple format - index access
+            # FIX 3: Safe conversion for list-based timestamps
+            timestamp_val = candle[0]
+            if isinstance(timestamp_val, str):
+                try:
+                    timestamp_val = float(timestamp_val)
+                except (ValueError, TypeError):
+                    timestamp_val = 0
             return {
-                'timestamp': int(candle[0]),
+                'timestamp': int(timestamp_val),
                 'open': float(candle[1]),
                 'high': float(candle[2]),
                 'low': float(candle[3]),

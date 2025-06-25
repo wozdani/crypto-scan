@@ -1238,8 +1238,8 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
         except Exception as e:
             print(f"[CLIP ERROR] {symbol}: Failed to load file prediction: {e}")
             
-            # Fallback to FastCLIP only if no file prediction and not cached
-            if not clip_already_used:
+        # FIX 2: Always try FastCLIP fallback when file prediction is None
+        if not clip_already_used:
                 try:
                     from ai.clip_predictor_fast import FastCLIPPredictor
                     import glob
@@ -1269,9 +1269,12 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                         clip_prediction = fast_predictor.predict_fast(chart_path)
                         print(f"[CLIP FAST RESULT] {symbol}: FastCLIP returned = {clip_prediction}")
                         
-                        if clip_prediction and clip_prediction.get('confidence', 0) > 0.4:
+                        # FIX 2: Use FastCLIP fallback confidence even when low (not 0.0)
+                        if clip_prediction and clip_prediction.get('confidence', 0) > 0:
                             clip_confidence = float(clip_prediction.get('confidence', 0.0))
                             pattern = clip_prediction.get('predicted_label', clip_prediction.get('pattern', ''))
+                            
+                            print(f"[CLIP FAST USED] {symbol}: FastCLIP confidence {clip_confidence:.3f}, pattern: {pattern}")
                             
                             # Enhanced pattern-based confidence adjustment
                             if pattern in ['breakout-continuation', 'trend-following']:
