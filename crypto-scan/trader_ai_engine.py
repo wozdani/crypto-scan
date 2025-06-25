@@ -837,18 +837,17 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
     Returns:
         dict: Enhanced decision with CLIP + GPT integration
     """
-
-        
-            print(f"[TRADER ADAPTIVE] Analyzing features: phase={market_phase}, trend={trend_strength:.3f}, pullback={pullback_quality:.3f}")
-        
-        # === ETAP 2: DYNAMIC TJDE WEIGHTS LOADING ===
-        from utils.scoring import load_tjde_weights, apply_phase_adjustments
-        
-        # Load dynamic weights from JSON file with fallback to defaults
-        base_weights = load_tjde_weights()
-        
-        # Apply intelligent phase-specific adjustments
-        weights = apply_phase_adjustments(base_weights, market_phase)
+    
+    print(f"[TRADER ADAPTIVE] Analyzing features: phase={market_phase}, trend={trend_strength:.3f}, pullback={pullback_quality:.3f}")
+    
+    # === ETAP 2: DYNAMIC TJDE WEIGHTS LOADING ===
+    from utils.scoring import load_tjde_weights, apply_phase_adjustments
+    
+    # Load dynamic weights from JSON file with fallback to defaults
+    base_weights = load_tjde_weights()
+    
+    # Apply intelligent phase-specific adjustments
+    weights = apply_phase_adjustments(base_weights, market_phase)
         print(f"[TJDE WEIGHTS] Phase-adjusted weights applied for {market_phase}")
         
         # === ETAP 3: SCORING Z DYNAMICZNYMI WAGAMI ===
