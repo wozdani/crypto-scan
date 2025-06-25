@@ -575,12 +575,12 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     else:
                         print(f"[TRAINING ERROR] {symbol} → No chart data available")
                 
+                # Initialize training data manager (moved outside conditional to fix scope error)
+                training_manager = TrainingDataManager()
+                
                 if chart_path:
                     print(f"[TRAINING SUCCESS] {symbol} → Chart saved: {chart_path}")
                     training_chart_saved = True
-                    
-                    # Initialize training data manager for metadata
-                    training_manager = TrainingDataManager()
                     
                     # Prepare TJDE-based context features
                     context_features = {

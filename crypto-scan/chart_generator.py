@@ -401,39 +401,71 @@ def detect_alert_point(candles_15m, tjde_score=None):
     """
     try:
         if not candles_15m or len(candles_15m) < 20:
-            return len(candles_15m) - 10 if candles_15m else 0
-            
-        closes = [float(c[4]) for c in candles_15m]
-        volumes = [float(c[5]) for c in candles_15m]
+            return max(0, len(candles_15m) - 10) if candles_15m else 0
+        
+        # Convert to safe numeric values
+        closes = []
+        volumes = []
+        
+        for candle in candles_15m:
+            try:
+                # Handle both list and dict formats
+                if isinstance(candle, dict):
+                    close_val = float(candle.get('close', candle.get(4, 0)))
+                    volume_val = float(candle.get('volume', candle.get(5, 0)))
+                else:
+                    close_val = float(candle[4]) if len(candle) > 4 else 0.0
+                    volume_val = float(candle[5]) if len(candle) > 5 else 0.0
+                
+                closes.append(close_val)
+                volumes.append(volume_val)
+            except (ValueError, TypeError, IndexError):
+                closes.append(0.0)
+                volumes.append(0.0)
+        
+        if len(closes) < 20:
+            return max(0, len(closes) - 10)
         
         # Calculate price momentum and volume spikes
         alert_scores = []
         for i in range(10, len(closes) - 5):
-            # Price momentum (recent vs past)
-            recent_price = sum(closes[i-3:i+1]) / 4
-            past_price = sum(closes[i-10:i-6]) / 4
-            price_momentum = abs(recent_price - past_price) / past_price if past_price > 0 else 0
-            
-            # Volume spike
-            recent_vol = volumes[i]
-            avg_vol = sum(volumes[i-10:i]) / 10 if i >= 10 else recent_vol
-            volume_spike = recent_vol / avg_vol if avg_vol > 0 else 1.0
-            
-            # Combined alert score
-            alert_score = price_momentum * 0.7 + min(volume_spike - 1, 2.0) * 0.3
-            alert_scores.append((i, alert_score))
+            try:
+                # Price momentum (recent vs past)
+                recent_prices = closes[max(0, i-3):i+1]
+                past_prices = closes[max(0, i-10):max(0, i-6)]
+                
+                if recent_prices and past_prices:
+                    recent_price = sum(recent_prices) / len(recent_prices)
+                    past_price = sum(past_prices) / len(past_prices)
+                    price_momentum = abs(recent_price - past_price) / past_price if past_price > 0 else 0
+                else:
+                    price_momentum = 0
+                
+                # Volume spike
+                recent_vol = volumes[i]
+                past_volumes = volumes[max(0, i-10):i]
+                avg_vol = sum(past_volumes) / len(past_volumes) if past_volumes else recent_vol
+                volume_spike = recent_vol / avg_vol if avg_vol > 0 else 1.0
+                
+                # Combined alert score
+                alert_score = price_momentum * 0.7 + min(volume_spike - 1, 2.0) * 0.3
+                alert_scores.append((i, alert_score))
+            except (ValueError, TypeError, ZeroDivisionError):
+                continue
         
         # Find best alert point (highest combined score)
         if alert_scores:
             best_point = max(alert_scores, key=lambda x: x[1])
-            return best_point[0]
+            return int(best_point[0])
         
         # Fallback: use 75% through the data
         return int(len(candles_15m) * 0.75)
         
     except Exception as e:
         print(f"[ALERT POINT ERROR] {e}")
-        return len(candles_15m) - 10 if candles_15m else 0
+        import traceback
+        traceback.print_exc()
+        return max(0, len(candles_15m) - 10) if candles_15m else 0
 
 
 def generate_tjde_training_chart_contextual(symbol, candles_15m, tjde_score, tjde_phase, tjde_decision, tjde_clip_confidence=None, setup_label=None):
