@@ -45,15 +45,15 @@ def plot_custom_candlestick_chart(df_ohlc: pd.DataFrame, df_volume: pd.DataFrame
         df_ohlc_copy = df_ohlc.copy()
         df_ohlc_copy['timestamp'] = mdates.date2num(df_ohlc_copy['timestamp'])
         
-        # 1. 💡 Zoptymalizowany styl świec - cieńsze i bardziej przejrzyste
+        # UPGRADE A: Świece - zmniejszenie szerokości i grubości
         candlestick_ohlc(ax1, df_ohlc_copy[['timestamp', 'open', 'high', 'low', 'close']].values, 
-                        width=0.0005, colorup='#00FF88', colordown='#FF4444', alpha=0.9)
+                        width=0.4, colorup='#00FF88', colordown='#FF4444', alpha=0.9, linewidths=0.5)
 
-        # 2. 📉 Poprawiony wykres wolumenu - lepszy wygląd i czytelność
-        colors = ['#00AA44' if close >= open else '#AA2222' 
+        # UPGRADE B: Volume - wyraźniejsze kolory i krawędzie
+        colors = ['steelblue' if close >= open else '#AA2222' 
                  for close, open in zip(df_ohlc['close'], df_ohlc['open'])]
         ax2.bar(df_volume['timestamp'], df_volume['volume'], 
-               width=0.0006, align='center', edgecolor='black', alpha=0.7, color=colors)
+               width=0.6, align='center', edgecolor='black', alpha=0.7, color=colors)
 
         # 1. MARKET PHASE BACKGROUND COLORS
         phase_backgrounds = {
@@ -163,7 +163,7 @@ def plot_custom_candlestick_chart(df_ohlc: pd.DataFrame, df_volume: pd.DataFrame
                         fontsize=10, fontweight='bold', color=arrow_color,
                         ha='center')
         
-        # 3. 🟢 Dodaj linię alertu na wykresie wolumenu + 6. Alert status
+        # UPGRADE C: Podświetlenie świecy alertowej
         if alert_sent is not None and alert_sent:
             # Znajdź moment alertu (najwyższy wolumen w ostatnich 20% danych)
             volume_data = df_volume['volume'].values
@@ -172,9 +172,10 @@ def plot_custom_candlestick_chart(df_ohlc: pd.DataFrame, df_volume: pd.DataFrame
                 local_max_idx = np.argmax(volume_data[alert_start_idx:]) + alert_start_idx
                 if local_max_idx < len(df_volume):
                     alert_timestamp = df_volume.iloc[local_max_idx]['timestamp']
-                    # Linia alertu na wykresie świec
+                    # Highlight alert candle with green background
+                    ax1.axvspan(alert_timestamp - 0.5, alert_timestamp + 0.5, color='green', alpha=0.15)
+                    # Alert lines on both charts
                     ax1.axvline(x=alert_timestamp, linestyle='--', color='green', alpha=0.7, linewidth=2)
-                    # 3. Linia alertu na wykresie wolumenu
                     ax2.axvline(x=alert_timestamp, linestyle='--', color='green', alpha=0.7, linewidth=2)
             
             # 6. Alert status indicator
@@ -185,14 +186,14 @@ def plot_custom_candlestick_chart(df_ohlc: pd.DataFrame, df_volume: pd.DataFrame
                     transform=ax1.transAxes, fontsize=11, fontweight='bold',
                     color=alert_color, bbox=dict(facecolor='white', edgecolor='black', alpha=0.8), ha='right')
 
-        # 4. 🧾 Dodaj poprawiony box z informacjami - białe tło dla czytelności
+        # UPGRADE D: Profesjonalny styl boxa z fazą/setupem/decision
         info_text = f"TJDE Score: {tjde_score:.3f}\nPhase: {market_phase}\nDecision: {decision}"
         if clip_confidence is not None:
             info_text += f"\nCLIP Confidence: {clip_confidence:.3f}"
         
         ax1.text(0.02, 0.15, info_text, transform=ax1.transAxes, 
                 fontsize=9, verticalalignment='top', horizontalalignment='left',
-                bbox=dict(facecolor='white', edgecolor='black', alpha=0.8),
+                bbox=dict(facecolor='white', edgecolor='gray', boxstyle='round,pad=0.4', alpha=0.8),
                 family='monospace')
 
         # Professional dark theme
@@ -209,7 +210,7 @@ def plot_custom_candlestick_chart(df_ohlc: pd.DataFrame, df_volume: pd.DataFrame
             ax.spines['right'].set_color('white')
             ax.spines['left'].set_color('white')
 
-        # 5. 🕒 Enhanced title z informacją o interwale
+        # UPGRADE E: Dodaj interwał świec do tytułu 
         interval = "15M"
         if hasattr(title, 'split') and ' - ' in title:
             symbol_part = title.split(' - ')[0]

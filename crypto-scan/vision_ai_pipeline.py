@@ -13,7 +13,7 @@ from PIL import Image
 
 
 def save_training_chart(df: pd.DataFrame, symbol: str, timestamp: str, 
-                       folder: str = "training_data/charts",
+                       folder: str = "training_charts",  # Default to professional charts
                        tjde_score: float = None, clip_confidence: float = None,
                        market_phase: str = None, decision: str = None) -> str:
     """
@@ -209,15 +209,20 @@ def generate_vision_ai_training_data(tjde_results: List[Dict]) -> int:
             df = pd.DataFrame(df_data)
             df.index = pd.date_range(start='2025-01-01', periods=len(df), freq='15T')
             
-            # Generate custom training chart with metadata
+            # POPRAWKA 1: Generate professional training chart in training_charts/
+            phase = result.get('market_phase', 'unknown')
+            decision = result.get('tjde_decision', 'unknown')
+            chart_path = f"training_charts/{symbol}_{timestamp}_{phase}_{decision}_tjde.png"
+            
             chart_path = save_training_chart(
                 df=df, 
                 symbol=symbol, 
                 timestamp=timestamp,
+                folder="training_charts",  # Professional charts folder
                 tjde_score=tjde_score,
                 clip_confidence=result.get('clip_confidence', None),
-                market_phase=result.get('market_phase', 'unknown'),
-                decision=result.get('tjde_decision', 'unknown')
+                market_phase=phase,
+                decision=decision
             )
             
             # Create comprehensive label data
