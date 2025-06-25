@@ -860,29 +860,29 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
         htf_supportive_score * weights["htf_supportive_score"] +
         market_phase_modifier * weights["market_phase_modifier"]
     )
-        
-        print(f"[TRADER SCORE] Base score: {score:.3f}")
-        
-        # === ETAP 4: KONTEKSTOWE MODYFIKATORY SCORINGU ===
-        if volume_behavior == "supporting" and price_action_pattern in ["impulse", "continuation"]:
-            score += 0.07
-            context_modifiers.append("volume_backed_breakout")
-            print(f"[CONTEXT MODIFIER] +0.07 for volume_backed_breakout")
-        
-        if psych_score < 0.3:
-            score -= 0.05
-            context_modifiers.append("psych_noise_penalty")
-            print(f"[CONTEXT MODIFIER] -0.05 for psych_noise_penalty")
-        
-        if market_phase == "exhaustion-pullback":
-            score -= 0.08
-            context_modifiers.append("phase_exhaustion_penalty")
-            print(f"[CONTEXT MODIFIER] -0.08 for phase_exhaustion_penalty")
-        
-        if htf_trend_match and htf_supportive_score > 0.5:
-            score += 0.05
-            context_modifiers.append("htf_alignment_boost")
-            print(f"[CONTEXT MODIFIER] +0.05 for htf_alignment_boost")
+    
+    print(f"[TRADER SCORE] Base score: {score:.3f}")
+    
+    # === ETAP 4: KONTEKSTOWE MODYFIKATORY SCORINGU ===
+    if volume_behavior == "supporting" and price_action_pattern in ["impulse", "continuation"]:
+        score += 0.07
+        context_modifiers.append("volume_backed_breakout")
+        print(f"[CONTEXT MODIFIER] +0.07 for volume_backed_breakout")
+    
+    if psych_score < 0.3:
+        score -= 0.05
+        context_modifiers.append("psych_noise_penalty")
+        print(f"[CONTEXT MODIFIER] -0.05 for psych_noise_penalty")
+    
+    if market_phase == "exhaustion-pullback":
+        score -= 0.08
+        context_modifiers.append("phase_exhaustion_penalty")
+        print(f"[CONTEXT MODIFIER] -0.08 for phase_exhaustion_penalty")
+    
+    if htf_trend_match and htf_supportive_score > 0.5:
+        score += 0.05
+        context_modifiers.append("htf_alignment_boost")
+        print(f"[CONTEXT MODIFIER] +0.05 for htf_alignment_boost")
         
         # === ETAP 5: INTERPRETACJA KOŃCOWA ===
         if score >= 0.70:
