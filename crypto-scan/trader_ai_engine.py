@@ -1313,12 +1313,7 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
             print(f"   Decision Override: {original_decision.upper()} → HEURISTIC_ALERT")
         
         return final_result
-        
-        # Enhanced logging
-        _log_advanced_trader_decision(symbol, result)
-        
-        return result
-        
+    
     except Exception as e:
         print(f"❌ [ADVANCED TRADER ERROR] {symbol}: {e}")
         return {
