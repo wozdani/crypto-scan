@@ -98,6 +98,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 25, 2025 - Token Memory System for Historical Scoring Analysis - PRODUCTION READY ✅
+Implemented comprehensive token memory system tracking historical behavior patterns over 4 days for adaptive decision making:
+- **Token Memory Module**: Created utils/token_memory.py with update_token_memory() and analyze_token_behavior() functions storing scoring history in data/token_profile_store.json
+- **Historical Context Integration**: Enhanced trader_ai_engine.py with token behavior analysis providing penalty modifiers (-0.05 per recent failure) for tokens with poor past performance
+- **Memory Feedback Loop**: Built utils/memory_feedback_loop.py automatically evaluating decision outcomes after 2 hours and updating result_after_2h field for continuous learning
+- **Alert Integration**: Updated crypto_scan_service.py to automatically record memory entries when alerts are generated including TJDE score, decision, setup, and phase information
+- **Vision-AI Memory Tracking**: Enhanced vision_ai_pipeline.py to record chart generation events in token memory for comprehensive behavior tracking
+- **Performance Analytics**: Added get_memory_stats() and get_token_performance_summary() providing insights into token success rates and behavioral patterns
+- **Adaptive Scoring**: TJDE decisions now consider historical failures with automatic score adjustments based on token-specific behavior patterns over 96-hour lookback window
+System enables adaptive decision making by learning from token-specific patterns, reducing false signals for tokens with poor historical performance while maintaining sensitivity for consistent performers.
+
 ### June 25, 2025 - Local Candle Cache System for Vision-AI Reliability - PRODUCTION READY ✅
 Implemented comprehensive local candle cache system ensuring Vision-AI chart generation even during API failures:
 - **Local Cache Module**: Created utils/candle_cache.py with save_candles_to_cache() and load_candles_from_cache() functions storing candles in data/candles_cache/ with metadata

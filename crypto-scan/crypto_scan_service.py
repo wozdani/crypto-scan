@@ -138,6 +138,18 @@ def scan_cycle():
     # Show timing
     elapsed = time.time() - start_time
     print(f"Scan cycle completed in {elapsed:.1f}s")
+    
+    # Run memory feedback evaluation periodically
+    try:
+        from utils.memory_feedback_loop import run_memory_feedback_evaluation
+        
+        # Run feedback evaluation every few cycles
+        import random
+        if random.random() < 0.3:  # 30% chance each cycle
+            run_memory_feedback_evaluation()
+            
+    except Exception as feedback_e:
+        print(f"[MEMORY_FEEDBACK_ERROR] {feedback_e}")
 
 def simple_scan_fallback(symbols):
     """Fallback using async batch scan with lower concurrency"""
