@@ -100,14 +100,15 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ### June 25, 2025 - Vision-AI Candle Data Fallback System - Training Data Generation Fixed ✅
 Implemented comprehensive candle data fetching system with multiple fallbacks to resolve insufficient training data issues:
-- **Enhanced Candle Fetching**: Created fetch_candles_for_vision() function with 4-tier fallback system (fresh API → cached data → direct Bybit → synthetic candles)
-- **Flexible Data Validation**: Reduced candle requirements from 96 to 30 minimum, enabling training with limited but sufficient data while maintaining quality
+- **Enhanced Candle Fetching**: Created fetch_candles_for_vision() function with 3-tier authentic data fallback system (async cache → scan results → direct Bybit API)
+- **Flexible Data Validation**: Reduced candle requirements from 96 to 30 minimum, enabling training with limited but sufficient authentic data while maintaining quality
 - **Missing Data Reporting**: Added save_missing_candles_report() to track tokens with insufficient data for debugging and optimization
 - **Training Session Analytics**: Implemented save_training_summary_report() tracking success rates, attempted vs generated pairs, and session performance metrics
-- **Authentic Data Priority**: Implemented strict authentic data policy with multi-tier fallback system (async cache → scan results → direct API) without synthetic data generation
+- **Authentic Data Priority**: Implemented strict authentic data policy - no synthetic data generation, only real market data for training
 - **Pipeline Integration**: Updated generate_vision_ai_training_data() to use enhanced fetching system eliminating "Insufficient candle data" blocks
 - **Data Source Tracking**: Enhanced label metadata with data_source and skip_training flags for training data quality management
-System now generates training data consistently for TOP 5 TJDE tokens with comprehensive fallback ensuring Vision-AI model development continuity.
+- **Import Fix**: Resolved requests module import issue enabling direct API fallback functionality
+System now generates training data consistently for TOP 5 TJDE tokens using only authentic market data ensuring high-quality Vision-AI model development.
 
 ### June 25, 2025 - Critical Vision-AI Production Fixes + CLIP Integration Fix - All Runtime Issues Resolved ✅
 Fixed three critical Vision-AI production issues and FastCLIPPredictor method error preventing proper CLIP integration:
