@@ -1,6 +1,6 @@
 """
-Custom Candlestick Chart Generation for Trend-Mode System
-Migration from mplfinance to matplotlib + candlestick_ohlc for Vision-AI training
+Vision-AI Optimized Chart Generation for CLIP Training
+Professional TradingView-style charts with clean dark theme
 """
 
 import os
@@ -11,6 +11,99 @@ import numpy as np
 from datetime import datetime
 from typing import Optional, Dict, List
 from mplfinance.original_flavor import candlestick_ohlc
+from matplotlib.patches import Rectangle
+import matplotlib.ticker as mticker
+import matplotlib as mpl
+
+
+def plot_chart_vision_ai(symbol, candles, alert_index=None, score=None, decision=None, phase=None, setup=None, save_path="chart.png"):
+    """
+    Vision-AI optimized chart generation for CLIP training
+    
+    Args:
+        symbol: Trading symbol
+        candles: List of candle data with timestamp, open, high, low, close, volume
+        alert_index: Index of alert candle for highlighting
+        score: TJDE score
+        decision: Trading decision
+        phase: Market phase
+        setup: Setup description
+        save_path: Path to save chart
+        
+    Returns:
+        Path to saved chart
+    """
+    try:
+        # Prepare OHLC data
+        ohlc = []
+        for i, c in enumerate(candles):
+            if isinstance(c, dict):
+                ts = mdates.date2num(datetime.fromtimestamp(c['timestamp']/1000))
+                ohlc.append((ts, c['open'], c['high'], c['low'], c['close']))
+            elif isinstance(c, list):
+                # Handle list format [timestamp, open, high, low, close, volume]
+                ts = mdates.date2num(datetime.fromtimestamp(int(c[0])/1000))
+                ohlc.append((ts, float(c[1]), float(c[2]), float(c[3]), float(c[4])))
+
+        volume = []
+        timestamps = []
+        for c in candles:
+            if isinstance(c, dict):
+                volume.append(c['volume'])
+                timestamps.append(datetime.fromtimestamp(c['timestamp']/1000))
+            elif isinstance(c, list):
+                volume.append(float(c[5]))
+                timestamps.append(datetime.fromtimestamp(int(c[0])/1000))
+
+        # Professional styling
+        mpl.rcParams['font.family'] = 'DejaVu Sans'
+        plt.style.use("dark_background")
+
+        fig, (ax_main, ax_volume) = plt.subplots(2, 1, sharex=True, figsize=(12, 6), 
+                                               gridspec_kw={'height_ratios': [3, 1]})
+        fig.tight_layout(pad=2)
+
+        # Professional candlesticks
+        candlestick_ohlc(ax_main, ohlc, width=0.4, colorup='#00ff00', colordown='#ff3333', alpha=0.9)
+
+        # Alert highlight with lime green background
+        if alert_index is not None and alert_index < len(ohlc):
+            ax_main.axvspan(ohlc[alert_index][0] - 0.25, ohlc[alert_index][0] + 0.25, 
+                          color='lime', alpha=0.15)
+
+        # Professional volume bars
+        ax_volume.bar(timestamps, volume, color='steelblue', edgecolor='black', 
+                     alpha=0.7, width=0.0008)
+
+        # Clean professional title
+        score_text = f"{score:.3f}" if score is not None else "0.000"
+        phase_text = phase.upper() if phase else ''
+        setup_text = setup.upper() if setup else ''
+        title = f"{symbol} | {phase_text} | TJDE: {score_text} | {setup_text} | 15M"
+        ax_main.set_title(title, fontsize=12, pad=10)
+
+        # Clean grid and formatting
+        ax_main.grid(True, linestyle='--', alpha=0.3)
+        ax_volume.grid(True, linestyle='--', alpha=0.2)
+        ax_volume.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H:%M'))
+        fig.autofmt_xdate()
+
+        # Labels
+        ax_main.set_ylabel('Price (USDT)', fontsize=10)
+        ax_volume.set_ylabel('Volume', fontsize=10)
+        ax_volume.set_xlabel('Time', fontsize=10)
+
+        # Save with high quality for Vision-AI
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        plt.savefig(save_path, dpi=200, bbox_inches='tight', facecolor='black')
+        plt.close()
+        
+        return save_path
+        
+    except Exception as e:
+        print(f"[VISION-AI CHART ERROR] {e}")
+        plt.close('all')
+        return None
 
 
 def plot_custom_candlestick_chart(df_ohlc: pd.DataFrame, df_volume: pd.DataFrame, 

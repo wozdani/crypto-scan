@@ -98,6 +98,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 25, 2025 - Vision-AI Chart Function Replacement with TradingView Styling - PRODUCTION READY ✅
+Replaced existing chart generation with new Vision-AI optimized plot_chart_vision_ai() function for professional CLIP training:
+- **New Vision-AI Function**: Implemented plot_chart_vision_ai() with clean TradingView-style dark background, professional candlesticks (width=0.4, colorup=#00ff00, colordown=#ff3333), and steelblue volume bars with black edges
+- **Alert Visualization**: Added lime green background highlighting (axvspan) for alert candles with alpha=0.15 transparency for clear visual identification
+- **Professional Styling**: Dark background theme with DejaVu Sans font, clean grid lines (alpha=0.3), and optimized 200 DPI output quality for Vision-AI processing
+- **Data Format Flexibility**: Function handles both dict and list candle formats, automatic timestamp conversion, and intelligent alert index detection
+- **Clean Title Format**: Enhanced titles with complete metadata: "SYMBOL | PHASE | TJDE: score | SETUP | 15M" for comprehensive context
+- **Integration Updates**: Updated vision_ai_pipeline.py to use new function with automatic DataFrame to candle list conversion and alert simulation
+- **High-Quality Output**: Professional charts saved with black background, tight layout, and optimal resolution for CLIP embeddings and classification
+Function generates consistent, high-quality training data optimized for computer vision models with clear visual patterns and professional appearance.
+
 ### June 25, 2025 - Vision-AI Professional Charts Integration and Enhanced Styling - PRODUCTION READY ✅
 Implemented comprehensive Vision-AI upgrade with professional chart integration and TradingView-style styling:
 - **Vision-AI Chart Source Upgrade**: Redirected Vision-AI from basic line charts (training_data/charts/) to professional candlestick charts (training_charts/) with naming format: {symbol}_{timestamp}_{phase}_{decision}_tjde.png

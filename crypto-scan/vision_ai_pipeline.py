@@ -54,27 +54,38 @@ def save_training_chart(df: pd.DataFrame, symbol: str, timestamp: str,
         # Enhanced chart path
         chart_path = f"{folder}/{symbol}_{timestamp}_vision_chart.png"
         
-        # Generate custom chart with enhanced context
-        from trend_charting import plot_custom_candlestick_chart
-        import matplotlib.dates as mdates
+        # Generate professional Vision-AI chart
+        from trend_charting import plot_chart_vision_ai
         
-        saved_path = plot_custom_candlestick_chart(
-            df_ohlc=df_ohlc,
-            df_volume=df_volume,
-            title=f"{symbol} - Vision-AI Training Chart",
-            save_path=chart_path,
-            clip_confidence=clip_confidence,
-            tjde_score=tjde_score,
-            market_phase=market_phase,
+        # Convert DataFrame back to candle list format for new function
+        candles_list = []
+        for _, row in df.iterrows():
+            candles_list.append({
+                'timestamp': int(row.name.timestamp() * 1000),
+                'open': row['Open'],
+                'high': row['High'],
+                'low': row['Low'],
+                'close': row['Close'],
+                'volume': row['Volume']
+            })
+        
+        # Find alert index (highest volume in last 20% of data for alert simulation)
+        alert_index = None
+        if tjde_score and tjde_score >= 0.7:
+            alert_start = int(len(candles_list) * 0.8)
+            if alert_start < len(candles_list):
+                volumes = [c['volume'] for c in candles_list[alert_start:]]
+                alert_index = alert_start + volumes.index(max(volumes))
+        
+        saved_path = plot_chart_vision_ai(
+            symbol=symbol,
+            candles=candles_list,
+            alert_index=alert_index,
+            score=tjde_score,
             decision=decision,
-            tjde_breakdown={
-                'trend_strength': 0.75,
-                'pullback_quality': 0.65,
-                'support_reaction_strength': 0.70,
-                'volume_behavior_score': 0.60,
-                'psych_score': 0.55
-            },  # Mock breakdown for Vision-AI training
-            alert_sent=tjde_score >= 0.7 if tjde_score else False
+            phase=market_phase,
+            setup=f"{market_phase}_{decision}" if market_phase and decision else None,
+            save_path=chart_path
         )
         
         if saved_path:
@@ -190,7 +201,7 @@ def generate_vision_ai_training_data(tjde_results: List[Dict]) -> int:
                 # Try local cache as primary fallback
                 candles_15m = load_candles_from_cache(symbol, interval="15m")
                 if candles_15m and len(candles_15m) >= 48:
-                    print(f"[VISION-AI CACHE] {symbol}: Using {len(candles_15m)} cached candles")
+                        print(f"[VISION-AI CACHE] {symbol}: Using {len(candles_15m)} cached candles")
                 else:
                     print(f"[VISION-AI SKIP] {symbol}: Insufficient candle data even in cache")
                     continue
