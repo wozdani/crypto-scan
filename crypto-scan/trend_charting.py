@@ -45,9 +45,9 @@ def plot_custom_candlestick_chart(df_ohlc: pd.DataFrame, df_volume: pd.DataFrame
         df_ohlc_copy = df_ohlc.copy()
         df_ohlc_copy['timestamp'] = mdates.date2num(df_ohlc_copy['timestamp'])
         
-        # UPGRADE A: Świece - zmniejszenie szerokości i grubości
+        # UPGRADE A: Świece - zmniejszenie szerokości i grubości  
         candlestick_ohlc(ax1, df_ohlc_copy[['timestamp', 'open', 'high', 'low', 'close']].values, 
-                        width=0.4, colorup='#00FF88', colordown='#FF4444', alpha=0.9, linewidths=0.5)
+                        width=0.4, colorup='#00FF88', colordown='#FF4444', alpha=0.9)
 
         # UPGRADE B: Volume - wyraźniejsze kolory i krawędzie
         colors = ['steelblue' if close >= open else '#AA2222' 
@@ -219,11 +219,14 @@ def plot_custom_candlestick_chart(df_ohlc: pd.DataFrame, df_volume: pd.DataFrame
         enhanced_title = f"{symbol_part} | {interval} | {market_phase.upper() if market_phase else 'UNKNOWN'} | TJDE: {tjde_score:.2f} | {decision.upper() if decision else 'UNKNOWN'}"
         ax1.set_title(enhanced_title, fontsize=12, fontweight='bold', color='white', pad=20)
 
+        # UPGRADE F: Włącz siatkę i lepszy font
+        plt.rcParams['font.family'] = 'DejaVu Sans'
+        
         # Format axes  
         ax1.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
         ax2.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-        ax1.grid(True, linestyle='--', alpha=0.3, color='gray')
-        ax2.grid(True, linestyle='--', alpha=0.2, color='gray')
+        ax1.grid(True, which='major', linestyle='--', alpha=0.3)
+        ax2.grid(True, which='major', linestyle='--', alpha=0.3)
 
         # Volume label
         ax2.set_ylabel('Volume', color='white', fontweight='bold')

@@ -98,6 +98,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 25, 2025 - Vision-AI Professional Charts Integration and Enhanced Styling - PRODUCTION READY ✅
+Implemented comprehensive Vision-AI upgrade with professional chart integration and TradingView-style styling:
+- **Vision-AI Chart Source Upgrade**: Redirected Vision-AI from basic line charts (training_data/charts/) to professional candlestick charts (training_charts/) with naming format: {symbol}_{timestamp}_{phase}_{decision}_tjde.png
+- **Professional Chart Styling**: Enhanced trend_charting.py with 6 major improvements: optimized candlestick width=0.4 + alpha=0.9, steelblue volume bars with black edges, alert candle highlighting with green background (axvspan), white info boxes with gray borders and rounded corners, enhanced titles with 15M interval info, major grid lines with DejaVu Sans font
+- **Alert Visualization**: Added green background highlighting for alert candles using axvspan for clear visual indication of trading signals
+- **Enhanced Volume Display**: Improved volume chart with steelblue color, black edges, alpha=0.7, and width=0.6 for professional appearance
+- **Complete Title Format**: Updated chart titles to include all metadata: "SYMBOL | 15M | PHASE | TJDE: score | DECISION" for comprehensive context
+- **Grid and Typography**: Implemented major grid lines with DejaVu Sans font family and alpha=0.3 for clean professional look
+- **Training Data Quality**: Vision-AI now receives full-featured candlestick charts with volume, alerts, and complete TJDE context instead of basic line charts
+Charts now feature TradingView-quality styling with professional appearance optimized for Vision-AI CLIP training and production alert visualization.
+
 ### June 25, 2025 - Token Memory System for Historical Scoring Analysis - PRODUCTION READY ✅
 Implemented comprehensive token memory system tracking historical behavior patterns over 4 days for adaptive decision making:
 - **Token Memory Module**: Created utils/token_memory.py with update_token_memory() and analyze_token_behavior() functions storing scoring history in data/token_profile_store.json
