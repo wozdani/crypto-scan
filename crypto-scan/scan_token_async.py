@@ -610,12 +610,32 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         else:
             print(f"[TRAINING SKIP] {symbol} → Below thresholds (PPWCS: {ppwcs_score}, TJDE: {tjde_score:.3f})")
         
-        # Alert processing with diagnostics
+        # Alert processing with diagnostics and CRITICAL TJDE THRESHOLD FIX
         alert_sent = False
         print(f"[ALERT CHECK] {symbol} → PPWCS: {ppwcs_score}, TJDE: {tjde_score}")
         
-        # ALERT TYLKO DLA PPWCS 100 lub CHECKLIST 100 PUNKTÓW
-        if ppwcs_score >= 100 or checklist_score >= 100:
+        # CRITICAL FIX: Add TJDE-based alert logic for high scores
+        from utils.alert_threshold_fix import fix_alert_thresholds, should_generate_alert
+        
+        # Check if TJDE score warrants alert (addresses core bug)
+        tjde_alert_fix = fix_alert_thresholds(
+            symbol=symbol,
+            tjde_score=tjde_score,
+            decision=tjde_decision,
+            clip_confidence=0.0,  # No CLIP data available yet
+            gpt_commentary=""     # No GPT data available yet
+        )
+        
+        # Log the fix results
+        if tjde_alert_fix.get("decision_changed", False):
+            print(f"[TJDE ALERT FIX] {symbol}: {tjde_alert_fix['original_decision']} → {tjde_alert_fix['enhanced_decision']}")
+            print(f"[TJDE ALERT FIX] Reasoning: {'; '.join(tjde_alert_fix['reasoning'])}")
+        
+        # Enhanced alert conditions: Original PPWCS/checklist OR high TJDE scores
+        original_alert_condition = (ppwcs_score >= 100 or checklist_score >= 100)
+        tjde_alert_condition = tjde_alert_fix.get("alert_generated", False)
+        
+        if original_alert_condition or tjde_alert_condition:
             print(f"[🚨 PERFECT SCORE ALERT] {symbol} → PPWCS: {ppwcs_score:.1f}/100, Checklist: {checklist_score:.1f}/100")
             try:
                 # Use synchronous alert function with proper context

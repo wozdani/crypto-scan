@@ -1299,6 +1299,65 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
         enhanced_score = score + clip_modifier
         original_decision = decision
         
+        # === CRITICAL FIX: GPT COMMENTARY FALLBACK FOR SCORING ===
+        gpt_scoring_boost = 0.0
+        clip_confidence_actual = clip_info.get("confidence", 0.0)
+        
+        if gpt_commentary and clip_confidence_actual < 0.4:
+            # Analyze GPT for scoring boost when CLIP unavailable
+            commentary_lower = gpt_commentary.lower()
+            
+            # Positive signals from GPT
+            if any(term in commentary_lower for term in ["pullback", "squeeze", "support", "bounce", "breakout", "trend", "momentum"]):
+                gpt_scoring_boost = 0.08
+                context_modifiers.append("GPT POSITIVE: Commentary suggests bullish setup")
+                print(f"[GPT BOOST] {symbol}: Positive commentary → +{gpt_scoring_boost}")
+            
+            # Strong bullish signals
+            if any(term in commentary_lower for term in ["strong", "confirmation", "acceleration", "volume"]):
+                gpt_scoring_boost += 0.04
+                context_modifiers.append("GPT STRONG: Strong bullish keywords detected")
+                print(f"[GPT STRONG] {symbol}: Strong signals → additional +0.04")
+            
+            enhanced_score += gpt_scoring_boost
+        
+        # === CRITICAL FIX: HIGH CONFIDENCE BOOSTS ===
+        if clip_confidence_actual > 0.75:
+            enhanced_score += 0.15  # Strong confidence boost
+            context_modifiers.append(f"HIGH CLIP CONFIDENCE: {clip_confidence_actual:.3f} → major boost")
+            print(f"[HIGH CONFIDENCE BOOST] {symbol}: CLIP {clip_confidence_actual:.3f} → +0.15 boost")
+        elif clip_confidence_actual > 0.6:
+            enhanced_score += 0.08  # Medium confidence boost
+            context_modifiers.append(f"GOOD CLIP CONFIDENCE: {clip_confidence_actual:.3f} → medium boost")
+            print(f"[GOOD CONFIDENCE BOOST] {symbol}: CLIP {clip_confidence_actual:.3f} → +0.08 boost")
+        
+        # === CRITICAL FIX: HIGH TJDE SCORES GETTING AVOIDED ===
+        base_score_only = trend_strength * 0.25 + pullback_quality * 0.20 + support_reaction * 0.15
+        
+        # High TJDE base score safety net
+        if enhanced_score > 0.6 and clip_confidence_actual < 0.3:
+            enhanced_score += 0.03
+            context_modifiers.append("HIGH TJDE WITHOUT CLIP → safety boost")
+            print(f"[HIGH TJDE SAFETY] {symbol}: Score {enhanced_score:.3f} without CLIP support")
+        
+        # Critical fix for high scores being classified as "avoid"
+        if enhanced_score > 0.6 and decision == "avoid":
+            decision = "consider_entry"
+            context_modifiers.append("CRITICAL FIX: High score forced consider_entry")
+            print(f"[CRITICAL FIX] {symbol}: {enhanced_score:.3f} score should not be 'avoid'")
+        
+        if enhanced_score > 0.75:
+            decision = "join_trend" 
+            context_modifiers.append("CRITICAL FIX: Very high score forced join_trend")
+            print(f"[CRITICAL FIX] {symbol}: {enhanced_score:.3f} score should be 'join_trend'")
+        
+        # Special case: If original base score was >0.6 but got classified as avoid
+        if base_score_only > 0.6 and decision == "avoid":
+            decision = "consider_entry"
+            enhanced_score = max(enhanced_score, 0.65)
+            context_modifiers.append("BASE SCORE OVERRIDE: High fundamentals override avoid")
+            print(f"[BASE OVERRIDE] {symbol}: Base {base_score_only:.3f} overrides avoid → consider_entry")
+        
         # Update decision based on CLIP enhancement
         original_decision = decision
         if clip_modifier != 0:
