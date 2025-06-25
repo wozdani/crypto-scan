@@ -324,14 +324,14 @@ def analyze_trend_opportunity(symbol: str, candles: List[List] = None, enable_vi
         from utils.feature_extractor import extract_all_features_for_token
         features = extract_all_features_for_token(symbol, candles)
         
-        # Phase 3: Complete Vision-AI Feedback Loop + Memory Integration
+        # Phase 4: Complete Hybrid Embedding System + Vision-AI + Memory
         from trader_ai_engine import simulate_trader_decision_advanced
         from perception_sync import simulate_trader_decision_perception_sync
         from token_context_memory import simulate_trader_decision_with_memory
         
         try:
             adaptive_result = simulate_trader_decision_with_memory(symbol, market_data, features)
-            print(f"[TREND MODE] {symbol}: Using Phase 3 Vision-AI Feedback + Memory")
+            print(f"[TREND MODE] {symbol}: Using Phase 4 Hybrid Embedding + Complete System")
         except Exception as e:
             print(f"[TREND MODE] {symbol}: Fallback to Phase 1 due to: {e}")
             try:

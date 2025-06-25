@@ -19,6 +19,8 @@ dependencies = [
     "clip",
     "aiohttp>=3.12.13",
     "asyncio>=3.4.3",
+    "torch>=2.7.1",
+    "torchvision>=0.22.1",
 ]
 
 [[tool.uv.index]]

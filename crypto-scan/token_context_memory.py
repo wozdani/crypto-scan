@@ -357,10 +357,44 @@ def simulate_trader_decision_with_memory(symbol: str, market_data: dict, signals
         
         memory_result["feedback_score"] = round(feedback_score, 3)
         
-        # === STEP 6: SAVE DECISION TO MEMORY ===
+        # === STEP 6: APPLY PHASE 4 HYBRID EMBEDDINGS ===
+        try:
+            from hybrid_embedding_system import integrate_embeddings_with_decision_system
+            
+            # Find recent chart for embedding
+            import glob
+            chart_pattern = f"training_charts/{symbol}_*.png"
+            charts = glob.glob(chart_pattern)
+            recent_chart = sorted(charts, reverse=True)[0] if charts else None
+            
+            if recent_chart:
+                memory_result = integrate_embeddings_with_decision_system(symbol, memory_result, recent_chart)
+                
+                # Update final score if embedding boost applied
+                embedding_similarity = memory_result.get("embedding_similarity", {})
+                similarity_boost = embedding_similarity.get("similarity_boost", 0.0)
+                
+                if similarity_boost > 0:
+                    embedding_enhanced_score = memory_enhanced_score + similarity_boost
+                    memory_result["embedding_enhanced_score"] = round(embedding_enhanced_score, 3)
+                    memory_result["final_score"] = round(embedding_enhanced_score, 3)
+                    memory_result["embedding_integration"] = True
+                    
+                    print(f"[PHASE 4] {symbol}: Embedding boost applied: +{similarity_boost:.3f}")
+                else:
+                    memory_result["embedding_integration"] = False
+            
+        except ImportError:
+            memory_result["embedding_integration"] = False
+        except Exception as e:
+            print(f"[PHASE 4 ERROR] {symbol}: {e}")
+            memory_result["embedding_integration"] = False
+        
+        # === STEP 7: SAVE DECISION TO MEMORY ===
         context_memory.add_decision_entry(symbol, memory_result)
         
-        print(f"[PHASE 2] {symbol}: Memory-enhanced decision: {decision} (score: {memory_enhanced_score:.3f})")
+        final_score_display = memory_result.get("embedding_enhanced_score", memory_enhanced_score)
+        print(f"[PHASE 2] {symbol}: Memory-enhanced decision: {decision} (score: {final_score_display:.3f})")
         
         return memory_result
         

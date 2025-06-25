@@ -169,6 +169,18 @@ def scan_cycle():
             evaluator = VisionAIEvaluator()
             evaluator.run_complete_evaluation(days_back=3)
             print("[PHASE 3] Vision-AI feedback loop evaluation completed")
+    except ImportError:
+        pass
+    
+    # Run Phase 4 Embedding processing periodically
+    try:
+        from hybrid_embedding_system import process_training_charts_for_embeddings
+        
+        # Process training charts for embeddings (very low frequency)
+        if random.random() < 0.02:  # 2% chance each cycle
+            processed = process_training_charts_for_embeddings()
+            if processed > 0:
+                print(f"[PHASE 4] Processed {processed} charts for hybrid embeddings")
             
     except Exception as feedback_e:
         print(f"[MEMORY_FEEDBACK_ERROR] {feedback_e}")
