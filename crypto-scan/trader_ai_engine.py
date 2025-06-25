@@ -1940,16 +1940,16 @@ def _log_comprehensive_debug(
             "symbol": symbol,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "market_context": market_context,
-            "trend_strength": features.get("trend_strength", 0.0),
+            "trend_strength": trend_strength,
             "pullback": {
-                "quality": features.get("pullback_quality", 0.0),
+                "quality": pullback_quality,
                 "active": candle_behavior.get("pattern", "") in ["absorbing_dip", "absorption_bounce"],
                 "volume_behavior": candle_behavior.get("volume_behavior", "unknown")
             },
             "support_reaction": {
-                "strength": features.get("support_reaction_strength", 0.0),
-                "type": "support" if features.get("support_reaction_strength", 0) > 0.6 else "weak",
-                "bounce_confirmation": features.get("bounce_confirmation_strength", 0.0)
+                "strength": support_reaction,
+                "type": "support" if support_reaction > 0.6 else "weak",
+                "bounce_confirmation": signals.get("bounce_confirmation_strength", 0.0)
             },
             "candle_behavior": {
                 "pattern": candle_behavior.get("pattern", "none"),
