@@ -209,10 +209,16 @@ def cluster_analysis_enhancement(symbol, market_data, debug=False):
             print(f"- Quality calculation: min(1.0, 0.5 + {pattern_score:.3f}) = {quality:.3f}")
             print(f"- Final Modifier: {modifier:.3f}, Quality: {quality:.3f}")
         
+        # Check for fallback values before returning
+        if modifier == 0.0 and quality == 0.5:
+            print(f"[CLUSTER FALLBACK] {symbol}: Default values returned - insufficient data or calculation failed")
+            print(f"[CLUSTER FALLBACK] Candles: {len(candles_15m) if candles_15m else 0}, Orderbook: {bool(orderbook_data)}")
+        
         return modifier, quality
         
     except Exception as e:
         print(f"[CLUSTER ERROR] {symbol}: Unexpected exception: {e}")
+        print(f"[CLUSTER FALLBACK] {symbol}: Exception triggered fallback (Modifier: 0.000, Quality: 0.500)")
         import traceback
         print(f"[CLUSTER TRACEBACK] {traceback.format_exc()}")
         return 0.0, 0.5

@@ -880,11 +880,24 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
             chart_path = f"training_charts/{symbol}_*.png"
             import glob
             chart_matches = glob.glob(chart_path)
+            
+            print(f"[CLIP FAST DEBUG] Chart pattern: {chart_path}")
+            print(f"[CLIP FAST DEBUG] Found {len(chart_matches)} chart files")
+            
             if chart_matches:
                 latest_chart = sorted(chart_matches, reverse=True)[0]
+                print(f"[CLIP FAST DEBUG] Using chart: {latest_chart}")
+                if not os.path.exists(latest_chart):
+                    print(f"[CLIP FAST ERROR] Chart file not found: {latest_chart}")
+                else:
+                    print(f"[CLIP FAST DEBUG] Chart file exists, size: {os.path.getsize(latest_chart)} bytes")
+                    
                 clip_prediction = fast_predictor.predict_fast(latest_chart)
+                print(f"[CLIP FAST RESULT] {symbol}: FastCLIP returned = {clip_prediction}")
             else:
+                print(f"[CLIP FAST WARNING] No chart files found, using fallback")
                 clip_prediction = fast_predictor.predict_fast("dummy_chart.png")  # Fallback
+                print(f"[CLIP FAST FALLBACK] {symbol}: Fallback result = {clip_prediction}")
             
             if clip_prediction and clip_prediction.get('confidence', 0) > 0.4:
                 clip_info = clip_prediction

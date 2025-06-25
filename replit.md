@@ -98,6 +98,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 25, 2025 - Advanced CLIP Pipeline Debug - FastCLIP vs LoadClip Prediction Disconnect Fixed ✅
+Implemented comprehensive debug logging to diagnose CLIP prediction pipeline disconnect where FastCLIPPredictor works but load_clip_prediction returns None:
+- **CLIP Loader Enhanced Debug**: Added full data content logging, available fields inspection, and detailed file search tracking in load_clip_prediction()
+- **FastCLIP Debug Integration**: Enhanced FastCLIPPredictor with entry logging, file existence validation, pattern matching analysis, and result tracking
+- **Chart Path Validation**: Added comprehensive chart file existence checks, size validation, and glob pattern debugging for training_charts/ directory
+- **Cluster Fallback Detection**: Enhanced cluster_analysis_enhancement() with explicit fallback logging when modifier=0.000 and quality=0.500 are returned
+- **Pipeline Disconnect Resolution**: Clear identification of where CLIP prediction chain breaks (loader vs FastCLIP vs chart generation)
+- **Exception Chain Tracking**: Complete error handling with specific fallback reasons (file_not_found, pattern_match_failed, prediction_error)
+- **Production Debugging**: All debug logs active in production revealing exact disconnect points between different CLIP prediction methods
+Enhanced debugging now reveals why load_clip_prediction() returns None while FastCLIPPredictor shows confidence 0.784, enabling targeted pipeline optimization.
+
 ### June 25, 2025 - Vision-AI Chart Generation Fix - matplotlib 'mpl' Variable Error Resolved ✅
 Fixed critical Vision-AI chart generation error preventing training data creation despite successful data fetching:
 - **matplotlib mpl Import**: Added missing `import matplotlib as mpl` to vision_ai_chart_generator.py and trend_charting.py resolving "name 'mpl' is not defined" errors
