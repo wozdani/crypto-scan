@@ -220,10 +220,10 @@ def fetch_candles_for_vision(symbol: str) -> Optional[List]:
         # Próba 1: Sprawdź async results cache (enhanced)
         print(f"[VISION-AI FETCH] {symbol}: Checking async scan results...")
         
-        # Check multiple async file patterns
+        # Check multiple async file patterns (prioritize larger cache files)
         async_patterns = [
-            f"data/async_results/{symbol}.json",
-            f"data/async_results/{symbol}_async.json"
+            f"data/async_results/{symbol}.json",        # Larger cache files with candle data
+            f"data/async_results/{symbol}_async.json"   # Summary files from recent scans
         ]
         
         for async_file in async_patterns:
