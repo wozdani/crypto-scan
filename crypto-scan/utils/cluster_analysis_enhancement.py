@@ -4,24 +4,29 @@ Cluster Analysis Enhancement Module
 Enhanced volume cluster analysis with pattern detection and quality scoring
 """
 
-def cluster_analysis_enhancement(symbol, candles_15m, orderbook_data, price_usd, debug=False):
+def cluster_analysis_enhancement(symbol, market_data, debug=False):
     """
     Enhanced cluster analysis with volume pattern detection and quality scoring
     
     Args:
         symbol: Trading symbol
-        candles_15m: 15-minute candle data
-        orderbook_data: Orderbook information
-        price_usd: Current price
+        market_data: Dictionary containing candles, orderbook, price data
         debug: Enable detailed debug logging (default: False)
         
     Returns:
         tuple: (modifier, quality_score)
     """
     try:
+        # Extract data from market_data dictionary
+        candles_15m = market_data.get('candles_15m', market_data.get('candles', []))
+        orderbook_data = market_data.get('orderbook', {})
+        price_usd = market_data.get('price_usd', market_data.get('price', 0))
+        
         if debug:
             print(f"[CLUSTER DEBUG] {symbol}")
             print(f"- Input validation: {len(candles_15m) if candles_15m else 0} candles")
+            print(f"- Orderbook available: {bool(orderbook_data)}")
+            print(f"- Price: {price_usd}")
         
         if not candles_15m or len(candles_15m) < 20:
             if debug:

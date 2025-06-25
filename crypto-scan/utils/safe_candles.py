@@ -127,14 +127,35 @@ def safe_get_candles(symbol, interval="15m", limit=96):
         list: Valid candles list or empty list if insufficient data
     """
     try:
-        # Use pump-analysis proven get_candles function
-        candles = get_candles(symbol, interval, limit)
+        # Prioritize async scan results cache first
+        async_file = f"data/async_results/{symbol}.json"
+        if os.path.exists(async_file):
+            try:
+                import json
+                with open(async_file, 'r') as f:
+                    async_data = json.load(f)
+                    cached_candles = async_data.get("candles", [])
+                    if cached_candles and len(cached_candles) >= 10:
+                        print(f"[TREND DEBUG] {symbol}: Using async cached candles ({len(cached_candles)})")
+                        return cached_candles
+            except Exception as e:
+                print(f"[TREND DEBUG] {symbol}: Async cache read error: {e}")
         
-        if candles and len(candles) >= 10:
-            print(f"[TREND DEBUG] {symbol}: Successfully fetched {len(candles)} valid candles via get_candles")
-            return candles
-        else:
-            print(f"[TREND DEBUG] {symbol}: Insufficient candles from get_candles ({len(candles) if candles else 0}/10)")
+        # Try scan results cache
+        scan_file = f"data/scan_results/latest_scan.json"
+        if os.path.exists(scan_file):
+            try:
+                import json
+                with open(scan_file, 'r') as f:
+                    scan_data = json.load(f)
+                    for result in scan_data.get("results", []):
+                        if result.get("symbol") == symbol:
+                            scan_candles = result.get("candles", result.get("market_data", {}).get("candles", []))
+                            if scan_candles and len(scan_candles) >= 10:
+                                print(f"[TREND DEBUG] {symbol}: Using scan cached candles ({len(scan_candles)})")
+                                return scan_candles
+            except Exception as e:
+                print(f"[TREND DEBUG] {symbol}: Scan cache read error: {e}")
         
         # Fallback to existing data fetcher
         print(f"[TREND DEBUG] {symbol}: Trying fallback data source...")
@@ -151,7 +172,15 @@ def safe_get_candles(symbol, interval="15m", limit=96):
         else:
             print(f"[TREND DEBUG] {symbol}: Fallback data unavailable or invalid format")
         
-        print(f"[TREND DEBUG] {symbol}: Skipping trend analysis - no valid candle source")
+        # Last resort: Use pump-analysis get_candles (will fail in Replit but try anyway)
+        print(f"[TREND DEBUG] {symbol}: Trying direct API as last resort...")
+        candles = get_candles(symbol, interval, limit)
+        
+        if candles and len(candles) >= 10:
+            print(f"[TREND DEBUG] {symbol}: Direct API successful with {len(candles)} candles")
+            return candles
+        
+        print(f"[TREND DEBUG] {symbol}: No valid candle source available")
         return []
         
     except Exception as e:

@@ -60,6 +60,7 @@ class FastCLIPPredictor:
             
             return {
                 "success": True,
+                "trend_label": prediction["label"],  # Use 'trend_label' for compatibility
                 "predicted_label": prediction["label"],
                 "confidence": prediction["confidence"],
                 "method": "fast_pattern_analysis",

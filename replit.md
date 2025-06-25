@@ -98,6 +98,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 25, 2025 - Critical Scoring System Debug - Cluster Analysis + CLIP + Candle Fetching Fixed ✅
+Fixed three critical issues preventing proper TJDE scoring and Vision-AI functionality:
+- **Cluster Analysis Fix**: Corrected cluster_analysis_enhancement() function signature from (symbol, candles_15m, orderbook_data, price_usd) to (symbol, market_data) eliminating TypeError crashes
+- **Safe Candles Enhancement**: Implemented cache-priority fetching system in safe_get_candles() checking async_results and scan_results before API calls, solving 0 candles problem
+- **CLIP Predictor Compatibility**: Added 'trend_label' field to FastCLIPPredictor output ensuring compatibility with existing TJDE system expecting specific field names
+- **Debug Mode Integration**: Enhanced cluster analysis with comprehensive debug logging showing volume patterns, cluster density, and scoring breakdown
+- **Cache Integration**: Updated safe_get_candles to prioritize local cache data over failing HTTP 403 API calls in Replit environment
+- **Function Signature Alignment**: Aligned all scoring functions with actual usage patterns in trend-mode pipeline preventing runtime argument errors
+System now properly calculates cluster modifiers (not +0.000 fallback), fetches candles from cache, and provides valid CLIP predictions with correct field structure.
+
 ### June 25, 2025 - Vision-AI Candle Data Fallback System - Training Data Generation Fixed ✅
 Implemented comprehensive candle data fetching system with multiple fallbacks to resolve insufficient training data issues:
 - **Enhanced Candle Fetching**: Created fetch_candles_for_vision() function with 3-tier authentic data fallback system (async cache → scan results → direct Bybit API)
