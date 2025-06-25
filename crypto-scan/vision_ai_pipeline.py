@@ -201,7 +201,7 @@ def generate_vision_ai_training_data(tjde_results: List[Dict]) -> int:
                 # Try local cache as primary fallback
                 candles_15m = load_candles_from_cache(symbol, interval="15m")
                 if candles_15m and len(candles_15m) >= 48:
-                        print(f"[VISION-AI CACHE] {symbol}: Using {len(candles_15m)} cached candles")
+                    print(f"[VISION-AI CACHE] {symbol}: Using {len(candles_15m)} cached candles")
                 else:
                     print(f"[VISION-AI SKIP] {symbol}: Insufficient candle data even in cache")
                     continue

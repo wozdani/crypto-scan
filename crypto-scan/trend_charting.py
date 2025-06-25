@@ -94,7 +94,9 @@ def plot_chart_vision_ai(symbol, candles, alert_index=None, score=None, decision
         ax_volume.set_xlabel('Time', fontsize=10)
 
         # Save with high quality for Vision-AI
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        save_dir = os.path.dirname(save_path)
+        if save_dir:  # Only create directory if path has directory component
+            os.makedirs(save_dir, exist_ok=True)
         plt.savefig(save_path, dpi=200, bbox_inches='tight', facecolor='black')
         plt.close()
         
