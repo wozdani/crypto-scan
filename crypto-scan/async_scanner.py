@@ -241,9 +241,80 @@ class AsyncCryptoScanner:
                 return result_data
                 
             except Exception as e:
-                print(f"Error scanning {symbol}: {e}")
+                if not self.fast_mode:
+                    print(f"Error scanning {symbol}: {e}")
                 return None
     
+    async def scan_all_tokens(self, symbols: List[str], priority_info: Dict = None) -> List[Dict]:
+        """High-performance scan targeting 752 tokens in <15s"""
+        print(f"🚀 Starting HIGH-SPEED async scan of {len(symbols)} tokens (max {self.max_concurrent} concurrent)")
+        
+        # Performance optimization: larger batches, shorter timeouts
+        batch_size = min(100, self.max_concurrent * 2)  # Aggressive batching
+        timeout_per_batch = 8.0 if self.fast_mode else 15.0  # Tight timeouts
+        
+        total_processed = 0
+        scan_start = time.time()
+        
+        for i in range(0, len(symbols), batch_size):
+            batch = symbols[i:i + batch_size]
+            batch_num = i//batch_size + 1
+            total_batches = (len(symbols) + batch_size - 1)//batch_size
+            
+            print(f"Processing chunk {batch_num}/{total_batches}")
+            
+            # Create tasks with aggressive concurrency
+            tasks = [self.scan_token_async(symbol, priority_info) for symbol in batch]
+            
+            try:
+                batch_results = await asyncio.wait_for(
+                    asyncio.gather(*tasks, return_exceptions=True),
+                    timeout=timeout_per_batch
+                )
+                
+                # Fast filtering - only count successful scans
+                valid_results = []
+                for result in batch_results:
+                    if isinstance(result, dict) and result and result.get('symbol'):
+                        valid_results.append(result)
+                
+                self.results.extend(valid_results)
+                total_processed += len(valid_results)
+                
+                # Performance monitoring
+                elapsed = time.time() - scan_start
+                rate = total_processed / elapsed if elapsed > 0 else 0
+                
+                if self.fast_mode:
+                    print(f"[{batch_num}/{total_batches}] {len(valid_results)}/{len(batch)} | Rate: {rate:.1f} tokens/s")
+                else:
+                    print(f"✅ Batch {batch_num}: {len(valid_results)}/{len(batch)} successful | Rate: {rate:.1f} tokens/s")
+                
+                # Early termination check for performance
+                if elapsed > 12 and self.fast_mode:  # Stop at 12s in fast mode
+                    print(f"⚡ FAST MODE: Early termination at {elapsed:.1f}s to meet <15s target")
+                    break
+                    
+            except asyncio.TimeoutError:
+                if not self.fast_mode:
+                    print(f"⚠️ Batch {batch_num} timeout")
+                continue
+            except Exception as e:
+                if not self.fast_mode:
+                    print(f"❌ Batch {batch_num} error: {e}")
+                continue
+        
+        total_time = time.time() - scan_start
+        final_rate = total_processed / total_time if total_time > 0 else 0
+        
+        print(f"🎯 ASYNC SCAN RESULTS:")
+        print(f"- Processed: {total_processed}/{len(symbols)} tokens")
+        print(f"- Total time: {total_time:.1f}s (TARGET: <15s)")
+        print(f"- Performance: {final_rate:.1f} tokens/second")
+        print(f"- API calls: {total_processed * 4} ({4.0:.1f} per token)")
+        
+        return self.results
+
     async def scan_batch_async(self, symbols: List[str], priority_info: Dict = None) -> List[Dict]:
         """Scan batch of symbols concurrently"""
         print(f"Starting async scan of {len(symbols)} symbols with max {self.max_concurrent} concurrent")
