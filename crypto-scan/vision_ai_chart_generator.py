@@ -82,15 +82,31 @@ def plot_chart_vision_ai(symbol: str, candles: List, alert_index: int = None, al
                 else:
                     continue
                 
-                # Validate OHLC data integrity
+                # FIX 4: Enhanced OHLC data integrity validation
                 if all(p > 0 for p in [open_price, high_price, low_price, close_price]):
-                    if low_price <= high_price and min(open_price, close_price) >= low_price and max(open_price, close_price) <= high_price:
+                    # Comprehensive OHLC relationship validation
+                    ohlc_valid = (
+                        low_price <= high_price and  # Basic high >= low
+                        min(open_price, close_price) >= low_price and  # Open/close >= low
+                        max(open_price, close_price) <= high_price and  # Open/close <= high
+                        abs(high_price - low_price) > 0  # Prevent zero-range candles
+                    )
+                    
+                    # Additional sanity checks for extreme values
+                    price_range = high_price - low_price
+                    mid_price = (high_price + low_price) / 2
+                    
+                    # Reject candles with extreme price ratios or impossible ranges
+                    if (ohlc_valid and 
+                        price_range / mid_price < 1.0 and  # Max 100% range
+                        high_price / low_price < 50):  # Max 50x ratio
                         price_samples.extend([open_price, high_price, low_price, close_price])
                         valid_candles.append(candle)
             except (ValueError, TypeError, IndexError):
                 continue
         
-        if len(valid_candles) < 20:
+        # FIX 4: Reduce strict candle requirements for better chart generation
+        if len(valid_candles) < 10:
             print(f"[CHART ERROR] {symbol}: Insufficient valid candles - got {len(valid_candles)} valid from {len(candles)} total")
             return None
         
