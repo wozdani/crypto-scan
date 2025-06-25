@@ -217,19 +217,36 @@ def fetch_candles_for_vision(symbol: str) -> Optional[List]:
         Lista świec lub None jeśli brak wystarczających danych
     """
     try:
-        # Próba 1: Sprawdź async results cache
+        # Próba 1: Sprawdź async results cache (enhanced)
         print(f"[VISION-AI FETCH] {symbol}: Checking async scan results...")
-        async_file = f"data/async_results/{symbol}.json"
-        if os.path.exists(async_file):
-            try:
-                with open(async_file, 'r') as f:
-                    async_data = json.load(f)
-                    candles = async_data.get("candles", [])
-                    if candles and len(candles) >= 30:
-                        print(f"[VISION-AI ASYNC] {symbol}: Got {len(candles)} async cached candles")
-                        return candles
-            except Exception as e:
-                print(f"[VISION-AI ASYNC ERROR] {symbol}: {e}")
+        
+        # Check multiple async file patterns
+        async_patterns = [
+            f"data/async_results/{symbol}.json",
+            f"data/async_results/{symbol}_async.json"
+        ]
+        
+        for async_file in async_patterns:
+            if os.path.exists(async_file):
+                try:
+                    with open(async_file, 'r') as f:
+                        async_data = json.load(f)
+                        candles = async_data.get("candles", [])
+                        
+                        print(f"[VISION-AI ASYNC] {symbol}: Found {len(candles)} candles in {async_file}")
+                        
+                        if candles and len(candles) >= 30:
+                            print(f"[VISION-AI ASYNC SUCCESS] {symbol}: Using {len(candles)} cached candles")
+                            return candles
+                        elif candles:
+                            print(f"[VISION-AI ASYNC PARTIAL] {symbol}: Only {len(candles)} candles (need 30+)")
+                        else:
+                            print(f"[VISION-AI ASYNC EMPTY] {symbol}: No candles in cached data")
+                            
+                except Exception as e:
+                    print(f"[VISION-AI ASYNC ERROR] {symbol}: Error reading {async_file}: {e}")
+        
+        print(f"[VISION-AI ASYNC] {symbol}: No valid async cache found")
         
         # Próba 2: Sprawdź scan results z ostatniego skanu
         print(f"[VISION-AI SCAN] {symbol}: Checking recent scan data...")

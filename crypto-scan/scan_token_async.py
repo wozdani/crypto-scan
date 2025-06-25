@@ -874,8 +874,9 @@ async def send_async_alert(symbol: str, ppwcs_score: float, tjde_score: float, t
         return False
 
 def save_async_result(symbol: str, ppwcs_score: float, tjde_score: float, tjde_decision: str, market_data: Dict):
-    """Save scan result"""
+    """Save scan result with candle data for Vision-AI access"""
     try:
+        # Base result
         result = {
             "symbol": symbol,
             "ppwcs_score": ppwcs_score,
@@ -886,6 +887,24 @@ def save_async_result(symbol: str, ppwcs_score: float, tjde_score: float, tjde_d
             "timestamp": datetime.now().isoformat(),
             "scan_method": "async_token_scan"
         }
+        
+        # Add candle data for Vision-AI pipeline
+        candles_15m = market_data.get("candles_15m", [])
+        candles_5m = market_data.get("candles_5m", [])
+        
+        if candles_15m:
+            result["candles_15m"] = candles_15m
+            result["candles_15m_count"] = len(candles_15m)
+            print(f"[SAVE CANDLES] {symbol} → {len(candles_15m)} 15M candles saved")
+        
+        if candles_5m:
+            result["candles_5m"] = candles_5m
+            result["candles_5m_count"] = len(candles_5m)
+            print(f"[SAVE CANDLES] {symbol} → {len(candles_5m)} 5M candles saved")
+        
+        # Add orderbook data if available
+        if "orderbook" in market_data and market_data["orderbook"]:
+            result["orderbook"] = market_data["orderbook"]
         
         os.makedirs("data/async_results", exist_ok=True)
         with open(f"data/async_results/{symbol}_async.json", "w") as f:
