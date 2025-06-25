@@ -147,7 +147,8 @@ def plot_chart_with_context(symbol, candles, alert_indices=None, alert_index=Non
             "timestamp": dt.utcnow().isoformat(),
             "chart_type": "vision_ai_training",
             "multi_alert": len(alert_indices) > 1 if alert_indices else False,
-            "alert_count": len(alert_indices) if alert_indices else (1 if alert_index is not None else 0)
+            "alert_count": len(alert_indices) if alert_indices else (1 if alert_index is not None else 0),
+            "context_days": context_days
         }
         
         json_path = save_path.replace(".png", ".json")
@@ -157,6 +158,24 @@ def plot_chart_with_context(symbol, candles, alert_indices=None, alert_index=Non
             print(f"[VISION-AI] Metadata saved: {json_path}")
         except Exception as e:
             print(f"[VISION-AI] Failed to save metadata: {e}")
+        
+        # Generate GPT commentary if score is significant
+        if score and score >= 0.5:
+            try:
+                from gpt_commentary import generate_chart_commentary
+                
+                # Basic TJDE data for commentary
+                commentary = generate_chart_commentary(
+                    save_path, score, decision or "unknown", None, symbol
+                )
+                
+                if commentary:
+                    print(f"[GPT COMMENTARY] Generated for {symbol}")
+                    
+            except ImportError:
+                pass
+            except Exception as e:
+                print(f"[GPT COMMENTARY ERROR] {e}")
         
         return save_path
         

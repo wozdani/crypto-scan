@@ -83,14 +83,35 @@ def evaluate_clip_predictions(hours_back: int = 24) -> Dict:
                 
                 # Add to corrections if wrong
                 if not was_correct:
-                    corrections.append({
+                    correction_data = {
                         "symbol": data.get("symbol"),
                         "clip_prediction": clip_decision,
                         "actual_decision": actual_decision,
                         "actual_score": actual_score,
                         "image_path": data.get("image_path"),
                         "corrected_label": actual_decision
-                    })
+                    }
+                    corrections.append(correction_data)
+                    
+                    # Generate GPT explanation for CLIP error
+                    try:
+                        from gpt_commentary import explain_clip_misclassification
+                        
+                        image_path = data.get("image_path")
+                        if image_path and os.path.exists(image_path):
+                            explanation = explain_clip_misclassification(
+                                image_path,
+                                actual_decision,
+                                clip_decision,
+                                data.get("symbol", "UNKNOWN")
+                            )
+                            if explanation:
+                                correction_data["gpt_explanation"] = explanation
+                                
+                    except ImportError:
+                        pass
+                    except Exception as e:
+                        print(f"[GPT CLIP ERROR] Failed to explain misclassification: {e}")
                 
                 updated_lines.append(json.dumps(data))
         

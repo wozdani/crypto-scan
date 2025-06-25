@@ -120,6 +120,40 @@ def save_training_chart(df: pd.DataFrame, symbol: str, timestamp: str,
             else:
                 print(f"[VISION-AI] Warning: Metadata file not found")
             
+            # Generate GPT commentary for the chart
+            try:
+                from gpt_commentary import run_comprehensive_gpt_analysis
+                
+                # Prepare TJDE data for GPT analysis
+                tjde_analysis = {
+                    'final_score': tjde_score or 0.0,
+                    'decision': decision or 'unknown',
+                    'market_phase': market_phase or 'unknown'
+                }
+                
+                # Add CLIP prediction if available
+                clip_data = None
+                clip_json_path = saved_path.replace('.png', '_clip.json')
+                if os.path.exists(clip_json_path):
+                    try:
+                        with open(clip_json_path, 'r') as f:
+                            clip_data = json.load(f)
+                    except:
+                        pass
+                
+                # Run comprehensive GPT analysis
+                gpt_results = run_comprehensive_gpt_analysis(
+                    saved_path, symbol, tjde_analysis, clip_data
+                )
+                
+                if gpt_results:
+                    print(f"[GPT ANALYSIS] Generated {len(gpt_results)} analyses for {symbol}")
+                
+            except ImportError:
+                print("[GPT ANALYSIS] GPT commentary not available")
+            except Exception as e:
+                print(f"[GPT ANALYSIS ERROR] {e}")
+            
             return saved_path
         else:
             # Fallback to basic chart if custom fails

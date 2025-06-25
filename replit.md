@@ -98,6 +98,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 25, 2025 - GPT Commentary System for Vision-AI Enhancement - PRODUCTION READY ✅
+Implemented comprehensive GPT-4 Vision commentary system for intelligent chart analysis and meta-analytics without affecting trading decisions:
+- **GPT Chart Commentary**: GPT-4 Vision analyzes chart images with TJDE and CLIP context, providing detailed setup, market phase, volume, and risk analysis saved to .gpt.json files
+- **CLIP Error Analysis**: GPT explains CLIP misclassifications by analyzing visual patterns that confused the model, generating corrective insights for model improvement
+- **Scoring Audit System**: GPT audits inconsistencies between TJDE scoring and actual chart patterns, identifying algorithmic improvements needed
+- **Synthetic Descriptions**: GPT generates training descriptions for charts without CLIP classification, enriching the training dataset for Vision-AI models
+- **Telegram Alert Commentary**: GPT creates human-readable alert summaries for Telegram without trading recommendations, improving user understanding
+- **Comprehensive Integration**: Seamless integration with Vision-AI pipeline, feedback loops, and chart generation maintaining performance while adding intelligence
+- **Multi-Modal Analysis**: Complete GPT analysis pipeline combining chart vision, scoring data, and CLIP predictions for enhanced meta-analytics
+System now provides intelligent commentary layer enhancing Vision-AI training data quality and user experience through advanced GPT-4 Vision analysis.
+
 ### June 25, 2025 - Enhanced Trend-Mode with CLIP Integration and Vision Feedback Loop - PRODUCTION READY ✅
 Integrated comprehensive CLIP prediction system directly into existing trend-mode functions for enhanced decision making:
 - **CLIP Integration in TJDE**: Enhanced simulate_trader_decision_advanced() with automatic CLIP prediction loading from training_charts/{symbol}_{time}_clip.json files
