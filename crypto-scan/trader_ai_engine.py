@@ -878,6 +878,9 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
         
         print(f"[TRADER SCORE] Base score: {score:.3f}")
         
+        # Initialize phase_modifier variable
+        phase_modifier = 0.0
+        
         # === ETAP 4: KONTEKSTOWE MODYFIKATORY SCORINGU ===
         if volume_behavior == "supporting" and price_action_pattern in ["impulse", "continuation"]:
             score += 0.07

@@ -375,16 +375,18 @@ def predict_clip_chart(chart_path: str, candidate_phases: list = None, confidenc
         predictor = get_clip_predictor()
         if candidate_phases:
             # Override predictor's labels temporarily
+            import clip as clip_module
             original_labels = predictor.label_texts
             predictor.label_texts = candidate_phases
-            predictor.tokenized_labels = clip.tokenize(candidate_phases).to(predictor.device)
+            predictor.tokenized_labels = clip_module.tokenize(candidate_phases).to(predictor.device)
         
         result = predictor.predict(chart_path)
         
         # Restore original labels if they were overridden
         if candidate_phases:
+            import clip as clip_module
             predictor.label_texts = original_labels
-            predictor.tokenized_labels = clip.tokenize(original_labels).to(predictor.device)
+            predictor.tokenized_labels = clip_module.tokenize(original_labels).to(predictor.device)
         
         print(f"[CLIP DEBUG] CLIP prediction: {result['label']}, confidence: {result['confidence']:.4f}")
         logging.debug(f"[CLIP DEBUG] Full prediction result for {symbol}: {result}")
