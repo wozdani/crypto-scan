@@ -70,20 +70,23 @@ class TokenContextMemory:
         if symbol not in history:
             history[symbol] = []
         
-        # Create new entry with current timestamp
+        # Create new entry with current timestamp and Phase 3 fields
         entry = {
             "timestamp": datetime.now().isoformat(),
             "decision": decision_data.get("decision", "unknown"),
             "tjde_score": decision_data.get("final_score", 0.0),
             "clip_confidence": decision_data.get("clip_features", {}).get("clip_confidence", 0.0),
+            "clip_prediction": decision_data.get("clip_features", {}).get("clip_trend_match", "unknown"),
             "trend_label": decision_data.get("clip_features", {}).get("clip_trend_match", "unknown"),
             "setup_type": decision_data.get("clip_features", {}).get("clip_setup_type", "unknown"),
             "gpt_comment": decision_data.get("gpt_comment", ""),
             "result_after_2h": None,  # To be filled later
             "result_after_6h": None,  # To be filled later
-            "verdict": None,  # To be filled later
+            "verdict": None,  # To be filled later (correct/wrong/avoided)
             "market_price": decision_data.get("market_price", 0.0),
-            "perception_sync": decision_data.get("perception_sync", False)
+            "perception_sync": decision_data.get("perception_sync", False),
+            "feedback_score": None,  # Phase 3: Vision-AI feedback score
+            "clip_accuracy_modifier": 1.0  # Phase 3: Historical accuracy modifier
         }
         
         history[symbol].append(entry)
@@ -260,17 +263,57 @@ def simulate_trader_decision_with_memory(symbol: str, market_data: dict, signals
         # === STEP 1: LOAD HISTORICAL CONTEXT ===
         enhanced_signals = integrate_historical_context(symbol, {"clip_features": signals}, context_memory)
         
-        # === STEP 2: RUN PHASE 1 PERCEPTION SYNC WITH CONTEXT ===
+        # === STEP 2: APPLY PHASE 3 VISION-AI FEEDBACK ===
+        # Load Vision-AI feedback modifiers
+        try:
+            from evaluate_model_accuracy import load_vision_feedback_modifiers, apply_vision_feedback_modifiers
+            
+            feedback_modifiers = load_vision_feedback_modifiers()
+            if feedback_modifiers:
+                print(f"[PHASE 3] {symbol}: Applying Vision-AI feedback modifiers")
+            
+        except ImportError:
+            feedback_modifiers = {}
+        
+        # === STEP 3: RUN PHASE 1 PERCEPTION SYNC WITH CONTEXT ===
         from perception_sync import simulate_trader_decision_perception_sync
         
         # Add historical context to signals
         signals_with_context = signals.copy()
         signals_with_context["historical_context"] = enhanced_signals["historical_context"]
+        signals_with_context["vision_feedback_modifiers"] = feedback_modifiers
         
         # Run Phase 1 perception synchronization
         phase1_result = simulate_trader_decision_perception_sync(symbol, market_data, signals_with_context)
         
-        # === STEP 3: APPLY HISTORICAL MODIFIERS ===
+        # Apply feedback modifiers to CLIP features in result
+        if feedback_modifiers and phase1_result.get("clip_features"):
+            try:
+                modified_clip_features = apply_vision_feedback_modifiers(
+                    phase1_result["clip_features"], 
+                    feedback_modifiers
+                )
+                phase1_result["clip_features"] = modified_clip_features
+                
+                # Update final score if feedback was applied
+                if modified_clip_features.get("feedback_applied"):
+                    # Recalculate enhanced score with modified CLIP confidence
+                    from perception_sync import calculate_enhanced_tjde_score
+                    
+                    all_features_updated = signals.copy()
+                    all_features_updated.update(modified_clip_features)
+                    
+                    recalculated_score = calculate_enhanced_tjde_score(all_features_updated)
+                    phase1_result["base_score_phase1"] = phase1_result.get("final_score", 0.0)
+                    phase1_result["final_score"] = recalculated_score
+                    phase1_result["vision_feedback_applied"] = True
+                    
+                    print(f"[PHASE 3] {symbol}: Score adjusted by Vision-AI feedback")
+                
+            except Exception as e:
+                print(f"[PHASE 3 ERROR] {symbol}: Failed to apply feedback: {e}")
+        
+        # === STEP 4: APPLY HISTORICAL MODIFIERS ===
         base_score = phase1_result.get("final_score", 0.0)
         historical_context = enhanced_signals.get("historical_context", {})
         
@@ -292,7 +335,7 @@ def simulate_trader_decision_with_memory(symbol: str, market_data: dict, signals
                 decision = "avoid"
                 quality_grade = "weak"
         
-        # === STEP 4: PREPARE ENHANCED RESULT ===
+        # === STEP 5: PREPARE ENHANCED RESULT ===
         memory_result = phase1_result.copy()
         memory_result.update({
             "memory_enhanced_score": round(memory_enhanced_score, 3),
@@ -302,10 +345,19 @@ def simulate_trader_decision_with_memory(symbol: str, market_data: dict, signals
             "quality_grade": quality_grade,
             "historical_context": historical_context,
             "memory_integration": True,
+            "vision_feedback_applied": phase1_result.get("vision_feedback_applied", False),
             "market_price": market_data.get("ticker", {}).get("price", 0.0)
         })
         
-        # === STEP 5: SAVE DECISION TO MEMORY ===
+        # Calculate feedback score for Phase 3
+        feedback_score = memory_enhanced_score
+        if memory_result.get("vision_feedback_applied"):
+            # Factor in feedback effectiveness
+            feedback_score = (memory_enhanced_score + phase1_result.get("base_score_phase1", memory_enhanced_score)) / 2
+        
+        memory_result["feedback_score"] = round(feedback_score, 3)
+        
+        # === STEP 6: SAVE DECISION TO MEMORY ===
         context_memory.add_decision_entry(symbol, memory_result)
         
         print(f"[PHASE 2] {symbol}: Memory-enhanced decision: {decision} (score: {memory_enhanced_score:.3f})")

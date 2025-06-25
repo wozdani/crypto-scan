@@ -157,6 +157,18 @@ def scan_cycle():
         # Update historical outcomes every few cycles
         if random.random() < 0.2:  # 20% chance each cycle
             update_historical_outcomes_loop()
+    except ImportError:
+        pass
+    
+    # Run Phase 3 Vision-AI evaluation periodically
+    try:
+        from evaluate_model_accuracy import VisionAIEvaluator
+        
+        # Run Vision-AI evaluation less frequently (once per day worth of cycles)
+        if random.random() < 0.05:  # 5% chance each cycle
+            evaluator = VisionAIEvaluator()
+            evaluator.run_complete_evaluation(days_back=3)
+            print("[PHASE 3] Vision-AI feedback loop evaluation completed")
             
     except Exception as feedback_e:
         print(f"[MEMORY_FEEDBACK_ERROR] {feedback_e}")
