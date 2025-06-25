@@ -158,18 +158,21 @@ def safe_get_candles(symbol, interval="15m", limit=96):
         print(f"[TREND ERROR] {symbol}: Exception in safe_get_candles – {e}")
         return []
 
-def validate_candles_quality(candles, symbol=None):
+def validate_candles_quality(candles, symbol=None, min_candles=10):
     """
     Validate candle data quality for trend analysis
     
     Args:
         candles: List of candle data
         symbol: Symbol name for logging
+        min_candles: Minimum number of candles required
         
     Returns:
         bool: True if candles are suitable for analysis
     """
-    if not candles or len(candles) < 10:
+    if not candles or len(candles) < min_candles:
+        if symbol:
+            print(f"[CANDLE QUALITY] {symbol}: Insufficient candles ({len(candles) if candles else 0}/{min_candles})")
         return False
     
     try:

@@ -270,16 +270,32 @@ def generate_vision_ai_training_data(tjde_results: List[Dict]) -> int:
                     print(f"[VISION-AI SKIP] {symbol}: Insufficient candle data even in cache")
                     continue
             
-            # Convert to DataFrame for custom chart generation
+            # Convert to DataFrame for custom chart generation - use available candles
             df_data = []
-            for candle in candles_15m[-100:]:  # Last 100 candles for chart
-                df_data.append({
-                    'Open': float(candle[1]),
-                    'High': float(candle[2]), 
-                    'Low': float(candle[3]),
-                    'Close': float(candle[4]),
-                    'Volume': float(candle[5])
-                })
+            chart_candles = candles_15m[-min(100, len(candles_15m)):]  # Use available candles, max 100
+            
+            for i, candle in enumerate(chart_candles):
+                try:
+                    # Handle different candle formats
+                    if isinstance(candle, list) and len(candle) >= 6:
+                        df_data.append({
+                            'Open': float(candle[1]),
+                            'High': float(candle[2]), 
+                            'Low': float(candle[3]),
+                            'Close': float(candle[4]),
+                            'Volume': float(candle[5])
+                        })
+                    elif isinstance(candle, dict):
+                        df_data.append({
+                            'Open': float(candle.get('open', candle.get('Open', 1.0))),
+                            'High': float(candle.get('high', candle.get('High', 1.0))), 
+                            'Low': float(candle.get('low', candle.get('Low', 1.0))),
+                            'Close': float(candle.get('close', candle.get('Close', 1.0))),
+                            'Volume': float(candle.get('volume', candle.get('Volume', 1000.0)))
+                        })
+                except (ValueError, IndexError, TypeError) as e:
+                    print(f"[VISION-AI ERROR] {symbol}: Invalid candle data at index {i}: {e}")
+                    continue
             
             df = pd.DataFrame(df_data)
             df.index = pd.date_range(start='2025-01-01', periods=len(df), freq='15T')
