@@ -98,6 +98,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 25, 2025 - Enhanced Chart Styling and Professional Appearance - PRODUCTION READY ✅
+Implemented all 6 requested chart improvements in trend_charting.py for professional alert chart generation:
+- **Optimized Candlestick Style**: Set linewidths=0.5, alpha=0.9 for cleaner, non-overlapping candles
+- **Improved Volume Chart**: Enhanced bar chart with width=0.6, align='center', edgecolor='black', alpha=0.7
+- **Alert Line on Volume**: Added green dashed alert line (axvline) to volume chart matching price chart
+- **Fixed Info Box Styling**: Changed to white background (facecolor='white', edgecolor='black', alpha=0.8) for better readability
+- **Enhanced Title Format**: Added interval info - "SYMBOL | 15M | PHASE | TJDE: score | DECISION"  
+- **Auto-Labeling Text**: Added TJDE breakdown text under chart with component scores (trend, pullback, support, volume, psychology)
+Charts now feature professional styling, improved readability, and comprehensive TJDE analysis display optimized for Vision-AI training and production alerts.
+
 ### June 24, 2025 - Enhanced Contextual Chart Layers for Vision-AI Training - PRODUCTION READY ✅
 Implemented comprehensive contextual chart layers for superior CLIP/ViT training. Added market phase background colors (trend-following=dark green, accumulation=dark blue, distribution=dark red), comprehensive scoring annotations with color-coded TJDE components (trend, pullback, support, volume, psych), CLIP phase annotations, gradient scoring bars, entry point arrows for high scores, and alert status indicators. Enhanced filename format includes TJDE score (SYMBOL_TIMESTAMP_scoreXX.png). Charts now feature full contextual information with professional visualization optimized for Vision-AI pattern recognition. TOP 5 TJDE token selection maintained with alert-based chart generation for meaningful trading setups only.
 

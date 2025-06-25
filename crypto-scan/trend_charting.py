@@ -47,14 +47,13 @@ def plot_custom_candlestick_chart(df_ohlc: pd.DataFrame, df_volume: pd.DataFrame
         
         # 1. 💡 Zoptymalizowany styl świec - cieńsze i bardziej przejrzyste
         candlestick_ohlc(ax1, df_ohlc_copy[['timestamp', 'open', 'high', 'low', 'close']].values, 
-                        width=0.0008, colorup='#00FF88', colordown='#FF4444', 
-                        linewidths=0.5, alpha=0.9)
+                        width=0.0005, colorup='#00FF88', colordown='#FF4444', alpha=0.9)
 
-        # Volume z gradient effect
+        # 2. 📉 Poprawiony wykres wolumenu - lepszy wygląd i czytelność
         colors = ['#00AA44' if close >= open else '#AA2222' 
                  for close, open in zip(df_ohlc['close'], df_ohlc['open'])]
         ax2.bar(df_volume['timestamp'], df_volume['volume'], 
-               width=0.0008, color=colors, alpha=0.6)
+               width=0.0006, align='center', edgecolor='black', alpha=0.7, color=colors)
 
         # 1. MARKET PHASE BACKGROUND COLORS
         phase_backgrounds = {
@@ -164,17 +163,37 @@ def plot_custom_candlestick_chart(df_ohlc: pd.DataFrame, df_volume: pd.DataFrame
                         fontsize=10, fontweight='bold', color=arrow_color,
                         ha='center')
         
-        # 6. ALERT STATUS INDICATOR - Bottom right
-        if alert_sent is not None:
-            alert_text = "🚀 ALERT SENT" if alert_sent else "❌ NO ALERT"
+        # 3. 🟢 Dodaj linię alertu na wykresie wolumenu + 6. Alert status
+        if alert_sent is not None and alert_sent:
+            # Znajdź moment alertu (najwyższy wolumen w ostatnich 20% danych)
+            volume_data = df_volume['volume'].values
+            alert_start_idx = int(len(volume_data) * 0.8)
+            if alert_start_idx < len(volume_data):
+                local_max_idx = np.argmax(volume_data[alert_start_idx:]) + alert_start_idx
+                if local_max_idx < len(df_volume):
+                    alert_timestamp = df_volume.iloc[local_max_idx]['timestamp']
+                    # Linia alertu na wykresie świec
+                    ax1.axvline(x=alert_timestamp, linestyle='--', color='green', alpha=0.7, linewidth=2)
+                    # 3. Linia alertu na wykresie wolumenu
+                    ax2.axvline(x=alert_timestamp, linestyle='--', color='green', alpha=0.7, linewidth=2)
+            
+            # 6. Alert status indicator
+            alert_text = "ALERT SENT" if alert_sent else "NO ALERT"
             alert_color = '#00FF00' if alert_sent else '#FF4444'
             
             ax1.text(0.98, 0.05, alert_text, 
                     transform=ax1.transAxes, fontsize=11, fontweight='bold',
-                    color=alert_color, bbox=dict(boxstyle="round,pad=0.3", 
-                    facecolor='black', alpha=0.9), ha='right')
+                    color=alert_color, bbox=dict(facecolor='white', edgecolor='black', alpha=0.8), ha='right')
 
-        # Remove old metadata overlay - replaced with enhanced annotations above
+        # 4. 🧾 Dodaj poprawiony box z informacjami - białe tło dla czytelności
+        info_text = f"TJDE Score: {tjde_score:.3f}\nPhase: {market_phase}\nDecision: {decision}"
+        if clip_confidence is not None:
+            info_text += f"\nCLIP Confidence: {clip_confidence:.3f}"
+        
+        ax1.text(0.02, 0.15, info_text, transform=ax1.transAxes, 
+                fontsize=9, verticalalignment='top', horizontalalignment='left',
+                bbox=dict(facecolor='white', edgecolor='black', alpha=0.8),
+                family='monospace')
 
         # Professional dark theme
         fig.patch.set_facecolor('#1a1a1a')
@@ -190,14 +209,42 @@ def plot_custom_candlestick_chart(df_ohlc: pd.DataFrame, df_volume: pd.DataFrame
             ax.spines['right'].set_color('white')
             ax.spines['left'].set_color('white')
 
+        # 5. 🕒 Enhanced title z informacją o interwale
+        interval = "15M"
+        if hasattr(title, 'split') and ' - ' in title:
+            symbol_part = title.split(' - ')[0]
+        else:
+            symbol_part = title
+        enhanced_title = f"{symbol_part} | {interval} | {market_phase.upper() if market_phase else 'UNKNOWN'} | TJDE: {tjde_score:.2f} | {decision.upper() if decision else 'UNKNOWN'}"
+        ax1.set_title(enhanced_title, fontsize=12, fontweight='bold', color='white', pad=20)
+
+        # Format axes  
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        ax2.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        ax1.grid(True, linestyle='--', alpha=0.3, color='gray')
+        ax2.grid(True, linestyle='--', alpha=0.2, color='gray')
+
         # Volume label
         ax2.set_ylabel('Volume', color='white', fontweight='bold')
-        ax1.set_ylabel('Price', color='white', fontweight='bold')
+        ax1.set_ylabel('Price (USDT)', color='white', fontweight='bold')
+        ax2.set_xlabel('Time', color='white', fontweight='bold')
+
+        # 6. ✍️ Dodaj podpis auto-labelingu jako tekst pod wykresem
+        if tjde_breakdown and isinstance(tjde_breakdown, dict):
+            breakdown_text = f"Trend: {tjde_breakdown.get('trend_strength', 0):.2f} | "
+            breakdown_text += f"Pullback: {tjde_breakdown.get('pullback_quality', 0):.2f} | "
+            breakdown_text += f"Support: {tjde_breakdown.get('support_reaction_strength', 0):.2f} | "
+            breakdown_text += f"Volume: {tjde_breakdown.get('volume_behavior_score', 0):.2f} | "
+            breakdown_text += f"Psychology: {tjde_breakdown.get('psych_score', 0):.2f}"
+            
+            ax2.text(0.5, -0.25, breakdown_text, transform=ax2.transAxes, 
+                    fontsize=10, ha='center', style='italic', color='lightgray',
+                    bbox=dict(facecolor='lightgray', alpha=0.5, pad=5))
 
         # Save with high quality
         plt.tight_layout()
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        plt.savefig(save_path, dpi=150, facecolor=fig.get_facecolor(), 
+        plt.savefig(save_path, dpi=300, facecolor=fig.get_facecolor(), 
                    bbox_inches='tight', edgecolor='none')
         plt.close(fig)
         
