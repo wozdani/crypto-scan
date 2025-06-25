@@ -1033,17 +1033,26 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                 print(f"[CLIP BOOSTS] Applied: {clip_modifier:+.3f} with contextual modifiers")
                 
             else:
-                # Fallback to chart-based prediction
+                # Fallback to chart-based prediction with fast predictor
                 try:
-                    from ai.clip_predictor import predict_clip_chart
+                    from ai.clip_predictor_fast import predict_clip_chart_fast
                     import glob
+                    
+                    # Use fast predictor to avoid timeouts
+                    print(f"[CLIP FAST] Using fast CLIP predictor for {symbol}")
+                    
                 except ImportError:
                     try:
-                        from vision_ai.clip_predictor import predict_clip_chart
+                        from ai.clip_predictor import predict_clip_chart
                         import glob
+                        print(f"[CLIP STANDARD] Using standard CLIP predictor for {symbol}")
                     except ImportError:
-                        print(f"[CLIP FALLBACK] No clip_predictor available for {symbol}")
-                        clip_prediction = None
+                        try:
+                            from vision_ai.clip_predictor import predict_clip_chart
+                            import glob
+                        except ImportError:
+                            print(f"[CLIP FALLBACK] No clip_predictor available for {symbol}")
+                            clip_prediction = None
                 
                 chart_locations = [
                     f"charts/{symbol}_*.png",
@@ -1059,8 +1068,13 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                         break
                 
                 if chart_path:
-                    # Use global CANDIDATE_PHASES defined at module level
-                    chart_prediction = predict_clip_chart(chart_path, CANDIDATE_PHASES)
+                    # Use fast predictor if available, otherwise fallback to standard
+                    try:
+                        chart_prediction = predict_clip_chart_fast(chart_path, CANDIDATE_PHASES)
+                        print(f"[CLIP FAST] Fast prediction for {symbol}: {chart_prediction.get('predicted_label', 'unknown')}")
+                    except NameError:
+                        chart_prediction = predict_clip_chart(chart_path, CANDIDATE_PHASES)
+                        print(f"[CLIP STANDARD] Standard prediction for {symbol}")
                     
                     if chart_prediction and chart_prediction.get("success"):
                         clip_predicted_phase = chart_prediction["predicted_label"]

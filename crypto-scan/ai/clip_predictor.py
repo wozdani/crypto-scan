@@ -6,16 +6,16 @@ from PIL import Image
 import logging
 from typing import Dict, Any, Optional
 
-# Use transformers CLIP implementation for better compatibility
+# Use OpenAI CLIP implementation for better stability
 try:
-    from transformers import CLIPModel, CLIPProcessor
-    TRANSFORMERS_AVAILABLE = True
-    print("[CLIP INIT] Using transformers CLIP implementation")
+    import clip
+    TRANSFORMERS_AVAILABLE = False
+    print("[CLIP INIT] Using OpenAI CLIP implementation")
 except ImportError:
     try:
-        import clip
-        TRANSFORMERS_AVAILABLE = False
-        print("[CLIP INIT] Using OpenAI CLIP implementation")
+        from transformers import CLIPModel, CLIPProcessor
+        TRANSFORMERS_AVAILABLE = True
+        print("[CLIP INIT] Using transformers CLIP implementation")
     except ImportError:
         print("[CLIP ERROR] No CLIP implementation available")
         TRANSFORMERS_AVAILABLE = None
@@ -147,14 +147,27 @@ class CLIPPredictor:
         ]
         print(f"[CLIP PREDICT] Using {len(candidate_labels)} Vision-AI candidate labels")
         
-        # Process inputs
+        # Process inputs with compatibility fix
         print(f"[CLIP PREDICT] Processing inputs...")
-        inputs = self.processor(
-            text=candidate_labels,
-            images=image,
-            return_tensors="pt",
-            padding=True
-        )
+        try:
+            # Try modern approach first
+            inputs = self.processor(
+                text=candidate_labels,
+                images=image,
+                return_tensors="pt",
+                padding=True
+            )
+        except AttributeError as e:
+            print(f"[CLIP PREDICT] Processor compatibility issue, using fallback: {e}")
+            # Fallback for older transformers versions
+            image_inputs = self.processor.feature_extractor(images=image, return_tensors="pt")
+            text_inputs = self.processor.tokenizer(
+                text=candidate_labels,
+                return_tensors="pt",
+                padding=True,
+                truncation=True
+            )
+            inputs = {**image_inputs, **text_inputs}
         
         if self.device == "cuda":
             inputs = {k: v.cuda() for k, v in inputs.items()}
