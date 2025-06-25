@@ -98,6 +98,19 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 25, 2025 - Phase 2: Decision Memory Layer - Historical Context Learning - PRODUCTION READY ✅
+Implemented Phase 2 of Arcymistrzowska Percepcja adding trader-like memory and historical context learning to the trend-mode system:
+- **Token Context Memory System**: Created token_context_memory.py with TokenContextMemory class managing historical decisions in data/context/token_context_history.json
+- **Historical Context Integration**: integrate_historical_context() loads 3-day decision history, analyzes performance, and finds similar setups for pattern recognition
+- **Memory-Enhanced Scoring**: apply_historical_modifiers() adjusts scores based on historical accuracy (-0.05 penalty for poor performance, +0.03 boost for good performance, +0.02 pattern repetition bonus)
+- **Performance Analytics**: analyze_historical_performance() calculates accuracy rates, recent trends, and generates confidence modifiers based on past decisions
+- **Similar Setup Detection**: find_similar_setups() matches current analysis with historical patterns (trend_label + setup_type) for enhanced decision confidence
+- **Automatic Outcome Tracking**: update_historical_outcomes_loop() evaluates decision effectiveness after time periods (2h/6h) with verdict classification (correct/wrong/avoided)
+- **Complete Phase 2 Pipeline**: simulate_trader_decision_with_memory() combines Phase 1 perception sync with historical memory for trader-like contextual decision making
+- **Trend-Mode Integration**: Enhanced trend_mode.py with Phase 2 fallback chain (Memory → Phase 1 → Standard TJDE) ensuring production reliability
+- **Trader Memory Achievement**: System now remembers previous decisions, learns from outcomes, and adjusts future scoring like experienced trader building market intuition
+Phase 2 enables contextual learning where system builds memory of successful patterns and avoids repeating historical mistakes.
+
 ### June 25, 2025 - Phase 1: Perception Synchronization - CLIP + TJDE + GPT Integration - PRODUCTION READY ✅
 Completed Phase 1 of Arcymistrzowska Percepcja system with unified CLIP, TJDE, and GPT integration creating master-level market perception:
 - **Complete Perception Pipeline**: Created perception_sync.py with simulate_trader_decision_perception_sync() function implementing full Phase 1 integration

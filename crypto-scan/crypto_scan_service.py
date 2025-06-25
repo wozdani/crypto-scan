@@ -147,6 +147,16 @@ def scan_cycle():
         import random
         if random.random() < 0.3:  # 30% chance each cycle
             run_memory_feedback_evaluation()
+    except ImportError:
+        pass
+    
+    # Run Phase 2 memory outcome updates periodically
+    try:
+        from token_context_memory import update_historical_outcomes_loop
+        
+        # Update historical outcomes every few cycles
+        if random.random() < 0.2:  # 20% chance each cycle
+            update_historical_outcomes_loop()
             
     except Exception as feedback_e:
         print(f"[MEMORY_FEEDBACK_ERROR] {feedback_e}")

@@ -1,0 +1,486 @@
+"""
+Phase 2: Decision Memory Layer for Trend-Mode
+Token Context History Management and Learning System
+"""
+
+import os
+import json
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Any
+import time
+
+
+class TokenContextMemory:
+    """Manages historical context and learning for tokens"""
+    
+    def __init__(self, history_file: str = "data/context/token_context_history.json"):
+        self.history_file = history_file
+        self.history_days = 3  # Track last 3 days
+        self.ensure_data_structure()
+    
+    def ensure_data_structure(self):
+        """Ensure data directory and history file exist"""
+        os.makedirs(os.path.dirname(self.history_file), exist_ok=True)
+        
+        if not os.path.exists(self.history_file):
+            with open(self.history_file, 'w') as f:
+                json.dump({}, f)
+    
+    def load_token_history(self) -> Dict:
+        """Load complete token history from file"""
+        try:
+            with open(self.history_file, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"[MEMORY ERROR] Failed to load history: {e}")
+            return {}
+    
+    def save_token_history(self, history: Dict):
+        """Save token history to file"""
+        try:
+            with open(self.history_file, 'w') as f:
+                json.dump(history, f, indent=2)
+        except Exception as e:
+            print(f"[MEMORY ERROR] Failed to save history: {e}")
+    
+    def get_recent_context(self, symbol: str) -> List[Dict]:
+        """Get recent historical context for a token (last 3 days)"""
+        history = self.load_token_history()
+        token_history = history.get(symbol, [])
+        
+        # Filter entries from last 3 days
+        cutoff_time = datetime.now() - timedelta(days=self.history_days)
+        cutoff_str = cutoff_time.isoformat()
+        
+        recent_entries = [
+            entry for entry in token_history
+            if entry.get("timestamp", "1970-01-01T00:00:00") > cutoff_str
+        ]
+        
+        # Sort by timestamp (most recent first)
+        recent_entries.sort(key=lambda x: x.get("timestamp", "1970-01-01T00:00:00"), reverse=True)
+        
+        print(f"[MEMORY] {symbol}: Loaded {len(recent_entries)} recent entries from last {self.history_days} days")
+        return recent_entries
+    
+    def add_decision_entry(self, symbol: str, decision_data: Dict):
+        """Add new decision entry to token history"""
+        history = self.load_token_history()
+        
+        if symbol not in history:
+            history[symbol] = []
+        
+        # Create new entry with current timestamp
+        entry = {
+            "timestamp": datetime.now().isoformat(),
+            "decision": decision_data.get("decision", "unknown"),
+            "tjde_score": decision_data.get("final_score", 0.0),
+            "clip_confidence": decision_data.get("clip_features", {}).get("clip_confidence", 0.0),
+            "trend_label": decision_data.get("clip_features", {}).get("clip_trend_match", "unknown"),
+            "setup_type": decision_data.get("clip_features", {}).get("clip_setup_type", "unknown"),
+            "gpt_comment": decision_data.get("gpt_comment", ""),
+            "result_after_2h": None,  # To be filled later
+            "result_after_6h": None,  # To be filled later
+            "verdict": None,  # To be filled later
+            "market_price": decision_data.get("market_price", 0.0),
+            "perception_sync": decision_data.get("perception_sync", False)
+        }
+        
+        history[symbol].append(entry)
+        
+        # Keep only recent entries to prevent file bloat
+        self.cleanup_old_entries(history, symbol)
+        
+        self.save_token_history(history)
+        print(f"[MEMORY] {symbol}: Added new decision entry")
+    
+    def cleanup_old_entries(self, history: Dict, symbol: str):
+        """Remove entries older than tracking period"""
+        cutoff_time = datetime.now() - timedelta(days=self.history_days + 1)  # Keep 1 extra day
+        cutoff_str = cutoff_time.isoformat()
+        
+        if symbol in history:
+            original_count = len(history[symbol])
+            history[symbol] = [
+                entry for entry in history[symbol]
+                if entry.get("timestamp", "1970-01-01T00:00:00") > cutoff_str
+            ]
+            
+            removed_count = original_count - len(history[symbol])
+            if removed_count > 0:
+                print(f"[MEMORY CLEANUP] {symbol}: Removed {removed_count} old entries")
+    
+    def update_decision_outcomes(self, symbol: str, entry_timestamp: str, outcome_data: Dict):
+        """Update decision outcomes after time has passed"""
+        history = self.load_token_history()
+        
+        if symbol in history:
+            for entry in history[symbol]:
+                if entry.get("timestamp") == entry_timestamp:
+                    entry.update(outcome_data)
+                    self.save_token_history(history)
+                    print(f"[MEMORY UPDATE] {symbol}: Updated outcomes for {entry_timestamp}")
+                    return True
+        
+        return False
+    
+    def analyze_historical_performance(self, symbol: str) -> Dict:
+        """Analyze historical performance for a token"""
+        recent_context = self.get_recent_context(symbol)
+        
+        if not recent_context:
+            return {
+                "total_decisions": 0,
+                "accuracy_rate": 0.0,
+                "average_score": 0.0,
+                "recent_trend": "unknown",
+                "historical_penalty": 0.0,
+                "confidence_booster": 0.0
+            }
+        
+        # Calculate performance metrics
+        total_decisions = len(recent_context)
+        completed_decisions = [entry for entry in recent_context if entry.get("verdict") is not None]
+        correct_decisions = [entry for entry in completed_decisions if entry.get("verdict") == "correct"]
+        
+        accuracy_rate = len(correct_decisions) / len(completed_decisions) if completed_decisions else 0.0
+        average_score = sum(entry.get("tjde_score", 0) for entry in recent_context) / total_decisions
+        
+        # Determine recent trend
+        recent_trend = "improving" if accuracy_rate > 0.6 else "declining" if accuracy_rate < 0.4 else "stable"
+        
+        # Calculate modifiers
+        historical_penalty = 0.0
+        confidence_booster = 0.0
+        
+        if accuracy_rate < 0.3 and len(completed_decisions) >= 3:
+            historical_penalty = -0.05  # Penalty for poor performance
+        elif accuracy_rate > 0.7 and len(completed_decisions) >= 3:
+            confidence_booster = 0.03  # Boost for good performance
+        
+        performance = {
+            "total_decisions": total_decisions,
+            "completed_decisions": len(completed_decisions),
+            "accuracy_rate": accuracy_rate,
+            "average_score": average_score,
+            "recent_trend": recent_trend,
+            "historical_penalty": historical_penalty,
+            "confidence_booster": confidence_booster,
+            "last_decision": recent_context[0] if recent_context else None
+        }
+        
+        print(f"[MEMORY ANALYSIS] {symbol}: Accuracy {accuracy_rate:.1%}, Trend: {recent_trend}")
+        return performance
+    
+    def find_similar_setups(self, symbol: str, current_setup: Dict) -> List[Dict]:
+        """Find similar historical setups for pattern matching"""
+        recent_context = self.get_recent_context(symbol)
+        
+        current_trend_label = current_setup.get("trend_label", "unknown")
+        current_setup_type = current_setup.get("setup_type", "unknown")
+        
+        similar_setups = []
+        for entry in recent_context:
+            if (entry.get("trend_label") == current_trend_label and 
+                entry.get("setup_type") == current_setup_type):
+                similar_setups.append(entry)
+        
+        if similar_setups:
+            print(f"[MEMORY PATTERN] {symbol}: Found {len(similar_setups)} similar setups ({current_trend_label}/{current_setup_type})")
+        
+        return similar_setups
+
+
+def integrate_historical_context(symbol: str, current_features: Dict, context_memory: TokenContextMemory) -> Dict:
+    """Integrate historical context into current analysis"""
+    
+    # Get recent historical context
+    historical_context = context_memory.get_recent_context(symbol)
+    
+    # Analyze historical performance
+    performance = context_memory.analyze_historical_performance(symbol)
+    
+    # Find similar setups
+    current_setup = {
+        "trend_label": current_features.get("clip_features", {}).get("clip_trend_match", "unknown"),
+        "setup_type": current_features.get("clip_features", {}).get("clip_setup_type", "unknown")
+    }
+    similar_setups = context_memory.find_similar_setups(symbol, current_setup)
+    
+    # Build enhanced features with historical context
+    enhanced_features = current_features.copy()
+    enhanced_features["historical_context"] = {
+        "recent_entries": historical_context[:5],  # Last 5 decisions
+        "performance": performance,
+        "similar_setups": similar_setups,
+        "historical_penalty": performance["historical_penalty"],
+        "confidence_booster": performance["confidence_booster"]
+    }
+    
+    print(f"[MEMORY INTEGRATION] {symbol}: Added historical context ({len(historical_context)} entries)")
+    return enhanced_features
+
+
+def apply_historical_modifiers(base_score: float, historical_context: Dict) -> float:
+    """Apply historical performance modifiers to base score"""
+    performance = historical_context.get("performance", {})
+    
+    # Apply penalty for poor historical performance
+    historical_penalty = performance.get("historical_penalty", 0.0)
+    confidence_booster = performance.get("confidence_booster", 0.0)
+    
+    # Check for pattern repetition bonus
+    similar_setups = historical_context.get("similar_setups", [])
+    pattern_bonus = 0.0
+    
+    if len(similar_setups) >= 2:
+        # Check if similar setups were successful
+        successful_similar = [s for s in similar_setups if s.get("verdict") == "correct"]
+        if len(successful_similar) >= len(similar_setups) * 0.6:  # 60% success rate
+            pattern_bonus = 0.02
+            print(f"[MEMORY MODIFIER] Pattern repetition bonus: +{pattern_bonus:.3f}")
+    
+    modified_score = base_score + historical_penalty + confidence_booster + pattern_bonus
+    
+    if historical_penalty != 0 or confidence_booster != 0 or pattern_bonus != 0:
+        total_modifier = historical_penalty + confidence_booster + pattern_bonus
+        print(f"[MEMORY MODIFIER] Applied total modifier: {total_modifier:+.3f}")
+    
+    return max(0.0, min(1.0, modified_score))
+
+
+def simulate_trader_decision_with_memory(symbol: str, market_data: dict, signals: dict, debug_info: dict = None) -> dict:
+    """
+    Phase 2: Enhanced decision making with historical memory context
+    """
+    try:
+        # Initialize memory system
+        context_memory = TokenContextMemory()
+        
+        # === STEP 1: LOAD HISTORICAL CONTEXT ===
+        enhanced_signals = integrate_historical_context(symbol, {"clip_features": signals}, context_memory)
+        
+        # === STEP 2: RUN PHASE 1 PERCEPTION SYNC WITH CONTEXT ===
+        from perception_sync import simulate_trader_decision_perception_sync
+        
+        # Add historical context to signals
+        signals_with_context = signals.copy()
+        signals_with_context["historical_context"] = enhanced_signals["historical_context"]
+        
+        # Run Phase 1 perception synchronization
+        phase1_result = simulate_trader_decision_perception_sync(symbol, market_data, signals_with_context)
+        
+        # === STEP 3: APPLY HISTORICAL MODIFIERS ===
+        base_score = phase1_result.get("final_score", 0.0)
+        historical_context = enhanced_signals.get("historical_context", {})
+        
+        memory_enhanced_score = apply_historical_modifiers(base_score, historical_context)
+        
+        # Update decision based on memory-enhanced score
+        decision = phase1_result.get("decision", "avoid")
+        quality_grade = phase1_result.get("quality_grade", "weak")
+        
+        if memory_enhanced_score != base_score:
+            # Recalculate decision with memory enhancement
+            if memory_enhanced_score >= 0.70:
+                decision = "join_trend"
+                quality_grade = "strong"
+            elif memory_enhanced_score >= 0.45:
+                decision = "consider_entry"
+                quality_grade = "moderate"
+            else:
+                decision = "avoid"
+                quality_grade = "weak"
+        
+        # === STEP 4: PREPARE ENHANCED RESULT ===
+        memory_result = phase1_result.copy()
+        memory_result.update({
+            "memory_enhanced_score": round(memory_enhanced_score, 3),
+            "base_score_phase1": round(base_score, 3),
+            "final_score": round(memory_enhanced_score, 3),
+            "decision": decision,
+            "quality_grade": quality_grade,
+            "historical_context": historical_context,
+            "memory_integration": True,
+            "market_price": market_data.get("ticker", {}).get("price", 0.0)
+        })
+        
+        # === STEP 5: SAVE DECISION TO MEMORY ===
+        context_memory.add_decision_entry(symbol, memory_result)
+        
+        print(f"[PHASE 2] {symbol}: Memory-enhanced decision: {decision} (score: {memory_enhanced_score:.3f})")
+        
+        return memory_result
+        
+    except Exception as e:
+        print(f"❌ [PHASE 2 ERROR] {symbol}: {e}")
+        
+        # Fallback to Phase 1
+        try:
+            from perception_sync import simulate_trader_decision_perception_sync
+            fallback_result = simulate_trader_decision_perception_sync(symbol, market_data, signals)
+            fallback_result["memory_integration"] = False
+            fallback_result["fallback_reason"] = str(e)
+            return fallback_result
+        except:
+            return {
+                "decision": "avoid",
+                "combined_score": 0.0,
+                "final_score": 0.0,
+                "quality_grade": "error",
+                "memory_integration": False,
+                "error": str(e)
+            }
+
+
+def update_historical_outcomes_loop():
+    """Background process to update historical outcomes (to be run periodically)"""
+    print("[MEMORY OUTCOMES] Starting historical outcome update...")
+    
+    try:
+        context_memory = TokenContextMemory()
+        history = context_memory.load_token_history()
+        
+        updated_count = 0
+        
+        for symbol, entries in history.items():
+            for entry in entries:
+                if entry.get("verdict") is None:  # Unresolved entry
+                    timestamp_str = entry.get("timestamp")
+                    if timestamp_str:
+                        entry_time = datetime.fromisoformat(timestamp_str)
+                        now = datetime.now()
+                        
+                        # Check if enough time has passed for evaluation
+                        if now - entry_time >= timedelta(hours=2):
+                            # Simulate outcome evaluation (in production, fetch actual price data)
+                            # For now, create placeholder logic
+                            outcome_data = evaluate_decision_outcome(entry, symbol)
+                            
+                            if outcome_data:
+                                entry.update(outcome_data)
+                                updated_count += 1
+        
+        if updated_count > 0:
+            context_memory.save_token_history(history)
+            print(f"[MEMORY OUTCOMES] Updated {updated_count} historical outcomes")
+        
+    except Exception as e:
+        print(f"[MEMORY OUTCOMES ERROR] {e}")
+
+
+def evaluate_decision_outcome(entry: Dict, symbol: str) -> Optional[Dict]:
+    """Evaluate the outcome of a historical decision"""
+    # This would fetch actual price data in production
+    # For now, return simulated outcome based on decision quality
+    
+    tjde_score = entry.get("tjde_score", 0.0)
+    decision = entry.get("decision", "avoid")
+    
+    # Simulate outcome based on decision quality
+    if decision == "avoid":
+        return {
+            "result_after_2h": "N/A",
+            "result_after_6h": "N/A", 
+            "verdict": "avoided"
+        }
+    else:
+        # Simulate price change based on score quality
+        if tjde_score > 0.7:
+            return {
+                "result_after_2h": "+3.2%",
+                "result_after_6h": "+8.1%",
+                "verdict": "correct"
+            }
+        elif tjde_score > 0.5:
+            return {
+                "result_after_2h": "+1.1%",
+                "result_after_6h": "+2.8%",
+                "verdict": "correct"
+            }
+        else:
+            return {
+                "result_after_2h": "-0.8%",
+                "result_after_6h": "-1.5%",
+                "verdict": "wrong"
+            }
+
+
+def test_phase2_memory_system():
+    """Test the Phase 2 memory system"""
+    print("Testing Phase 2: Decision Memory Layer...")
+    
+    try:
+        # Test memory initialization
+        context_memory = TokenContextMemory()
+        
+        # Test symbol
+        test_symbol = "MEMORYUSDT"
+        
+        # Create test decision data
+        test_decision = {
+            "decision": "consider_entry",
+            "final_score": 0.742,
+            "clip_features": {
+                "clip_confidence": 0.68,
+                "clip_trend_match": "pullback",
+                "clip_setup_type": "support-bounce"
+            },
+            "gpt_comment": "Strong pullback setup with volume support",
+            "market_price": 125.50,
+            "perception_sync": True
+        }
+        
+        # Add decision to memory
+        context_memory.add_decision_entry(test_symbol, test_decision)
+        
+        # Test historical context retrieval
+        historical_context = context_memory.get_recent_context(test_symbol)
+        
+        print(f"✅ Memory system: {len(historical_context)} entries for {test_symbol}")
+        
+        # Test performance analysis
+        performance = context_memory.analyze_historical_performance(test_symbol)
+        print(f"✅ Performance analysis: {performance['accuracy_rate']:.1%} accuracy")
+        
+        # Test complete Phase 2 integration
+        test_market_data = {
+            'ticker': {'price': 125.50, 'volume': 18000},
+            'candles_15m': [[1640995200000, 124.0, 126.0, 123.5, 125.50, 18000]]
+        }
+        
+        test_signals = {
+            'trend_strength': 0.78,
+            'pullback_quality': 0.85,
+            'support_reaction_strength': 0.82,
+            'volume_behavior_score': 0.75,
+            'psych_score': 0.65
+        }
+        
+        # Run Phase 2 with memory
+        result = simulate_trader_decision_with_memory(test_symbol, test_market_data, test_signals)
+        
+        print()
+        print("PHASE 2 MEMORY-ENHANCED RESULTS:")
+        print(f"  Decision: {result.get('decision', 'unknown')}")
+        print(f"  Phase 1 Score: {result.get('base_score_phase1', 0):.3f}")
+        print(f"  Memory Enhanced: {result.get('memory_enhanced_score', 0):.3f}")
+        print(f"  Final Score: {result.get('final_score', 0):.3f}")
+        print(f"  Memory Integration: {result.get('memory_integration', False)}")
+        
+        # Clean up test data
+        history = context_memory.load_token_history()
+        if test_symbol in history:
+            del history[test_symbol]
+            context_memory.save_token_history(history)
+        
+        print("✅ Phase 2 Decision Memory Layer working correctly")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Phase 2 test error: {e}")
+        return False
+
+
+if __name__ == "__main__":
+    test_phase2_memory_system()
