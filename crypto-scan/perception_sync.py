@@ -320,7 +320,7 @@ def test_perception_synchronization():
         
         plt.subplot(2, 1, 2)
         volume = 1000 + np.random.randint(-200, 400, 60)
-        volume[45:50] *= 1.5  # Volume spike at support
+        volume[45:50] = (volume[45:50] * 1.5).astype(int)  # Volume spike at support
         plt.bar(x, volume, width=0.8, alpha=0.7, color='steelblue')
         plt.axvline(x=45, color='lime', linestyle='--', alpha=0.7)
         plt.ylabel('Volume')

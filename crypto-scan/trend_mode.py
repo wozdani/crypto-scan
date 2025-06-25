@@ -324,10 +324,16 @@ def analyze_trend_opportunity(symbol: str, candles: List[List] = None, enable_vi
         from utils.feature_extractor import extract_all_features_for_token
         features = extract_all_features_for_token(symbol, candles)
         
-        # Use new adaptive trader decision engine
+        # Phase 1: Perception Synchronization - CLIP + TJDE + GPT Integration
         from trader_ai_engine import simulate_trader_decision_advanced
-from perception_sync import simulate_trader_decision_perception_sync
-        adaptive_result = simulate_trader_decision_advanced(features)
+        from perception_sync import simulate_trader_decision_perception_sync
+        
+        try:
+            adaptive_result = simulate_trader_decision_perception_sync(symbol, market_data, features)
+            print(f"[TREND MODE] {symbol}: Using Phase 1 Perception Synchronization")
+        except Exception as e:
+            print(f"[TREND MODE] {symbol}: Fallback to standard TJDE due to: {e}")
+            adaptive_result = simulate_trader_decision_advanced(symbol, market_data, features)
         
         # Map result to trend_context format
         trend_context.update({
