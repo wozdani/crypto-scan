@@ -839,7 +839,21 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
     """
     
     try:
-        print(f"[TRADER ADAPTIVE] Analyzing features: phase={market_phase}, trend={trend_strength:.3f}, pullback={pullback_quality:.3f}")
+        # Extract features from signals dictionary
+        market_phase = signals.get('market_phase', 'trend-following')
+        trend_strength = signals.get('trend_strength', 0.5)
+        pullback_quality = signals.get('pullback_quality', 0.3)
+        support_reaction = signals.get('support_reaction', 0.3)
+        liquidity_pattern_score = signals.get('liquidity_pattern_score', 0.2)
+        psych_score = signals.get('psych_score', 0.5)
+        htf_supportive_score = signals.get('htf_supportive_score', 0.3)
+        market_phase_modifier = signals.get('market_phase_modifier', 0.0)
+        volume_behavior = signals.get('volume_behavior', 'neutral')
+        price_action_pattern = signals.get('price_action_pattern', 'continuation')
+        htf_trend_match = signals.get('htf_trend_match', True)
+        context_modifiers = []
+        
+        print(f"[TRADER ADAPTIVE] Analyzing {symbol}: phase={market_phase}, trend={trend_strength:.3f}, pullback={pullback_quality:.3f}")
         
         # === ETAP 2: DYNAMIC TJDE WEIGHTS LOADING ===
         from utils.scoring import load_tjde_weights, apply_phase_adjustments
