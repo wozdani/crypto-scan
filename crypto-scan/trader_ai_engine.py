@@ -735,11 +735,11 @@ def compute_trader_score(features: Dict, symbol: str = None) -> Dict:
         psych_score = compute_psych_score(candles_15m, symbol)
         
         # Update features with calculated values
-        features['trend_strength'] = trend_strength
-        features['pullback_quality'] = pullback_quality
-        features['support_reaction_strength'] = support_reaction
-        features['volume_behavior_score'] = volume_behavior_score
-        features['psych_score'] = psych_score
+        signals['trend_strength'] = trend_strength
+        signals['pullback_quality'] = pullback_quality
+        signals['support_reaction_strength'] = support_reaction
+        signals['volume_behavior_score'] = volume_behavior_score
+        signals['psych_score'] = psych_score
         
         print(f"[TJDE CALC] {symbol}: trend={trend_strength:.3f}, pullback={pullback_quality:.3f}, support={support_reaction:.3f}")
         print(f"[TJDE CALC] {symbol}: volume={volume_behavior_score:.3f}, psych={psych_score:.3f}")
@@ -1193,7 +1193,7 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
             from utils.ai_heuristic_pattern_checker import check_known_success_patterns
             
             # Check for AI heuristic patterns that override low scoring
-            heuristic_alert = check_known_success_patterns(features, enhanced_score)
+            heuristic_alert = check_known_success_patterns(signals, enhanced_score)
             
             if heuristic_alert:
                 # Override decision with heuristic pattern
@@ -1215,9 +1215,9 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
         
         # === ETAP 9: FINAL RESULT ASSEMBLY WITH ALL ENHANCEMENTS ===
         
-        # Store CLIP info in features for debug output after CLIP processing
-        features["clip_confidence"] = clip_info.get("confidence", "N/A")
-        features["clip_phase"] = clip_info.get("predicted_phase", "N/A")
+        # Store CLIP info in signals for debug output after CLIP processing
+        signals["clip_confidence"] = clip_info.get("confidence", "N/A")
+        signals["clip_phase"] = clip_info.get("predicted_phase", "N/A")
         
         # Enhanced CLIP debug logging
         if clip_info.get("confidence", 0) > 0:
