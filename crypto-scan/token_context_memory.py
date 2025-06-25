@@ -412,11 +412,39 @@ def simulate_trader_decision_with_memory(symbol: str, market_data: dict, signals
             print(f"[PHASE 5 ERROR] {symbol}: {e}")
             memory_result["reinforcement_learning"] = False
         
-        # === STEP 8: SAVE DECISION TO MEMORY ===
+        # === STEP 8: APPLY PHASE 6 TRADER-LEVEL AI ===
+        try:
+            from trader_level_ai_engine import integrate_trader_level_ai
+            
+            memory_result = integrate_trader_level_ai(symbol, memory_result)
+            
+            # Update final decision if Trader AI enhanced
+            if memory_result.get("arcymistrz_ai"):
+                elite_decision = memory_result.get("elite_decision")
+                elite_score = memory_result.get("elite_score")
+                
+                if elite_decision and elite_score:
+                    memory_result["final_score"] = elite_score
+                    memory_result["decision"] = elite_decision
+                    decision = elite_decision
+                    
+                    print(f"[PHASE 6] {symbol}: Trader-Level AI decision: {elite_decision.upper()}")
+            
+        except ImportError:
+            memory_result["arcymistrz_ai"] = False
+        except Exception as e:
+            print(f"[PHASE 6 ERROR] {symbol}: {e}")
+            memory_result["arcymistrz_ai"] = False
+        
+        # === STEP 9: SAVE DECISION TO MEMORY ===
         context_memory.add_decision_entry(symbol, memory_result)
         
-        final_score_display = memory_result.get("rl_enhanced_score") or memory_result.get("embedding_enhanced_score", memory_enhanced_score)
-        print(f"[PHASE 2] {symbol}: Memory-enhanced decision: {decision} (score: {final_score_display:.3f})")
+        # Display final score from highest level system available
+        final_score_display = (memory_result.get("elite_score") or 
+                             memory_result.get("rl_enhanced_score") or 
+                             memory_result.get("embedding_enhanced_score", memory_enhanced_score))
+        
+        print(f"[ARCYMISTRZ] {symbol}: Final decision: {decision.upper()} (score: {final_score_display:.3f})")
         
         return memory_result
         
