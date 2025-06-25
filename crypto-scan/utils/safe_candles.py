@@ -5,6 +5,8 @@ Provides robust candle data fetching with validation and error handling
 
 from utils.data_fetchers import get_all_data
 import requests
+import os
+import json
 
 def get_candles(symbol, interval="15m", limit=96):
     """
