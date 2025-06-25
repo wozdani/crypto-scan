@@ -446,5 +446,11 @@ def market_phase_modifier(market_phase: str) -> float:
 
     modifier = modifiers.get(phase, 0.00)
 
+    print(f"[PHASE DEBUG] Market phase: {phase}")
+    print(f"[PHASE DEBUG] Computed modifier: {modifier:+.3f}")
+    if modifier == 0.0:
+        print(f"[PHASE DEBUG WARNING] Phase modifier is zero – likely fallback due to phase mismatch or missing conditions")
+        print(f"[PHASE DEBUG WARNING] Available phases: {list(modifiers.keys())}")
+    
     print(f"[MARKET_PHASE_MODIFIER] Phase: {phase} → Modifier: {modifier:+.3f}")
     return modifier

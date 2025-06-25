@@ -75,6 +75,10 @@ def cluster_analysis_enhancement(symbol, market_data, debug=False):
 
         # Analyze volume cluster density and distribution
         if len(volume_clusters) < 5:
+            print(f"[CLUSTER DEBUG] Running cluster analysis for {symbol}")
+            print(f"[CLUSTER DEBUG] Volume cluster count: {len(volume_clusters)}")
+            print(f"[CLUSTER DEBUG] Insufficient clusters: Need ≥5, got {len(volume_clusters)}")
+            print(f"[CLUSTER DEBUG WARNING] Modifier fallback triggered – no significant clusters detected")
             if debug:
                 print(f"- Insufficient clusters: Need ≥5, got {len(volume_clusters)}")
                 print(f"- Fallback triggered: No valid volume pattern found")
@@ -88,6 +92,11 @@ def cluster_analysis_enhancement(symbol, market_data, debug=False):
         # Find high-volume clusters (above 150% of average)
         high_volume_clusters = [c for c in volume_clusters if c['volume'] > avg_volume * 1.5]
         cluster_density = len(high_volume_clusters) / len(volume_clusters)
+        
+        print(f"[CLUSTER DEBUG] Running cluster analysis for {symbol}")
+        print(f"[CLUSTER DEBUG] Volume cluster count: {len(high_volume_clusters)}")
+        print(f"[CLUSTER DEBUG] Average volume: {avg_volume:.2f}")
+        print(f"[CLUSTER DEBUG] Cluster density: {cluster_density:.3f}")
         
         if debug:
             print(f"- High-volume clusters: {len(high_volume_clusters)}/{len(volume_clusters)}")
