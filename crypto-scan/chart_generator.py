@@ -565,13 +565,53 @@ def generate_tjde_training_chart_contextual(symbol, candles_15m, tjde_score, tjd
             print(f"[CHART ERROR] {symbol}: Insufficient context data")
             return None
         
-        # Extract OHLCV data
-        timestamps = [datetime.fromtimestamp(c[0] / 1000, tz=timezone.utc) for c in context_candles]
-        opens = [float(c[1]) for c in context_candles]
-        highs = [float(c[2]) for c in context_candles]
-        lows = [float(c[3]) for c in context_candles]
-        closes = [float(c[4]) for c in context_candles]
-        volumes = [float(c[5]) for c in context_candles]
+        # Enhanced data validation and extraction
+        timestamps = []
+        opens = []
+        highs = []
+        lows = []
+        closes = []
+        volumes = []
+        
+        for i, candle in enumerate(context_candles):
+            try:
+                # Handle both list and dict formats
+                if isinstance(candle, dict):
+                    # Dict format: {timestamp: ..., open: ..., etc}
+                    timestamp_val = candle.get('timestamp', candle.get('time', candle.get('0', 0)))
+                    open_val = candle.get('open', candle.get('1', 1.0))
+                    high_val = candle.get('high', candle.get('2', 1.0))
+                    low_val = candle.get('low', candle.get('3', 1.0))
+                    close_val = candle.get('close', candle.get('4', 1.0))
+                    volume_val = candle.get('volume', candle.get('5', 1000.0))
+                elif isinstance(candle, (list, tuple)) and len(candle) >= 6:
+                    # List format: [timestamp, open, high, low, close, volume]
+                    timestamp_val = candle[0]
+                    open_val = candle[1]
+                    high_val = candle[2]
+                    low_val = candle[3]
+                    close_val = candle[4]
+                    volume_val = candle[5]
+                else:
+                    print(f"[CHART ERROR] {symbol}: Invalid candle format at index {i}: {type(candle)}")
+                    continue
+                
+                # Convert and validate
+                timestamp = datetime.fromtimestamp(float(timestamp_val) / 1000, tz=timezone.utc)
+                timestamps.append(timestamp)
+                opens.append(float(open_val))
+                highs.append(float(high_val))
+                lows.append(float(low_val))
+                closes.append(float(close_val))
+                volumes.append(float(volume_val))
+                
+            except (ValueError, TypeError, KeyError) as e:
+                print(f"[CHART ERROR] {symbol}: Failed to process candle {i}: {e}")
+                continue
+        
+        if len(timestamps) < 10:
+            print(f"[CHART ERROR] {symbol}: Insufficient valid candles after processing ({len(timestamps)})")
+            return None
 
         # Determine phase colors
         phase_colors = {

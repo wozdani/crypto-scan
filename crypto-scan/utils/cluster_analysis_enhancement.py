@@ -41,16 +41,18 @@ def cluster_analysis_enhancement(symbol, market_data, debug=False):
         else:
             print(f"[CLUSTER DEBUG] No candles available for format check")
         
-        if not candles_15m or len(candles_15m) < 20:
-            print(f"[DATA WARNING] {symbol} has insufficient candles: {len(candles_15m) if candles_15m else 0} (need ≥20)")
+        if not candles_15m or len(candles_15m) < 10:
+            print(f"[DATA WARNING] {symbol} has insufficient candles: {len(candles_15m) if candles_15m else 0} (need ≥10)")
             if debug:
-                print(f"- Insufficient data: Need ≥20 candles, got {len(candles_15m) if candles_15m else 0}")
+                print(f"- Insufficient data: Need ≥10 candles, got {len(candles_15m) if candles_15m else 0}")
                 print(f"- Final Modifier: 0.000, Quality: 0.500")
             return 0.0, 0.5
 
         # Calculate volume clusters and patterns
         volume_clusters = []
-        recent_candles = candles_15m[-20:]  # Last 20 candles
+        # Use available candles (minimum 10, maximum 20)
+        num_candles = min(len(candles_15m), 20)
+        recent_candles = candles_15m[-num_candles:]
         
         if debug:
             print(f"- Processing recent candles: {len(recent_candles)}")
@@ -73,14 +75,14 @@ def cluster_analysis_enhancement(symbol, market_data, debug=False):
                 avg_volume = sum(c['volume'] for c in volume_clusters) / len(volume_clusters)
                 print(f"- Average volume in clusters: {avg_volume:.0f}")
 
-        # Analyze volume cluster density and distribution
-        if len(volume_clusters) < 5:
+        # Analyze volume cluster density and distribution (relaxed threshold)
+        if len(volume_clusters) < 3:
             print(f"[CLUSTER DEBUG] Running cluster analysis for {symbol}")
             print(f"[CLUSTER DEBUG] Volume cluster count: {len(volume_clusters)}")
-            print(f"[CLUSTER DEBUG] Insufficient clusters: Need ≥5, got {len(volume_clusters)}")
+            print(f"[CLUSTER DEBUG] Insufficient clusters: Need ≥3, got {len(volume_clusters)}")
             print(f"[CLUSTER DEBUG WARNING] Modifier fallback triggered – no significant clusters detected")
             if debug:
-                print(f"- Insufficient clusters: Need ≥5, got {len(volume_clusters)}")
+                print(f"- Insufficient clusters: Need ≥3, got {len(volume_clusters)}")
                 print(f"- Fallback triggered: No valid volume pattern found")
                 print(f"- Final Modifier: 0.000, Quality: 0.500")
             return 0.0, 0.5
