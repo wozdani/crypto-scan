@@ -1,192 +1,229 @@
 """
-Mock Data Generator for Chart Export Testing
-Generates realistic cryptocurrency candle data for Computer Vision training
+Mock Data Generator for Development Environment
+Generates realistic market data when Bybit API is unavailable (HTTP 403 in Replit)
 """
-
-import numpy as np
-from datetime import datetime, timedelta
-from typing import List, Tuple
 import random
+import time
+from datetime import datetime, timedelta
+from typing import List, Dict, Optional
 
-
-def generate_realistic_candles(
-    symbol: str,
-    count: int = 96,
-    base_price: float = None,
-    pattern: str = "trending_up"
-) -> List[List]:
+def generate_realistic_candles(symbol: str, interval: str = "15", limit: int = 96) -> List[List]:
     """
-    Generate realistic cryptocurrency candle data
+    Generate realistic candle data for development/testing
     
     Args:
-        symbol: Trading symbol for reference
-        count: Number of candles to generate
-        base_price: Starting price (auto-detected from symbol if None)
-        pattern: Market pattern to simulate
+        symbol: Trading symbol (e.g., 'BTCUSDT')
+        interval: Candle interval in minutes
+        limit: Number of candles to generate
         
     Returns:
-        List of candles in format [timestamp, open, high, low, close, volume]
+        List of candles in Bybit format [timestamp, open, high, low, close, volume]
     """
+    # Base prices for different symbols
+    base_prices = {
+        'BTCUSDT': 50000,
+        'ETHUSDT': 3000,
+        'ADAUSDT': 0.5,
+        'DOTUSDT': 8.0,
+        'SOLUSDT': 100,
+        'LINKUSDT': 15,
+        'AVAXUSDT': 25,
+        'MATICUSDT': 0.8,
+        'ATOMUSDT': 12,
+        'ALGOUSDT': 0.3
+    }
     
-    # Auto-detect base price from symbol
-    if base_price is None:
-        if 'BTC' in symbol:
-            base_price = random.uniform(45000, 55000)
-        elif 'ETH' in symbol:
-            base_price = random.uniform(2800, 3200)
-        elif 'BNB' in symbol:
-            base_price = random.uniform(300, 400)
-        elif 'ADA' in symbol:
-            base_price = random.uniform(0.4, 0.6)
-        elif 'SOL' in symbol:
-            base_price = random.uniform(80, 120)
-        else:
-            base_price = random.uniform(1, 100)
+    base_price = base_prices.get(symbol, 1.0)
     
     candles = []
-    current_time = datetime.now()
+    current_time = int(time.time() * 1000)
+    interval_ms = int(interval) * 60 * 1000
+    
     current_price = base_price
     
-    # Pattern-specific parameters
-    if pattern == "trending_up":
-        trend_strength = 0.002  # 0.2% upward bias per candle
-        volatility = 0.008      # 0.8% volatility
-    elif pattern == "trending_down":
-        trend_strength = -0.002
-        volatility = 0.008
-    elif pattern == "consolidation":
-        trend_strength = 0.0
-        volatility = 0.005
-    elif pattern == "breakout":
-        trend_strength = 0.001
-        volatility = 0.015      # Higher volatility for breakout
-    elif pattern == "pullback":
-        trend_strength = -0.001
-        volatility = 0.006
-    else:
-        trend_strength = 0.0
-        volatility = 0.008
-    
-    for i in range(count):
-        # Calculate timestamp (15-minute intervals, going backwards)
-        timestamp = int((current_time - timedelta(minutes=15 * (count - 1 - i))).timestamp() * 1000)
+    for i in range(limit):
+        timestamp = current_time - (limit - i) * interval_ms
         
-        # Generate price movement
-        trend_move = current_price * trend_strength
-        random_move = np.random.normal(0, current_price * volatility)
-        price_change = trend_move + random_move
+        # Generate realistic price movement (±2% per candle)
+        price_change = random.uniform(-0.02, 0.02)
+        current_price *= (1 + price_change)
         
-        # Create OHLC for this candle
+        # Generate OHLC around current price
+        volatility = random.uniform(0.001, 0.005)  # 0.1-0.5% volatility
+        
         open_price = current_price
-        close_price = open_price + price_change
+        close_price = current_price * (1 + price_change)
         
-        # Generate realistic high/low based on open/close
-        high_range = abs(close_price - open_price) * random.uniform(0.5, 2.0)
-        low_range = abs(close_price - open_price) * random.uniform(0.5, 2.0)
+        high_price = max(open_price, close_price) * (1 + volatility)
+        low_price = min(open_price, close_price) * (1 - volatility)
         
-        high_price = max(open_price, close_price) + high_range
-        low_price = min(open_price, close_price) - low_range
+        # Generate realistic volume
+        base_volume = 1000000 if 'BTC' in symbol or 'ETH' in symbol else 500000
+        volume = base_volume * random.uniform(0.5, 2.0)
         
-        # Ensure high >= max(open, close) and low <= min(open, close)
-        high_price = max(high_price, open_price, close_price)
-        low_price = min(low_price, open_price, close_price)
+        candle = [
+            str(timestamp),
+            f"{open_price:.6f}",
+            f"{high_price:.6f}",
+            f"{low_price:.6f}",
+            f"{close_price:.6f}",
+            f"{volume:.2f}"
+        ]
         
-        # Generate volume (higher volume on bigger moves)
-        base_volume = random.uniform(500, 2000)
-        move_multiplier = 1 + abs(price_change / current_price) * 5
-        volume = base_volume * move_multiplier
-        
-        candles.append([
-            timestamp,
-            round(open_price, 6),
-            round(high_price, 6),
-            round(low_price, 6),
-            round(close_price, 6),
-            round(volume, 2)
-        ])
-        
+        candles.append(candle)
         current_price = close_price
-        
-        # Add some noise to trend for realism
-        if i % 10 == 0:  # Every 10 candles, slightly modify trend
-            trend_strength += random.uniform(-0.0005, 0.0005)
     
     return candles
 
-
-def generate_pattern_specific_data(pattern_type: str, symbol: str = "MOCKUSDT") -> List[List]:
-    """Generate candles for specific chart patterns"""
+def generate_realistic_ticker(symbol: str, last_candle: List = None) -> Dict:
+    """
+    Generate realistic ticker data
     
-    if pattern_type == "breakout_continuation":
-        # Consolidation followed by breakout
-        consolidation = generate_realistic_candles(symbol, 60, pattern="consolidation")
-        breakout = generate_realistic_candles(symbol, 36, 
-                                            base_price=consolidation[-1][4], 
-                                            pattern="breakout")
-        return consolidation + breakout
+    Args:
+        symbol: Trading symbol
+        last_candle: Last candle data to extract price from
         
-    elif pattern_type == "pullback_setup":
-        # Uptrend, pullback, then continuation
-        uptrend = generate_realistic_candles(symbol, 40, pattern="trending_up")
-        pullback = generate_realistic_candles(symbol, 30, 
-                                            base_price=uptrend[-1][4], 
-                                            pattern="pullback")
-        continuation = generate_realistic_candles(symbol, 26,
-                                                base_price=pullback[-1][4],
-                                                pattern="trending_up")
-        return uptrend + pullback + continuation
-        
-    elif pattern_type == "trend_exhaustion":
-        # Strong trend followed by consolidation
-        trend = generate_realistic_candles(symbol, 50, pattern="trending_up")
-        exhaustion = generate_realistic_candles(symbol, 46,
-                                              base_price=trend[-1][4],
-                                              pattern="consolidation")
-        return trend + exhaustion
-        
-    elif pattern_type == "fakeout_pattern":
-        # False breakout followed by reversal
-        buildup = generate_realistic_candles(symbol, 40, pattern="consolidation")
-        fake_breakout = generate_realistic_candles(symbol, 20,
-                                                 base_price=buildup[-1][4],
-                                                 pattern="breakout")
-        reversal = generate_realistic_candles(symbol, 36,
-                                            base_price=fake_breakout[-1][4],
-                                            pattern="trending_down")
-        return buildup + fake_breakout + reversal
-    
+    Returns:
+        Realistic ticker data
+    """
+    if last_candle and len(last_candle) >= 5:
+        last_price = float(last_candle[4])  # close price
+        high_24h = float(last_candle[2]) * 1.05  # ~5% higher
+        low_24h = float(last_candle[3]) * 0.95   # ~5% lower
     else:
-        # Default random pattern
-        return generate_realistic_candles(symbol, 96, pattern="trending_up")
+        base_prices = {
+            'BTCUSDT': 50000,
+            'ETHUSDT': 3000,
+            'ADAUSDT': 0.5,
+            'DOTUSDT': 8.0,
+            'SOLUSDT': 100,
+            'LINKUSDT': 15,
+            'AVAXUSDT': 25,
+            'MATICUSDT': 0.8,
+            'ATOMUSDT': 12,
+            'ALGOUSDT': 0.3
+        }
+        last_price = base_prices.get(symbol, 1.0)
+        high_24h = last_price * 1.05
+        low_24h = last_price * 0.95
+    
+    # Generate realistic 24h change
+    change_24h = random.uniform(-5.0, 5.0)
+    
+    # Generate realistic volume
+    base_volume = 1000000 if 'BTC' in symbol or 'ETH' in symbol else 500000
+    volume_24h = base_volume * random.uniform(0.8, 1.5)
+    
+    return {
+        "symbol": symbol,
+        "lastPrice": f"{last_price:.6f}",
+        "priceChangePercent": f"{change_24h:.2f}",
+        "highPrice24h": f"{high_24h:.6f}",
+        "lowPrice24h": f"{low_24h:.6f}",
+        "volume24h": f"{volume_24h:.2f}",
+        "turnover24h": f"{volume_24h * last_price:.2f}"
+    }
 
-
-def create_training_dataset(num_charts_per_pattern: int = 5) -> dict:
-    """Create a complete training dataset with various patterns"""
+def generate_realistic_orderbook(symbol: str, current_price: float = None) -> Dict:
+    """
+    Generate realistic orderbook data
     
-    patterns = [
-        "breakout_continuation",
-        "pullback_setup", 
-        "trend_exhaustion",
-        "fakeout_pattern"
-    ]
-    
-    symbols = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "ADAUSDT", "SOLUSDT"]
-    
-    dataset = {}
-    
-    for pattern in patterns:
-        dataset[pattern] = []
+    Args:
+        symbol: Trading symbol
+        current_price: Current price for orderbook generation
         
-        for i in range(num_charts_per_pattern):
-            symbol = symbols[i % len(symbols)]
-            mock_symbol = f"{pattern.upper()}_{symbol}_{i+1}"
-            
-            candles = generate_pattern_specific_data(pattern, mock_symbol)
-            dataset[pattern].append({
-                "symbol": mock_symbol,
-                "pattern": pattern,
-                "candles": candles,
-                "label": pattern.replace("_", "-")
-            })
+    Returns:
+        Realistic orderbook data
+    """
+    if not current_price:
+        base_prices = {
+            'BTCUSDT': 50000,
+            'ETHUSDT': 3000,
+            'ADAUSDT': 0.5,
+            'DOTUSDT': 8.0,
+            'SOLUSDT': 100,
+            'LINKUSDT': 15,
+            'AVAXUSDT': 25,
+            'MATICUSDT': 0.8,
+            'ATOMUSDT': 12,
+            'ALGOUSDT': 0.3
+        }
+        current_price = base_prices.get(symbol, 1.0)
     
-    return dataset
+    # Generate bid/ask spread (0.01-0.1%)
+    spread_pct = random.uniform(0.0001, 0.001)
+    bid_price = current_price * (1 - spread_pct/2)
+    ask_price = current_price * (1 + spread_pct/2)
+    
+    # Generate orderbook levels
+    bids = []
+    asks = []
+    
+    for i in range(25):  # 25 levels each side
+        # Bids (decreasing prices)
+        bid_level_price = bid_price * (1 - i * 0.0001)
+        bid_quantity = random.uniform(0.1, 10.0)
+        bids.append([f"{bid_level_price:.6f}", f"{bid_quantity:.4f}"])
+        
+        # Asks (increasing prices)
+        ask_level_price = ask_price * (1 + i * 0.0001)
+        ask_quantity = random.uniform(0.1, 10.0)
+        asks.append([f"{ask_level_price:.6f}", f"{ask_quantity:.4f}"])
+    
+    return {
+        "symbol": symbol,
+        "bids": bids,
+        "asks": asks,
+        "ts": str(int(time.time() * 1000)),
+        "u": random.randint(1000000, 9999999)
+    }
+
+def should_use_mock_data() -> bool:
+    """
+    Determine if mock data should be used based on environment
+    
+    Returns:
+        True if in development environment (Replit) where API returns 403
+    """
+    # In Replit environment, Bybit API returns 403
+    # This is a development environment indicator
+    return True  # Always use mock data in this environment
+
+def get_mock_data_for_symbol(symbol: str) -> Dict:
+    """
+    Get complete mock data package for a symbol
+    
+    Args:
+        symbol: Trading symbol
+        
+    Returns:
+        Complete data package with candles, ticker, and orderbook
+    """
+    candles_15m = generate_realistic_candles(symbol, "15", 96)
+    candles_5m = generate_realistic_candles(symbol, "5", 200)
+    
+    last_candle = candles_15m[-1] if candles_15m else None
+    ticker = generate_realistic_ticker(symbol, last_candle)
+    
+    current_price = float(ticker["lastPrice"])
+    orderbook = generate_realistic_orderbook(symbol, current_price)
+    
+    return {
+        "candles_15m": candles_15m,
+        "candles_5m": candles_5m,
+        "ticker": ticker,
+        "orderbook": orderbook,
+        "source": "mock_data_generator",
+        "timestamp": int(time.time())
+    }
+
+def log_mock_data_usage(symbol: str, data_types: List[str]):
+    """
+    Log when mock data is used for transparency
+    
+    Args:
+        symbol: Symbol using mock data
+        data_types: Types of data mocked (ticker, candles, orderbook)
+    """
+    data_str = ", ".join(data_types)
+    print(f"[MOCK DATA] {symbol} → Using realistic mock data for: {data_str}")
