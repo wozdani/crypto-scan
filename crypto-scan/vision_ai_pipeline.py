@@ -247,27 +247,62 @@ def fetch_candles_for_vision(symbol: str) -> Optional[List]:
             except Exception as e:
                 print(f"[VISION-AI SCAN ERROR] {symbol}: {e}")
             
-        # Próba 3: Bezpośrednie API Bybit
+        # Próba 3: Bezpośrednie API Bybit z enhanced error handling
         print(f"[VISION-AI DIRECT] {symbol}: Direct Bybit API fetch...")
         
-        response = requests.get(
-            "https://api.bybit.com/v5/market/kline",
-            params={
-                'category': 'linear',
-                'symbol': symbol,
-                'interval': '15',
-                'limit': '200'
-            },
-            timeout=10
-        )
-        
-        if response.status_code == 200:
-            api_data = response.json()
-            if api_data.get('retCode') == 0:
-                api_candles = api_data.get('result', {}).get('list', [])
-                if len(api_candles) >= 30:
-                    print(f"[VISION-AI DIRECT] {symbol}: Got {len(api_candles)} direct API candles")
-                    return api_candles
+        try:
+            response = requests.get(
+                "https://api.bybit.com/v5/market/kline",
+                params={
+                    'category': 'linear',
+                    'symbol': symbol,
+                    'interval': '15',
+                    'limit': '200'
+                },
+                timeout=10
+            )
+            
+            print(f"[VISION-AI API] {symbol}: HTTP {response.status_code}")
+            
+            if response.status_code == 200:
+                api_data = response.json()
+                print(f"[VISION-AI API] {symbol}: retCode {api_data.get('retCode', 'unknown')}")
+                
+                if api_data.get('retCode') == 0:
+                    api_candles = api_data.get('result', {}).get('list', [])
+                    print(f"[VISION-AI API] {symbol}: Raw candles count: {len(api_candles)}")
+                    
+                    if len(api_candles) >= 30:
+                        # Convert Bybit format to standard format
+                        converted_candles = []
+                        for candle_data in reversed(api_candles):  # Bybit returns newest first
+                            try:
+                                converted_candles.append([
+                                    int(candle_data[0]),      # timestamp
+                                    float(candle_data[1]),    # open
+                                    float(candle_data[2]),    # high
+                                    float(candle_data[3]),    # low
+                                    float(candle_data[4]),    # close
+                                    float(candle_data[5])     # volume
+                                ])
+                            except (ValueError, IndexError) as e:
+                                print(f"[VISION-AI API] {symbol}: Candle conversion error: {e}")
+                                continue
+                        
+                        if len(converted_candles) >= 30:
+                            print(f"[VISION-AI DIRECT] {symbol}: Got {len(converted_candles)} converted API candles")
+                            return converted_candles
+                        else:
+                            print(f"[VISION-AI API] {symbol}: Insufficient converted candles: {len(converted_candles)}")
+                    else:
+                        print(f"[VISION-AI API] {symbol}: Insufficient raw candles: {len(api_candles)}")
+                else:
+                    print(f"[VISION-AI API] {symbol}: API error retCode: {api_data.get('retCode')}")
+            else:
+                print(f"[VISION-AI API] {symbol}: HTTP error {response.status_code}")
+                
+        except Exception as e:
+            print(f"[VISION-AI API] {symbol}: Request exception: {e}")
                     
         # Próba 4: Jeśli brak danych, zwróć None - nie generujemy syntetycznych danych
         print(f"[VISION-AI FAILED] {symbol}: No authentic candle data available from any source")

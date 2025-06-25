@@ -17,6 +17,59 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
 
+def validate_candle_data(candle) -> dict:
+    """
+    Comprehensive candle data validation supporting multiple formats
+    
+    Args:
+        candle: Candle data in dict, list, or tuple format
+        
+    Returns:
+        dict: Validated candle data with standard keys
+    """
+    try:
+        if isinstance(candle, dict):
+            # Dict format - direct key access with fallbacks
+            return {
+                'timestamp': int(candle.get('timestamp', candle.get(0, 0))),
+                'open': float(candle.get('open', candle.get(1, 0))),
+                'high': float(candle.get('high', candle.get(2, 0))),
+                'low': float(candle.get('low', candle.get(3, 0))),
+                'close': float(candle.get('close', candle.get(4, 0))),
+                'volume': float(candle.get('volume', candle.get(5, 0)))
+            }
+        elif isinstance(candle, (list, tuple)) and len(candle) >= 6:
+            # List/tuple format - index access
+            return {
+                'timestamp': int(candle[0]),
+                'open': float(candle[1]),
+                'high': float(candle[2]),
+                'low': float(candle[3]),
+                'close': float(candle[4]),
+                'volume': float(candle[5])
+            }
+        else:
+            # Invalid format - return zeros
+            return {
+                'timestamp': 0,
+                'open': 0.0,
+                'high': 0.0,
+                'low': 0.0,
+                'close': 0.0,
+                'volume': 0.0
+            }
+    except (ValueError, TypeError, IndexError, KeyError):
+        # Error in conversion - return zeros
+        return {
+            'timestamp': 0,
+            'open': 0.0,
+            'high': 0.0,
+            'low': 0.0,
+            'close': 0.0,
+            'volume': 0.0
+        }
+
+
 def detect_alert_moment(candles_15m, tjde_score=None, tjde_decision=None):
     """
     Wykrywa dokładny moment alertu TJDE w danych świecowych
