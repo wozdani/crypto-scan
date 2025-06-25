@@ -98,6 +98,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 25, 2025 - Enhanced Trend-Mode with CLIP Integration and Vision Feedback Loop - PRODUCTION READY ✅
+Integrated comprehensive CLIP prediction system directly into existing trend-mode functions for enhanced decision making:
+- **CLIP Integration in TJDE**: Enhanced simulate_trader_decision_advanced() with automatic CLIP prediction loading from training_charts/{symbol}_{time}_clip.json files
+- **Smart Scoring Enhancement**: CLIP decisions modify final scores (+0.1 for consider_entry, -0.1 for avoid) when confidence >0.6, with comprehensive logging
+- **Extended Dataset Fields**: Enhanced generate_dataset_jsonl() with clip_prediction, was_correct, and alert_outcome fields for feedback learning
+- **Vision Feedback Loop**: New vision_feedback_loop.py evaluates CLIP prediction accuracy, generates correction datasets, and enables continuous model improvement
+- **Enhanced Chart Generation**: Upgraded plot_chart_with_context() with configurable context_days for better pattern recognition and extended historical context
+- **Production Integration**: Seamless integration with existing Vision-AI pipeline maintaining backward compatibility while adding CLIP enhancement capabilities
+- **Automated Learning**: System automatically evaluates CLIP effectiveness and generates retraining data for continuous model improvement
+Enhanced trend-mode now acts as Vision-AI decision amplifier, learning from historical chart patterns and prediction errors like contextual GPT memory.
+
 ### June 25, 2025 - Complete JSONL Dataset Generator for Vision-AI Training - PRODUCTION READY ✅
 Implemented comprehensive dataset generation system for centralized Vision-AI training data management:
 - **JSONL Dataset Generator**: New generate_dataset_jsonl() function scans training_charts/ directory and creates centralized training_dataset.jsonl from PNG+JSON pairs

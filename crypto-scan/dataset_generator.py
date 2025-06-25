@@ -51,7 +51,21 @@ def generate_dataset_jsonl(charts_folder: str = "training_charts", output_path: 
             with open(json_path, "r") as f:
                 meta = json.load(f)
             
-            # Create training example entry
+            # Load CLIP prediction if available
+            clip_prediction = None
+            clip_json_path = json_path.replace(".json", "_clip.json")
+            if os.path.exists(clip_json_path):
+                try:
+                    with open(clip_json_path, "r") as clip_f:
+                        clip_data = json.load(clip_f)
+                        clip_prediction = {
+                            "decision": clip_data.get("decision"),
+                            "confidence": clip_data.get("confidence", 0.0)
+                        }
+                except Exception as e:
+                    print(f"[DATASET] Failed to load CLIP data for {fname}: {e}")
+            
+            # Create enhanced training example entry
             training_example = {
                 "image_path": image_path,
                 "symbol": meta.get("symbol"),
@@ -63,7 +77,10 @@ def generate_dataset_jsonl(charts_folder: str = "training_charts", output_path: 
                 "timestamp": meta.get("timestamp"),
                 "chart_type": meta.get("chart_type", "vision_ai_training"),
                 "multi_alert": meta.get("multi_alert", False),
-                "alert_count": meta.get("alert_count", 0)
+                "alert_count": meta.get("alert_count", 0),
+                "clip_prediction": clip_prediction,
+                "was_correct": None,  # To be filled by feedback loop
+                "alert_outcome": None  # To be filled by feedback loop
             }
             
             # Add to dataset

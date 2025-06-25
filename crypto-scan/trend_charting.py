@@ -16,28 +16,33 @@ import matplotlib.ticker as mticker
 import matplotlib as mpl
 
 
-def plot_chart_vision_ai(symbol, candles, alert_indices=None, alert_index=None, score=None, decision=None, phase=None, setup=None, save_path="chart.png"):
+def plot_chart_with_context(symbol, candles, alert_indices=None, alert_index=None, score=None, decision=None, phase=None, setup=None, save_path="chart.png", context_days=2):
     """
-    Vision-AI optimized chart generation for CLIP training with memory-aware alerts
+    Enhanced chart generation with extended context for better Vision-AI training
     
     Args:
         symbol: Trading symbol
         candles: List of candle data with timestamp, open, high, low, close, volume
-        alert_indices: List of historical alert indices for memory learning (new feature)
+        alert_indices: List of historical alert indices for memory learning
         alert_index: Single alert index for backward compatibility
         score: TJDE score
         decision: Trading decision
         phase: Market phase
         setup: Setup description
         save_path: Path to save chart
+        context_days: Days of historical context to include (default 2)
         
     Returns:
         Path to saved chart
     """
     try:
-        # Prepare OHLC data
+        # Enhanced context - use more historical data for better pattern recognition
+        context_candles = int(context_days * 96)  # 96 candles per day (15m intervals)
+        display_candles = candles[-context_candles:] if len(candles) > context_candles else candles
+        
+        # Prepare OHLC data with extended context
         ohlc = []
-        for i, c in enumerate(candles):
+        for i, c in enumerate(display_candles):
             if isinstance(c, dict):
                 ts = mdates.date2num(datetime.fromtimestamp(c['timestamp']/1000))
                 ohlc.append((ts, c['open'], c['high'], c['low'], c['close']))
@@ -48,7 +53,7 @@ def plot_chart_vision_ai(symbol, candles, alert_indices=None, alert_index=None, 
 
         volume = []
         timestamps = []
-        for c in candles:
+        for c in display_candles:
             if isinstance(c, dict):
                 volume.append(c['volume'])
                 timestamps.append(datetime.fromtimestamp(c['timestamp']/1000))
@@ -102,11 +107,12 @@ def plot_chart_vision_ai(symbol, candles, alert_indices=None, alert_index=None, 
         ax_volume.bar(timestamps, volume, color='steelblue', edgecolor='black', 
                      alpha=0.7, width=0.0008)
 
-        # Clean professional title
+        # Enhanced title with context information
         score_text = f"{score:.3f}" if score is not None else "0.000"
         phase_text = phase.upper() if phase else ''
         setup_text = setup.upper() if setup else ''
-        title = f"{symbol} | {phase_text} | TJDE: {score_text} | {setup_text} | 15M"
+        context_text = f"{context_days}D" if context_days != 2 else "2D"
+        title = f"{symbol} | {phase_text} | TJDE: {score_text} | {setup_text} | {context_text} Context"
         ax_main.set_title(title, fontsize=12, pad=10)
 
         # Clean grid and formatting

@@ -54,8 +54,8 @@ def save_training_chart(df: pd.DataFrame, symbol: str, timestamp: str,
         # Enhanced chart path
         chart_path = f"{folder}/{symbol}_{timestamp}_vision_chart.png"
         
-        # Generate professional Vision-AI chart
-        from trend_charting import plot_chart_vision_ai
+        # Generate professional Vision-AI chart with enhanced context
+        from trend_charting import plot_chart_with_context
         
         # Convert DataFrame back to candle list format for new function
         candles_list = []
@@ -98,7 +98,7 @@ def save_training_chart(df: pd.DataFrame, symbol: str, timestamp: str,
         
         print(f"[VISION-AI] {symbol}: Using {len(alert_indices)} alert points for memory training")
         
-        saved_path = plot_chart_vision_ai(
+        saved_path = plot_chart_with_context(
             symbol=symbol,
             candles=candles_list,
             alert_indices=alert_indices if alert_indices else None,
@@ -106,7 +106,8 @@ def save_training_chart(df: pd.DataFrame, symbol: str, timestamp: str,
             decision=decision,
             phase=market_phase,
             setup=f"{market_phase}_{decision}" if market_phase and decision else None,
-            save_path=chart_path
+            save_path=chart_path,
+            context_days=2
         )
         
         if saved_path:
