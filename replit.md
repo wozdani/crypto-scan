@@ -98,6 +98,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 25, 2025 - Local Candle Cache System for Vision-AI Reliability - PRODUCTION READY ✅
+Implemented comprehensive local candle cache system ensuring Vision-AI chart generation even during API failures:
+- **Local Cache Module**: Created utils/candle_cache.py with save_candles_to_cache() and load_candles_from_cache() functions storing candles in data/candles_cache/ with metadata
+- **Auto-Caching Integration**: Enhanced async_scanner.py to automatically cache successful candle fetches (≥20 candles) from Bybit API for future fallback usage
+- **Vision-AI Fallback**: Updated vision_ai_pipeline.py with local cache as final fallback ensuring TOP 5 TJDE tokens always generate training charts or placeholders
+- **Enhanced Fallback Chain**: Modified utils/candle_fallback.py with priority order: API → cache → legacy sources, with debug logging for cache usage
+- **Cache Management**: Added get_cache_stats() for monitoring and cleanup_old_cache() for maintenance with configurable retention periods
+- **Scan Integration**: Updated scan_all_tokens_async.py to leverage cached data when API returns insufficient results, maintaining training data flow
+System ensures Vision-AI training data generation continues during API timeouts, rate limits, or authentication issues while preserving authentic data integrity.
+
 ### June 25, 2025 - Performance Optimization and Vision-AI Data Pipeline Fixes - PRODUCTION READY ✅
 Implemented comprehensive performance improvements addressing all 4 major bottlenecks in async scanning and Vision-AI chart generation:
 - **Enhanced Candle Fallback System**: Created utils/candle_fallback.py with get_safe_candles() supporting multi-source data loading (scan results, cache files, historical data) with try_alt_sources=True parameter

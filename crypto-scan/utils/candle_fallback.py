@@ -13,7 +13,7 @@ import matplotlib.dates as mdates
 
 def get_safe_candles(symbol: str, interval: str = "15m", try_alt_sources: bool = True) -> Optional[List]:
     """
-    Enhanced candle fetching with fallback mechanisms
+    Enhanced candle fetching with fallback mechanisms including local cache
     
     Args:
         symbol: Trading symbol
@@ -27,15 +27,25 @@ def get_safe_candles(symbol: str, interval: str = "15m", try_alt_sources: bool =
         # Primary source - try current scan results
         candles = _load_from_scan_results(symbol)
         if candles and len(candles) >= 48:
+            # Save successful fetch to cache for future fallback
+            from utils.candle_cache import save_candles_to_cache
+            save_candles_to_cache(symbol, candles, interval)
             return candles
             
         if try_alt_sources:
-            # Fallback 1: Cache files
-            candles = load_candles_from_cache(symbol, interval)
+            # Fallback 1: Local cache (prioritized for reliability)
+            from utils.candle_cache import load_candles_from_cache
+            cached_candles = load_candles_from_cache(symbol, interval)
+            if cached_candles and len(cached_candles) >= 48:
+                logging.debug(f"get_safe_candles: {symbol} using cached candles")
+                return cached_candles
+                
+            # Fallback 2: Legacy cache files
+            candles = load_candles_from_cache_legacy(symbol, interval)
             if candles and len(candles) >= 48:
                 return candles
                 
-            # Fallback 2: Historical data files
+            # Fallback 3: Historical data files
             candles = _load_from_historical_data(symbol, interval)
             if candles and len(candles) >= 48:
                 return candles
@@ -47,7 +57,7 @@ def get_safe_candles(symbol: str, interval: str = "15m", try_alt_sources: bool =
         logging.error(f"get_safe_candles error for {symbol}: {e}")
         return None
 
-def load_candles_from_cache(symbol: str, interval: str = "15m") -> Optional[List]:
+def load_candles_from_cache_legacy(symbol: str, interval: str = "15m") -> Optional[List]:
     """Load candles from various cache locations"""
     cache_locations = [
         f"data/cache/{symbol}_candles_{interval}.json",

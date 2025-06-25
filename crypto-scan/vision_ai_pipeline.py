@@ -178,21 +178,24 @@ def generate_vision_ai_training_data(tjde_results: List[Dict]) -> int:
             tjde_score = result.get('tjde_score', 0)
             market_data = result.get('market_data', {})
             
-            # POPRAWKA 1A: Enhanced candle fetching with fallback
-            from utils.candle_fallback import get_safe_candles, load_candles_from_cache, plot_empty_chart
+            # Enhanced candle fetching with local cache fallback
+            from utils.candle_fallback import get_safe_candles, plot_empty_chart
+            from utils.candle_cache import load_candles_from_cache
             
             candles_15m = get_safe_candles(symbol, interval="15m", try_alt_sources=True)
             
             if not candles_15m or len(candles_15m) < 48:
-                alt = load_candles_from_cache(symbol)
-                if alt and len(alt) >= 48:
-                    candles_15m = alt
+                # Try local cache as final fallback
+                cached = load_candles_from_cache(symbol, interval="15m")
+                if cached and len(cached) >= 48:
+                    candles_15m = cached
+                    print(f"[VISION-AI] {symbol}: Using candles from local cache")
                 else:
-                    # POPRAWKA 2A: Generate placeholder chart instead of skipping
+                    # Generate placeholder chart when no data available
                     placeholder_path = plot_empty_chart(symbol, "training_charts")
                     if placeholder_path:
                         charts_generated += 1
-                        print(f"[VISION-AI] {symbol}: Generated placeholder chart")
+                        print(f"[VISION-AI] {symbol}: Generated placeholder chart - no candles from API or cache")
                     continue
             
             # Convert to DataFrame for custom chart generation
