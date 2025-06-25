@@ -98,6 +98,18 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 25, 2025 - TJDE Trend-Mode Independent Alert System - Critical Alert Bug Fixed ✅
+Successfully implemented completely independent TJDE trend-mode alert system resolving critical bug where high TJDE scores (0.6+) weren't generating alerts:
+- **Independent Alert System**: Created dedicated TJDE alert system in utils/tjde_alert_system.py completely separate from PPWCS logic with much lower thresholds (0.6+ vs 100 points)
+- **Enhanced Alert Thresholds**: TJDE alerts trigger at score ≥0.6 (Level 2) and ≥0.7 (Level 3) vs PPWCS requiring 100+ combined points eliminating missed high-quality signals
+- **Cooldown Management**: Implemented 60-minute per-symbol cooldown system preventing spam while allowing legitimate alerts with automatic cooldown tracking
+- **Decision Enhancement Display**: Shows decision upgrades (avoid → consider_entry → join_trend) with reasoning and enhanced decision context
+- **Complete Integration**: Integrated into scan_token_async.py with separate alert processing after PPWCS checks maintaining dual alert capability
+- **Production Testing**: Verified with simulated high scores (BANANAS31USDT 0.628, TESTUSDT 0.742) showing perfect alert generation and cooldown functionality
+- **Statistics & Logging**: Full alert history tracking in logs/tjde_alerts_history.jsonl with comprehensive statistics and performance metrics
+- **Telegram Ready**: Professional alert formatting with market data, reasoning, trading links, and trend-mode identification
+System now correctly alerts on high TJDE scores (like BANANAS31USDT's 0.628) that were previously missed due to restrictive PPWCS thresholds.
+
 ### June 25, 2025 - Production Environment Configuration - Bybit API Geographical Restrictions ✅
 Confirmed production environment setup and API access patterns:
 - **Production Confirmation**: User confirmed Bybit API works correctly on production server - 403 errors are Replit environment-specific due to geographical CloudFront restrictions
