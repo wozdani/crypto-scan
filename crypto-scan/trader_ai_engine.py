@@ -910,10 +910,9 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
             decision = "avoid"
             grade = "weak"
         
-        symbol = features.get("symbol", "UNKNOWN")
         print(f"[TJDE DEBUG] Final decision for {symbol}: {decision}, Score: {score:.3f}")
-        print(f"[TJDE DEBUG] Phase: {features.get('market_phase')} | CLIP Confidence: N/A")
-        logging.debug(f"[TJDE DEBUG] Complete decision for {symbol}: decision={decision}, score={score:.3f}, grade={grade}, phase={features.get('market_phase')}")
+        print(f"[TJDE DEBUG] Phase: {market_phase} | CLIP Confidence: N/A")
+        logging.debug(f"[TJDE DEBUG] Complete decision for {symbol}: decision={decision}, score={score:.3f}, grade={grade}, phase={market_phase}")
         
         if context_modifiers:
             print(f"[CONTEXT MODIFIERS] Applied: {', '.join(context_modifiers)}")
@@ -939,8 +938,7 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
         try:
             from utils.clip_prediction_loader import load_clip_prediction
             
-            # Get symbol from features
-            symbol = features.get("symbol", "UNKNOWN")
+            # Symbol already extracted at function start
             
             # Load CLIP prediction
             clip_prediction = load_clip_prediction(symbol)
@@ -955,7 +953,6 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                     liquidity_pattern_score *= 1.15
                     
                     # Contextual volume behavior boost
-                    volume_behavior = features.get('volume_behavior', '')
                     if 'buying_volume_increase' in volume_behavior or 'volume_spike' in volume_behavior:
                         trend_strength *= 1.1
                         context_modifiers.append("CLIP: volume-backed breakout → trend boost")
@@ -968,8 +965,8 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                     pullback_quality *= 1.2
                     support_reaction *= 1.1
                     
-                    # Contextual psych_flags boost
-                    psych_flags = features.get('psych_flags', {})
+                    # Contextual psych_flags boost  
+                    psych_flags = signals.get('psych_flags', {})
                     if psych_flags.get('fakeout_rejection') or psych_flags.get('bounce_confirmed'):
                         psych_score *= 1.2
                         context_modifiers.append("CLIP: rejection pullback → psych_score boost")
@@ -982,7 +979,7 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                     market_phase_modifier *= -1.0
                     
                     # Contextual psych penalty
-                    psych_flags = features.get('psych_flags', {})
+                    psych_flags = signals.get('psych_flags', {})
                     if psych_flags.get('liquidity_grab') or psych_flags.get('trap_pattern'):
                         psych_score *= 0.5
                         context_modifiers.append("CLIP: liquidity trap in reversal → psych penalized")
