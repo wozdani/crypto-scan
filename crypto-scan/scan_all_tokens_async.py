@@ -172,8 +172,8 @@ def generate_top_tjde_charts(results: List[Dict]):
         # Import Vision-AI pipeline
         from vision_ai_pipeline import generate_vision_ai_training_data
         
-        # Generate comprehensive Vision-AI training data
-        training_pairs = generate_vision_ai_training_data(results)
+        # Generate comprehensive Vision-AI training data with fixed function call
+        training_pairs = generate_vision_ai_training_data(results, "full")
         
         if training_pairs > 0:
             print(f"\n🎯 VISION-AI PIPELINE: Generated {training_pairs} training pairs")

@@ -229,13 +229,15 @@ class AsyncCryptoScanner:
                     "market_data": market_data
                 }
                 
-                # Fast mode: only return detailed data for high-scoring tokens
+                # Fast mode: return essential data for all tokens but include candles for Vision-AI
                 if self.fast_mode and final_score < 30 and tjde_score < 0.5:
                     return {
                         "symbol": symbol,
                         "ppwcs_score": final_score,
                         "tjde_score": tjde_score,
-                        "scan_time": scan_time
+                        "scan_time": scan_time,
+                        "candles": market_data.get("candles", []),  # Keep candles for Vision-AI
+                        "market_data": market_data
                     }
                 
                 return result_data

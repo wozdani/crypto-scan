@@ -11,7 +11,11 @@ from datetime import datetime
 import os
 import json
 from typing import Optional, Dict, List
-from mplfinance.original_flavor import candlestick_ohlc
+try:
+    from mplfinance.original_flavor import candlestick_ohlc
+except ImportError:
+    # Fallback if mplfinance not available
+    candlestick_ohlc = None
 
 def plot_chart_vision_ai(symbol: str, candles: List, alert_index: int = None, alert_indices: List = None, 
                         score: float = None, decision: str = None, phase: str = None, setup: str = None,

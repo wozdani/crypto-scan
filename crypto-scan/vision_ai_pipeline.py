@@ -279,59 +279,12 @@ def generate_vision_ai_training_data(tjde_results: List[Dict], vision_ai_mode: s
                         print(f"[VISION-AI SKIP] {symbol}: Insufficient candle data after fallbacks ({len(candles_15m)})")
                         continue
             
-            # Try multiple data sources if insufficient
-            if len(candles_15m) < 20:
-                # Try async results first
-                async_file = f"data/async_results/{symbol}.json"
-                if os.path.exists(async_file):
-                    try:
-                        with open(async_file, 'r') as f:
-                            async_data = json.load(f)
-                            async_candles = async_data.get("candles", [])
-                            if len(async_candles) >= 20:
-                                candles_15m = async_candles
-                                print(f"[VISION-AI ASYNC] {symbol}: Using {len(candles_15m)} async candles")
-                    except Exception as e:
-                        print(f"[VISION-AI ERROR] {symbol}: Async data error - {e}")
-                
-                # If still insufficient, try direct API fetch
-                if len(candles_15m) < 20:
-                    try:
-                        import requests
-                        print(f"[VISION-AI API] {symbol}: Fetching fresh candle data...")
-                        
-                        response = requests.get(
-                            "https://api.bybit.com/v5/market/kline",
-                            params={
-                                'category': 'linear',
-                                'symbol': symbol,
-                                'interval': '15',
-                                'limit': '96'
-                            },
-                            timeout=10
-                        )
-                        
-                        if response.status_code == 200:
-                            api_data = response.json()
-                            if api_data.get('retCode') == 0:
-                                api_candles = api_data.get('result', {}).get('list', [])
-                                if len(api_candles) >= 20:
-                                    candles_15m = api_candles
-                                    print(f"[VISION-AI API] {symbol}: Fetched {len(candles_15m)} fresh candles")
-                    except Exception as e:
-                        print(f"[VISION-AI API ERROR] {symbol}: {e}")
-                
-                # Final check - use simplified chart if insufficient
-                if len(candles_15m) < 20:
-                    print(f"[VISION-AI SIMPLIFIED] {symbol}: Only {len(candles_15m)} candles - generating simplified chart")
-                    # Generate simplified chart with available data
-                    from utils.candle_fallback import generate_synthetic_candles
-                    candles_15m = generate_synthetic_candles(symbol, base_price=1.0, count=50)
-                    print(f"[VISION-AI SYNTHETIC] {symbol}: Generated {len(candles_15m)} synthetic candles for training")
+            # Remove overly complex data fetching - use available data
+            print(f"[VISION-AI DATA] {symbol}: Using {len(candles_15m)} candles from scan result")
             
-            # Convert to DataFrame for custom chart generation - use available candles
+            # Convert to DataFrame for chart generation with available data
             df_data = []
-            chart_candles = candles_15m[-min(100, len(candles_15m)):]  # Use available candles, max 100
+            chart_candles = candles_15m[-min(50, len(candles_15m)):]  # Use last 50 candles max
             
             for i, candle in enumerate(chart_candles):
                 try:
@@ -357,7 +310,7 @@ def generate_vision_ai_training_data(tjde_results: List[Dict], vision_ai_mode: s
                     continue
             
             df = pd.DataFrame(df_data)
-            df.index = pd.date_range(start='2025-01-01', periods=len(df), freq='15T')
+            df.index = pd.date_range(start='2025-01-01', periods=len(df), freq='15min')
             
             # POPRAWKA 1: Generate professional training chart in training_charts/
             phase = result.get('market_phase', 'unknown')
