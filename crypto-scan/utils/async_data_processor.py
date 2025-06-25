@@ -21,6 +21,18 @@ def process_async_data_enhanced(symbol: str, ticker_data: Optional[Dict], candle
         Processed market data or None if insufficient
     """
     
+    # Enhanced debug logging for input validation
+    print(f"[PROCESSOR DEBUG] {symbol} → Processing inputs:")
+    print(f"  ticker_data: {type(ticker_data)} - {bool(ticker_data)}")
+    print(f"  candles_data: {type(candles_data)} - {bool(candles_data)}")
+    print(f"  orderbook_data: {type(orderbook_data)} - {bool(orderbook_data)}")
+    
+    if candles_data:
+        candles_structure = candles_data.get("result", {}) if isinstance(candles_data, dict) else "Invalid"
+        candles_list = candles_structure.get("list", []) if isinstance(candles_structure, dict) else "Invalid"
+        print(f"  candles_structure: {type(candles_structure)} - {bool(candles_structure)}")
+        print(f"  candles_list: {type(candles_list)} len={len(candles_list) if hasattr(candles_list, '__len__') else 'N/A'}")
+    
     # Initialize data containers
     price_usd = 0.0
     volume_24h = 0.0
