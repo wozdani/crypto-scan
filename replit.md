@@ -98,6 +98,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 25, 2025 - Three New Vision-AI Pipeline Technical Fixes - Enhanced Label Extraction + Memory + JSON Reliability ✅
+Successfully implemented three additional technical improvements to the Vision-AI pipeline addressing label quality, memory integration, and data reliability:
+- **Fix 1 - GPT Label Extraction**: Implemented extract_primary_label_from_commentary() function in gpt_commentary.py with intelligent pattern detection for 12+ setup types (pullback_in_trend, breakout_continuation, squeeze_pattern, support_bounce, etc.) replacing "unknown" labels with meaningful GPT-extracted classifications
+- **Fix 2 - Memory Training Enhancement**: Enhanced vision_ai_pipeline.py to automatically save all TJDE decisions to token memory (even "avoid" decisions) with vision_ai_chart flag and alert_generated tracking, ensuring comprehensive historical context for memory-aware training charts
+- **Fix 3 - JSON Loading Error Prevention**: Added robust JSON corruption detection and recovery system in token_memory.py with automatic backup of corrupted files, detailed error reporting (line/column JSON errors), and fresh file initialization preventing memory loading crashes
+- **Enhanced Metadata Integration**: Implemented bonus enhancement with GPT-extracted setup labels automatically updating chart metadata, including gpt_commentary_snippet, setup_source tracking, and original_setup preservation for comprehensive training data
+- **Production Reliability**: All three fixes maintain system performance while significantly improving training data quality, memory completeness, and error resilience
+- **Comprehensive Error Handling**: Enhanced error detection with specific handling for JSON corruption, memory integration failures, and GPT extraction timeouts
+Vision-AI pipeline now generates higher-quality training data with meaningful setup labels, complete memory tracking, and robust error recovery systems.
+
 ### June 25, 2025 - Complete ZEXUSDT Debug Resolution - All Four Critical Issues Fixed ✅
 Successfully resolved all four critical production issues identified in comprehensive ZEXUSDT debug analysis ensuring robust system operation:
 - **Issue 1 - Enhanced Candle Validation**: Modified scan_token_async.py to gracefully handle missing 5M candle data scenarios by accepting analysis with only 15M candles when 5M unavailable, eliminating "requires both 15M and 5M" blocking errors

@@ -25,6 +25,71 @@ def encode_image_to_base64(image_path: str) -> Optional[str]:
         return None
 
 
+def extract_primary_label_from_commentary(commentary: str) -> str:
+    """
+    Extract primary setup label from GPT commentary
+    
+    Args:
+        commentary: GPT commentary text
+        
+    Returns:
+        Primary setup label based on content analysis
+    """
+    if not commentary:
+        return "unknown"
+    
+    commentary_lower = commentary.lower()
+    
+    # Pattern detection with priority order
+    if any(keyword in commentary_lower for keyword in ["pullback", "cofnięcie", "korekta", "retest"]):
+        if any(trend in commentary_lower for trend in ["trend", "wzrostowy", "býczy"]):
+            return "pullback_in_trend"
+        else:
+            return "pullback_correction"
+    
+    elif any(keyword in commentary_lower for keyword in ["breakout", "wybicie", "przebicie", "breakthrough"]):
+        if any(cont in commentary_lower for cont in ["kontynuacja", "continuation", "follow-through"]):
+            return "breakout_continuation"
+        else:
+            return "breakout_initial"
+    
+    elif any(keyword in commentary_lower for keyword in ["squeeze", "ściskanie", "compression", "consolidat"]):
+        return "squeeze_pattern"
+    
+    elif any(keyword in commentary_lower for keyword in ["support", "wsparcie", "odbicie", "bounce"]):
+        return "support_bounce"
+    
+    elif any(keyword in commentary_lower for keyword in ["resistance", "opór", "test", "rejection"]):
+        return "resistance_test"
+    
+    elif any(keyword in commentary_lower for keyword in ["trend", "trendu", "momentum", "wzrostowy"]):
+        if any(strong in commentary_lower for strong in ["silny", "strong", "mocny"]):
+            return "trending_up"
+        else:
+            return "trend_following"
+    
+    elif any(keyword in commentary_lower for keyword in ["volume", "wolumen", "aktywność", "activity"]):
+        return "volume_backed_move"
+    
+    elif any(keyword in commentary_lower for keyword in ["accumulation", "akumulacja", "gromadzenie"]):
+        return "range_accumulation"
+    
+    elif any(keyword in commentary_lower for keyword in ["exhaustion", "wyczerpanie", "reversal", "odwrócenie"]):
+        return "exhaustion_pattern"
+    
+    elif any(keyword in commentary_lower for keyword in ["consolidation", "konsolidacja", "sideways"]):
+        return "consolidation"
+    
+    else:
+        # Fallback based on general sentiment
+        if any(positive in commentary_lower for positive in ["pozytywny", "positive", "bullish", "silny"]):
+            return "bullish_setup"
+        elif any(negative in commentary_lower for negative in ["negatywny", "negative", "bearish", "słaby"]):
+            return "bearish_setup"
+        else:
+            return "neutral_pattern"
+
+
 def generate_chart_commentary(image_path: str, tjde_score: float, decision: str, 
                             clip_prediction: Optional[Dict] = None, symbol: str = "UNKNOWN") -> Optional[str]:
     """
@@ -92,10 +157,14 @@ Format odpowiedzi:
         
         commentary = response.choices[0].message.content
         
+        # Extract primary label from commentary
+        extracted_label = extract_primary_label_from_commentary(commentary)
+        
         # Save commentary to .gpt.json file
         gpt_json_path = image_path.replace('.png', '.gpt.json')
         gpt_data = {
             "commentary": commentary,
+            "extracted_label": extracted_label,
             "tjde_score": tjde_score,
             "decision": decision,
             "clip_prediction": clip_prediction,

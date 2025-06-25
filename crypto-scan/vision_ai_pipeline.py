@@ -79,20 +79,38 @@ def save_training_chart(df: pd.DataFrame, symbol: str, timestamp: str,
         alert_indices = []
         
         try:
-            from utils.token_memory import get_token_history
+            from utils.token_memory import get_token_history, update_token_memory
             token_history = get_token_history(symbol)
+            
+            # FIX 2: Ensure current TJDE decision is saved to memory (even if avoid)
+            if tjde_score is not None and decision:
+                memory_entry = {
+                    "tjde_score": tjde_score,
+                    "decision": decision,
+                    "setup": f"{market_phase}_{decision}" if market_phase else decision,
+                    "phase": market_phase or "unknown",
+                    "vision_ai_chart": True,  # Flag for Vision-AI generation
+                    "alert_generated": tjde_score >= 0.6,  # Track alert threshold
+                    "result_after_2h": None  # For feedback loop
+                }
+                update_token_memory(symbol, memory_entry)
+                print(f"[VISION-AI MEMORY] {symbol}: Saved TJDE decision {decision} (score: {tjde_score:.3f})")
             
             # Extract historical alert indices from memory
             if token_history:
-                for entry in token_history[-5:]:  # Last 5 alerts for context
-                    if entry.get('tjde_score', 0) >= 0.6:  # Significant decisions
-                        # Simulate alert position based on timestamp
-                        alert_pos = int(len(candles_list) * 0.7) + len(alert_indices) * 3
-                        if alert_pos < len(candles_list):
-                            alert_indices.append(alert_pos)
+                significant_entries = [e for e in token_history[-10:] if e.get('tjde_score', 0) >= 0.5]  # Lower threshold
+                for i, entry in enumerate(significant_entries[-5:]):  # Last 5 significant decisions
+                    # Create realistic alert positions based on memory
+                    alert_pos = int(len(candles_list) * 0.6) + (i * 4)  # Spread alerts across chart
+                    if alert_pos < len(candles_list) - 5:  # Leave margin at end
+                        alert_indices.append(alert_pos)
+                        
+                print(f"[VISION-AI MEMORY] {symbol}: Found {len(significant_entries)} significant decisions in history")
             
         except ImportError:
             print(f"[VISION-AI] Token memory not available for {symbol}")
+        except Exception as e:
+            print(f"[VISION-AI MEMORY ERROR] {symbol}: {e}")
         
         # Add current alert if TJDE score is high
         if tjde_score and tjde_score >= 0.7:
@@ -154,6 +172,43 @@ def save_training_chart(df: pd.DataFrame, symbol: str, timestamp: str,
                 
                 if gpt_results:
                     print(f"[GPT ANALYSIS] Generated {len(gpt_results)} analyses for {symbol}")
+                    
+                    # FIX 1: Extract meaningful setup labels from GPT commentary
+                    try:
+                        from gpt_commentary import extract_primary_label_from_commentary
+                        
+                        # Get chart commentary and extract setup label
+                        chart_commentary = gpt_results.get('chart_commentary', '')
+                        if chart_commentary:
+                            extracted_setup = extract_primary_label_from_commentary(chart_commentary)
+                            
+                            # Update JSON metadata with extracted setup
+                            if os.path.exists(json_path):
+                                with open(json_path, 'r') as f:
+                                    metadata = json.load(f)
+                                
+                                # BONUS: Enhanced metadata with GPT insights
+                                metadata.update({
+                                    'gpt_extracted_setup': extracted_setup,
+                                    'gpt_commentary_snippet': chart_commentary[:200] + '...' if len(chart_commentary) > 200 else chart_commentary,
+                                    'gpt_analysis_available': True,
+                                    'setup_source': 'gpt_extraction',
+                                    'original_setup': metadata.get('setup', 'unknown')
+                                })
+                                
+                                # Update primary setup field
+                                if extracted_setup != 'unknown':
+                                    metadata['setup'] = extracted_setup
+                                    print(f"[VISION-AI LABEL FIX] {symbol}: Updated setup from 'unknown' to '{extracted_setup}'")
+                                
+                                # Save enhanced metadata
+                                with open(json_path, 'w') as f:
+                                    json.dump(metadata, f, indent=2)
+                                    
+                            print(f"[GPT LABEL EXTRACTION] {symbol}: Setup = '{extracted_setup}'")
+                        
+                    except Exception as e:
+                        print(f"[GPT LABEL EXTRACTION ERROR] {symbol}: {e}")
                 
             except ImportError:
                 print("[GPT ANALYSIS] GPT commentary not available")

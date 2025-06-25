@@ -13,15 +13,53 @@ MEMORY_PATH = "data/token_profile_store.json"
 MEMORY_LOOKBACK_HOURS = 96  # 4 days
 
 def load_token_memory() -> Dict[str, List[Dict]]:
-    """Load token memory from persistent storage"""
+    """Load token memory from persistent storage with enhanced error handling"""
     try:
         if not os.path.exists(MEMORY_PATH):
             return {}
+            
+        # FIX 3: Enhanced JSON loading with corruption detection
         with open(MEMORY_PATH, "r") as f:
-            return json.load(f)
+            content = f.read().strip()
+            
+        if not content:
+            print(f"[MEMORY] Empty file {MEMORY_PATH}, initializing new memory")
+            return {}
+            
+        try:
+            data = json.loads(content)
+            if not isinstance(data, dict):
+                print(f"[MEMORY ERROR] Invalid data structure in {MEMORY_PATH}, reinitializing")
+                _backup_corrupted_file(MEMORY_PATH)
+                return {}
+            return data
+            
+        except json.JSONDecodeError as je:
+            print(f"[MEMORY ERROR] JSON corruption in {MEMORY_PATH}: {je}")
+            print(f"[MEMORY ERROR] Error at line {je.lineno}, column {je.colno}: {je.msg}")
+            _backup_corrupted_file(MEMORY_PATH)
+            return {}
+            
     except Exception as e:
         logging.error(f"Failed to load token memory: {e}")
         return {}
+
+
+def _backup_corrupted_file(file_path: str):
+    """Backup corrupted file and create fresh one"""
+    try:
+        import shutil
+        backup_path = f"{file_path}.corrupted.{int(datetime.now().timestamp())}"
+        shutil.copy2(file_path, backup_path)
+        print(f"[MEMORY BACKUP] Corrupted file backed up to: {backup_path}")
+        
+        # Initialize fresh file
+        with open(file_path, "w") as f:
+            json.dump({}, f, indent=2)
+        print(f"[MEMORY] Created fresh memory file: {file_path}")
+        
+    except Exception as e:
+        print(f"[MEMORY BACKUP ERROR] Failed to backup corrupted file: {e}")
 
 def save_token_memory(data: Dict[str, List[Dict]]):
     """Save token memory to persistent storage"""
