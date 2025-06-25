@@ -1140,104 +1140,118 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                     "boosts_applied": [mod for mod in context_modifiers if "CLIP:" in mod]
                 }
                 
-                clip_boost_applied = True
-                
-                print(f"[CLIP INTEGRATION] {symbol}: {prediction_str}")
-                print(f"[CLIP BOOSTS] Applied: {clip_modifier:+.3f} with contextual modifiers")
-                
-            else:
-                # Fallback to chart-based prediction with fast predictor
+                    print(f"[CLIP INTEGRATION] {symbol}: {prediction_str}")
+                    print(f"[CLIP BOOSTS] Applied: {clip_modifier:+.3f} with contextual modifiers")
+                    clip_boost_applied = True
+                    clip_already_used = True
+                    
+                    # Cache the file-based result
+                    _clip_session_cache[session_key] = clip_info
+                    
+                else:
+                    print(f"[CLIP STATUS] No valid file prediction available")
+                    
+            except Exception as e:
+                print(f"[CLIP ERROR] {symbol}: Failed to load file prediction: {e}")
+            
+            # Fallback to FastCLIP only if no file prediction and not cached
+            if not clip_already_used:
                 try:
-                    from ai.clip_predictor_fast import predict_clip_chart_fast
+                    from ai.clip_predictor_fast import FastCLIPPredictor
                     import glob
                     
-                    # Use fast predictor to avoid timeouts
-                    print(f"[CLIP FAST] Using fast CLIP predictor for {symbol}")
+                    print(f"[CLIP FAST] Executing FastCLIP predictor for {symbol}")
                     
-                except ImportError:
-                    try:
-                        from ai.clip_predictor import predict_clip_chart
-                        import glob
-                        print(f"[CLIP STANDARD] Using standard CLIP predictor for {symbol}")
-                    except ImportError:
-                        try:
-                            from vision_ai.clip_predictor import predict_clip_chart
-                            import glob
-                        except ImportError:
-                            print(f"[CLIP FALLBACK] No clip_predictor available for {symbol}")
-                            clip_prediction = None
-                
-                chart_locations = [
-                    f"charts/{symbol}_*.png",
-                    f"exports/{symbol}_*.png", 
-                    f"training_data/clip/{symbol}_*.png"
-                ]
-                
-                chart_path = None
-                for pattern in chart_locations:
-                    matches = glob.glob(pattern)
-                    if matches:
-                        chart_path = sorted(matches, reverse=True)[0]
-                        break
-                
-                if chart_path:
-                    # Use fast predictor if available, otherwise fallback to standard
-                    try:
-                        chart_prediction = predict_clip_chart_fast(chart_path, CANDIDATE_PHASES)
-                        print(f"[CLIP FAST] Fast prediction for {symbol}: {chart_prediction.get('predicted_label', 'unknown')}")
-                    except NameError:
-                        chart_prediction = predict_clip_chart(chart_path, CANDIDATE_PHASES)
-                        print(f"[CLIP STANDARD] Standard prediction for {symbol}")
                     
-                    if chart_prediction and chart_prediction.get("success"):
-                        clip_predicted_phase = chart_prediction["predicted_label"]
-                        clip_confidence = chart_prediction["confidence"]
+                    chart_locations = [
+                        f"training_charts/{symbol}_*.png",
+                        f"charts/{symbol}_*.png",
+                        f"exports/{symbol}_*.png", 
+                        f"training_data/clip/{symbol}_*.png"
+                    ]
+                    
+                    chart_path = None
+                    for pattern in chart_locations:
+                        matches = glob.glob(pattern)
+                        if matches:
+                            chart_path = sorted(matches, reverse=True)[0]
+                            print(f"[CLIP FAST DEBUG] Found chart: {chart_path}")
+                            break
+                    
+                    if chart_path and os.path.exists(chart_path):
+                        fast_predictor = FastCLIPPredictor()
+                        print(f"[CLIP FAST DEBUG] Executing FastCLIP prediction")
                         
-                        if clip_confidence > 0.4:
-                            clip_modifier = 0.05 * clip_confidence  # Conservative chart-based boost
+                        clip_prediction = fast_predictor.predict_fast(chart_path)
+                        print(f"[CLIP FAST RESULT] {symbol}: FastCLIP returned = {clip_prediction}")
+                        
+                        if clip_prediction and clip_prediction.get('confidence', 0) > 0.4:
+                            clip_confidence = float(clip_prediction.get('confidence', 0.0))
+                            pattern = clip_prediction.get('predicted_label', clip_prediction.get('pattern', ''))
+                            
+                            # Enhanced pattern-based confidence adjustment
+                            if pattern in ['breakout-continuation', 'trend-following']:
+                                clip_confidence *= 1.2
+                            elif pattern in ['consolidation', 'pullback-in-trend']:
+                                clip_confidence *= 1.1
+                            elif pattern in ['exhaustion-pattern', 'trend-reversal']:
+                                clip_confidence *= 0.8
+                            
+                            clip_modifier = min(clip_confidence * 0.05, 0.03)
+                            
                             clip_info = {
-                                "predicted_phase": clip_predicted_phase,
+                                "predicted_phase": pattern,
                                 "confidence": clip_confidence,
                                 "modifier": clip_modifier,
-                                "prediction_source": "chart_analysis"
+                                "prediction_source": "fast_predictor",
+                                "adjusted_confidence": clip_confidence
                             }
-                            context_modifiers.append(f"CLIP: chart-based {clip_predicted_phase}")
+                            
+                            context_modifiers.append(f"CLIP: {pattern} → visual pattern recognition")
                             clip_boost_applied = True
+                            clip_already_used = True
+                            
+                            # Cache result for future use
+                            _clip_session_cache[session_key] = clip_info
+                            
+                            print(f"[CLIP FAST INTEGRATION] {symbol}: Pattern {pattern}, confidence {clip_confidence:.3f}")
+                            print(f"[CLIP FAST BOOST] Applied: {clip_modifier:+.3f}")
+                            
+                            # Save to file for future loading
+                            try:
+                                os.makedirs("data/clip_predictions", exist_ok=True)
+                                clip_save_path = f"data/clip_predictions/{symbol}_{datetime.now().strftime('%Y%m%d_%H%M')}.json"
+                                with open(clip_save_path, 'w') as f:
+                                    import json
+                                    json.dump(clip_info, f, indent=2)
+                                print(f"[CLIP SAVE] {symbol}: Saved FastCLIP result to {clip_save_path}")
+                            except Exception as save_e:
+                                print(f"[CLIP SAVE ERROR] {symbol}: {save_e}")
                         else:
-                            # Low confidence prediction
-                            clip_info = {
-                                "predicted_phase": clip_predicted_phase,
-                                "confidence": clip_confidence,
-                                "modifier": 0.0,
-                                "prediction_source": "chart_analysis_low_confidence"
-                            }
+                            print(f"[CLIP FAST] {symbol}: Low confidence or no valid prediction")
                     else:
-                        # Handle failed prediction
-                        confidence_val = chart_prediction.get("confidence", 0.0) if chart_prediction else 0.0
-                        clip_info = {
-                            "predicted_phase": chart_prediction.get("predicted_label", "no_prediction") if chart_prediction else "no_prediction",
-                            "confidence": confidence_val,
-                            "modifier": 0.0,
-                            "prediction_source": "chart_analysis_failed",
-                            "reason": chart_prediction.get("reason", "Unknown error") if chart_prediction else "No prediction returned"
-                        }
-                
-                if not clip_boost_applied:
-                    print(f"[CLIP STATUS] No valid prediction available for {symbol}")
-                    context_modifiers.append("CLIP: No prediction available")
-                    clip_info = {
-                        "predicted_phase": "no_prediction",
-                        "confidence": 0.0,
-                        "modifier": 0.0,
-                        "prediction_source": "unavailable"
-                    }
-                
-        except Exception as clip_error:
-            print(f"[CLIP INTEGRATION ERROR] {symbol}: {clip_error}")
-            context_modifiers.append("CLIP: Integration error")
+                        print(f"[CLIP FAST] {symbol}: No chart found for prediction")
+                        
+                except Exception as clip_e:
+                    print(f"[CLIP FAST ERROR] {symbol}: {clip_e}")
+            else:
+                print(f"[CLIP FALLBACK] Skipping FastCLIP for {symbol} - already processed")
+        
+        # Final CLIP status
+        if not clip_boost_applied:
+            print(f"[CLIP STATUS] No valid prediction available for {symbol}")
+            clip_info = {
+                "predicted_phase": "no_prediction",
+                "confidence": 0.0,
+                "modifier": 0.0,
+                "prediction_source": "unavailable"
+            }
+        else:
+            print(f"[CLIP SUCCESS] {symbol}: Applied {clip_modifier:+.3f} boost from visual analysis")
         
         # Apply CLIP modifier to final score
         enhanced_score = score + clip_modifier
+        original_decision = decision
         
         # Update decision based on CLIP enhancement
         original_decision = decision
