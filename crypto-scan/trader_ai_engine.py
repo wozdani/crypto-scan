@@ -821,7 +821,7 @@ def compute_trader_score(features: Dict, symbol: str = None) -> Dict:
         }
 
 
-def simulate_trader_decision_advanced(features: dict) -> dict:
+def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: dict, debug_info: dict = None) -> dict:
     """
     🧠 Nowa Generacja Adaptacyjnego Scoringu - Profesjonalna, kontekstowa wersja decyzyjna
     
