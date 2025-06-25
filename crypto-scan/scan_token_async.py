@@ -174,10 +174,16 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         if isinstance(orderbook, Exception):
             orderbook = None
         
-        # Convert to enhanced processor format
+        # Convert to enhanced processor format with debug
         ticker_data = {"result": {"list": [ticker]}} if ticker else None
-        candles_data = {"result": {"list": candles_15m}} if candles_15m else None
+        candles_data = {"result": {"list": candles_15m}} if candles_15m and isinstance(candles_15m, list) and len(candles_15m) > 0 else None
         orderbook_data = {"result": orderbook} if orderbook else None
+        
+        # Debug candle data format
+        if candles_15m and isinstance(candles_15m, list):
+            print(f"[CANDLE DEBUG] {symbol} → {len(candles_15m)} candles, first: {candles_15m[0] if candles_15m else 'None'}")
+        else:
+            print(f"[CANDLE DEBUG] {symbol} → Invalid candles: {type(candles_15m)}")
         
         # Use enhanced data processor
         from utils.async_data_processor import process_async_data_enhanced
