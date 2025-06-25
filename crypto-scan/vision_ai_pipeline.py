@@ -200,6 +200,77 @@ def save_label_jsonl(symbol: str, timestamp: str, label_data: Dict,
         return False
 
 
+def fetch_candles_for_vision(symbol: str) -> Optional[List]:
+    """
+    Elastyczne pobieranie świec z fallbackiem dla Vision-AI
+    
+    Args:
+        symbol: Symbol tradingowy
+        
+    Returns:
+        Lista świec lub None jeśli brak wystarczających danych
+    """
+    try:
+        # Próba 1: Sprawdź async results cache
+        print(f"[VISION-AI FETCH] {symbol}: Checking async scan results...")
+        async_file = f"data/async_results/{symbol}.json"
+        if os.path.exists(async_file):
+            try:
+                with open(async_file, 'r') as f:
+                    async_data = json.load(f)
+                    candles = async_data.get("candles", [])
+                    if candles and len(candles) >= 30:
+                        print(f"[VISION-AI ASYNC] {symbol}: Got {len(candles)} async cached candles")
+                        return candles
+            except Exception as e:
+                print(f"[VISION-AI ASYNC ERROR] {symbol}: {e}")
+        
+        # Próba 2: Sprawdź scan results z ostatniego skanu
+        print(f"[VISION-AI SCAN] {symbol}: Checking recent scan data...")
+        scan_file = f"data/scan_results/latest_scan.json"
+        if os.path.exists(scan_file):
+            try:
+                with open(scan_file, 'r') as f:
+                    scan_data = json.load(f)
+                    for result in scan_data.get("results", []):
+                        if result.get("symbol") == symbol:
+                            candles = result.get("candles", result.get("market_data", {}).get("candles", []))
+                            if candles and len(candles) >= 30:
+                                print(f"[VISION-AI SCAN] {symbol}: Got {len(candles)} scan cached candles")
+                                return candles
+            except Exception as e:
+                print(f"[VISION-AI SCAN ERROR] {symbol}: {e}")
+            
+        # Próba 3: Bezpośrednie API Bybit
+        print(f"[VISION-AI DIRECT] {symbol}: Direct Bybit API fetch...")
+        
+        response = requests.get(
+            "https://api.bybit.com/v5/market/kline",
+            params={
+                'category': 'linear',
+                'symbol': symbol,
+                'interval': '15',
+                'limit': '200'
+            },
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            api_data = response.json()
+            if api_data.get('retCode') == 0:
+                api_candles = api_data.get('result', {}).get('list', [])
+                if len(api_candles) >= 30:
+                    print(f"[VISION-AI DIRECT] {symbol}: Got {len(api_candles)} direct API candles")
+                    return api_candles
+                    
+        # Próba 4: Jeśli brak danych, zwróć None - nie generujemy syntetycznych danych
+        print(f"[VISION-AI FAILED] {symbol}: No authentic candle data available from any source")
+        return None
+        
+    except Exception as e:
+        print(f"[VISION-AI ERROR] {symbol}: Candle fetch failed: {e}")
+        return None
+
 def prepare_top5_training_data(tjde_results: List[Dict]) -> List[Dict]:
     """
     Select TOP 5 tokens by TJDE score for training data generation
@@ -266,21 +337,17 @@ def generate_vision_ai_training_data(tjde_results: List[Dict], vision_ai_mode: s
                 training_pairs_created += 1
                 continue
             
-            # Get candle data with comprehensive fallback system
-            candles_15m = result.get("candles", [])
+            # Użyj nowej elastycznej funkcji pobierania świec
+            candles_15m = fetch_candles_for_vision(symbol)
             
-            # FIX 2: Enhanced candle validation with multiple fallback sources
-            if not candles_15m or len(candles_15m) < 5:
-                # Try multiple fallback sources
-                candles_15m = market_data.get("candles_15m", [])
-                if not candles_15m or len(candles_15m) < 5:
-                    candles_15m = market_data.get("candles", [])
-                    if not candles_15m or len(candles_15m) < 5:
-                        print(f"[VISION-AI SKIP] {symbol}: Insufficient candle data after fallbacks ({len(candles_15m)})")
-                        continue
+            if not candles_15m:
+                # Zapisz token z brakującymi danymi do raportu
+                save_missing_candles_report(symbol, "insufficient_data")
+                print(f"[VISION-AI SKIP] {symbol}: No candles available after all fallbacks")
+                continue
             
-            # Remove overly complex data fetching - use available data
-            print(f"[VISION-AI DATA] {symbol}: Using {len(candles_15m)} candles from scan result")
+            # Użyj dostępnych świec
+            print(f"[VISION-AI DATA] {symbol}: Using {len(candles_15m)} candles for training")
             
             # Convert to DataFrame for chart generation with available data
             df_data = []
@@ -340,15 +407,95 @@ def generate_vision_ai_training_data(tjde_results: List[Dict], vision_ai_mode: s
                 "price_action": result.get('price_action_pattern', 'unknown')
             }
             
-            # Save label to JSONL
+            # Save label to JSONL z dodatkową informacją o źródle danych
+            label_data["data_source"] = "vision_fetch" if len(candles_15m) > 30 else "synthetic"
+            label_data["skip_training"] = len(candles_15m) < 20  # Oznacz słabe dane
+            
             if save_label_jsonl(symbol, timestamp, label_data):
                 training_pairs_created += 1
                 
         except Exception as e:
             print(f"[VISION-AI ERROR] {symbol}: {e}")
+            save_missing_candles_report(symbol, f"processing_error: {e}")
+    
+    # Zapisz raport z brakującymi danymi
+    save_training_summary_report(training_pairs_created, len(top5_results))
     
     print(f"[VISION-AI] Generated {training_pairs_created} training pairs")
     return training_pairs_created
+
+def save_missing_candles_report(symbol: str, reason: str):
+    """Zapisuj tokeny z brakującymi danymi do raportu debugowania"""
+    try:
+        report_file = "data/missing_candles_report.json"
+        os.makedirs(os.path.dirname(report_file), exist_ok=True)
+        
+        # Wczytaj istniejący raport
+        if os.path.exists(report_file):
+            with open(report_file, 'r') as f:
+                report = json.load(f)
+        else:
+            report = {"missing_candles": [], "last_updated": None}
+        
+        # Dodaj nowy wpis
+        entry = {
+            "symbol": symbol,
+            "reason": reason,
+            "timestamp": datetime.now().isoformat(),
+            "needs_investigation": True
+        }
+        
+        report["missing_candles"].append(entry)
+        report["last_updated"] = datetime.now().isoformat()
+        
+        # Zachowaj tylko ostatnie 100 wpisów
+        if len(report["missing_candles"]) > 100:
+            report["missing_candles"] = report["missing_candles"][-100:]
+        
+        # Zapisz raport
+        with open(report_file, 'w') as f:
+            json.dump(report, f, indent=2)
+            
+    except Exception as e:
+        print(f"[REPORT ERROR] Failed to save missing candles report: {e}")
+
+def save_training_summary_report(generated: int, attempted: int):
+    """Zapisuj podsumowanie sesji treningowej"""
+    try:
+        summary_file = "data/training_summary.json"
+        os.makedirs(os.path.dirname(summary_file), exist_ok=True)
+        
+        summary = {
+            "session_timestamp": datetime.now().isoformat(),
+            "tokens_attempted": attempted,
+            "training_pairs_generated": generated,
+            "success_rate": (generated / attempted) * 100 if attempted > 0 else 0,
+            "status": "SUCCESS" if generated > 0 else "FAILED"
+        }
+        
+        # Append to history
+        if os.path.exists(summary_file):
+            with open(summary_file, 'r') as f:
+                data = json.load(f)
+            if "sessions" not in data:
+                data["sessions"] = []
+        else:
+            data = {"sessions": []}
+            
+        data["sessions"].append(summary)
+        data["last_session"] = summary
+        
+        # Keep only last 50 sessions
+        if len(data["sessions"]) > 50:
+            data["sessions"] = data["sessions"][-50:]
+        
+        with open(summary_file, 'w') as f:
+            json.dump(data, f, indent=2)
+            
+        print(f"[TRAINING SUMMARY] {generated}/{attempted} pairs generated ({summary['success_rate']:.1f}% success)")
+        
+    except Exception as e:
+        print(f"[SUMMARY ERROR] Failed to save training summary: {e}")
 
 
 class EnhancedCLIPPredictor:
