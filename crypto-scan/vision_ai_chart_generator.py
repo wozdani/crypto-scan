@@ -56,10 +56,66 @@ def plot_chart_vision_ai(symbol: str, candles: List, alert_index: int = None, al
         Path to saved chart file
     """
     try:
-        if not candles or len(candles) < 5:  # FIX 2: Reduce restrictive threshold from 10 to 5
-            print(f"[VISION-AI CHART] {symbol}: Insufficient candle data ({len(candles) if candles else 0}) - need at least 5")
+        # CRITICAL: Enhanced data validation to prevent distorted charts
+        if not candles or not isinstance(candles, list) or len(candles) < 20:
+            print(f"[CHART ERROR] {symbol}: Missing or invalid candle data - got {len(candles) if candles else 0} candles (need ≥20)")
             return None
+        
+        print(f"[CHART VALIDATION] {symbol}: Processing {len(candles)} candles")
+        
+        # CRITICAL: Price range validation to prevent BANANAS31USDT-style flat charts
+        price_samples = []
+        valid_candles = []
+        
+        for candle in candles:
+            try:
+                if isinstance(candle, dict):
+                    open_price = float(candle.get('open', 0))
+                    high_price = float(candle.get('high', 0))
+                    low_price = float(candle.get('low', 0))
+                    close_price = float(candle.get('close', 0))
+                elif isinstance(candle, list) and len(candle) >= 5:
+                    open_price = float(candle[1])
+                    high_price = float(candle[2])
+                    low_price = float(candle[3])
+                    close_price = float(candle[4])
+                else:
+                    continue
+                
+                # Validate OHLC data integrity
+                if all(p > 0 for p in [open_price, high_price, low_price, close_price]):
+                    if low_price <= high_price and min(open_price, close_price) >= low_price and max(open_price, close_price) <= high_price:
+                        price_samples.extend([open_price, high_price, low_price, close_price])
+                        valid_candles.append(candle)
+            except (ValueError, TypeError, IndexError):
+                continue
+        
+        if len(valid_candles) < 20:
+            print(f"[CHART ERROR] {symbol}: Insufficient valid candles - got {len(valid_candles)} valid from {len(candles)} total")
+            return None
+        
+        # CRITICAL: Detect abnormal price ranges that create distorted charts
+        if price_samples:
+            min_price = min(price_samples)
+            max_price = max(price_samples)
+            price_range = max_price - min_price
+            avg_price = sum(price_samples) / len(price_samples)
             
+            relative_range = price_range / avg_price if avg_price > 0 else 0
+            
+            # Reject flat-line charts like BANANAS31USDT (0.008-0.008 range)
+            if relative_range < 0.005:  # Less than 0.5% price movement
+                print(f"[SKIP CHART] {symbol}: Abnormal price range - {price_range:.6f} ({relative_range*100:.3f}% of avg price) - likely distorted data")
+                return None
+            
+            if price_range < 0.0001:  # Absolute minimum threshold
+                print(f"[SKIP CHART] {symbol}: Price range too small: {price_range:.8f}")
+                return None
+                
+            print(f"[CHART VALIDATION] {symbol}: ✅ Valid price range {min_price:.6f} - {max_price:.6f} (range: {price_range:.6f}, {relative_range*100:.2f}%)")
+        
+        candles = valid_candles
+        
         # Prepare save path
         if not save_path:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M")
@@ -69,6 +125,11 @@ def plot_chart_vision_ai(symbol: str, candles: List, alert_index: int = None, al
         
         # Ensure directory exists
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        
+        # CRITICAL: Clear any existing plots to prevent overlay issues
+        plt.clf()
+        plt.cla()
+        plt.close('all')
         
         # Configure matplotlib for professional output
         plt.style.use('dark_background')
