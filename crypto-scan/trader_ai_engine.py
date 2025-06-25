@@ -34,6 +34,11 @@ try:
 except ImportError:
     get_orderbook_snapshot = None
 
+try:
+    from utils.clip_gpt_mapper import clip_gpt_mapper
+except ImportError:
+    clip_gpt_mapper = None
+
 # Use enhanced TJDE calculation functions (defined in this file)
 TJDE_FUNCTIONS_AVAILABLE = True
 print("[TJDE IMPORT] Enhanced TJDE functions available in trader_ai_engine.py")
@@ -1054,13 +1059,54 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
             
             print(f"[CLIP ENTRY] Starting CLIP prediction loading for {symbol}")
             
-            # Load CLIP prediction
+            # Load CLIP prediction and get GPT commentary
             clip_prediction = load_clip_prediction(symbol)
             print(f"[CLIP LOAD] {symbol}: Prediction result = {clip_prediction}")
             
-            if clip_prediction:
-                prediction_str = clip_prediction.lower()
-                print(f"[CLIP VALID] {symbol}: Found prediction = '{prediction_str}'")
+            # Try to load GPT commentary for mapping
+            gpt_commentary = ""
+            try:
+                gpt_file_pattern = f"training_charts/{symbol}_*.gpt.json"
+                import glob
+                gpt_files = glob.glob(gpt_file_pattern)
+                if gpt_files:
+                    with open(gpt_files[0], 'r') as f:
+                        gpt_data = json.load(f)
+                        gpt_commentary = gpt_data.get('commentary', '')
+                        print(f"[GPT LOAD] {symbol}: Found commentary: {gpt_commentary[:100]}...")
+            except Exception as e:
+                print(f"[GPT LOAD] {symbol}: No GPT commentary found: {e}")
+            
+            # Enhanced CLIP processing with GPT mapping
+            if clip_prediction or gpt_commentary:
+                # Use CLIP-GPT mapper to enhance or correct label
+                if clip_gpt_mapper and gpt_commentary:
+                    # Create clip info for mapper
+                    clip_info_for_mapper = {
+                        "trend_label": clip_prediction if clip_prediction else "unknown",
+                        "clip_confidence": 0.75  # Default confidence for file-based predictions
+                    }
+                    
+                    # Analyze consensus and get enhanced label
+                    consensus_analysis = clip_gpt_mapper.analyze_clip_gpt_consensus(
+                        clip_info_for_mapper, gpt_commentary
+                    )
+                    
+                    # Use enhanced label and scoring
+                    enhanced_label = consensus_analysis.get("enhanced_clip_label", clip_prediction)
+                    scoring_modifier = consensus_analysis.get("scoring_modifier", 0.0)
+                    
+                    print(f"[CLIP-GPT ENHANCE] {symbol}: {clip_prediction} → {enhanced_label}")
+                    print(f"[CLIP-GPT BOOST] Consensus modifier: {scoring_modifier:+.3f}")
+                    
+                    # Update prediction to use enhanced label
+                    prediction_str = enhanced_label.lower() if enhanced_label else ""
+                    clip_modifier += scoring_modifier
+                    
+                else:
+                    prediction_str = clip_prediction.lower() if clip_prediction else ""
+                
+                print(f"[CLIP VALID] {symbol}: Processing prediction = '{prediction_str}'")
                 
                 # Apply contextual boosts based on CLIP prediction
                 if "breakout-continuation" in prediction_str:
