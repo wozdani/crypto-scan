@@ -37,31 +37,66 @@ def detect_alert_moment(candles_15m, tjde_score=None, tjde_decision=None):
         recent_length = min(15, len(candles_15m))
         recent_candles = candles_15m[-recent_length:]
         
-        closes = [float(c[4]) for c in recent_candles]
-        volumes = [float(c[5]) for c in recent_candles]
-        highs = [float(c[2]) for c in recent_candles]
-        lows = [float(c[3]) for c in recent_candles]
+        # Convert to safe numeric values with proper error handling
+        closes = []
+        volumes = []
+        highs = []
+        lows = []
+        
+        for candle in recent_candles:
+            try:
+                # Handle both list and dict formats safely
+                if isinstance(candle, dict):
+                    close_val = float(candle.get('close', candle.get(4, 0)))
+                    volume_val = float(candle.get('volume', candle.get(5, 0)))
+                    high_val = float(candle.get('high', candle.get(2, 0)))
+                    low_val = float(candle.get('low', candle.get(3, 0)))
+                else:
+                    close_val = float(candle[4]) if len(candle) > 4 else 0.0
+                    volume_val = float(candle[5]) if len(candle) > 5 else 0.0
+                    high_val = float(candle[2]) if len(candle) > 2 else 0.0
+                    low_val = float(candle[3]) if len(candle) > 3 else 0.0
+                
+                closes.append(close_val)
+                volumes.append(volume_val)
+                highs.append(high_val)
+                lows.append(low_val)
+            except (ValueError, TypeError, IndexError):
+                closes.append(0.0)
+                volumes.append(0.0)
+                highs.append(0.0)
+                lows.append(0.0)
+        
+        if len(closes) == 0:
+            return max(0, len(candles_15m) - 1)
         
         # 1. Szukamy volume spike + price action
-        avg_volume = sum(volumes[:-3]) / len(volumes[:-3]) if len(volumes) > 3 else sum(volumes) / len(volumes)
+        if len(volumes) > 3:
+            avg_volume = sum(volumes[:-3]) / len(volumes[:-3])
+        else:
+            avg_volume = sum(volumes) / len(volumes) if volumes else 1.0
         
         # 2. Priorytet dla ostatnich 5 świec z volume spike
-        for i in range(len(recent_candles) - 5, len(recent_candles)):
-            if i >= 0 and volumes[i] > avg_volume * 1.3:
+        start_range = max(0, len(recent_candles) - 5)
+        for i in range(start_range, len(recent_candles)):
+            if i >= 0 and i < len(volumes) and volumes[i] > avg_volume * 1.3:
                 return len(candles_15m) - (len(recent_candles) - i)
         
         # 3. Szukamy breakout lub bounce pattern
-        for i in range(len(recent_candles) - 3, len(recent_candles)):
-            if i > 0:
+        start_range = max(0, len(recent_candles) - 3)
+        for i in range(start_range, len(recent_candles)):
+            if i > 0 and i < len(closes) and closes[i-1] > 0:
                 price_move = abs(closes[i] - closes[i-1]) / closes[i-1]
                 if price_move > 0.01:  # 1%+ move
                     return len(candles_15m) - (len(recent_candles) - i)
         
         # 4. Default - ostatnie 2-3 świece
-        return len(candles_15m) - 2
+        return max(0, len(candles_15m) - 2)
         
     except Exception as e:
         print(f"[ALERT DETECTION ERROR] {e}")
+        import traceback
+        traceback.print_exc()
         return max(0, len(candles_15m) - 2)
 
 

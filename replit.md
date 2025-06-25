@@ -98,6 +98,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 25, 2025 - Training System Critical Fixes - All Training Errors Resolved ✅
+Fixed two critical training system errors that were preventing chart generation and causing system crashes:
+- **Fixed `training_manager` Variable Scope Error**: Resolved "cannot access local variable 'training_manager' where it is not associated with a value" by moving TrainingDataManager initialization outside conditional blocks in scan_token_async.py
+- **Fixed Chart Generation String Comparison Error**: Enhanced detect_alert_moment() and detect_alert_point() functions with proper data type conversion handling both dict and list candle formats, eliminating "'>' not supported between instances of 'str' and 'int'" errors
+- **Enhanced Data Type Safety**: Added comprehensive error handling and type conversion for candle data processing preventing numeric comparison failures with string values
+- **Production Testing**: Verified complete chart generation pipeline works correctly with TESTUSDT generating training_charts/TESTUSDT_20250625_2004_trend-following_consider_entry_tjde.png successfully
+- **Training Pipeline Recovery**: System now generates TJDE training charts without crashes enabling continuous Vision-AI training data collection
+- **Error Prevention**: Robust fallback mechanisms ensure training continues even with malformed candle data
+Training system fully operational - all tokens now process without variable scope or chart generation errors.
+
 ### June 25, 2025 - TJDE Trend-Mode Independent Alert System - Critical Alert Bug Fixed ✅
 Successfully implemented completely independent TJDE trend-mode alert system resolving critical bug where high TJDE scores (0.6+) weren't generating alerts:
 - **Independent Alert System**: Created dedicated TJDE alert system in utils/tjde_alert_system.py completely separate from PPWCS logic with much lower thresholds (0.6+ vs 100 points)
