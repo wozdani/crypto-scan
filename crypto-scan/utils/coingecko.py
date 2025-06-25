@@ -172,13 +172,53 @@ def build_coingecko_cache():
     except requests.exceptions.RequestException as e:
         print(f"❌ Błąd podczas budowy cache: {e}")
 
+def normalize_token_symbol(symbol: str) -> str:
+    """Normalize token symbol for CoinGecko cache lookup"""
+    if not symbol:
+        return symbol
+    
+    import re
+    # Remove numeric prefixes (10000, 1000000, etc.)
+    normalized = re.sub(r'^(\d+)', '', symbol)
+    
+    # Remove trading pair suffixes
+    normalized = normalized.replace("USDT", "").replace("BUSD", "").replace("BTC", "").replace("ETH", "")
+    
+    return normalized.strip()
+
 def get_contract_from_coingecko(symbol):
-
-    
     cache = load_coingecko_cache()
-
     
-    normalized_symbol = normalize_token_name(symbol, cache)
+    # Enhanced token lookup with normalization
+    found_symbol = None
+    
+    # Try direct lookup first
+    if symbol in cache:
+        found_symbol = symbol
+    else:
+        # Try normalized lookup
+        normalized = normalize_token_symbol(symbol)
+        print(f"[CACHE CHECK] {symbol} normalized → {normalized}")
+        
+        if normalized in cache:
+            found_symbol = normalized
+        else:
+            # Try case-insensitive search
+            for cache_key in cache.keys():
+                if cache_key.lower() == normalized.lower():
+                    found_symbol = cache_key
+                    break
+                elif cache_key.lower() == symbol.lower():
+                    found_symbol = cache_key
+                    break
+    
+    if not found_symbol:
+        print(f"⛔ Token {symbol} (normalized: {normalize_token_symbol(symbol)}) nie istnieje w cache CoinGecko")
+        return None
+    
+    print(f"✅ [CACHE CHECK] {symbol} → {found_symbol} → FOUND")
+    
+    normalized_symbol = found_symbol
 
 
     # First check if symbol is directly in cache (new format)

@@ -220,14 +220,15 @@ def simple_scan_fallback(symbols):
         processed = 0
         results = []
         
-        for symbol in symbols[:10]:  # Very limited fallback
+        for symbol in symbols:  # Process ALL symbols in fallback
             result = scan_single_token(symbol)
             if result:
                 results.append(result)
                 processed += 1
-                print(f"[{processed}/10] {symbol}: PPWCS {result.get('final_score', 0):.1f}")
+                if processed % 10 == 0:  # Progress every 10 tokens
+                    print(f"[{processed}/{len(symbols)}] Progress: {symbol}: PPWCS {result.get('final_score', 0):.1f}")
         
-        print(f"Sequential fallback processed {processed} tokens")
+        print(f"Sequential fallback processed {processed}/{len(symbols)} tokens")
         return results
         return []
 
