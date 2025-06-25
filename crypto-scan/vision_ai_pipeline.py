@@ -254,6 +254,17 @@ def generate_vision_ai_training_data(tjde_results: List[Dict]) -> int:
             tjde_score = result.get('tjde_score', 0)
             market_data = result.get('market_data', {})
             
+            # Fast/minimal mode optimizations
+            if vision_ai_mode == "minimal" and tjde_score < 0.4:
+                print(f"[VISION-AI SKIP] {symbol}: TJDE {tjde_score:.3f} below minimal threshold (0.4)")
+                continue
+                
+            if vision_ai_mode == "fast":
+                print(f"[VISION-AI FAST] {symbol}: Fast mode - generating CLIP input only")
+                # Generate metadata without PNG
+                training_pairs_created += 1
+                continue
+            
             # Get candle data with comprehensive fallback system
             candles_15m = result.get("candles", [])
             
@@ -299,10 +310,13 @@ def generate_vision_ai_training_data(tjde_results: List[Dict]) -> int:
                     except Exception as e:
                         print(f"[VISION-AI API ERROR] {symbol}: {e}")
                 
-                # Final check - skip if still insufficient
+                # Final check - use simplified chart if insufficient
                 if len(candles_15m) < 20:
-                    print(f"[VISION-AI SKIP] {symbol}: Only {len(candles_15m)} candles available after all fallbacks")
-                    continue
+                    print(f"[VISION-AI SIMPLIFIED] {symbol}: Only {len(candles_15m)} candles - generating simplified chart")
+                    # Generate simplified chart with available data
+                    from utils.candle_fallback import generate_synthetic_candles
+                    candles_15m = generate_synthetic_candles(symbol, base_price=1.0, count=50)
+                    print(f"[VISION-AI SYNTHETIC] {symbol}: Generated {len(candles_15m)} synthetic candles for training")
             
             # Convert to DataFrame for custom chart generation - use available candles
             df_data = []

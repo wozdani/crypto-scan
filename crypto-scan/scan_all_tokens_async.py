@@ -136,9 +136,15 @@ async def async_scan_cycle():
     if priority_symbols:
         print(f"Whale priority: {len(priority_symbols)} symbols flagged")
     
-    # Execute async scan
-    async with AsyncTokenScanner(max_concurrent=20) as scanner:
+    # Execute async scan with enhanced performance
+    start_time = time.time()
+    async with AsyncTokenScanner(max_concurrent=60, fast_mode=True) as scanner:
         results = await scanner.scan_all_tokens(symbols, priority_info)
+    scan_duration = time.time() - start_time
+    
+    print(f"[PERFORMANCE] Scan completed in {scan_duration:.1f}s (Target: <15s)")
+    if scan_duration > 15:
+        print(f"[PERFORMANCE WARNING] Scan exceeded 15s target by {scan_duration-15:.1f}s")
     
     # Post-scan processing
     if results:
