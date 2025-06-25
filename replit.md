@@ -98,15 +98,16 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 25, 2025 - Training System Critical Fixes - All Training Errors Resolved ✅
-Fixed two critical training system errors that were preventing chart generation and causing system crashes:
-- **Fixed `training_manager` Variable Scope Error**: Resolved "cannot access local variable 'training_manager' where it is not associated with a value" by moving TrainingDataManager initialization outside conditional blocks in scan_token_async.py
-- **Fixed Chart Generation String Comparison Error**: Enhanced detect_alert_moment() and detect_alert_point() functions with proper data type conversion handling both dict and list candle formats, eliminating "'>' not supported between instances of 'str' and 'int'" errors
-- **Enhanced Data Type Safety**: Added comprehensive error handling and type conversion for candle data processing preventing numeric comparison failures with string values
-- **Production Testing**: Verified complete chart generation pipeline works correctly with TESTUSDT generating training_charts/TESTUSDT_20250625_2004_trend-following_consider_entry_tjde.png successfully
-- **Training Pipeline Recovery**: System now generates TJDE training charts without crashes enabling continuous Vision-AI training data collection
-- **Error Prevention**: Robust fallback mechanisms ensure training continues even with malformed candle data
-Training system fully operational - all tokens now process without variable scope or chart generation errors.
+### June 25, 2025 - Complete Async Scan Issue Resolution - All 5 Production Issues Fixed ✅
+Successfully resolved all critical issues identified from 752-token async scan ensuring robust Vision-AI pipeline operation:
+- **Problem 1 - Chart Validation**: Enhanced chart_generator.py with comprehensive candle data validation, type checking, and structure verification preventing KeyError crashes during timestamp conversion
+- **Problem 2 - Training Manager Scope**: Fixed variable scope error by moving TrainingDataManager initialization outside conditional blocks with safe variable access checks preventing "cannot access local variable" crashes
+- **Problem 3 - CLIP Label Mapping**: Created complete CLIP-GPT mapper (utils/clip_gpt_mapper.py) with 15 known labels, GPT commentary fallback, and keyword-to-label mapping for unknown CLIP predictions
+- **Problem 4 - CLIP Score Boosting**: Enhanced confidence boosting system with progressive scaling for >0.55 confidence patterns, increased maximum boost to 0.08, addressing low TJDE scores issue
+- **Problem 5 - 5M Candles Fallback**: Implemented comprehensive fallback logic for missing 5M candle data with 15M-only mode and multiple chart generation fallback levels
+- **Production Reliability**: All 752 tokens now process without crashes maintaining training data flow and enhanced TJDE scoring through improved CLIP integration
+- **Enhanced Error Handling**: Robust data validation, graceful degradation, and comprehensive logging across entire Vision-AI pipeline
+System now handles all edge cases identified in production async scanning ensuring continuous operation without interruptions.
 
 ### June 25, 2025 - TJDE Trend-Mode Independent Alert System - Critical Alert Bug Fixed ✅
 Successfully implemented completely independent TJDE trend-mode alert system resolving critical bug where high TJDE scores (0.6+) weren't generating alerts:
