@@ -26,6 +26,7 @@ from utils.coingecko import build_coingecko_cache
 from utils.whale_priority import prioritize_whale_tokens
 from utils.data_validation import validate_market_data_enhanced
 from utils.enhanced_error_logging import log_api_error, log_data_validation_error
+# Enhanced data validation for partial validity support
 
 class AsyncCryptoScanner:
     """Async crypto scanner with aiohttp for I/O parallelism"""
@@ -161,10 +162,17 @@ class AsyncCryptoScanner:
             return None
     
     def _process_async_data(self, symbol: str, ticker_data: Optional[Dict], candles_data: Optional[Dict], orderbook_data: Optional[Dict]) -> Optional[Dict]:
-        """Process async data with partial validity support"""
+        """Process async data with partial validity support using enhanced validation"""
         
-        # Extract price from available sources
-        price_usd = 0.0
+        # Use enhanced validation system for partial validity support
+        validation_result = validate_market_data_enhanced(symbol)
+        
+        if not validation_result.is_valid:
+            log_data_validation_error(symbol, "Enhanced validation failed", validation_result.validation_issues)
+            return None
+        
+        # Extract validated data
+        price_usd = validation_result.price_usd
         volume_24h = 0.0
         
         # Priority 1: Ticker data
@@ -310,8 +318,8 @@ class AsyncCryptoScanner:
             try:
                 start_time = time.time()
                 
-                # Fetch market data async
-                market_data = await self.fetch_bybit_data(symbol)
+                # Fetch market data using enhanced validation system
+                market_data = await self.fetch_bybit_data_enhanced(symbol)
                 if not market_data:
                     return None
                 
