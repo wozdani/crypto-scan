@@ -68,6 +68,8 @@ def build_coingecko_cache():
         # Grupuj tokeny wg symbolu dla inteligentnego wyboru
         symbol_groups = {}
         for token in token_list:
+            if not isinstance(token, dict):
+                continue
             symbol = token.get('symbol', '').upper()
             if symbol:
                 if symbol not in symbol_groups:
@@ -241,9 +243,10 @@ def get_contract_from_coingecko(symbol):
         
 
     
-    # Fallback to old format search
-
-    for entry in cache:
+    # Fallback to old format search - check if cache contains list format
+    cache_values = cache.values() if isinstance(cache, dict) else cache
+    
+    for entry in cache_values:
         if not isinstance(entry, dict):
             continue
         entry_symbol = entry.get("symbol", "").lower()
