@@ -673,7 +673,7 @@ def compute_trader_score(features: Dict, symbol: str = None) -> Dict:
         }
         
         # Context-aware weight adjustments (jak myśli trader)
-        market_context = features.get("market_context", "neutral")
+        market_context = signals.get("market_context", "neutral")
         weights = base_weights.copy()
         context_adjustment = "standard"
         
@@ -720,9 +720,9 @@ def compute_trader_score(features: Dict, symbol: str = None) -> Dict:
         
         # === CALCULATE ACTUAL TJDE COMPONENTS ===
         # Get candles from features if available
-        candles_15m = features.get('candles_15m', [])
-        candles_5m = features.get('candles_5m', [])
-        symbol = features.get('symbol', 'UNKNOWN')
+        candles_15m = signals.get('candles_15m', [])
+        candles_5m = signals.get('candles_5m', [])
+        symbol_from_signals = signals.get('symbol', 'UNKNOWN')
         
         # Calculate real TJDE component scores - ALWAYS execute calculations
         print(f"[TJDE CALC DEBUG] {symbol}: Starting calculations with {len(candles_15m)} candles")
@@ -753,7 +753,7 @@ def compute_trader_score(features: Dict, symbol: str = None) -> Dict:
         total_score = 0.0
         
         for feature, weight in weights.items():
-            feature_value = features.get(feature, 0.0)
+            feature_value = signals.get(feature, 0.0)
             # Ensure value is in 0.0-1.0 range
             feature_value = max(0.0, min(1.0, feature_value))
             
@@ -790,11 +790,11 @@ def compute_trader_score(features: Dict, symbol: str = None) -> Dict:
         # Enhanced logging dla tradera
         if symbol:
             # Show individual component values from features (after calculation)
-            calc_trend = features.get('trend_strength', 0.0)
-            calc_pullback = features.get('pullback_quality', 0.0)
-            calc_support = features.get('support_reaction_strength', 0.0)
-            calc_volume = features.get('volume_behavior_score', 0.0)
-            calc_psych = features.get('psych_score', 0.0)
+            calc_trend = signals.get('trend_strength', 0.0)
+            calc_pullback = signals.get('pullback_quality', 0.0)
+            calc_support = signals.get('support_reaction_strength', 0.0)
+            calc_volume = signals.get('volume_behavior_score', 0.0)
+            calc_psych = signals.get('psych_score', 0.0)
             
             print(f"[TJDE SCORE] trend_strength={calc_trend:.2f}, pullback_quality={calc_pullback:.2f}, final_score={final_score:.2f}")
             print(f"[TJDE SCORE] volume_behavior_score={calc_volume:.1f}, psych_score={calc_psych:.1f}, support_reaction={calc_support:.1f}")
@@ -804,7 +804,7 @@ def compute_trader_score(features: Dict, symbol: str = None) -> Dict:
             print(f"[TRADER SCORE] {symbol}: {breakdown_str}")
         
         # Log to file dla analizy
-        _log_trader_score(symbol, result, features)
+        _log_trader_score(symbol, result, signals)
         
         return result
         
@@ -1138,7 +1138,7 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
             
             # Create temporary TJDE result for cluster analysis
             temp_tjde_result = {
-                "symbol": features.get("symbol", "UNKNOWN"),
+                "symbol": symbol,
                 "final_score": enhanced_score,
                 "decision": decision,
                 "score_breakdown": {
@@ -1157,7 +1157,7 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
             
             # Enhance with cluster analysis
             cluster_enhanced_result = cluster_integration.enhance_tjde_with_cluster(
-                features.get("symbol", "UNKNOWN"),
+                symbol,
                 temp_tjde_result
             )
             
@@ -1179,11 +1179,11 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                     cluster_reason = f"Cluster {cluster_info.get('cluster', -1)}: {cluster_info.get('recommendation', 'neutral')} ({cluster_modifier:+.3f})"
                     context_modifiers.append(cluster_reason)
                 
-                print(f"[CLUSTER] {features.get('symbol', 'UNKNOWN')}: Enhanced with cluster analysis")
+                print(f"[CLUSTER] {symbol}: Enhanced with cluster analysis")
                 print(f"[CLUSTER] Modifier: {cluster_modifier:+.3f}, Quality: {cluster_info.get('quality_score', 0):.3f}")
             
         except Exception as cluster_error:
-            print(f"[CLUSTER ERROR] {features.get('symbol', 'UNKNOWN')}: {cluster_error}")
+            print(f"[CLUSTER ERROR] {symbol}: {cluster_error}")
         
         # === ETAP 8: AI HEURISTIC PATTERN CHECKING ===
         ai_pattern_matched = False
@@ -1206,12 +1206,12 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                 pattern_reason = f"AI Pattern: {heuristic_alert['label']} ({heuristic_alert['confidence']:.2f} confidence)"
                 context_modifiers.append(pattern_reason)
                 
-                print(f"[AI PATTERN] {features.get('symbol', 'UNKNOWN')}: {heuristic_alert['label']}")
+                print(f"[AI PATTERN] {symbol}: {heuristic_alert['label']}")
                 print(f"[AI PATTERN] Confidence: {heuristic_alert['confidence']:.2f}, Score: {enhanced_score:.3f} -> HEURISTIC ALERT")
                 print(f"[AI PATTERN] Features: {', '.join(heuristic_alert['features_matched'])}")
                 
         except Exception as ai_error:
-            print(f"[AI PATTERN ERROR] {features.get('symbol', 'UNKNOWN')}: {ai_error}")
+            print(f"[AI PATTERN ERROR] {symbol}: {ai_error}")
         
         # === ETAP 9: FINAL RESULT ASSEMBLY WITH ALL ENHANCEMENTS ===
         
@@ -1291,11 +1291,11 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                     "result_after_2h": None  # Will be evaluated later by feedback loop
                 }
                 
-                update_token_memory(features.get("symbol", "UNKNOWN"), memory_data)
-                print(f"[TOKEN MEMORY] {features.get('symbol', 'UNKNOWN')}: Recorded decision for feedback tracking")
+                update_token_memory(symbol, memory_data)
+                print(f"[TOKEN MEMORY] {symbol}: Recorded decision for feedback tracking")
                 
             except Exception as memory_error:
-                print(f"[TOKEN MEMORY ERROR] {features.get('symbol', 'UNKNOWN')}: {memory_error}")
+                print(f"[TOKEN MEMORY ERROR] {symbol}: {memory_error}")
 
         return result
         
@@ -1904,14 +1904,14 @@ def describe_setup_naturally(
         return f"Analiza {symbol}: {decision_result.get('decision', 'wait')} - score {decision_result.get('final_score', 0):.2f}"
 
 
-def _log_trader_score(symbol: str, scoring_result: Dict, features: Dict):
+def _log_trader_score(symbol: str, scoring_result: Dict, input_signals: Dict):
     """Log detailed trader scoring for analysis"""
     try:
         log_entry = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "symbol": symbol,
             "scoring_result": scoring_result,
-            "input_features": features
+            "input_features": input_signals
         }
         
         log_file = "trader_score_log.txt"
@@ -1929,7 +1929,7 @@ def _log_comprehensive_debug(
     candle_behavior: Dict,
     orderbook_info: Dict,
     scoring_result: Dict,
-    features: Dict
+    input_signals: Dict
 ):
     """Log comprehensive debug information per analysis"""
     try:
