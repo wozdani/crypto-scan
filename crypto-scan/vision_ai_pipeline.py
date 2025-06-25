@@ -227,12 +227,13 @@ def prepare_top5_training_data(tjde_results: List[Dict]) -> List[Dict]:
     return top5
 
 
-def generate_vision_ai_training_data(tjde_results: List[Dict]) -> int:
+def generate_vision_ai_training_data(tjde_results: List[Dict], vision_ai_mode: str = "full") -> int:
     """
     Complete Vision-AI training data generation pipeline
     
     Args:
         tjde_results: List of scan results with TJDE analysis
+        vision_ai_mode: Vision-AI mode ("full", "fast", "minimal")
         
     Returns:
         Number of training pairs generated
@@ -267,6 +268,16 @@ def generate_vision_ai_training_data(tjde_results: List[Dict]) -> int:
             
             # Get candle data with comprehensive fallback system
             candles_15m = result.get("candles", [])
+            
+            # FIX 2: Enhanced candle validation with multiple fallback sources
+            if not candles_15m or len(candles_15m) < 5:
+                # Try multiple fallback sources
+                candles_15m = market_data.get("candles_15m", [])
+                if not candles_15m or len(candles_15m) < 5:
+                    candles_15m = market_data.get("candles", [])
+                    if not candles_15m or len(candles_15m) < 5:
+                        print(f"[VISION-AI SKIP] {symbol}: Insufficient candle data after fallbacks ({len(candles_15m)})")
+                        continue
             
             # Try multiple data sources if insufficient
             if len(candles_15m) < 20:

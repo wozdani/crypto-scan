@@ -28,12 +28,12 @@ from utils.whale_priority import prioritize_whale_tokens
 class AsyncCryptoScanner:
     """Async crypto scanner with aiohttp for I/O parallelism"""
     
-    def __init__(self, max_concurrent: int = 80):  # Enhanced for <15s target
+    def __init__(self, max_concurrent: int = 120):  # FIX 3: Increase concurrency for <15s target
         self.max_concurrent = max_concurrent
         self.semaphore = asyncio.Semaphore(max_concurrent)
         self.session = None
         self.results = []
-        self.fast_mode = False  # Can be set after initialization
+        self.fast_mode = True  # Enable fast mode by default for better performance
         
     async def __aenter__(self):
         """Async context manager entry"""

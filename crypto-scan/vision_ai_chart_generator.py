@@ -35,8 +35,8 @@ def plot_chart_vision_ai(symbol: str, candles: List, alert_index: int = None, al
         Path to saved chart file
     """
     try:
-        if not candles or len(candles) < 10:
-            print(f"[VISION-AI CHART] {symbol}: Insufficient candle data ({len(candles) if candles else 0})")
+        if not candles or len(candles) < 5:  # FIX 2: Reduce restrictive threshold from 10 to 5
+            print(f"[VISION-AI CHART] {symbol}: Insufficient candle data ({len(candles) if candles else 0}) - need at least 5")
             return None
             
         # Prepare save path
