@@ -390,10 +390,32 @@ def simulate_trader_decision_with_memory(symbol: str, market_data: dict, signals
             print(f"[PHASE 4 ERROR] {symbol}: {e}")
             memory_result["embedding_integration"] = False
         
-        # === STEP 7: SAVE DECISION TO MEMORY ===
+        # === STEP 7: APPLY PHASE 5 REINFORCEMENT LEARNING ===
+        try:
+            from reinforce_embeddings import integrate_reinforcement_learning
+            
+            memory_result = integrate_reinforcement_learning(symbol, memory_result)
+            
+            # Update final score if RL enhanced
+            rl_enhanced_score = memory_result.get("rl_enhanced_score")
+            if rl_enhanced_score and rl_enhanced_score != memory_result.get("rl_base_score", 0):
+                memory_result["final_score"] = rl_enhanced_score
+                
+                # Update decision if significantly changed
+                if memory_result.get("rl_decision_modified"):
+                    decision = memory_result["decision"]
+                    print(f"[PHASE 5] {symbol}: RL modified decision to {decision}")
+            
+        except ImportError:
+            memory_result["reinforcement_learning"] = False
+        except Exception as e:
+            print(f"[PHASE 5 ERROR] {symbol}: {e}")
+            memory_result["reinforcement_learning"] = False
+        
+        # === STEP 8: SAVE DECISION TO MEMORY ===
         context_memory.add_decision_entry(symbol, memory_result)
         
-        final_score_display = memory_result.get("embedding_enhanced_score", memory_enhanced_score)
+        final_score_display = memory_result.get("rl_enhanced_score") or memory_result.get("embedding_enhanced_score", memory_enhanced_score)
         print(f"[PHASE 2] {symbol}: Memory-enhanced decision: {decision} (score: {final_score_display:.3f})")
         
         return memory_result

@@ -181,6 +181,19 @@ def scan_cycle():
             processed = process_training_charts_for_embeddings()
             if processed > 0:
                 print(f"[PHASE 4] Processed {processed} charts for hybrid embeddings")
+    except ImportError:
+        pass
+    
+    # Run Phase 5 Reinforcement Learning periodically
+    try:
+        from reinforce_embeddings import run_periodic_reinforcement_learning
+        
+        # Run RL cycle very infrequently (daily learning)
+        if random.random() < 0.01:  # 1% chance each cycle
+            report = run_periodic_reinforcement_learning()
+            if report:
+                performance = report["overall_performance"]
+                print(f"[PHASE 5] RL cycle completed: {performance['avg_success_rate']:.1%} success rate")
             
     except Exception as feedback_e:
         print(f"[MEMORY_FEEDBACK_ERROR] {feedback_e}")
