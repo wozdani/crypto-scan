@@ -3,6 +3,8 @@ Vision-AI Optimized Chart Generation for CLIP Training
 Professional TradingView-style charts with clean dark theme
 """
 
+import matplotlib
+matplotlib.use('Agg')  # Ensure non-interactive backend
 import os
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -10,10 +12,25 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 from typing import Optional, Dict, List
-from mplfinance.original_flavor import candlestick_ohlc
-from matplotlib.patches import Rectangle
 import matplotlib.ticker as mticker
-import matplotlib as mpl
+
+# Import candlestick_ohlc with robust fallback
+try:
+    from mplfinance.original_flavor import candlestick_ohlc
+except ImportError:
+    try:
+        from matplotlib.finance import candlestick_ohlc
+    except ImportError:
+        def candlestick_ohlc(ax, quotes, width=0.2, colorup='g', colordown='r'):
+            """Simple candlestick implementation fallback"""
+            for quote in quotes:
+                date, open_price, high, low, close = quote
+                color = colorup if close >= open_price else colordown
+                ax.plot([date, date], [low, high], color='black', linewidth=1)
+                height = abs(close - open_price)
+                bottom = min(open_price, close)
+                ax.add_patch(plt.Rectangle((date - width/2, bottom), width, height, 
+                                         facecolor=color, edgecolor='black', alpha=0.8))
 
 
 def plot_chart_with_context(symbol, candles, alert_indices=None, alert_index=None, score=None, decision=None, phase=None, setup=None, save_path="chart.png", context_days=2):

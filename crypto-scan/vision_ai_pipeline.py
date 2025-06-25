@@ -3,6 +3,10 @@ Vision-AI CLIP Pipeline for Trend-Mode System
 Complete implementation of auto-labeled charts and CLIP-based training
 """
 
+import matplotlib
+matplotlib.use('Agg')  # Ensure non-interactive backend
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import mplfinance as mpf
 import json
 import os
