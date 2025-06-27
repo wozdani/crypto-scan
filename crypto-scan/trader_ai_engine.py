@@ -1264,6 +1264,7 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                 import glob
                 
                 print(f"[CLIP FAST] Executing FastCLIP predictor for {symbol}")
+                print(f"[CLIP PROCESSING] {symbol} → Starting CLIP analysis...")
                 
                 
                 chart_locations = [
@@ -1294,6 +1295,7 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                         pattern = clip_prediction.get('predicted_label', clip_prediction.get('pattern', ''))
                         
                         print(f"[CLIP FAST USED] {symbol}: FastCLIP confidence {clip_confidence:.3f}, pattern: {pattern}")
+                        print(f"[CLIP SUCCESS] {symbol} → FastCLIP prediction completed successfully")
                         
                         # Enhanced pattern-based confidence adjustment
                         if pattern in ['breakout-continuation', 'trend-following']:

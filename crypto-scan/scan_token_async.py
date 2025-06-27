@@ -68,6 +68,10 @@ async def get_candles_async(symbol: str, interval: str, session: aiohttp.ClientS
             print(f"[CANDLE API] {symbol} {interval}m → {len(candles_raw)} raw candles")
             if len(candles_raw) == 0:
                 print(f"[CANDLE EMPTY API] {symbol} {interval}m → Empty response from Bybit")
+                print(f"[CANDLE DEBUG] {symbol} {interval}m → API retCode: {data.get('retCode', 'unknown')}, retMsg: {data.get('retMsg', 'unknown')}")
+                # Some pairs don't support 5m intervals, check if symbol supports this interval
+                if interval == "5":
+                    print(f"[CANDLE 5M] {symbol} → 5M interval might not be supported by this trading pair")
             
             # Convert to standard format
             candles = []
