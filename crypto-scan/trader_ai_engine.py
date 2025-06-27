@@ -1047,6 +1047,7 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
             "prediction_source": "unavailable"
         }
         clip_boost_applied = False
+        clip_already_used = False
         cluster_enhanced = False
         cluster_modifier = 0.0
         cluster_info = {}
@@ -1142,7 +1143,11 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                     clip_modifier += scoring_modifier
                     
                 else:
-                    prediction_str = clip_prediction.lower() if clip_prediction else ""
+                    # Handle clip_prediction which could be string or dict
+                    if isinstance(clip_prediction, dict):
+                        prediction_str = clip_prediction.get('trend_label', clip_prediction.get('prediction', '')).lower()
+                    else:
+                        prediction_str = str(clip_prediction).lower() if clip_prediction else ""
                 
                 print(f"[CLIP VALID] {symbol}: Processing prediction = '{prediction_str}'")
                 
