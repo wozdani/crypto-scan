@@ -20,7 +20,8 @@ from utils.bybit_cache_manager import get_bybit_symbols_cached
 from utils.coingecko import build_coingecko_cache
 from utils.whale_priority import prioritize_whale_tokens
 from utils.scan_error_reporter import (
-    initialize_scan_session, log_scan_error, log_global_error, 
+    initialize_scan_session, log_scan_error, log_global_error, log_token_error,
+    log_api_error, log_clip_error, log_chart_error,
     print_error_summary, save_error_report, get_error_count
 )
 
@@ -96,6 +97,7 @@ class AsyncTokenScanner:
                 
                 if isinstance(result, Exception):
                     print(f"[{completed}/{len(symbols)}] {symbol}: ERROR - {result}")
+                    log_token_error(symbol, "ASYNC_SCAN", f"Scan failed: {result}")
                 elif result:
                     results.append(result)
                     # Compact progress display
@@ -263,6 +265,7 @@ def generate_top_tjde_charts(results: List[Dict]):
                 
                 if not candles_15m or len(candles_15m) < 20:
                     print(f"   [SKIP] {symbol}: Insufficient candle data after Vision-AI check")
+                    log_token_error(symbol, "CHART", f"Insufficient candle data: {len(candles_15m) if candles_15m else 0} candles")
                     continue
                 
                 # Generate custom trend-mode chart
@@ -306,6 +309,7 @@ def generate_top_tjde_charts(results: List[Dict]):
                     print(f"   ✅ Chart generated: {chart_path}")
                 else:
                     print(f"   ❌ Chart generation failed")
+                    log_token_error(symbol, "CHART", "Chart generation returned None")
                     
             except Exception as chart_e:
                 print(f"   ❌ Chart error for {symbol}: {chart_e}")
