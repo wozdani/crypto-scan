@@ -187,6 +187,7 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         # Convert to enhanced processor format with fallback for empty API responses
         ticker_data = {"result": {"list": [ticker]}} if ticker else None
         candles_data = {"result": {"list": candles_15m}} if candles_15m and isinstance(candles_15m, list) and len(candles_15m) > 0 else None
+        candles_5m_data = {"result": {"list": candles_5m}} if candles_5m and isinstance(candles_5m, list) and len(candles_5m) > 0 else None
         orderbook_data = {"result": orderbook} if orderbook else None
         
         # API Failure Fallback: Use realistic mock data when API returns 403/empty
@@ -216,21 +217,24 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 return None
         
         # Enhanced debug for data conversion
-        print(f"[DATA CONVERT] {symbol} → ticker_data: {bool(ticker_data)}, candles_data: {bool(candles_data)}, orderbook_data: {bool(orderbook_data)}")
+        print(f"[DATA CONVERT] {symbol} → ticker_data: {bool(ticker_data)}, candles_data: {bool(candles_data)}, candles_5m_data: {bool(candles_5m_data)}, orderbook_data: {bool(orderbook_data)}")
         if candles_data:
-            print(f"[CANDLES READY] {symbol} → {len(candles_15m)} candles wrapped for processor")
+            print(f"[CANDLES READY] {symbol} → 15M: {len(candles_15m)}, 5M: {len(candles_5m) if candles_5m else 0} candles")
         
         # Debug candle data format
         if candles_15m is not None and isinstance(candles_15m, list):
-            print(f"[CANDLE DEBUG] {symbol} → {len(candles_15m)} candles, first: {candles_15m[0] if candles_15m else 'None'}")
+            print(f"[CANDLE DEBUG] {symbol} → 15M: {len(candles_15m)} candles")
             if len(candles_15m) == 0:
-                print(f"[CANDLE EMPTY] {symbol} → List is empty, checking why...")
-        else:
-            print(f"[CANDLE DEBUG] {symbol} → Invalid candles: {type(candles_15m)}")
+                print(f"[CANDLE EMPTY] {symbol} → 15M list is empty")
         
-        # Use enhanced data processor
-        from utils.async_data_processor import process_async_data_enhanced
-        market_data = process_async_data_enhanced(symbol, ticker_data, candles_data, orderbook_data)
+        if candles_5m is not None and isinstance(candles_5m, list):
+            print(f"[CANDLE DEBUG] {symbol} → 5M: {len(candles_5m)} candles")
+            if len(candles_5m) == 0:
+                print(f"[CANDLE EMPTY] {symbol} → 5M list is empty")
+        
+        # Use enhanced data processor with 5M support
+        from utils.async_data_processor import process_async_data_enhanced_with_5m
+        market_data = process_async_data_enhanced_with_5m(symbol, ticker_data, candles_data, candles_5m_data, orderbook_data)
         
         if not market_data:
             print(f"[DATA VALIDATION FAILED] {symbol} → Enhanced processor rejected data")

@@ -6,6 +6,176 @@ Handles ticker None scenarios while preserving authentic candle data
 from typing import Dict, List, Optional, Any
 import json
 
+def process_async_data_enhanced_with_5m(symbol: str, ticker_data: Optional[Dict], candles_data: Optional[Dict], candles_5m_data: Optional[Dict], orderbook_data: Optional[Dict]) -> Optional[Dict]:
+    """
+    Enhanced async data processing with 5M candle support
+    
+    Args:
+        symbol: Trading symbol
+        ticker_data: Ticker data (may be None)
+        candles_data: 15M candle data (should be available)
+        candles_5m_data: 5M candle data (optional)
+        orderbook_data: Orderbook data (may be None)
+        
+    Returns:
+        Processed market data with both 15M and 5M candles or None if insufficient
+    """
+    
+    # Enhanced debug logging for input validation
+    print(f"[PROCESSOR DEBUG] {symbol} → Processing inputs:")
+    print(f"  ticker_data: {type(ticker_data)} - {bool(ticker_data)}")
+    print(f"  candles_data: {type(candles_data)} - {bool(candles_data)}")
+    print(f"  candles_5m_data: {type(candles_5m_data)} - {bool(candles_5m_data)}")
+    print(f"  orderbook_data: {type(orderbook_data)} - {bool(orderbook_data)}")
+    
+    if candles_data:
+        candles_structure = candles_data.get("result", {}) if isinstance(candles_data, dict) else "Invalid"
+        candles_list = candles_structure.get("list", []) if isinstance(candles_structure, dict) else "Invalid"
+        print(f"  candles_15m: {type(candles_structure)} - len={len(candles_list) if hasattr(candles_list, '__len__') else 'N/A'}")
+    
+    if candles_5m_data:
+        candles_5m_structure = candles_5m_data.get("result", {}) if isinstance(candles_5m_data, dict) else "Invalid"
+        candles_5m_list = candles_5m_structure.get("list", []) if isinstance(candles_5m_structure, dict) else "Invalid"
+        print(f"  candles_5m: {type(candles_5m_structure)} - len={len(candles_5m_list) if hasattr(candles_5m_list, '__len__') else 'N/A'}")
+    
+    # Initialize data containers
+    price_usd = 0.0
+    volume_24h = 0.0
+    candles_15m = []
+    candles_5m = []
+    bids = []
+    asks = []
+    
+    # PRIORITY 1: Extract from ticker data if available
+    if ticker_data and ticker_data.get("result", {}).get("list"):
+        ticker_list = ticker_data["result"]["list"]
+        if ticker_list:
+            ticker = ticker_list[0]
+            price_usd = float(ticker.get("lastPrice", 0)) if ticker.get("lastPrice") else 0.0
+            volume_24h = float(ticker.get("volume24h", 0)) if ticker.get("volume24h") else 0.0
+            print(f"[TICKER SUCCESS] {symbol}: Price ${price_usd}, Volume {volume_24h}")
+    
+    # PRIORITY 2: Process 15M candles (should always be available from async scanner)
+    if candles_data and candles_data.get("result", {}).get("list"):
+        candle_list = candles_data["result"]["list"]
+        for candle in candle_list:
+            try:
+                candles_15m.append({
+                    "timestamp": int(candle[0]),
+                    "open": float(candle[1]),
+                    "high": float(candle[2]), 
+                    "low": float(candle[3]),
+                    "close": float(candle[4]),
+                    "volume": float(candle[5])
+                })
+            except (ValueError, IndexError, TypeError):
+                continue
+        
+        # FALLBACK: Extract price from latest candle if ticker failed
+        if price_usd <= 0 and candles_15m:
+            price_usd = candles_15m[-1]["close"]  # Use most recent candle close price
+            # Calculate 24h volume from available candles
+            if len(candles_15m) >= 96:  # Full day of 15m candles
+                volume_24h = sum(c["volume"] for c in candles_15m[-96:])
+            else:
+                # Estimate based on available candles
+                volume_24h = sum(c["volume"] for c in candles_15m) * (96 / len(candles_15m))
+            print(f"[CANDLE FALLBACK] {symbol}: Price ${price_usd} from {len(candles_15m)} 15M candles")
+    
+    # PRIORITY 3: Process 5M candles if available
+    if candles_5m_data and candles_5m_data.get("result", {}).get("list"):
+        candle_5m_list = candles_5m_data["result"]["list"]
+        for candle in candle_5m_list:
+            try:
+                candles_5m.append({
+                    "timestamp": int(candle[0]),
+                    "open": float(candle[1]),
+                    "high": float(candle[2]), 
+                    "low": float(candle[3]),
+                    "close": float(candle[4]),
+                    "volume": float(candle[5])
+                })
+            except (ValueError, IndexError, TypeError):
+                continue
+        print(f"[5M CANDLES SUCCESS] {symbol}: Processed {len(candles_5m)} 5M candles")
+    else:
+        print(f"[5M FALLBACK] {symbol} → No 5M candles, using 15M-only mode")
+    
+    # PRIORITY 4: Process orderbook if available
+    if orderbook_data and orderbook_data.get("result"):
+        result = orderbook_data["result"]
+        if result.get("b"):
+            for bid in result["b"][:5]:
+                try:
+                    bids.append({"price": float(bid[0]), "size": float(bid[1])})
+                except (ValueError, IndexError):
+                    continue
+        if result.get("a"):
+            for ask in result["a"][:5]:
+                try:
+                    asks.append({"price": float(ask[0]), "size": float(ask[1])})
+                except (ValueError, IndexError):
+                    continue
+    
+    # SYNTHETIC ORDERBOOK: Create if missing but we have price
+    if not bids and not asks and price_usd > 0:
+        spread = price_usd * 0.001  # 0.1% spread
+        bids = [{"price": price_usd - spread, "size": 100.0}]
+        asks = [{"price": price_usd + spread, "size": 100.0}]
+        print(f"[ORDERBOOK SYNTHETIC] {symbol}: Created synthetic orderbook")
+    
+    # ENHANCED VALIDATION: Accept tokens with candles even without price
+    has_price = price_usd > 0
+    has_15m_candles = len(candles_15m) > 0
+    has_5m_candles = len(candles_5m) > 0
+    has_orderbook = len(bids) > 0 and len(asks) > 0
+    
+    # Must have 15M candles for processing
+    if not has_15m_candles:
+        print(f"[VALIDATION FAILED] {symbol}: No 15M candle data")
+        return None
+    
+    # If no price but we have candles, try final price extraction
+    if not has_price and has_15m_candles:
+        # Try to extract from any candle
+        for candle in candles_15m:
+            if candle.get("close", 0) > 0:
+                price_usd = candle["close"]
+                print(f"[PRICE RECOVERY] {symbol}: Extracted ${price_usd} from candle fallback")
+                break
+        
+    # Final price validation 
+    if price_usd <= 0:
+        print(f"[VALIDATION FAILED] {symbol}: No valid price found")
+        return None
+    
+    # Return enhanced market data with both timeframes
+    market_data = {
+        "symbol": symbol,
+        "price_usd": price_usd,
+        "volume_24h": volume_24h,
+        "candles": candles_15m,  # Legacy compatibility
+        "candles_15m": candles_15m,
+        "candles_5m": candles_5m,
+        "orderbook": {"bids": bids, "asks": asks},
+        "bids": bids,
+        "asks": asks,
+        "best_bid": bids[0]["price"] if bids else price_usd * 0.999,
+        "best_ask": asks[0]["price"] if asks else price_usd * 1.001,
+        "volume": volume_24h,
+        "recent_volumes": [c["volume"] for c in candles_15m[-10:]] if len(candles_15m) >= 10 else [],
+        "ticker_data": ticker_data,
+        "orderbook_data": orderbook_data,
+        "partial_data": False,
+        "is_partial": False,
+        "data_sources": ["async_enhanced"],
+        "price_change_24h": ((candles_15m[-1]["close"] - candles_15m[-96]["close"]) / candles_15m[-96]["close"] * 100) if len(candles_15m) >= 96 else 0.0
+    }
+    
+    print(f"[ENHANCED SUCCESS] {symbol}: 15M={len(candles_15m)}, 5M={len(candles_5m)}, Price=${price_usd:.6f}")
+    return market_data
+
+
 def process_async_data_enhanced(symbol: str, ticker_data: Optional[Dict], candles_data: Optional[Dict], orderbook_data: Optional[Dict]) -> Optional[Dict]:
     """
     Enhanced async data processing with intelligent fallback mechanisms
