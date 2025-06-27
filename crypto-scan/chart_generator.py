@@ -1083,7 +1083,36 @@ def generate_chart_async_safe(
         market_phase = tjde_result.get("market_phase", "unknown")
         setup_type = tjde_result.get("setup_type", "unknown")
         
-        # Use new professional chart generation system
+        # Priority 1: Try TradingView screenshot for high TJDE scores (≥0.7)
+        if tjde_score >= 0.7:
+            try:
+                from utils.tradingview_screenshot import TradingViewScreenshotGenerator
+                import asyncio
+                
+                print(f"[TRADINGVIEW ASYNC] {symbol}: High TJDE score {tjde_score:.3f} - attempting authentic TradingView capture")
+                
+                async def capture_single_symbol():
+                    async with TradingViewScreenshotGenerator() as generator:
+                        return await generator.generate_tradingview_screenshot(
+                            symbol=symbol,
+                            tjde_score=tjde_score,
+                            market_phase=market_phase,
+                            decision=decision
+                        )
+                
+                # Run async screenshot capture
+                screenshot_path = asyncio.run(capture_single_symbol())
+                
+                if screenshot_path and os.path.exists(screenshot_path):
+                    print(f"[TRADINGVIEW ASYNC] ✅ {symbol}: Authentic TradingView screenshot saved: {screenshot_path}")
+                    return screenshot_path
+                else:
+                    print(f"[TRADINGVIEW ASYNC] ❌ {symbol}: TradingView screenshot failed - falling back to professional matplotlib")
+                    
+            except Exception as e:
+                print(f"[TRADINGVIEW ASYNC ERROR] {symbol}: TradingView capture failed: {e} - using matplotlib fallback")
+        
+        # Priority 2: Fallback to professional matplotlib chart
         from plot_market_chart import plot_market_chart
         
         # Prepare alert info for professional chart  
