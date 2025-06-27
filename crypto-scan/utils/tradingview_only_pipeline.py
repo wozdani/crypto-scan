@@ -179,28 +179,28 @@ class TradingViewOnlyPipeline:
         Synchronous wrapper for TradingView chart generation
         Fixes the asyncio 'coroutine was never awaited' warning
         """
+        if not PLAYWRIGHT_AVAILABLE:
+            print("[TRADINGVIEW-ONLY] Playwright not available - cannot generate TradingView screenshots")
+            return []
+            
         try:
-            # Check if we're already in an async context
+            # Simple sync execution without nested event loops
+            import asyncio
+            
+            # Create new event loop for this specific operation
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
             try:
-                loop = asyncio.get_running_loop()
-                # We're in an async context - create task instead of run
-                print("[TRADINGVIEW-ONLY] Running in async context - creating task")
-                task = asyncio.create_task(
+                # Run the async function
+                return loop.run_until_complete(
                     self.generate_tradingview_charts_async(
                         tjde_results, min_score, max_symbols
                     )
                 )
-                # Get current event loop and run until complete
-                return loop.run_until_complete(task)
-                
-            except RuntimeError:
-                # No running loop - safe to use asyncio.run
-                print("[TRADINGVIEW-ONLY] No async context - using asyncio.run")
-                return asyncio.run(
-                    self.generate_tradingview_charts_async(
-                        tjde_results, min_score, max_symbols
-                    )
-                )
+            finally:
+                # Clean up the event loop
+                loop.close()
                 
         except Exception as e:
             print(f"[TRADINGVIEW-ONLY SYNC ERROR] {e}")
