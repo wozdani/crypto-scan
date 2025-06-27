@@ -168,10 +168,10 @@ class AdaptiveWeightEngine:
             with open(self.persistence_file, 'wb') as f:
                 pickle.dump(data, f)
                 
-            print(f"[ADAPTIVE] Saved state to {self.persistence_file}")
+            # State saved successfully
             
         except Exception as e:
-            print(f"❌ [ADAPTIVE ERROR] Failed to save to disk: {e}")
+            log_warning("ADAPTIVE WEIGHTS SAVE", e, f"Failed to save state to {self.persistence_file}")
     
     def _load_from_disk(self):
         """Wczytaj stan z pliku"""
@@ -187,10 +187,10 @@ class AdaptiveWeightEngine:
                 if last_updated_str:
                     self.last_updated = datetime.fromisoformat(last_updated_str)
                 
-                print(f"[ADAPTIVE] Loaded {len(self.memory)} examples from disk")
+                # Memory loaded successfully
                 
         except Exception as e:
-            print(f"⚠️ [ADAPTIVE WARNING] Could not load from disk: {e}")
+            log_warning("ADAPTIVE WEIGHTS LOAD", e, f"Could not load memory from {self.persistence_file}")
             self.memory = []
             self.performance_history = []
     
@@ -199,7 +199,7 @@ class AdaptiveWeightEngine:
         self.memory = []
         self.performance_history = []
         self.last_updated = None
-        print("[ADAPTIVE] Memory reset")
+        # Memory reset completed
     
     def export_weights_analysis(self, output_file: str = "logs/adaptive_weights_analysis.json"):
         """Eksportuj analizę wag do pliku"""
@@ -226,11 +226,10 @@ class AdaptiveWeightEngine:
             with open(output_file, 'w', encoding='utf-8') as f:
                 json.dump(analysis, f, indent=2, ensure_ascii=False)
             
-            print(f"[ADAPTIVE] Exported weights analysis to {output_file}")
             return analysis
             
         except Exception as e:
-            print(f"❌ [ADAPTIVE ERROR] Failed to export analysis: {e}")
+            log_warning("ADAPTIVE WEIGHTS EXPORT", e, f"Failed to export analysis to {output_file}")
             return None
 
 
@@ -267,15 +266,7 @@ if __name__ == "__main__":
     weights = engine.compute_weights()
     stats = engine.get_performance_stats()
     
-    print("\n📊 ADAPTIVE WEIGHTS TEST RESULTS:")
-    print(f"Success Rate: {stats['success_rate']:.1%}")
-    print(f"Examples: {stats['total_examples']}")
-    
-    print(f"\n⚖️ COMPUTED WEIGHTS:")
-    for feature, weight in weights.items():
-        print(f"  {feature:25} = {weight:.4f}")
-    
     # Export analysis
     engine.export_weights_analysis()
     
-    print(f"\n✅ AdaptiveWeightEngine test complete")
+    # Test completed successfully

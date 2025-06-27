@@ -10,6 +10,22 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 
+# Import centralized error logging system
+import sys
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.append(parent_dir)
+
+try:
+    from utils.scan_error_reporter import log_warning
+except ImportError:
+    def log_warning(label, exception=None, additional_info=None):
+        """Fallback log_warning if import fails"""
+        if exception:
+            print(f"⚠️ [{label}] {exception} - {additional_info or ''}")
+        else:
+            print(f"⚠️ [{label}] {additional_info or ''}")
+
 logger = logging.getLogger(__name__)
 
 class AIHeuristicPatternChecker:
@@ -313,17 +329,12 @@ def check_known_success_patterns(feature_dict: Dict, current_score: float) -> Op
 
 def main():
     """Test AI heuristic pattern checker"""
-    print("Testing AI Heuristic Pattern Checker")
-    print("=" * 50)
+    # Testing AI Heuristic Pattern Checker
     
     checker = AIHeuristicPatternChecker()
     
     # Get pattern statistics
     stats = checker.get_pattern_stats()
-    print(f"Pattern Statistics:")
-    print(f"   Total patterns: {stats['total_patterns']}")
-    print(f"   Average success rate: {stats['avg_success_rate']:.3f}")
-    print(f"   Pattern labels: {stats['pattern_labels']}")
     
     # Test pattern matching
     test_features = [
