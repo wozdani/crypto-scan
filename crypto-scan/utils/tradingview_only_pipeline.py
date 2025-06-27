@@ -62,7 +62,7 @@ class TradingViewOnlyPipeline:
             List of generated screenshot paths
         """
         if not PLAYWRIGHT_AVAILABLE:
-            print("[TRADINGVIEW-ONLY] Playwright not available - cannot generate TradingView screenshots")
+            log_warning("PLAYWRIGHT NOT AVAILABLE", None, "Cannot generate TradingView screenshots")
             return []
         
         try:
@@ -195,7 +195,7 @@ class TradingViewOnlyPipeline:
         Fixes the asyncio 'coroutine was never awaited' warning
         """
         if not PLAYWRIGHT_AVAILABLE:
-            print("[TRADINGVIEW-ONLY] Playwright not available - cannot generate TradingView screenshots")
+            log_warning("PLAYWRIGHT NOT AVAILABLE", None, "Cannot generate TradingView screenshots in sync_generate")
             return []
             
         try:

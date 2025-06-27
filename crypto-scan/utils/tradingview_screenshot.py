@@ -14,12 +14,26 @@ import time
 # Add current directory to path for imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+# Import global warning system
+try:
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from crypto_scan_service import log_warning
+except ImportError:
+    # Fallback logging if crypto_scan_service not available
+    def log_warning(label, exception=None, additional_info=None):
+        msg = f"[{label}]"
+        if exception:
+            msg += f" {str(exception)}"
+        if additional_info:
+            msg += f" - {additional_info}"
+        print(f"⚠️ {msg}")
+
 try:
     from playwright.async_api import async_playwright
     PLAYWRIGHT_AVAILABLE = True
 except ImportError:
     PLAYWRIGHT_AVAILABLE = False
-    print("[TRADINGVIEW] Playwright not available - falling back to professional matplotlib charts")
+    log_warning("PLAYWRIGHT NOT AVAILABLE", None, "Falling back to professional matplotlib charts")
 
 class TradingViewScreenshotGenerator:
     """Generate authentic TradingView screenshots for TOP 5 TJDE tokens"""
@@ -222,7 +236,6 @@ class TradingViewScreenshotGenerator:
                     pass
                 
                 # Take screenshot
-                print(f"[TRADINGVIEW] Taking screenshot...")
                 await page.screenshot(
                     path=output_path,
                     full_page=False,
@@ -288,10 +301,10 @@ class TradingViewScreenshotGenerator:
             with open(json_path, 'w') as f:
                 json.dump(metadata, f, indent=2)
                 
-            print(f"[TRADINGVIEW] Metadata saved: {json_path}")
+            # Metadata saved successfully
             
         except Exception as e:
-            print(f"[TRADINGVIEW] Failed to save metadata: {e}")
+            log_warning("TRADINGVIEW METADATA SAVE ERROR", e, f"Failed to save metadata to {json_path}")
 
 async def generate_tradingview_screenshots_for_top_tjde(
     tjde_results: List[Dict], 
@@ -310,7 +323,7 @@ async def generate_tradingview_screenshots_for_top_tjde(
         List of generated screenshot paths
     """
     if not PLAYWRIGHT_AVAILABLE:
-        print("[TRADINGVIEW] Playwright not available - skipping TradingView screenshots")
+        log_warning("PLAYWRIGHT NOT AVAILABLE", None, "Skipping TradingView screenshots")
         return []
     
     try:
@@ -362,11 +375,11 @@ async def generate_tradingview_screenshots_for_top_tjde(
                 # Small delay between captures
                 await asyncio.sleep(1)
         
-        print(f"[TRADINGVIEW] ✅ Generated {len(screenshot_paths)}/{len(top_results)} TradingView screenshots")
+        # Success - return screenshot paths
         return screenshot_paths
         
     except Exception as e:
-        print(f"[TRADINGVIEW ERROR] Bulk generation failed: {e}")
+        log_warning("TRADINGVIEW BULK GENERATION ERROR", e, "Bulk generation failed")
         return []
 
 def sync_generate_tradingview_screenshots(
