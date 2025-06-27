@@ -5,6 +5,7 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import time
 import json
+import random
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 
@@ -209,7 +210,6 @@ def scan_cycle():
         from utils.memory_feedback_loop import run_memory_feedback_evaluation
         
         # Run feedback evaluation every few cycles
-        import random
         if random.random() < 0.3:  # 30% chance each cycle
             run_memory_feedback_evaluation()
     except ImportError as import_error:
@@ -238,8 +238,10 @@ def scan_cycle():
             evaluator = VisionAIEvaluator()
             evaluator.run_complete_evaluation(days_back=3)
             print("[PHASE 3] Vision-AI feedback loop evaluation completed")
-    except ImportError:
-        pass
+    except ImportError as import_error:
+        log_warning("PHASE 3 VISION-AI MODULE IMPORT ERROR", import_error)
+    except Exception as phase3_error:
+        log_warning("PHASE 3 VISION-AI EVALUATION ERROR", phase3_error)
     
     # Run Phase 4 Embedding processing periodically
     try:
@@ -250,8 +252,10 @@ def scan_cycle():
             processed = process_training_charts_for_embeddings()
             if processed > 0:
                 print(f"[PHASE 4] Processed {processed} charts for hybrid embeddings")
-    except ImportError:
-        pass
+    except ImportError as import_error:
+        log_warning("PHASE 4 EMBEDDING MODULE IMPORT ERROR", import_error)
+    except Exception as phase4_error:
+        log_warning("PHASE 4 EMBEDDING PROCESSING ERROR", phase4_error)
     
     # Run Phase 5 Reinforcement Learning periodically
     try:
@@ -264,8 +268,10 @@ def scan_cycle():
                 performance = report["overall_performance"]
                 print(f"[PHASE 5] RL cycle completed: {performance['avg_success_rate']:.1%} success rate")
             
-    except Exception as feedback_e:
-        print(f"[MEMORY_FEEDBACK_ERROR] {feedback_e}")
+    except ImportError as import_error:
+        log_warning("PHASE 5 REINFORCEMENT LEARNING MODULE IMPORT ERROR", import_error)
+    except Exception as phase5_error:
+        log_warning("PHASE 5 REINFORCEMENT LEARNING ERROR", phase5_error)
 
 def simple_scan_fallback(symbols):
     """Fallback using async batch scan with lower concurrency"""
@@ -353,17 +359,23 @@ def main():
     try:
         while True:
             try:
+                clear_scan_warnings()  # Clear warnings at start of each cycle
                 scan_cycle()
+                report_scan_warnings()  # Report warnings at end of cycle
                 wait_for_next_candle()
             except KeyboardInterrupt:
                 print("\nShutting down...")
                 break
-            except Exception as e:
-                print(f"Scan error: {e}")
+            except Exception as scan_error:
+                log_warning("MAIN SCAN CYCLE ERROR", scan_error)
+                print(f"Scan error: {scan_error}")
                 time.sleep(60)  # Wait 1 minute before retry
                 
     except KeyboardInterrupt:
         print("Service stopped.")
+    except Exception as main_error:
+        log_warning("MAIN SERVICE ERROR", main_error)
+        print(f"Service error: {main_error}")
 
 if __name__ == "__main__":
     main()
