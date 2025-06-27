@@ -444,61 +444,87 @@ def generate_vision_ai_training_data(tjde_results: List[Dict], vision_ai_mode: s
         # Import new chart generator
         from new_vision_chart_generator import plot_vision_chart, generate_enhanced_vision_charts
         
-        # Use new professional TradingView/Bybit-style chart generation system
-        from plot_market_chart import plot_market_chart
-        charts_generated = 0
-        
-        # Get TOP 5 tokens by TJDE score for new chart generation
-        top5_results = prepare_top5_training_data(tjde_results)
-        
-        if top5_results:
-            print(f"[PROFESSIONAL CHARTS] Processing TOP {len(top5_results)} tokens with TradingView/Bybit styling")
+        # Use authentic TradingView screenshot system for TOP 5 TJDE tokens
+        try:
+            from utils.tradingview_screenshot import sync_generate_tradingview_screenshots
             
-            for result in top5_results:
-                try:
-                    symbol = result.get('symbol', 'UNKNOWN')
-                    tjde_score = result.get('tjde_score', 0)
-                    market_data = result.get('market_data', {})
+            print(f"[TRADINGVIEW SCREENSHOTS] Attempting authentic TradingView captures for TOP 5 TJDE tokens")
+            
+            # Generate authentic TradingView screenshots
+            screenshot_paths = sync_generate_tradingview_screenshots(
+                tjde_results=tjde_results,
+                min_score=0.5,  # Minimum TJDE score for screenshot generation
+                max_symbols=5   # TOP 5 tokens only
+            )
+            
+            if screenshot_paths:
+                charts_generated = len(screenshot_paths)
+                print(f"[TRADINGVIEW SCREENSHOTS] ✅ Generated {charts_generated} authentic TradingView screenshots")
+                for path in screenshot_paths:
+                    print(f"[TRADINGVIEW] Saved: {path}")
+            else:
+                print(f"[TRADINGVIEW SCREENSHOTS] ❌ No authentic screenshots generated - falling back to professional matplotlib")
+                
+                # Fallback to professional matplotlib charts
+                from plot_market_chart import plot_market_chart
+                charts_generated = 0
+                
+                # Get TOP 5 tokens by TJDE score for fallback chart generation
+                top5_results = prepare_top5_training_data(tjde_results)
+                
+                if top5_results:
+                    print(f"[FALLBACK CHARTS] Processing TOP {len(top5_results)} tokens with professional matplotlib styling")
                     
-                    # Get candles from market_data
-                    candles = market_data.get('candles_15m', market_data.get('candles', []))
-                    if not candles:
-                        print(f"[PROFESSIONAL CHARTS SKIP] {symbol}: No candle data available")
-                        continue
+                    for result in top5_results:
+                        try:
+                            symbol = result.get('symbol', 'UNKNOWN')
+                            tjde_score = result.get('tjde_score', 0)
+                            market_data = result.get('market_data', {})
+                            
+                            # Get candles from market_data
+                            candles = market_data.get('candles_15m', market_data.get('candles', []))
+                            if not candles:
+                                print(f"[FALLBACK CHARTS SKIP] {symbol}: No candle data available")
+                                continue
+                            
+                            # Extract chart parameters
+                            setup = result.get('setup_type', result.get('market_phase', 'unknown'))
+                            market_phase = result.get('market_phase', 'unknown')
+                            decision = result.get('tjde_decision', 'unknown')
+                            clip_confidence = result.get('clip_confidence', 0.0)
+                            
+                            # Prepare alert info for professional chart
+                            alert_info = {
+                                'symbol': symbol,
+                                'phase': market_phase,
+                                'setup': setup,
+                                'score': tjde_score,
+                                'decision': decision,
+                                'clip': clip_confidence
+                            }
+                            
+                            # Generate chart path (alert candle will be LAST as requested)
+                            timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+                            output_path = f"training_charts/{symbol}_{timestamp}_fallback_professional.png"
+                            
+                            # Generate professional matplotlib chart as fallback
+                            success = plot_market_chart(candles, alert_info, output_path)
+                            
+                            if success:
+                                charts_generated += 1
+                                print(f"[FALLBACK CHARTS] ✅ {symbol}: Professional fallback chart generated")
+                            else:
+                                print(f"[FALLBACK CHARTS] ❌ {symbol}: Fallback chart generation failed")
+                                
+                        except Exception as e:
+                            print(f"[FALLBACK CHARTS ERROR] {symbol}: {e}")
+                else:
+                    print("[FALLBACK CHARTS] No TOP 5 results available for fallback chart generation")
+                    charts_generated = 0
                     
-                    # Extract chart parameters
-                    setup = result.get('setup_type', result.get('market_phase', 'unknown'))
-                    market_phase = result.get('market_phase', 'unknown')
-                    decision = result.get('tjde_decision', 'unknown')
-                    clip_confidence = result.get('clip_confidence', 0.0)
-                    
-                    # Prepare alert info for professional chart
-                    alert_info = {
-                        'symbol': symbol,
-                        'phase': market_phase,
-                        'setup': setup,
-                        'score': tjde_score,
-                        'decision': decision,
-                        'clip': clip_confidence
-                    }
-                    
-                    # Generate chart path (alert candle will be LAST as requested)
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-                    output_path = f"training_charts/{symbol}_{timestamp}_professional_chart.png"
-                    
-                    # Generate professional TradingView/Bybit-style chart
-                    success = plot_market_chart(candles, alert_info, output_path)
-                    
-                    if success:
-                        charts_generated += 1
-                        print(f"[PROFESSIONAL CHARTS] ✅ {symbol}: TradingView-style chart generated")
-                    else:
-                        print(f"[PROFESSIONAL CHARTS] ❌ {symbol}: Chart generation failed")
-                        
-                except Exception as e:
-                    print(f"[PROFESSIONAL CHARTS ERROR] {symbol}: {e}")
-        else:
-            print("[PROFESSIONAL CHARTS] No TOP 5 results available for chart generation")
+        except Exception as e:
+            print(f"[TRADINGVIEW SCREENSHOTS ERROR] Failed to import or execute TradingView system: {e}")
+            charts_generated = 0
         
         if charts_generated > 0:
             print(f"[NEW VISION-AI] ✅ Generated {charts_generated} professional TradingView-style charts")
