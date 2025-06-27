@@ -13,6 +13,11 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Dict, List, Tuple, Optional
 
+# Import error logging system
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from crypto_scan_service import log_warning
+
 
 class AdaptiveWeightEngine:
     """
@@ -32,7 +37,7 @@ class AdaptiveWeightEngine:
         # Load persisted data
         self._load_from_disk()
         
-        print(f"[ADAPTIVE] AdaptiveWeightEngine initialized with {len(self.memory)} examples")
+        # AdaptiveWeightEngine initialized successfully
     
     def add_example(self, features: Dict[str, float], outcome: bool, symbol: str = "UNKNOWN"):
         """
@@ -65,14 +70,12 @@ class AdaptiveWeightEngine:
             
             self.last_updated = datetime.now(timezone.utc)
             
-            print(f"[ADAPTIVE] Added example for {symbol}: outcome={outcome}, memory size={len(self.memory)}")
-            
             # Auto-save periodically
             if len(self.memory) % 10 == 0:
                 self._save_to_disk()
                 
         except Exception as e:
-            print(f"❌ [ADAPTIVE ERROR] Failed to add example: {e}")
+            log_warning("ADAPTIVE WEIGHTS ADD EXAMPLE", e, f"Failed to add example for {symbol}")
     
     def compute_weights(self) -> Dict[str, float]:
         """
@@ -113,11 +116,10 @@ class AdaptiveWeightEngine:
             else:
                 return self._get_default_weights()
             
-            print(f"[ADAPTIVE] Computed dynamic weights from {len(self.memory)} examples")
             return weights
             
         except Exception as e:
-            print(f"❌ [ADAPTIVE ERROR] Failed to compute weights: {e}")
+            log_warning("ADAPTIVE WEIGHTS COMPUTE", e, f"Failed to compute weights from {len(self.memory) if hasattr(self, 'memory') else 0} examples")
             return self._get_default_weights()
     
     def _get_default_weights(self) -> Dict[str, float]:

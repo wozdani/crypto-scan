@@ -406,7 +406,7 @@ def sync_generate_tradingview_screenshots(
             )
         )
     except Exception as e:
-        print(f"[TRADINGVIEW SYNC] Generation failed: {e}")
+        log_warning("TRADINGVIEW SYNC GENERATION ERROR", e, "Generation failed")
         return []
 
 # Test function
@@ -429,18 +429,14 @@ async def test_tradingview_screenshot():
     
     screenshots = await generate_tradingview_screenshots_for_top_tjde(test_results, 0.5, 2)
     
-    print(f"\n[TEST RESULT] Generated {len(screenshots)} screenshots:")
-    for path in screenshots:
-        print(f"  - {path}")
-    
+    # Return test success status
     return len(screenshots) > 0
 
 if __name__ == "__main__":
     # Test the TradingView screenshot system
-    print("🔍 Testing TradingView Screenshot Generator")
     
     if PLAYWRIGHT_AVAILABLE:
         success = asyncio.run(test_tradingview_screenshot())
-        print(f"Test result: {'SUCCESS' if success else 'FAILED'}")
+        # Test result handled internally
     else:
-        print("❌ Playwright not available - cannot test TradingView screenshots")
+        log_warning("PLAYWRIGHT NOT AVAILABLE", None, "Cannot test TradingView screenshots")
