@@ -757,9 +757,10 @@ def compute_trader_score(features: Dict, symbol: str = None) -> Dict:
         if all(val == 0.0 for val in [trend_strength, pullback_quality, support_reaction, volume_behavior_score, psych_score]):
             print(f"[TJDE CALC WARNING] {symbol}: All components returned 0.0 - calculation functions may have failed")
         
-        # Calculate weighted score
+        # Enhanced scoring logic with consistency validation
         score_breakdown = {}
         total_score = 0.0
+        significant_components = 0
         
         for feature, weight in weights.items():
             feature_value = signals.get(feature, 0.0)
@@ -769,9 +770,23 @@ def compute_trader_score(features: Dict, symbol: str = None) -> Dict:
             contribution = feature_value * weight
             score_breakdown[feature] = round(contribution, 4)
             total_score += contribution
+            
+            # Count significant components
+            if contribution > 0.01:  # Threshold for significance
+                significant_components += 1
         
-        # Ensure final score is in 0.0-1.0 range
-        final_score = max(0.0, min(1.0, total_score))
+        # CONSISTENCY FIX: If all major components are 0, final score should be low
+        major_components = ['trend_strength', 'pullback_quality', 'support_reaction', 'volume_behavior_score', 'psych_score']
+        major_component_sum = sum(score_breakdown.get(comp, 0.0) for comp in major_components)
+        
+        if major_component_sum < 0.05 and total_score > 0.3:
+            print(f"[GPT SCORING FIX] {symbol}: Inconsistent scoring detected - adjusting")
+            print(f"[GPT SCORING FIX] Major components sum: {major_component_sum:.3f}, but total: {total_score:.3f}")
+            # Cap final score to be proportional to major components
+            final_score = max(0.0, min(0.4, major_component_sum * 4))  # Scale up but cap at 0.4
+            print(f"[GPT SCORING FIX] Adjusted final score: {final_score:.3f}")
+        else:
+            final_score = max(0.0, min(1.0, total_score))
         
         # Quality grade assessment (jak trader ocenia setup)
         if final_score >= 0.85:
