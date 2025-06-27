@@ -370,22 +370,12 @@ def main():
         }
     ]
     
-    print(f"\nTesting Pattern Matching:")
+    # Testing Pattern Matching
     
     for i, test_case in enumerate(test_features, 1):
-        print(f"\n   Test {i}: {test_case['name']}")
-        print(f"   Score: {test_case['score']}")
-        
         match = checker.check_known_success_patterns(test_case['features'], test_case['score'])
-        
-        if match:
-            print(f"   ✅ Pattern matched: {match['label']}")
-            print(f"   Confidence: {match['confidence']:.2f}")
-            print(f"   Features: {match['features_matched']}")
-        else:
-            print(f"   ❌ No pattern matched")
     
-    print(f"\n✅ AI Heuristic Pattern Checker test completed")
+    # AI Heuristic Pattern Checker test completed
 
 if __name__ == "__main__":
     main()

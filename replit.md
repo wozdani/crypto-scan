@@ -109,17 +109,17 @@ Successfully resolved the critical issue where all tokens defaulted to "[5M FALL
 - **Vision-AI Data Quality**: Enhanced training data generation now has access to both timeframes for superior pattern recognition and model training
 System completely operational - all tokens now process with full 15M and 5M candle data eliminating the persistent fallback mode that was limiting analysis quality.
 
-### June 27, 2025 - Extended Service-Level Error Logging System FULLY IMPLEMENTED - Complete Scan Visibility ✅
-Successfully implemented comprehensive error reporting system throughout crypto_scan_service.py ensuring complete scan quality monitoring:
-- **Global SCAN_WARNINGS System**: Added SCAN_WARNINGS list with log_warning() helper function, clear_scan_warnings(), and report_scan_warnings() for centralized error tracking
+### June 27, 2025 - COMPLETE CENTRALIZED ERROR REPORTING SYSTEM - All Print Statements Replaced ✅
+Successfully completed comprehensive centralized error reporting system by replacing ALL remaining print statements with log_warning() calls:
+- **Complete Pipeline Integration**: Systematically replaced all print statements in utils/tradingview_screenshot.py, utils/adaptive_weights.py, and utils/ai_heuristic_pattern_checker.py with centralized log_warning() calls
+- **Extended Service-Level Error Logging**: Implemented global SCAN_WARNINGS system with log_warning() helper function, clear_scan_warnings(), and report_scan_warnings() for centralized error tracking
 - **Systematic Integration Across All Service Functions**: Enhanced scan_cycle(), simple_scan_fallback(), and main() with comprehensive error logging using try/catch blocks and specific warning categories
 - **Phase 1-5 Operations Enhanced**: All periodic Phase operations (Memory Feedback, Memory Updates, Vision-AI Evaluation, Embedding Processing, Reinforcement Learning) now include dedicated import and execution error handling
 - **Enhanced Fallback Error Tracking**: simple_scan_fallback() includes async event loop conflict detection, module import failures, and sequential scan token-level error counting with spam prevention
-- **Main Service Error Management**: main() function enhanced with cycle-level error clearing/reporting and service-level exception handling for complete operational visibility
-- **Production Error Categories**: Specific error labels for ASYNC SCAN PROCESSING, TRADINGVIEW SCREENSHOT ERROR, CLIP FALLBACK, PHASE MODULE IMPORT ERROR, SEQUENTIAL SCAN TOKEN ERROR enabling targeted troubleshooting
-- **End-of-Scan Summary**: Complete warning summary displayed at end of each scan cycle showing total error count and detailed error breakdown for quality assessment
-- **Service-Level Monitoring**: Enhanced visibility into TradingView screenshot failures, CLIP processing issues, memory system problems, and async processing conflicts without system crashes
-System now provides complete scan error visibility allowing monitoring of all pipeline components and immediate identification of areas requiring attention.
+- **Production Error Categories**: Specific error labels for ASYNC SCAN PROCESSING, TRADINGVIEW SCREENSHOT ERROR, CLIP FALLBACK, PHASE MODULE IMPORT ERROR, SEQUENTIAL SCAN TOKEN ERROR, ADAPTIVE WEIGHTS ERROR, AI HEURISTIC PATTERN ERROR enabling targeted troubleshooting
+- **End-of-Scan Summary**: Complete warning summary displayed at end of each scan cycle showing total error count and detailed error breakdown for quality assessment eliminating misleading "✅ No errors during scan cycle" messages
+- **Truthful Error Reporting**: System now provides accurate error visibility with centralized logging preventing false positive "success" messages when errors occur throughout the pipeline
+System completely eliminates isolated print statements providing unified error reporting architecture ensuring accurate scan quality assessment and troubleshooting capability.
 
 ### June 27, 2025 - Complete TradingView-Only Pipeline Implementation - Matplotlib Elimination Completed ✅
 Successfully completed comprehensive replacement of all matplotlib chart generation with exclusive TradingView screenshot capture system:
