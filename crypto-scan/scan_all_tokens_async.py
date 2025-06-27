@@ -19,6 +19,10 @@ from scan_token_async import scan_token_async
 from utils.bybit_cache_manager import get_bybit_symbols_cached
 from utils.coingecko import build_coingecko_cache
 from utils.whale_priority import prioritize_whale_tokens
+from utils.scan_error_reporter import (
+    initialize_scan_session, log_scan_error, log_global_error, 
+    print_error_summary, save_error_report, get_error_count
+)
 
 class AsyncTokenScanner:
     """High-performance async scanner for all tokens"""
@@ -124,17 +128,31 @@ async def async_scan_cycle():
     """Main async scan cycle - replaces sequential scan_cycle()"""
     print(f"Starting async scan cycle at {datetime.now().strftime('%H:%M:%S')}")
     
+    # Initialize error reporting for this scan session
+    initialize_scan_session()
+    
     # Prepare symbols and cache
-    symbols = get_bybit_symbols_cached()
-    print(f"Fetched {len(symbols)} symbols from cache")
+    try:
+        symbols = get_bybit_symbols_cached()
+        print(f"Fetched {len(symbols)} symbols from cache")
+    except Exception as e:
+        log_global_error("Symbol Cache", f"Failed to load symbols: {e}")
+        return []
     
     # Build CoinGecko cache
-    build_coingecko_cache()
+    try:
+        build_coingecko_cache()
+    except Exception as e:
+        log_global_error("CoinGecko Cache", f"Cache building failed: {e}")
     
     # Whale prioritization
-    symbols, priority_symbols, priority_info = prioritize_whale_tokens(symbols)
-    if priority_symbols:
-        print(f"Whale priority: {len(priority_symbols)} symbols flagged")
+    try:
+        symbols, priority_symbols, priority_info = prioritize_whale_tokens(symbols)
+        if priority_symbols:
+            print(f"Whale priority: {len(priority_symbols)} symbols flagged")
+    except Exception as e:
+        log_global_error("Whale Priority", f"Priority calculation failed: {e}")
+        priority_info = {}
     
     # Execute async scan with enhanced performance  
     start_time = time.time()
@@ -162,6 +180,14 @@ async def async_scan_cycle():
             for setup in high_score_setups:
                 print(f"   {setup['symbol']}: PPWCS {setup['ppwcs_score']:.1f}, TJDE {setup['tjde_decision']}")
     
+    # Display comprehensive error summary at end of scan
+    error_count = get_error_count()
+    if error_count > 0:
+        print_error_summary()
+        save_error_report()  # Save detailed error report to file
+    else:
+        print("\n✅ No errors during scan cycle")
+    
     return results
 
 def generate_top_tjde_charts(results: List[Dict]):
@@ -179,6 +205,7 @@ def generate_top_tjde_charts(results: List[Dict]):
             print(f"\n🎯 VISION-AI PIPELINE: Generated {training_pairs} training pairs")
         else:
             print("\n🎯 VISION-AI PIPELINE: No training data generated")
+            log_global_error("Vision-AI Pipeline", "No training data generated")
         
         # Original chart generation logic (kept for compatibility)
         valid_results = [r for r in results if r.get('tjde_score', 0) > 0]
