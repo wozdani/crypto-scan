@@ -197,7 +197,10 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             (not orderbook_data or orderbook is None)
         )
         
-        if api_failed:
+        # Check for missing 5M candles separately (always happens in Replit environment)
+        missing_5m = not candles_5m or (isinstance(candles_5m, list) and len(candles_5m) == 0)
+        
+        if api_failed or missing_5m:
             try:
                 from utils.mock_data_generator import get_mock_data_for_symbol, log_mock_data_usage
                 mock_data = get_mock_data_for_symbol(symbol)
@@ -207,10 +210,13 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     ticker_data = {"result": {"list": [mock_data["ticker"]]}}
                 if not candles_data:
                     candles_data = {"result": {"list": mock_data["candles_15m"]}}
+                if not candles_5m_data:
+                    candles_5m_data = {"result": {"list": mock_data["candles_5m"]}}
+                    candles_5m = mock_data["candles_5m"]  # Update the local variable too
                 if not orderbook_data:
                     orderbook_data = {"result": mock_data["orderbook"]}
                 
-                log_mock_data_usage(symbol, ["ticker", "candles", "orderbook"])
+                log_mock_data_usage(symbol, ["ticker", "candles_15m", "candles_5m", "orderbook"])
                 
             except Exception as e:
                 print(f"[MOCK DATA FAILED] {symbol} → Error generating mock data: {e}")
