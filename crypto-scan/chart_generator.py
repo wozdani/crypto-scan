@@ -1059,7 +1059,7 @@ def generate_chart_async_safe(
     tjde_breakdown: Dict = None
 ) -> Optional[str]:
     """
-    Async-safe chart generation for integration with scan_token_async
+    Async-safe professional chart generation for integration with scan_token_async
     
     Args:
         symbol: Trading symbol
@@ -1071,31 +1071,45 @@ def generate_chart_async_safe(
         Path to generated chart or None
     """
     try:
-        candles_15m = market_data.get("candles", [])
-        candles_5m = market_data.get("candles_5m", [])
+        candles_15m = market_data.get("candles_15m", market_data.get("candles", []))
         
-        # Quality validation
-        quality = validate_chart_quality(candles_15m, candles_5m)
-        if not quality["sufficient_candles_15m"]:
-            print(f"[CHART SKIP] {symbol}: Insufficient candles for quality chart")
+        if not candles_15m or len(candles_15m) < 10:
+            print(f"[CHART SKIP] {symbol}: Insufficient candle data ({len(candles_15m) if candles_15m else 0})")
             return None
             
         # Extract TJDE results
-        tjde_score = tjde_result.get("final_score", 0.0)
+        tjde_score = tjde_result.get("final_score", tjde_result.get("score", 0.0))
         decision = tjde_result.get("decision", "unknown")
+        market_phase = tjde_result.get("market_phase", "unknown")
+        setup_type = tjde_result.get("setup_type", "unknown")
         
-        # Generate chart
-        chart_path = generate_alert_focused_training_chart(
-            symbol=symbol,
-            candles_15m=candles_15m,
-            tjde_score=tjde_score,
-            decision=decision,
-            tjde_breakdown=tjde_breakdown,
-            output_dir="training_charts"
-        )
+        # Use new professional chart generation system
+        from plot_market_chart import plot_market_chart
         
-        return chart_path
+        # Prepare alert info for professional chart  
+        alert_info = {
+            'symbol': symbol,
+            'phase': market_phase,
+            'setup': setup_type,
+            'score': tjde_score,
+            'decision': decision,
+            'clip': 0.0  # Default CLIP confidence
+        }
         
+        # Generate chart path with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        chart_path = f"training_charts/{symbol}_{timestamp}_professional_async.png"
+        
+        # Generate professional TradingView/Bybit-style chart (alert candle = LAST as requested)
+        success = plot_market_chart(candles_15m, alert_info, chart_path)
+        
+        if success and os.path.exists(chart_path):
+            print(f"[CHART SUCCESS] {symbol}: Professional async chart generated: {chart_path}")
+            return chart_path
+        else:
+            print(f"[CHART ERROR] {symbol}: Professional chart generation failed")
+            return None
+            
     except Exception as e:
         print(f"[CHART ASYNC ERROR] {symbol}: {e}")
         return None
