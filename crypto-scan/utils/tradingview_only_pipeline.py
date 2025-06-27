@@ -9,6 +9,21 @@ import asyncio
 from datetime import datetime
 from typing import List, Dict, Optional
 
+# Import global warning system from crypto_scan_service
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+try:
+    from crypto_scan_service import log_warning
+except ImportError:
+    # Fallback logging if crypto_scan_service not available
+    def log_warning(label, exception=None, additional_info=None):
+        msg = f"[{label}]"
+        if exception:
+            msg += f" {str(exception)}"
+        if additional_info:
+            msg += f" - {additional_info}"
+        print(f"⚠️ {msg}")
+
 try:
     from .tradingview_screenshot import TradingViewScreenshotGenerator, PLAYWRIGHT_AVAILABLE
 except ImportError:
@@ -166,7 +181,7 @@ class TradingViewOnlyPipeline:
                 generator.output_dir = original_output_dir
                 
         except Exception as e:
-            print(f"[TRADINGVIEW-ONLY ERROR] {symbol}: {e}")
+            log_warning("TRADINGVIEW SCREENSHOT ERROR", e, f"Failed to generate chart for {symbol}")
             return None
     
     def sync_generate_tradingview_charts(
