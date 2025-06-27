@@ -10,6 +10,41 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Global scan warnings system
+SCAN_WARNINGS = []
+
+def log_warning(label, exception=None, additional_info=None):
+    """
+    Bezpieczne logowanie ostrzeżeń podczas skanu
+    Args:
+        label: Etykieta błędu (np. "TRADINGVIEW SCREENSHOT ERROR")
+        exception: Opcjonalny obiekt wyjątku
+        additional_info: Dodatkowe informacje kontekstowe
+    """
+    msg = f"[{label}]"
+    if exception:
+        msg += f" {str(exception)}"
+    if additional_info:
+        msg += f" - {additional_info}"
+    
+    print(f"⚠️ {msg}")
+    SCAN_WARNINGS.append(msg)
+
+def clear_scan_warnings():
+    """Wyczyść listę ostrzeżeń na początku nowego skanu"""
+    global SCAN_WARNINGS
+    SCAN_WARNINGS = []
+
+def report_scan_warnings():
+    """Pokaż podsumowanie ostrzeżeń na końcu skanu"""
+    if SCAN_WARNINGS:
+        print("\n🚨 SCAN COMPLETED WITH WARNINGS:")
+        for warning in SCAN_WARNINGS:
+            print(warning)
+        print(f"📊 Total warnings: {len(SCAN_WARNINGS)}")
+    else:
+        print("\n✅ No errors during scan cycle")
+
 # Import only essential modules
 from utils.bybit_cache_manager import get_bybit_symbols_cached
 from stages.stage_minus2_1 import detect_stage_minus2_1
@@ -95,17 +130,27 @@ def scan_single_token(symbol):
         return None
 
 def scan_cycle():
-    """Enhanced scan cycle with async integration"""
+    """Enhanced scan cycle with async integration and comprehensive error tracking"""
     print(f"\nStarting scan cycle at {datetime.now().strftime('%H:%M:%S')}")
+    
+    # Clear warnings from previous scan
+    clear_scan_warnings()
     
     start_time = time.time()
     
-    # Get symbols
-    symbols = get_bybit_symbols_cached()
-    print(f"Scanning {len(symbols)} symbols...")
+    # Get symbols with error tracking
+    try:
+        symbols = get_bybit_symbols_cached()
+        print(f"Scanning {len(symbols)} symbols...")
+    except Exception as e:
+        log_warning("SYMBOL FETCH ERROR", e)
+        symbols = []
     
-    # Build cache
-    build_coingecko_cache()
+    # Build cache with error tracking
+    try:
+        build_coingecko_cache()
+    except Exception as e:
+        log_warning("COINGECKO CACHE BUILD ERROR", e)
     
     # Use enhanced async scan with TJDE and chart generation
     try:
@@ -115,29 +160,49 @@ def scan_cycle():
         import asyncio
         from scan_all_tokens_async import async_scan_cycle
         
-        # Run enhanced async scan cycle
-        result = asyncio.run(async_scan_cycle())
-        processed_count = result if isinstance(result, int) else 0
+        # Run enhanced async scan cycle with event loop error tracking
+        try:
+            result = asyncio.run(async_scan_cycle())
+            processed_count = result if isinstance(result, int) else 0
+            
+            print(f"Enhanced async scan processed {processed_count} tokens with TJDE analysis")
+            print("Async scan completed successfully")
+            
+            # Check for low processing count
+            if processed_count == 0:
+                log_warning("ASYNC SCAN PROCESSING", None, "No tokens processed successfully")
+                
+        except RuntimeError as asyncio_error:
+            if "cannot be called from a running event loop" in str(asyncio_error):
+                log_warning("ASYNCIO EVENT LOOP CONFLICT", asyncio_error)
+            else:
+                log_warning("ASYNCIO RUNTIME ERROR", asyncio_error)
+        except Exception as async_error:
+            log_warning("ASYNC SCAN EXECUTION ERROR", async_error)
         
-        print(f"Enhanced async scan processed {processed_count} tokens with TJDE analysis")
-        print("Async scan completed successfully")
-        
-        # Flush results
+        # Flush results with error tracking
         try:
             from scan_token_async import flush_async_results
             flush_async_results()
+            print("[FLUSH] Async results flushed successfully")
         except Exception as flush_e:
-            print(f"Flush error: {flush_e}")
+            log_warning("RESULT FLUSH ERROR", flush_e)
         
+    except ImportError as import_error:
+        log_warning("ASYNC MODULE IMPORT ERROR", import_error)
+        # Fallback to simple scan
+        simple_scan_fallback(symbols)
     except Exception as e:
-        print(f"Async scan failed ({e}), falling back to simple scan...")
-        
+        log_warning("ASYNC SCAN SETUP ERROR", e)
         # Fallback to async batch scan with reduced concurrency
         simple_scan_fallback(symbols)
     
     # Show timing
     elapsed = time.time() - start_time
     print(f"Scan cycle completed in {elapsed:.1f}s")
+    
+    # Report all warnings collected during scan
+    report_scan_warnings()
     
     # Run memory feedback evaluation periodically
     try:
@@ -147,8 +212,10 @@ def scan_cycle():
         import random
         if random.random() < 0.3:  # 30% chance each cycle
             run_memory_feedback_evaluation()
-    except ImportError:
-        pass
+    except ImportError as import_error:
+        log_warning("MEMORY FEEDBACK MODULE IMPORT ERROR", import_error)
+    except Exception as memory_error:
+        log_warning("MEMORY FEEDBACK EVALUATION ERROR", memory_error)
     
     # Run Phase 2 memory outcome updates periodically
     try:
@@ -157,8 +224,10 @@ def scan_cycle():
         # Update historical outcomes every few cycles
         if random.random() < 0.2:  # 20% chance each cycle
             update_historical_outcomes_loop()
-    except ImportError:
-        pass
+    except ImportError as import_error:
+        log_warning("PHASE 2 MEMORY MODULE IMPORT ERROR", import_error)
+    except Exception as phase2_error:
+        log_warning("PHASE 2 MEMORY UPDATE ERROR", phase2_error)
     
     # Run Phase 3 Vision-AI evaluation periodically
     try:
@@ -201,6 +270,7 @@ def scan_cycle():
 def simple_scan_fallback(symbols):
     """Fallback using async batch scan with lower concurrency"""
     print("Running async batch fallback with reduced concurrency...")
+    log_warning("FALLBACK SCAN TRIGGERED", None, f"Processing {len(symbols)} symbols with reduced concurrency")
     
     try:
         # Use async batch scanning even in fallback but with lower concurrency
@@ -210,27 +280,54 @@ def simple_scan_fallback(symbols):
         # Run with lower concurrency for stability
         results = asyncio.run(scan_symbols_async(symbols[:100], max_concurrent=8))
         print(f"Async batch fallback processed {len(results)} tokens")
+        
+        if len(results) == 0:
+            log_warning("ASYNC BATCH FALLBACK ZERO RESULTS", None, "No tokens processed in async batch mode")
+        
         return results
         
+    except RuntimeError as runtime_error:
+        if "cannot be called from a running event loop" in str(runtime_error):
+            log_warning("FALLBACK ASYNCIO EVENT LOOP CONFLICT", runtime_error)
+        else:
+            log_warning("FALLBACK ASYNC RUNTIME ERROR", runtime_error)
+    except ImportError as import_error:
+        log_warning("FALLBACK ASYNC MODULE IMPORT ERROR", import_error)
     except Exception as e:
-        print(f"Async batch fallback failed: {e}")
-        print("Using simple sequential scan as last resort...")
+        log_warning("ASYNC BATCH FALLBACK ERROR", e)
         
-        # Ultimate fallback - simple sequential for core functionality only
-        processed = 0
-        results = []
-        
-        for symbol in symbols:  # Process ALL symbols in fallback
+    print("Using simple sequential scan as last resort...")
+    log_warning("SEQUENTIAL FALLBACK TRIGGERED", None, "All async methods failed, using basic sequential scan")
+    
+    # Ultimate fallback - simple sequential for core functionality only
+    processed = 0
+    results = []
+    failed_tokens = 0
+    
+    for symbol in symbols:  # Process ALL symbols in fallback
+        try:
             result = scan_single_token(symbol)
             if result:
                 results.append(result)
                 processed += 1
                 if processed % 10 == 0:  # Progress every 10 tokens
                     print(f"[{processed}/{len(symbols)}] Progress: {symbol}: PPWCS {result.get('final_score', 0):.1f}")
-        
-        print(f"Sequential fallback processed {processed}/{len(symbols)} tokens")
-        return results
-        return []
+            else:
+                failed_tokens += 1
+        except Exception as token_error:
+            failed_tokens += 1
+            if failed_tokens <= 5:  # Log only first 5 token errors to avoid spam
+                log_warning("SEQUENTIAL SCAN TOKEN ERROR", token_error, f"Failed to process {symbol}")
+    
+    if failed_tokens > 5:
+        log_warning("SEQUENTIAL SCAN MULTIPLE FAILURES", None, f"Additional {failed_tokens - 5} tokens failed")
+    
+    print(f"Sequential fallback processed {processed}/{len(symbols)} tokens")
+    
+    if processed == 0:
+        log_warning("SEQUENTIAL FALLBACK ZERO RESULTS", None, "No tokens processed successfully in final fallback")
+    
+    return results
 
 def wait_for_next_candle():
     """Wait for next 15-minute candle"""
