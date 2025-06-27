@@ -1117,6 +1117,7 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
             try:
                 gpt_file_pattern = f"training_charts/{symbol}_*.gpt.json"
                 import glob
+                import json  # Ensure json is available in local scope
                 gpt_files = glob.glob(gpt_file_pattern)
                 if gpt_files:
                     with open(gpt_files[0], 'r') as f:
