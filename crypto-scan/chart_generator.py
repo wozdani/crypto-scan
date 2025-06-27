@@ -1059,7 +1059,10 @@ def generate_chart_async_safe(
     tjde_breakdown: Dict = None
 ) -> Optional[str]:
     """
-    Async-safe professional chart generation for integration with scan_token_async
+    DEPRECATED: Chart generation disabled - using TradingView-only pipeline
+    
+    This function is now disabled to prevent matplotlib chart generation.
+    All chart generation is handled by the TradingView-only pipeline.
     
     Args:
         symbol: Trading symbol
@@ -1068,8 +1071,10 @@ def generate_chart_async_safe(
         tjde_breakdown: Optional detailed TJDE breakdown
         
     Returns:
-        Path to generated chart or None
+        None (chart generation disabled)
     """
+    print(f"[CHART DISABLED] {symbol}: Chart generation disabled - using TradingView-only pipeline")
+    return None
     try:
         candles_15m = market_data.get("candles_15m", market_data.get("candles", []))
         

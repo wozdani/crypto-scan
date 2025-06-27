@@ -431,186 +431,88 @@ def prepare_top5_training_data(tjde_results: List[Dict]) -> List[Dict]:
 
 def generate_vision_ai_training_data(tjde_results: List[Dict], vision_ai_mode: str = "full") -> int:
     """
-    Complete Vision-AI training data generation pipeline with new TradingView-style charts
+    TradingView-ONLY Vision-AI training data generation pipeline
+    Completely replaces matplotlib with authentic TradingView screenshots
     
     Args:
         tjde_results: List of scan results with TJDE analysis
         vision_ai_mode: Vision-AI mode ("full", "fast", "minimal")
         
     Returns:
-        Number of training pairs generated
+        Number of authentic TradingView charts generated
     """
     try:
-        # Import new chart generator
-        from new_vision_chart_generator import plot_vision_chart, generate_enhanced_vision_charts
+        print(f"[TRADINGVIEW-ONLY] 🎯 Starting TradingView-only chart generation pipeline")
         
-        # Use authentic TradingView screenshot system for TOP 5 TJDE tokens
-        try:
-            from utils.tradingview_screenshot import sync_generate_tradingview_screenshots
-            
-            print(f"[TRADINGVIEW SCREENSHOTS] Attempting authentic TradingView captures for TOP 5 TJDE tokens")
-            
-            # Generate authentic TradingView screenshots
-            screenshot_paths = sync_generate_tradingview_screenshots(
-                tjde_results=tjde_results,
-                min_score=0.5,  # Minimum TJDE score for screenshot generation
-                max_symbols=5   # TOP 5 tokens only
-            )
-            
-            if screenshot_paths:
-                charts_generated = len(screenshot_paths)
-                print(f"[TRADINGVIEW SCREENSHOTS] ✅ Generated {charts_generated} authentic TradingView screenshots")
-                for path in screenshot_paths:
-                    print(f"[TRADINGVIEW] Saved: {path}")
-            else:
-                print(f"[TRADINGVIEW SCREENSHOTS] ❌ No authentic screenshots generated - falling back to professional matplotlib")
-                
-                # Fallback to professional matplotlib charts
-                from plot_market_chart import plot_market_chart
-                charts_generated = 0
-                
-                # Get TOP 5 tokens by TJDE score for fallback chart generation
-                top5_results = prepare_top5_training_data(tjde_results)
-                
-                if top5_results:
-                    print(f"[FALLBACK CHARTS] Processing TOP {len(top5_results)} tokens with professional matplotlib styling")
-                    
-                    for result in top5_results:
-                        try:
-                            symbol = result.get('symbol', 'UNKNOWN')
-                            tjde_score = result.get('tjde_score', 0)
-                            market_data = result.get('market_data', {})
-                            
-                            # Get candles from market_data
-                            candles = market_data.get('candles_15m', market_data.get('candles', []))
-                            if not candles:
-                                print(f"[FALLBACK CHARTS SKIP] {symbol}: No candle data available")
-                                continue
-                            
-                            # Extract chart parameters
-                            setup = result.get('setup_type', result.get('market_phase', 'unknown'))
-                            market_phase = result.get('market_phase', 'unknown')
-                            decision = result.get('tjde_decision', 'unknown')
-                            clip_confidence = result.get('clip_confidence', 0.0)
-                            
-                            # Prepare alert info for professional chart
-                            alert_info = {
-                                'symbol': symbol,
-                                'phase': market_phase,
-                                'setup': setup,
-                                'score': tjde_score,
-                                'decision': decision,
-                                'clip': clip_confidence
-                            }
-                            
-                            # Generate chart path (alert candle will be LAST as requested)
-                            timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-                            output_path = f"training_charts/{symbol}_{timestamp}_fallback_professional.png"
-                            
-                            # Generate professional matplotlib chart as fallback
-                            success = plot_market_chart(candles, alert_info, output_path)
-                            
-                            if success:
-                                charts_generated += 1
-                                print(f"[FALLBACK CHARTS] ✅ {symbol}: Professional fallback chart generated")
-                            else:
-                                print(f"[FALLBACK CHARTS] ❌ {symbol}: Fallback chart generation failed")
-                                
-                        except Exception as e:
-                            print(f"[FALLBACK CHARTS ERROR] {symbol}: {e}")
-                else:
-                    print("[FALLBACK CHARTS] No TOP 5 results available for fallback chart generation")
-                    charts_generated = 0
-                    
-        except Exception as e:
-            print(f"[TRADINGVIEW SCREENSHOTS ERROR] Failed to import or execute TradingView system: {e}")
-            charts_generated = 0
+        # Import TradingView-only pipeline
+        from utils.tradingview_only_pipeline import generate_tradingview_only_charts
+        
+        # Generate authentic TradingView screenshots ONLY
+        chart_mapping = generate_tradingview_only_charts(tjde_results)
+        
+        charts_generated = len(chart_mapping)
         
         if charts_generated > 0:
-            print(f"[NEW VISION-AI] ✅ Generated {charts_generated} professional TradingView-style charts")
+            print(f"[TRADINGVIEW-ONLY] ✅ Generated {charts_generated} authentic TradingView charts")
+            for symbol, path in chart_mapping.items():
+                print(f"[TRADINGVIEW-ONLY] • {symbol}: {os.path.basename(path)}")
         else:
-            print("[NEW VISION-AI] ❌ No charts generated - checking fallback")
+            print("[TRADINGVIEW-ONLY] ❌ No TradingView charts generated")
             
-        # Legacy fallback for compatibility
+        # Generate metadata for training (but NO fallback charts)
         training_pairs_created = 0
         top5_results = prepare_top5_training_data(tjde_results)
         
-        if not top5_results:
-            return charts_generated
-        
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-        
-        for result in top5_results:
-            try:
-                symbol = result.get('symbol', 'UNKNOWN')
-                tjde_score = result.get('tjde_score', 0)
-                market_data = result.get('market_data', {})
-                
-                # Fast/minimal mode optimizations
-                if vision_ai_mode == "minimal" and tjde_score < 0.4:
-                    print(f"[VISION-AI SKIP] {symbol}: TJDE {tjde_score:.3f} below minimal threshold (0.4)")
-                    continue
+        if top5_results and vision_ai_mode != "minimal":
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+            
+            for result in top5_results:
+                try:
+                    symbol = result.get('symbol', 'UNKNOWN')
+                    tjde_score = result.get('tjde_score', 0)
                     
-                if vision_ai_mode == "fast":
-                    print(f"[VISION-AI FAST] {symbol}: Fast mode - generating CLIP input only")
-                    training_pairs_created += 1
-                    continue
-                
-                # Use candles from market_data for additional processing
-                candles_15m = market_data.get('candles_15m', market_data.get('candles', []))
-                
-                if not candles_15m:
-                    candles_15m = fetch_candles_for_vision(symbol)
-                
-                if not candles_15m:
-                    save_missing_candles_report(symbol, "insufficient_data")
-                    print(f"[VISION-AI SKIP] {symbol}: No candles available after all fallbacks")
-                    continue
-                
-                print(f"[VISION-AI DATA] {symbol}: Using {len(candles_15m)} candles for training")
-                
-                # Generate additional metadata
-                phase = result.get('market_phase', 'unknown')
-                decision = result.get('tjde_decision', 'unknown')
-                setup = result.get('setup_type', phase)
-                clip_label = result.get('clip_label', 'unknown')
-                clip_confidence = result.get('clip_confidence', 0.0)
-                
-                # Create comprehensive label data
-                label_data = {
-                    "phase": phase,
-                    "setup": setup,
-                    "tjde_score": tjde_score,
-                    "tjde_decision": decision,
-                    "trend_strength": result.get('trend_strength', 0.0),
-                    "confidence": clip_confidence,
-                    "volume_behavior": result.get('volume_behavior', 'normal'),
-                    "price_action": result.get('price_action_pattern', 'unknown'),
-                    "data_source": "new_vision_ai",
-                    "skip_training": len(candles_15m) < 20,
-                    "chart_type": "tradingview_style"
-                }
-                
-                if save_label_jsonl(symbol, timestamp, label_data):
-                    training_pairs_created += 1
+                    # Skip low-quality signals in fast mode
+                    if vision_ai_mode == "fast" and tjde_score < 0.5:
+                        continue
                     
-            except Exception as e:
-                print(f"[VISION-AI ERROR] {symbol}: {e}")
-                save_missing_candles_report(symbol, f"processing_error: {e}")
+                    # Generate metadata for TJDE analysis
+                    phase = result.get('market_phase', 'unknown')
+                    decision = result.get('tjde_decision', 'unknown')
+                    setup = result.get('setup_type', phase)
+                    clip_confidence = result.get('clip_confidence', 0.0)
+                    
+                    # Create training metadata (no synthetic charts)
+                    label_data = {
+                        "phase": phase,
+                        "setup": setup,
+                        "tjde_score": tjde_score,
+                        "tjde_decision": decision,
+                        "confidence": clip_confidence,
+                        "data_source": "tradingview_only",
+                        "chart_type": "authentic_tradingview",
+                        "has_tradingview_chart": symbol in chart_mapping,
+                        "tradingview_path": chart_mapping.get(symbol, None)
+                    }
+                    
+                    if save_label_jsonl(symbol, timestamp, label_data):
+                        training_pairs_created += 1
+                        
+                except Exception as e:
+                    print(f"[TRADINGVIEW-ONLY ERROR] {symbol}: {e}")
         
         # Save training summary
-        save_training_summary_report(training_pairs_created, len(top5_results))
+        save_training_summary_report(training_pairs_created, len(top5_results) if top5_results else 0)
         
         total_generated = charts_generated + training_pairs_created
-        print(f"[VISION-AI COMPLETE] Generated {total_generated} total training items ({charts_generated} charts + {training_pairs_created} metadata)")
+        print(f"[TRADINGVIEW-ONLY] ✅ Generated {total_generated} total items ({charts_generated} authentic charts + {training_pairs_created} metadata)")
         
         return total_generated
         
     except ImportError as e:
-        print(f"[VISION-AI ERROR] Cannot import new chart generator: {e}")
+        print(f"[TRADINGVIEW-ONLY ERROR] Cannot import TradingView pipeline: {e}")
         return 0
     except Exception as e:
-        print(f"[VISION-AI ERROR] Pipeline failed: {e}")
+        print(f"[TRADINGVIEW-ONLY ERROR] Pipeline failed: {e}")
         return 0
 
 def save_missing_candles_report(symbol: str, reason: str):

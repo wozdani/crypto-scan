@@ -37,8 +37,10 @@ def plot_chart_vision_ai(symbol: str, candles: List, alert_index: int = None, al
                         score: float = None, decision: str = None, phase: str = None, setup: str = None,
                         save_path: str = None, context_days: int = 2) -> Optional[str]:
     """
-    Generate professional Vision-AI optimized chart with TradingView styling
-    Enhanced with data validation to prevent distorted training charts
+    DEPRECATED: Matplotlib chart generation disabled - using TradingView-only pipeline
+    
+    This function is now disabled to prevent matplotlib chart generation.
+    All Vision-AI chart generation is handled by the TradingView-only pipeline.
     
     Args:
         symbol: Trading symbol
@@ -55,11 +57,8 @@ def plot_chart_vision_ai(symbol: str, candles: List, alert_index: int = None, al
     Returns:
         Path to saved chart file
     """
-    try:
-        # CRITICAL: Enhanced data validation to prevent distorted charts
-        if not candles or not isinstance(candles, list) or len(candles) < 20:
-            print(f"[CHART ERROR] {symbol}: Missing or invalid candle data - got {len(candles) if candles else 0} candles (need ≥20)")
-            return None
+    print(f"[CHART DISABLED] {symbol}: Vision-AI chart generation disabled - using TradingView-only pipeline")
+    return None
         
         print(f"[CHART VALIDATION] {symbol}: Processing {len(candles)} candles")
         
