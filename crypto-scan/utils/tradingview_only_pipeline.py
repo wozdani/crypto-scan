@@ -184,24 +184,45 @@ class TradingViewOnlyPipeline:
             return []
             
         try:
-            # Simple sync execution without nested event loops
             import asyncio
             
-            # Create new event loop for this specific operation
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
+            # Check if we're already in an event loop
             try:
-                # Run the async function
-                return loop.run_until_complete(
-                    self.generate_tradingview_charts_async(
-                        tjde_results, min_score, max_symbols
-                    )
-                )
-            finally:
-                # Clean up the event loop
-                loop.close()
+                asyncio.get_running_loop()
+                # Already in event loop - skip TradingView generation to avoid conflicts
+                print("[TRADINGVIEW-ONLY] Skipping screenshot generation due to event loop conflict")
+                print("[TRADINGVIEW-ONLY] Generating metadata only for Vision-AI pipeline")
                 
+                # Generate only metadata without screenshots
+                metadata_paths = []
+                top_symbols = sorted(
+                    [r for r in tjde_results if r.get('tjde_score', 0) >= min_score],
+                    key=lambda x: x.get('tjde_score', 0),
+                    reverse=True
+                )[:max_symbols]
+                
+                for entry in top_symbols:
+                    symbol = entry.get('symbol', 'UNKNOWN')
+                    metadata_path = self._save_tradingview_metadata(entry)
+                    if metadata_path:
+                        metadata_paths.append(metadata_path)
+                        
+                return metadata_paths
+                
+            except RuntimeError:
+                # No event loop running - safe to create one
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
+                try:
+                    return loop.run_until_complete(
+                        self.generate_tradingview_charts_async(
+                            tjde_results, min_score, max_symbols
+                        )
+                    )
+                finally:
+                    loop.close()
+                    
         except Exception as e:
             print(f"[TRADINGVIEW-ONLY SYNC ERROR] {e}")
             return []
@@ -276,6 +297,44 @@ class TradingViewOnlyPipeline:
             
         except Exception as e:
             print(f"[TRADINGVIEW-ONLY] Cleanup error: {e}")
+    
+    def _save_tradingview_metadata(self, entry: Dict) -> Optional[str]:
+        """
+        Save TradingView metadata without screenshot generation
+        Used when event loop conflicts prevent async screenshot capture
+        """
+        try:
+            import json
+            from datetime import datetime
+            
+            symbol = entry.get('symbol', 'UNKNOWN')
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            
+            metadata = {
+                "symbol": symbol,
+                "tjde_score": entry.get('tjde_score', 0),
+                "tjde_decision": entry.get('tjde_decision', 'unknown'),
+                "market_phase": entry.get('market_phase', 'unknown'),
+                "clip_confidence": entry.get('clip_confidence', None),
+                "timestamp": timestamp,
+                "chart_type": "tradingview_metadata_only",
+                "authentic_chart": False,
+                "generation_mode": "event_loop_conflict_fallback",
+                "vision_ai_ready": True
+            }
+            
+            # Save metadata file
+            os.makedirs("data/tradingview_metadata", exist_ok=True)
+            metadata_path = f"data/tradingview_metadata/{symbol}_{timestamp}_metadata.json"
+            
+            with open(metadata_path, 'w') as f:
+                json.dump(metadata, f, indent=2)
+                
+            return metadata_path
+            
+        except Exception as e:
+            print(f"[TRADINGVIEW-METADATA] Error saving metadata for {symbol}: {e}")
+            return None
 
 # Global instance
 tradingview_pipeline = TradingViewOnlyPipeline()
