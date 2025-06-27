@@ -8,6 +8,7 @@ Analizuje kontekst rynkowy, zachowanie świec i orderbook jak prawdziwy trader.
 import os
 import json
 import logging
+import time
 import numpy as np
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
@@ -1048,6 +1049,15 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
         }
         clip_boost_applied = False
         clip_already_used = False
+        
+        # Initialize session cache for CLIP predictions
+        if '_clip_session_cache' not in globals():
+            global _clip_session_cache
+            _clip_session_cache = {}
+        
+        # Create session key for caching
+        session_key = f"{symbol}_{int(time.time() / 900)}"  # 15-minute sessions
+        
         cluster_enhanced = False
         cluster_modifier = 0.0
         cluster_info = {}
