@@ -90,7 +90,7 @@ def save_training_chart(df: pd.DataFrame, symbol: str, timestamp: str,
                     "setup": f"{market_phase}_{decision}" if market_phase else decision,
                     "phase": market_phase or "unknown",
                     "vision_ai_chart": True,  # Flag for Vision-AI generation
-                    "alert_generated": tjde_score >= 0.6,  # Track alert threshold
+                    "alert_generated": tjde_score >= 0.7,  # Track alert threshold
                     "result_after_2h": None  # For feedback loop
                 }
                 update_token_memory(symbol, memory_entry)

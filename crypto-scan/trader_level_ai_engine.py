@@ -198,7 +198,7 @@ class TraderLevelAIEngine:
             decision_factors = []
             
             # High-confidence consensus requirement
-            if consensus_analysis["agreement_level"] == "high" and tjde_score > 0.6:
+            if consensus_analysis["agreement_level"] == "high" and tjde_score > 0.7:
                 elite_score += 0.4
                 decision_factors.append(f"Strong CLIP+GPT+TJDE consensus ({consensus_weight:.2f})")
             

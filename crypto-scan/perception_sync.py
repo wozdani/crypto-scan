@@ -77,7 +77,7 @@ def generate_gpt_chart_comment(symbol: str, features: Dict, clip_prediction: Opt
         
         # Prepare context for GPT
         tjde_score = features.get("combined_score", 0.0)
-        decision_hint = "consider_entry" if tjde_score > 0.6 else "avoid"
+        decision_hint = "consider_entry" if tjde_score > 0.7 else "avoid"
         
         # Generate comprehensive commentary
         commentary = generate_chart_commentary(

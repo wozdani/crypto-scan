@@ -53,7 +53,7 @@ def fix_alert_thresholds(symbol: str, tjde_score: float, decision: str, clip_con
             alert_generated = True
             alert_level = max(alert_level, 2)
         
-        if clip_confidence > 0.75 and tjde_score >= 0.6:
+        if clip_confidence > 0.75 and tjde_score >= 0.7:
             alert_level = 3
             reasoning.append(f"High CLIP {clip_confidence:.3f} + high TJDE → strong alert")
     
@@ -70,14 +70,14 @@ def fix_alert_thresholds(symbol: str, tjde_score: float, decision: str, clip_con
             alert_generated = True
             alert_level = max(alert_level, 2)
     
-    # Safety net: Any score >0.65 should generate some alert
-    if tjde_score >= 0.65 and not alert_generated:
+    # Safety net: Any score >0.75 should generate some alert
+    if tjde_score >= 0.75 and not alert_generated:
         alert_generated = True
         alert_level = 2
-        reasoning.append(f"Safety net: TJDE {tjde_score:.3f} > 0.65 forces alert")
+        reasoning.append(f"Safety net: TJDE {tjde_score:.3f} > 0.75 forces alert")
     
     # Final decision validation
-    if tjde_score >= 0.6 and decision == "avoid":
+    if tjde_score >= 0.7 and decision == "avoid":
         decision = "consider_entry"
         reasoning.append("Final check: High TJDE cannot be avoid")
     
@@ -102,13 +102,13 @@ def should_generate_alert(tjde_score: float, decision: str, clip_confidence: flo
     """
     
     # Critical thresholds (much lower than current system)
-    if tjde_score >= 0.6:
+    if tjde_score >= 0.7:
         return True
     
-    if tjde_score >= 0.5 and clip_confidence > 0.6:
+    if tjde_score >= 0.6 and clip_confidence > 0.6:
         return True
     
-    if tjde_score >= 0.55 and decision in ["consider_entry", "join_trend"]:
+    if tjde_score >= 0.65 and decision in ["consider_entry", "join_trend"]:
         return True
     
     return False
@@ -121,13 +121,13 @@ def calculate_alert_level(tjde_score: float, decision: str, clip_confidence: flo
         int: Alert level (1=low, 2=medium, 3=high)
     """
     
-    if tjde_score >= 0.75 or (tjde_score >= 0.65 and clip_confidence > 0.7):
+    if tjde_score >= 0.85 or (tjde_score >= 0.75 and clip_confidence > 0.7):
         return 3  # High alert
     
-    if tjde_score >= 0.65 or (tjde_score >= 0.55 and clip_confidence > 0.6):
+    if tjde_score >= 0.75 or (tjde_score >= 0.65 and clip_confidence > 0.6):
         return 2  # Medium alert
     
-    if tjde_score >= 0.5 or (tjde_score >= 0.45 and clip_confidence > 0.5):
+    if tjde_score >= 0.7 or (tjde_score >= 0.65 and clip_confidence > 0.5):
         return 1  # Low alert
     
     return 0  # No alert
