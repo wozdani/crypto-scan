@@ -759,7 +759,7 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             except Exception as e:
                 print(f"[TJDE ALERT ERROR] {symbol} → {e}")
         else:
-            print(f"[TJDE SKIP] {symbol} → TJDE score {tjde_score:.3f} below alert threshold (0.6+)")
+            print(f"[TJDE SKIP] {symbol} → TJDE score {tjde_score:.3f} below alert threshold (0.7+)")
         
         # Save results with diagnostics (if save function available)
         try:

@@ -26,7 +26,7 @@ def fix_alert_thresholds(symbol: str, tjde_score: float, decision: str, clip_con
     reasoning = []
     
     # Critical fix: Lower thresholds for high TJDE scores
-    if tjde_score >= 0.6:
+    if tjde_score >= 0.7:
         # High TJDE score should generate alerts
         if decision == "avoid":
             decision = "consider_entry"
