@@ -93,18 +93,11 @@ def cluster_analysis_enhancement(symbol, market_data, debug=False):
             print(f"[CLUSTER DEBUG] Volume cluster count: {len(volume_clusters)}")
             print(f"[CLUSTER DEBUG] Insufficient clusters: Need ≥3, got {len(volume_clusters)}")
             print(f"[CLUSTER DEBUG WARNING] Modifier fallback triggered – no significant clusters detected")
-            
-            # TEMPORARY: Add random modifier to test system response
-            import random
-            temp_modifier = round(random.uniform(0.02, 0.08), 3)
-            temp_quality = round(random.uniform(0.6, 0.85), 3)
-            print(f"[CLUSTER TEMP TEST] {symbol}: Random modifier {temp_modifier}, quality {temp_quality} (testing system response)")
-            
             if debug:
                 print(f"- Insufficient clusters: Need ≥3, got {len(volume_clusters)}")
                 print(f"- Fallback triggered: No valid volume pattern found")
-                print(f"- TESTING: Using temporary random values instead of 0.000/0.500")
-            return temp_modifier, temp_quality
+                print(f"- Final Modifier: 0.000, Quality: 0.500")
+            return 0.0, 0.5
         
         # Calculate average cluster density
         total_volume = sum(c['volume'] for c in volume_clusters)
