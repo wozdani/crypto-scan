@@ -98,6 +98,18 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 27, 2025 - Complete Vision-AI Chart Module Replacement - Professional TradingView-Style Charts ✅
+Successfully replaced the entire Vision-AI chart generation system with professional TradingView-style candlestick charts eliminating unsuitable orderbook heatmaps:
+- **Complete Module Replacement**: Created plot_vision_chart.py as complete replacement for orderbook-based chart generation with professional candlestick + volume charts resembling real trading platforms
+- **TradingView Styling**: Implemented dark background theme (#0e1621), professional candlesticks (colorup=#26a69a, colordown=#ef5350), volume bars with color coding, and comprehensive price/TJDE information overlays
+- **Enhanced Chart Quality**: Charts include symbol, setup, market phase, decision, CLIP label/confidence, TJDE score in dynamic titles with professional styling and 200 DPI output quality
+- **DataFrame Integration**: Added convert_candles_to_dataframe() function handling various candle formats (dict/list) with comprehensive OHLC validation and timestamp conversion
+- **Vision-AI Pipeline Integration**: Updated vision_ai_pipeline.py to use new chart system with complete fallback from orderbook heatmaps to professional candlestick charts
+- **Comprehensive Metadata**: Each chart generates JSON metadata with price ranges, volume statistics, chart type, and complete trading context for enhanced AI training
+- **Production Testing**: Successfully tested chart generation with realistic market data producing 129KB professional charts suitable for CLIP/GPT training and analysis
+- **Complete Legacy Removal**: Eliminated all orderbook heatmap references that were unsuitable for Vision-AI training, replacing with industry-standard candlestick visualization
+System now generates professional trading charts that resemble real TradingView platforms, providing superior training data for Vision-AI models and GPT interpretation.
+
 ### June 27, 2025 - Critical Production Fixes - Cluster Analysis Data Format + CLIP Session Cache Optimization Complete ✅
 Successfully resolved two critical production issues affecting TJDE scoring accuracy and CLIP processing efficiency:
 - **Cluster Analysis Data Format Fix**: Enhanced cluster_analysis_enhancement.py to correctly extract volume data from market_data dictionary structure eliminating default 0.000 modifier returns that were reducing TJDE scoring accuracy

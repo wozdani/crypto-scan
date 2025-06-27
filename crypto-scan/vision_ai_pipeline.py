@@ -431,7 +431,7 @@ def prepare_top5_training_data(tjde_results: List[Dict]) -> List[Dict]:
 
 def generate_vision_ai_training_data(tjde_results: List[Dict], vision_ai_mode: str = "full") -> int:
     """
-    Complete Vision-AI training data generation pipeline
+    Complete Vision-AI training data generation pipeline with new TradingView-style charts
     
     Args:
         tjde_results: List of scan results with TJDE analysis
@@ -440,120 +440,160 @@ def generate_vision_ai_training_data(tjde_results: List[Dict], vision_ai_mode: s
     Returns:
         Number of training pairs generated
     """
-    charts_generated = 0  # FIX 1: Initialize counter to prevent UnboundLocalError
-    training_pairs_created = 0
-    
-    # Get TOP 5 tokens by TJDE score
-    top5_results = prepare_top5_training_data(tjde_results)
-    
-    if not top5_results:
-        return 0
-    
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-    
-    for result in top5_results:
-        try:
-            symbol = result.get('symbol', 'UNKNOWN')
-            tjde_score = result.get('tjde_score', 0)
-            market_data = result.get('market_data', {})
+    try:
+        # Import new chart generator
+        from new_vision_chart_generator import plot_vision_chart, generate_enhanced_vision_charts
+        
+        # Use new professional chart generation system
+        from plot_vision_chart import plot_vision_chart, convert_candles_to_dataframe
+        charts_generated = 0
+        
+        # Get TOP 5 tokens by TJDE score for new chart generation
+        top5_results = prepare_top5_training_data(tjde_results)
+        
+        if top5_results:
+            print(f"[NEW VISION-AI] Processing TOP {len(top5_results)} tokens with professional TradingView charts")
             
-            # Fast/minimal mode optimizations
-            if vision_ai_mode == "minimal" and tjde_score < 0.4:
-                print(f"[VISION-AI SKIP] {symbol}: TJDE {tjde_score:.3f} below minimal threshold (0.4)")
-                continue
-                
-            if vision_ai_mode == "fast":
-                print(f"[VISION-AI FAST] {symbol}: Fast mode - generating CLIP input only")
-                # Generate metadata without PNG
-                training_pairs_created += 1
-                continue
-            
-            # Użyj nowej elastycznej funkcji pobierania świec
-            candles_15m = fetch_candles_for_vision(symbol)
-            
-            if not candles_15m:
-                # Zapisz token z brakującymi danymi do raportu
-                save_missing_candles_report(symbol, "insufficient_data")
-                print(f"[VISION-AI SKIP] {symbol}: No candles available after all fallbacks")
-                continue
-            
-            # Użyj dostępnych świec
-            print(f"[VISION-AI DATA] {symbol}: Using {len(candles_15m)} candles for training")
-            
-            # Convert to DataFrame for chart generation with available data
-            df_data = []
-            chart_candles = candles_15m[-min(50, len(candles_15m)):]  # Use last 50 candles max
-            
-            for i, candle in enumerate(chart_candles):
+            for result in top5_results:
                 try:
-                    # Handle different candle formats
-                    if isinstance(candle, list) and len(candle) >= 6:
-                        df_data.append({
-                            'Open': float(candle[1]),
-                            'High': float(candle[2]), 
-                            'Low': float(candle[3]),
-                            'Close': float(candle[4]),
-                            'Volume': float(candle[5])
-                        })
-                    elif isinstance(candle, dict):
-                        df_data.append({
-                            'Open': float(candle.get('open', candle.get('Open', 1.0))),
-                            'High': float(candle.get('high', candle.get('High', 1.0))), 
-                            'Low': float(candle.get('low', candle.get('Low', 1.0))),
-                            'Close': float(candle.get('close', candle.get('Close', 1.0))),
-                            'Volume': float(candle.get('volume', candle.get('Volume', 1000.0)))
-                        })
-                except (ValueError, IndexError, TypeError) as e:
-                    print(f"[VISION-AI ERROR] {symbol}: Invalid candle data at index {i}: {e}")
-                    continue
+                    symbol = result.get('symbol', 'UNKNOWN')
+                    tjde_score = result.get('tjde_score', 0)
+                    market_data = result.get('market_data', {})
+                    
+                    # Get candles from market_data
+                    candles = market_data.get('candles_15m', market_data.get('candles', []))
+                    if not candles:
+                        print(f"[NEW VISION-AI SKIP] {symbol}: No candle data available")
+                        continue
+                    
+                    # Convert candles to DataFrame
+                    df = convert_candles_to_dataframe(candles, symbol)
+                    if df is None:
+                        print(f"[NEW VISION-AI SKIP] {symbol}: Failed to convert candles to DataFrame")
+                        continue
+                    
+                    # Extract chart parameters
+                    setup = result.get('setup_type', result.get('market_phase', 'unknown'))
+                    market_phase = result.get('market_phase', 'unknown')
+                    decision = result.get('tjde_decision', 'unknown')
+                    clip_label = result.get('clip_label', 'unknown')
+                    clip_confidence = result.get('clip_confidence', 0.0)
+                    
+                    # Generate chart path
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+                    output_path = f"training_charts/{symbol}_{timestamp}_vision_chart.png"
+                    
+                    # Generate professional TradingView-style chart
+                    success = plot_vision_chart(
+                        df=df,
+                        symbol=symbol,
+                        setup=setup,
+                        market_phase=market_phase,
+                        decision=decision,
+                        clip_label=clip_label,
+                        clip_confidence=clip_confidence,
+                        tjde_score=tjde_score,
+                        output_path=output_path,
+                        timestamp=timestamp
+                    )
+                    
+                    if success:
+                        charts_generated += 1
+                        print(f"[NEW VISION-AI] ✅ {symbol}: Professional chart generated")
+                    else:
+                        print(f"[NEW VISION-AI] ❌ {symbol}: Chart generation failed")
+                        
+                except Exception as e:
+                    print(f"[NEW VISION-AI ERROR] {symbol}: {e}")
+        else:
+            print("[NEW VISION-AI] No TOP 5 results available for chart generation")
+        
+        if charts_generated > 0:
+            print(f"[NEW VISION-AI] ✅ Generated {charts_generated} professional TradingView-style charts")
+        else:
+            print("[NEW VISION-AI] ❌ No charts generated - checking fallback")
             
-            df = pd.DataFrame(df_data)
-            df.index = pd.date_range(start='2025-01-01', periods=len(df), freq='15min')
-            
-            # POPRAWKA 1: Generate professional training chart in training_charts/
-            phase = result.get('market_phase', 'unknown')
-            decision = result.get('tjde_decision', 'unknown')
-            chart_path = f"training_charts/{symbol}_{timestamp}_{phase}_{decision}_tjde.png"
-            
-            chart_path = save_training_chart(
-                df=df, 
-                symbol=symbol, 
-                timestamp=timestamp,
-                folder="training_charts",  # Professional charts folder
-                tjde_score=tjde_score,
-                clip_confidence=result.get('clip_confidence', None),
-                market_phase=phase,
-                decision=decision
-            )
-            
-            # Create comprehensive label data
-            label_data = {
-                "phase": result.get('market_phase', 'unknown'),
-                "setup": result.get('setup_type', 'unknown'),
-                "tjde_score": tjde_score,
-                "tjde_decision": result.get('tjde_decision', 'unknown'),
-                "trend_strength": result.get('trend_strength', 0.0),
-                "confidence": result.get('clip_confidence', 0.0),
-                "volume_behavior": result.get('volume_behavior', 'normal'),
-                "price_action": result.get('price_action_pattern', 'unknown')
-            }
-            
-            # Save label to JSONL z dodatkową informacją o źródle danych
-            label_data["data_source"] = "vision_fetch" if len(candles_15m) > 30 else "synthetic"
-            label_data["skip_training"] = len(candles_15m) < 20  # Oznacz słabe dane
-            
-            if save_label_jsonl(symbol, timestamp, label_data):
-                training_pairs_created += 1
+        # Legacy fallback for compatibility
+        training_pairs_created = 0
+        top5_results = prepare_top5_training_data(tjde_results)
+        
+        if not top5_results:
+            return charts_generated
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+        
+        for result in top5_results:
+            try:
+                symbol = result.get('symbol', 'UNKNOWN')
+                tjde_score = result.get('tjde_score', 0)
+                market_data = result.get('market_data', {})
                 
-        except Exception as e:
-            print(f"[VISION-AI ERROR] {symbol}: {e}")
-            save_missing_candles_report(symbol, f"processing_error: {e}")
-    
-    # Zapisz raport z brakującymi danymi
-    save_training_summary_report(training_pairs_created, len(top5_results))
-    
-    print(f"[VISION-AI] Generated {training_pairs_created} training pairs")
-    return training_pairs_created
+                # Fast/minimal mode optimizations
+                if vision_ai_mode == "minimal" and tjde_score < 0.4:
+                    print(f"[VISION-AI SKIP] {symbol}: TJDE {tjde_score:.3f} below minimal threshold (0.4)")
+                    continue
+                    
+                if vision_ai_mode == "fast":
+                    print(f"[VISION-AI FAST] {symbol}: Fast mode - generating CLIP input only")
+                    training_pairs_created += 1
+                    continue
+                
+                # Use candles from market_data for additional processing
+                candles_15m = market_data.get('candles_15m', market_data.get('candles', []))
+                
+                if not candles_15m:
+                    candles_15m = fetch_candles_for_vision(symbol)
+                
+                if not candles_15m:
+                    save_missing_candles_report(symbol, "insufficient_data")
+                    print(f"[VISION-AI SKIP] {symbol}: No candles available after all fallbacks")
+                    continue
+                
+                print(f"[VISION-AI DATA] {symbol}: Using {len(candles_15m)} candles for training")
+                
+                # Generate additional metadata
+                phase = result.get('market_phase', 'unknown')
+                decision = result.get('tjde_decision', 'unknown')
+                setup = result.get('setup_type', phase)
+                clip_label = result.get('clip_label', 'unknown')
+                clip_confidence = result.get('clip_confidence', 0.0)
+                
+                # Create comprehensive label data
+                label_data = {
+                    "phase": phase,
+                    "setup": setup,
+                    "tjde_score": tjde_score,
+                    "tjde_decision": decision,
+                    "trend_strength": result.get('trend_strength', 0.0),
+                    "confidence": clip_confidence,
+                    "volume_behavior": result.get('volume_behavior', 'normal'),
+                    "price_action": result.get('price_action_pattern', 'unknown'),
+                    "data_source": "new_vision_ai",
+                    "skip_training": len(candles_15m) < 20,
+                    "chart_type": "tradingview_style"
+                }
+                
+                if save_label_jsonl(symbol, timestamp, label_data):
+                    training_pairs_created += 1
+                    
+            except Exception as e:
+                print(f"[VISION-AI ERROR] {symbol}: {e}")
+                save_missing_candles_report(symbol, f"processing_error: {e}")
+        
+        # Save training summary
+        save_training_summary_report(training_pairs_created, len(top5_results))
+        
+        total_generated = charts_generated + training_pairs_created
+        print(f"[VISION-AI COMPLETE] Generated {total_generated} total training items ({charts_generated} charts + {training_pairs_created} metadata)")
+        
+        return total_generated
+        
+    except ImportError as e:
+        print(f"[VISION-AI ERROR] Cannot import new chart generator: {e}")
+        return 0
+    except Exception as e:
+        print(f"[VISION-AI ERROR] Pipeline failed: {e}")
+        return 0
 
 def save_missing_candles_report(symbol: str, reason: str):
     """Zapisuj tokeny z brakującymi danymi do raportu debugowania"""
