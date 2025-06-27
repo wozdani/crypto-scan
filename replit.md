@@ -109,6 +109,18 @@ Successfully resolved the critical issue where all tokens defaulted to "[5M FALL
 - **Vision-AI Data Quality**: Enhanced training data generation now has access to both timeframes for superior pattern recognition and model training
 System completely operational - all tokens now process with full 15M and 5M candle data eliminating the persistent fallback mode that was limiting analysis quality.
 
+### June 27, 2025 - Extended Service-Level Error Logging System FULLY IMPLEMENTED - Complete Scan Visibility ✅
+Successfully implemented comprehensive error reporting system throughout crypto_scan_service.py ensuring complete scan quality monitoring:
+- **Global SCAN_WARNINGS System**: Added SCAN_WARNINGS list with log_warning() helper function, clear_scan_warnings(), and report_scan_warnings() for centralized error tracking
+- **Systematic Integration Across All Service Functions**: Enhanced scan_cycle(), simple_scan_fallback(), and main() with comprehensive error logging using try/catch blocks and specific warning categories
+- **Phase 1-5 Operations Enhanced**: All periodic Phase operations (Memory Feedback, Memory Updates, Vision-AI Evaluation, Embedding Processing, Reinforcement Learning) now include dedicated import and execution error handling
+- **Enhanced Fallback Error Tracking**: simple_scan_fallback() includes async event loop conflict detection, module import failures, and sequential scan token-level error counting with spam prevention
+- **Main Service Error Management**: main() function enhanced with cycle-level error clearing/reporting and service-level exception handling for complete operational visibility
+- **Production Error Categories**: Specific error labels for ASYNC SCAN PROCESSING, TRADINGVIEW SCREENSHOT ERROR, CLIP FALLBACK, PHASE MODULE IMPORT ERROR, SEQUENTIAL SCAN TOKEN ERROR enabling targeted troubleshooting
+- **End-of-Scan Summary**: Complete warning summary displayed at end of each scan cycle showing total error count and detailed error breakdown for quality assessment
+- **Service-Level Monitoring**: Enhanced visibility into TradingView screenshot failures, CLIP processing issues, memory system problems, and async processing conflicts without system crashes
+System now provides complete scan error visibility allowing monitoring of all pipeline components and immediate identification of areas requiring attention.
+
 ### June 27, 2025 - Complete TradingView-Only Pipeline Implementation - Matplotlib Elimination Completed ✅
 Successfully completed comprehensive replacement of all matplotlib chart generation with exclusive TradingView screenshot capture system:
 - **Complete Matplotlib Elimination**: Disabled all matplotlib chart generation functions across chart_generator.py, vision_ai_chart_generator.py, and vision_ai_pipeline.py preventing any synthetic chart creation
