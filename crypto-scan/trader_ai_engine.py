@@ -13,6 +13,9 @@ import numpy as np
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 
+# Initialize global CLIP session cache
+_clip_session_cache = {}
+
 # CLIP Integration - Market Phase Labels
 CANDIDATE_PHASES = [
     "breakout-continuation",
