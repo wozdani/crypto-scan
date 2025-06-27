@@ -98,7 +98,7 @@ def reduce_disk_io_overhead(data: Dict, fast_mode: bool = False) -> bool:
         # Only write high-value results in fast mode
         tjde_score = data.get('tjde_score', 0)
         ppwcs_score = data.get('ppwcs_score', 0)
-        return tjde_score >= 0.6 or ppwcs_score >= 60
+        return tjde_score >= 0.7 or ppwcs_score >= 60
     return True
 
 def optimize_memory_usage():

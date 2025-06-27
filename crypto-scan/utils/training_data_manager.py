@@ -223,7 +223,7 @@ class TrainingDataManager:
         if ppwcs >= 70 and tjde >= 0.8:
             quality = "excellent"
             pattern = "strong_breakout"
-        elif ppwcs >= 50 and tjde >= 0.6:
+        elif ppwcs >= 50 and tjde >= 0.7:
             quality = "good"
             pattern = "potential_breakout"
         elif ppwcs >= 40 and tjde >= 0.5:

@@ -98,6 +98,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 27, 2025 - TJDE Alert Threshold Standardization Complete - Full Codebase Consistency Achieved ✅
+Successfully completed comprehensive TJDE alert threshold standardization across entire codebase for production consistency:
+- **Threshold Standardization**: Systematically updated all remaining TJDE alert thresholds from 0.6 to 0.7 across crypto-scan/utils/training_data_manager.py, utils/performance_optimizer.py, perception_sync.py, and test files
+- **Codebase-Wide Consistency**: Achieved complete consistency eliminating all 0.6 threshold references ensuring uniform 0.7 standard across all alert logic systems
+- **Test File Updates**: Updated test_tjde_alert_system.py with corrected threshold references (≥0.7 for alerts, levels 2 at ≥0.7, level 3 at ≥0.75) maintaining test accuracy
+- **Alert Logic Alignment**: Enhanced utils/alert_threshold_fix.py secondary thresholds (0.65 with high CLIP confidence) maintaining production alert quality while preserving 0.7 primary standard
+- **Production Consistency**: All TJDE components now operate with unified 0.7 threshold ensuring no conflicts between modules or test scenarios
+- **System Integrity**: Complete verification that no remaining 0.6 threshold references exist in critical alert logic maintaining production reliability
+- **Documentation Accuracy**: Updated all test descriptions and documentation to reflect accurate threshold levels for future development reference
+System now maintains complete threshold consistency across all components ensuring reliable TJDE alert operation without conflicting standards.
+
 ### June 25, 2025 - Complete GPT Label Extraction System - Automatic File Renaming for CLIP Training ✅
 Successfully implemented comprehensive GPT label extraction system with automatic file renaming for enhanced CLIP model training:
 - **Dual Label Functions**: Created both extract_primary_label_from_commentary() and extract_primary_label() with comprehensive Polish/English pattern detection for 15+ setup types including trend_pullback_reacted, trend_continuation, fakeout_on_resistance, range_consolidation

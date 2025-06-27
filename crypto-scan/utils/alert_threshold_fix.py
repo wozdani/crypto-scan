@@ -105,7 +105,7 @@ def should_generate_alert(tjde_score: float, decision: str, clip_confidence: flo
     if tjde_score >= 0.7:
         return True
     
-    if tjde_score >= 0.6 and clip_confidence > 0.6:
+    if tjde_score >= 0.65 and clip_confidence > 0.6:
         return True
     
     if tjde_score >= 0.65 and decision in ["consider_entry", "join_trend"]:
