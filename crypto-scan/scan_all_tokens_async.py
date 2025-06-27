@@ -313,11 +313,13 @@ def generate_top_tjde_charts(results: List[Dict]):
                     
             except Exception as chart_e:
                 print(f"   ❌ Chart error for {symbol}: {chart_e}")
+                log_chart_error(symbol, f"Chart generation failed: {chart_e}")
         
         print(f"📊 Processed {chart_count}/{len(top_5_tjde)} training charts for TOP TJDE tokens (includes existing Vision-AI charts)")
         
     except Exception as e:
         print(f"[CHART GEN ERROR] {e}")
+        log_global_error("Chart Generation", f"Chart generation pipeline failed: {e}")
 
 def save_scan_summary(results: List[Dict]):
     """Save scan summary for dashboard"""
