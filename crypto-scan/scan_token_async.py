@@ -549,14 +549,36 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             tjde_score = ppwcs_score / 100 if ppwcs_score else 0.4  # Convert to 0-1 range
             tjde_decision = "monitor" if tjde_score > 0.5 else "avoid"
         
-        # Generate training charts for meaningful setups (always attempt for debug)
+        # Generate training charts for meaningful setups - RESTRICTED TO TOP 5 ONLY
         training_chart_saved = False
         chart_eligible = tjde_score >= 0.4 and tjde_decision != "avoid"
         
-        # Force chart generation for testing even with low scores if we have data
-        if not chart_eligible and candles_15m and len(candles_15m) >= 20:
-            print(f"[CHART DEBUG] {symbol} → Forcing chart generation for testing (TJDE: {tjde_score:.3f}, Decision: {tjde_decision})")
-            chart_eligible = True
+        # 🎯 CRITICAL FIX: Check TOP 5 status before generating any training charts
+        try:
+            from utils.top5_selector import should_generate_training_data, warn_about_non_top5_generation
+            
+            if chart_eligible and should_generate_training_data(symbol, tjde_score):
+                print(f"[CHART DEBUG] {symbol} → TOP 5 token - proceeding with chart generation (TJDE: {tjde_score:.3f}, Decision: {tjde_decision})")
+            elif chart_eligible:
+                warn_about_non_top5_generation(symbol, f"scan_token_async - TJDE score {tjde_score:.3f}")
+                chart_eligible = False
+                print(f"[CHART SKIP] {symbol} → Not in TOP 5 TJDE tokens - skipping training data generation")
+            else:
+                # Force chart generation for testing even with low scores if we have data AND token is in TOP 5
+                if candles_15m and len(candles_15m) >= 20 and should_generate_training_data(symbol, tjde_score):
+                    print(f"[CHART DEBUG] {symbol} → TOP 5 token - forcing chart generation for testing (TJDE: {tjde_score:.3f}, Decision: {tjde_decision})")
+                    chart_eligible = True
+                elif candles_15m and len(candles_15m) >= 20:
+                    warn_about_non_top5_generation(symbol, f"scan_token_async forced debug - TJDE score {tjde_score:.3f}")
+                    print(f"[CHART SKIP] {symbol} → Not in TOP 5 - skipping debug chart generation")
+                    
+        except ImportError:
+            # TOP5 selector not available - skip all training to avoid dataset degradation
+            print(f"[CHART SKIP] {symbol} → TOP5 selector not available, skipping to maintain dataset quality")
+            chart_eligible = False
+        except Exception as e:
+            print(f"[CHART TOP5 ERROR] {symbol} → {e}")
+            chart_eligible = False
             
         if chart_eligible:
             print(f"[TRAINING] {symbol} → Generating TJDE training chart (Score: {tjde_score:.3f}, Decision: {tjde_decision})")
