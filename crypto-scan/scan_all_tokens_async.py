@@ -208,10 +208,25 @@ async def async_scan_cycle():
 
 def generate_top_tjde_charts(results: List[Dict]):
     """Generate training charts and Vision-AI data for TOP 5 TJDE tokens only"""
-    skipped_due_to_data = 0  # BONUS: Metryka candles_skipped_due_to_data
-    """Generate training charts and Vision-AI data for TOP 5 TJDE tokens only"""
     try:
-        # Import Vision-AI pipeline
+        # Apply force refresh for fresh TradingView charts
+        from utils.force_refresh_charts import force_refresh_vision_ai_charts
+        
+        # Generate fresh TradingView charts for TOP 5 TJDE tokens
+        print("🔄 [FORCE REFRESH] Generating fresh TradingView charts for Vision-AI training")
+        fresh_charts = force_refresh_vision_ai_charts(
+            tjde_results=results,
+            min_score=0.5,
+            max_symbols=5,
+            force_regenerate=True
+        )
+        
+        if fresh_charts:
+            print(f"✅ [FORCE REFRESH] Generated {len(fresh_charts)} fresh TradingView charts")
+        else:
+            print("❌ [FORCE REFRESH] No fresh charts generated - falling back to Vision-AI pipeline")
+        
+        # Import Vision-AI pipeline for additional processing
         from vision_ai_pipeline import generate_vision_ai_training_data
         
         # Generate comprehensive Vision-AI training data with fixed function call
