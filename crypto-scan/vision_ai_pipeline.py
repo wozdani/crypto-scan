@@ -404,13 +404,13 @@ def fetch_candles_for_vision(symbol: str) -> Optional[List]:
 
 def prepare_top5_training_data(tjde_results: List[Dict]) -> List[Dict]:
     """
-    Select TOP 5 tokens by TJDE score for training data generation
+    Select TOP 5 tokens by TJDE score for training data generation with fresh data validation
     
     Args:
         tjde_results: List of scan results with TJDE scores
         
     Returns:
-        Top 5 results sorted by TJDE score
+        Top 5 results sorted by TJDE score with fresh data validation
     """
     # Filter valid results with TJDE scores
     valid_results = [r for r in tjde_results if r.get('tjde_score', 0) > 0]
@@ -422,9 +422,28 @@ def prepare_top5_training_data(tjde_results: List[Dict]) -> List[Dict]:
     # Sort by TJDE score descending and take TOP 5
     top5 = sorted(valid_results, key=lambda x: x.get('tjde_score', 0), reverse=True)[:5]
     
-    print(f"[VISION-AI] Selected TOP 5 tokens for training data:")
+    print(f"[VISION-AI] Selected TOP 5 tokens for training data with fresh data validation:")
     for i, result in enumerate(top5, 1):
-        print(f"  {i}. {result['symbol']}: TJDE {result['tjde_score']:.3f}")
+        symbol = result['symbol']
+        tjde_score = result['tjde_score']
+        print(f"  {i}. {symbol}: TJDE {tjde_score:.3f}")
+        
+        # FRESH DATA VALIDATION: Check if this token has current market data
+        market_data = result.get('market_data', {})
+        candles_15m = market_data.get('candles_15m', [])
+        
+        if candles_15m:
+            try:
+                from utils.fresh_candles import validate_candle_freshness
+                is_fresh = validate_candle_freshness(candles_15m, symbol, max_age_minutes=45)
+                if not is_fresh:
+                    print(f"    ⚠️ {symbol}: Market data may be stale - will fetch fresh data during chart generation")
+                else:
+                    print(f"    ✅ {symbol}: Market data is fresh")
+            except Exception as e:
+                print(f"    ⚠️ {symbol}: Could not validate data freshness: {e}")
+        else:
+            print(f"    ⚠️ {symbol}: No 15M candles in market_data - will fetch fresh data")
     
     return top5
 

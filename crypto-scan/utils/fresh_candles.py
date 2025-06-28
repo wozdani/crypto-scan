@@ -85,7 +85,7 @@ def fetch_fresh_candles(symbol: str, interval: str = "15m", limit: int = 96, for
                 candles_raw = data.get("result", {}).get("list", [])
                 
                 if not candles_raw:
-                    log_warning("FRESH CANDLES API", f"{symbol}: No candles returned from Bybit API")
+                    log_warning("FRESH CANDLES API", additional_info=f"{symbol}: No candles returned from Bybit API")
                     return []
                 
                 # Convert to dictionary format (newest first from Bybit)
@@ -102,7 +102,7 @@ def fetch_fresh_candles(symbol: str, interval: str = "15m", limit: int = 96, for
                         }
                         candles.append(candle_dict)
                     except (ValueError, IndexError, TypeError) as e:
-                        log_warning("FRESH CANDLES PARSE", f"{symbol}: Invalid candle format - {e}")
+                        log_warning("FRESH CANDLES PARSE", exception=e, additional_info=f"{symbol}: Invalid candle format")
                         continue
                 
                 # Validate data freshness
@@ -173,12 +173,12 @@ def validate_candle_freshness(candles: List[Dict], symbol: str, max_age_minutes:
         print(f"[FRESHNESS CHECK] {symbol}: Data age {age_minutes:.1f}min {'✅' if is_fresh else '❌'} (limit: {max_age_minutes}min)")
         
         if not is_fresh:
-            log_warning("CANDLE DATA STALE", f"{symbol}: Data is {age_minutes:.1f} minutes old (limit: {max_age_minutes})")
+            log_warning("CANDLE DATA STALE", additional_info=f"{symbol}: Data is {age_minutes:.1f} minutes old (limit: {max_age_minutes})")
         
         return is_fresh
         
     except Exception as e:
-        log_warning("FRESHNESS CHECK ERROR", f"{symbol}: Failed to validate freshness - {e}")
+        log_warning("FRESHNESS CHECK ERROR", exception=e, additional_info=f"{symbol}: Failed to validate freshness")
         return False
 
 def get_fresh_candles_for_charts(symbol: str, interval: str = "15m", limit: int = 96) -> List[Dict]:

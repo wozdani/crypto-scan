@@ -1059,10 +1059,10 @@ def generate_chart_async_safe(
     tjde_breakdown: Dict = None
 ) -> Optional[str]:
     """
-    DEPRECATED: Chart generation disabled - using TradingView-only pipeline
+    Generate chart with FRESH data - Fixed stale data issue
     
-    This function is now disabled to prevent matplotlib chart generation.
-    All chart generation is handled by the TradingView-only pipeline.
+    This function now ensures fresh market data is always used for chart generation
+    instead of relying on potentially outdated cached data.
     
     Args:
         symbol: Trading symbol
@@ -1071,8 +1071,70 @@ def generate_chart_async_safe(
         tjde_breakdown: Optional detailed TJDE breakdown
         
     Returns:
-        None (chart generation disabled)
+        Path to generated chart or None if failed
     """
+    try:
+        print(f"[CHART FRESH DATA] 🔄 {symbol}: Generating chart with fresh data validation")
+        
+        # CRITICAL FIX: Always validate and fetch fresh data for charts
+        from utils.fresh_candles import get_fresh_candles_for_charts, validate_candle_freshness
+        
+        # Check if market_data has fresh candles
+        candles_15m = market_data.get('candles_15m', [])
+        candles_5m = market_data.get('candles_5m', [])
+        
+        use_fresh_15m = False
+        use_fresh_5m = False
+        
+        # Validate 15M candles freshness
+        if candles_15m:
+            if not validate_candle_freshness(candles_15m, symbol, max_age_minutes=30):
+                print(f"[STALE DATA DETECTED] {symbol}: 15M candles are stale - fetching fresh data")
+                use_fresh_15m = True
+        else:
+            print(f"[NO 15M DATA] {symbol}: No 15M candles in market_data - fetching fresh")
+            use_fresh_15m = True
+        
+        # Get fresh 15M data if needed
+        if use_fresh_15m:
+            fresh_15m = get_fresh_candles_for_charts(symbol, interval="15m", limit=96)
+            if fresh_15m:
+                candles_15m = fresh_15m
+                print(f"[FRESH 15M] ✅ {symbol}: Using {len(candles_15m)} fresh 15M candles")
+            else:
+                print(f"[FRESH 15M] ❌ {symbol}: Failed to get fresh 15M candles")
+                return None
+        
+        # Get fresh 5M data if needed (optional for charts)
+        if not candles_5m:
+            fresh_5m = get_fresh_candles_for_charts(symbol, interval="5m", limit=200)
+            if fresh_5m:
+                candles_5m = fresh_5m
+                print(f"[FRESH 5M] ✅ {symbol}: Using {len(candles_5m)} fresh 5M candles")
+        
+        # Use Vision-AI chart generator with fresh data
+        from vision_ai_chart_generator import plot_chart_vision_ai
+        
+        chart_path = plot_chart_vision_ai(
+            symbol=symbol,
+            candles=candles_15m,
+            score=tjde_result.get('tjde_score', 0),
+            decision=tjde_result.get('tjde_decision', 'unknown'),
+            phase=tjde_result.get('market_phase', 'unknown'),
+            setup=tjde_result.get('setup_type', 'trend-mode'),
+            force_fresh=False  # We already ensured fresh data above
+        )
+        
+        if chart_path:
+            print(f"[CHART SUCCESS] ✅ {symbol}: Generated chart with fresh data: {chart_path}")
+        else:
+            print(f"[CHART FAILED] ❌ {symbol}: Chart generation failed despite fresh data")
+        
+        return chart_path
+        
+    except Exception as e:
+        print(f"[CHART ERROR] {symbol}: Fresh chart generation failed: {e}")
+        return None
     print(f"[CHART DISABLED] {symbol}: Chart generation disabled - using TradingView-only pipeline")
     return None
     try:
