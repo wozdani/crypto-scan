@@ -169,6 +169,17 @@ def scan_cycle():
             print(f"Enhanced async scan processed {processed_count} tokens with TJDE analysis")
             print("Async scan completed successfully")
             
+            # CHART CLEANUP: Run after successful scan (5% chance per cycle)
+            import random
+            if random.random() < 0.05:  # 5% chance
+                try:
+                    from utils.chart_cleanup import cleanup_with_size_report
+                    print("🧹 Running automatic chart cleanup...")
+                    cleanup_stats = cleanup_with_size_report(max_age_hours=72, dry_run=False)
+                    print(f"🧹 Chart cleanup: {cleanup_stats.get('deleted_files', 0)} files deleted, {cleanup_stats.get('space_saved_gb', 0):.2f} GB saved")
+                except Exception as cleanup_error:
+                    log_warning("CHART CLEANUP ERROR", cleanup_error)
+            
             # Check for low processing count
             if processed_count == 0:
                 log_warning("ASYNC SCAN PROCESSING", None, "No tokens processed successfully")

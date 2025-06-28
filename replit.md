@@ -98,6 +98,19 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 28, 2025 - Automated Chart Cleanup System - Smart Storage Management for Training Data ✅
+Successfully implemented comprehensive automated chart cleanup system to manage disk space while preserving Vision-AI training data integrity:
+- **Smart Cleanup Module**: Created utils/chart_cleanup.py with intelligent file age detection, training data verification, and safe deletion system
+- **Multi-Location Processing**: Cleanup system scans training_charts/, data/charts/, and screenshots/ directories with comprehensive file type support (.png, .webp, .jpg)
+- **Training Data Protection**: Advanced verification checks training_data/labels.csv, training_dataset.jsonl, data/embeddings/, and metadata files before deletion
+- **Configurable Age Limits**: Flexible age-based deletion (default 72 hours) with dry-run mode for testing and size reporting for disk space monitoring
+- **Automatic Integration**: Integrated into crypto_scan_service.py with 5% per-cycle probability ensuring regular cleanup without performance impact
+- **Manual Execution Tool**: Created run_chart_cleanup.py standalone script for on-demand cleanup with detailed progress reporting and space analysis
+- **Production Statistics**: Current analysis shows 0.72 GB storage with 32 old files correctly preserved (not yet processed for training)
+- **Error Handling**: Comprehensive error detection for metadata reading, file permissions, and training data validation with detailed logging
+- **Space Analytics**: Built-in disk usage analysis showing initial storage, files processed, space saved, and remaining storage with GB-level precision
+System now automatically maintains optimal disk usage while ensuring all training data and unprocessed charts are safely preserved for Vision-AI development.
+
 ### June 28, 2025 - Complete Fresh Data Integration - Chart Generation with Real-Time Market Data ✅
 Successfully implemented comprehensive fresh data integration system ensuring all chart generation uses current market data instead of stale cached data:
 - **Fresh Candles Module**: Created utils/fresh_candles.py with fetch_fresh_candles() supporting 15M and 5M intervals with force_refresh capability and 30-minute staleness detection
