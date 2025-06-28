@@ -33,18 +33,15 @@ except ImportError:
                 ax.add_patch(plt.Rectangle((date - width/2, bottom), width, height, 
                                          facecolor=color, edgecolor='black', alpha=0.8))
 
-def plot_chart_vision_ai(symbol: str, candles: List, alert_index: int = None, alert_indices: List = None, 
+def plot_chart_vision_ai(symbol: str, candles: List = None, alert_index: int = None, alert_indices: List = None, 
                         score: float = None, decision: str = None, phase: str = None, setup: str = None,
-                        save_path: str = None, context_days: int = 2) -> Optional[str]:
+                        save_path: str = None, context_days: int = 2, force_fresh: bool = True) -> Optional[str]:
     """
-    DEPRECATED: Matplotlib chart generation disabled - using TradingView-only pipeline
-    
-    This function is now disabled to prevent matplotlib chart generation.
-    All Vision-AI chart generation is handled by the TradingView-only pipeline.
+    Generate Vision-AI chart with FRESH data - Fixed stale data issue
     
     Args:
         symbol: Trading symbol
-        candles: List of candle data
+        candles: List of candle data (if None, fetches fresh data)
         alert_index: Single alert index (backward compatibility)
         alert_indices: Multiple alert indices for memory training
         score: TJDE score
@@ -53,12 +50,43 @@ def plot_chart_vision_ai(symbol: str, candles: List, alert_index: int = None, al
         setup: Setup description
         save_path: Custom save path
         context_days: Days of context to include
+        force_fresh: Force fresh data fetch regardless of cache
         
     Returns:
         Path to saved chart file
     """
-    print(f"[CHART DISABLED] {symbol}: Vision-AI chart generation disabled - using TradingView-only pipeline")
-    return None
+    try:
+        # CRITICAL FIX: Always fetch fresh data for chart generation
+        if candles is None or force_fresh:
+            print(f"[FRESH CHART DATA] 🔄 {symbol}: Fetching fresh candles for chart generation")
+            from utils.fresh_candles import get_fresh_candles_for_charts, debug_candle_timestamps
+            
+            fresh_candles = get_fresh_candles_for_charts(symbol, interval="15m", limit=96)
+            
+            if fresh_candles:
+                candles = fresh_candles
+                print(f"[FRESH CHART DATA] ✅ {symbol}: Using {len(candles)} fresh candles")
+                debug_candle_timestamps(candles, symbol)
+            else:
+                print(f"[FRESH CHART DATA] ❌ {symbol}: No fresh candles available - chart generation disabled")
+                return None
+        else:
+            print(f"[CHART DATA] {symbol}: Using provided candles ({len(candles) if candles else 0} candles)")
+            
+            # Validate provided candles freshness
+            if candles:
+                from utils.fresh_candles import validate_candle_freshness
+                if not validate_candle_freshness(candles, symbol, max_age_minutes=60):
+                    print(f"[STALE DATA WARNING] {symbol}: Provided candles are stale - fetching fresh data")
+                    from utils.fresh_candles import get_fresh_candles_for_charts
+                    fresh_candles = get_fresh_candles_for_charts(symbol, interval="15m", limit=96)
+                    if fresh_candles:
+                        candles = fresh_candles
+                        print(f"[FRESH OVERRIDE] ✅ {symbol}: Replaced stale data with {len(candles)} fresh candles")
+        
+        if not candles or len(candles) < 10:
+            print(f"[CHART ERROR] {symbol}: Insufficient candle data for chart generation")
+            return None
         
         print(f"[CHART VALIDATION] {symbol}: Processing {len(candles)} candles")
         
