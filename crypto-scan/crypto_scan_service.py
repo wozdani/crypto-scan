@@ -90,34 +90,48 @@ def scan_single_token(symbol):
         if alert_level >= 2:
             process_alert(symbol, final_score, signals, None)
 
-        # Training chart generation for quality setups
+        # Training chart generation for quality setups - RESTRICTED TO TOP 5 ONLY
         if final_score >= 40 or checklist_score >= 35:
-            print(f"[TRAINING] {symbol} → Generating training chart (PPWCS: {final_score}, Checklist: {checklist_score})")
+            # 🎯 CRITICAL FIX: Check if token is in TOP 5 before generating training data
             try:
-                # Initialize training data manager
-                training_manager = TrainingDataManager()
+                from utils.top5_selector import should_generate_training_data, warn_about_non_top5_generation
                 
-                # Prepare context features for training
-                context_features = {
-                    "ppwcs_score": final_score,
-                    "checklist_score": checklist_score,
-                    "alert_level": alert_level,
-                    "price": signals.get("price", 0),
-                    "volume_24h": signals.get("volume_24h", 0),
-                    "market_phase": "simple_scan",
-                    "scan_timestamp": datetime.now().isoformat(),
-                    "signals_count": len([k for k, v in signals.items() if v and k != 'price' and k != 'volume_24h'])
-                }
-                
-                # Generate and save training chart
-                chart_id = training_manager.collect_from_scan(symbol, context_features)
-                if chart_id:
-                    print(f"[TRAINING] {symbol} → Chart saved: {chart_id}")
+                if should_generate_training_data(symbol):
+                    print(f"[TRAINING] {symbol} → Generating training chart (PPWCS: {final_score}, Checklist: {checklist_score}) - TOP 5 token")
+                    try:
+                        # Initialize training data manager
+                        training_manager = TrainingDataManager()
+                        
+                        # Prepare context features for training
+                        context_features = {
+                            "ppwcs_score": final_score,
+                            "checklist_score": checklist_score,
+                            "alert_level": alert_level,
+                            "price": signals.get("price", 0),
+                            "volume_24h": signals.get("volume_24h", 0),
+                            "market_phase": "simple_scan",
+                            "scan_timestamp": datetime.now().isoformat(),
+                            "signals_count": len([k for k, v in signals.items() if v and k != 'price' and k != 'volume_24h'])
+                        }
+                        
+                        # Generate and save training chart
+                        chart_id = training_manager.collect_from_scan(symbol, context_features)
+                        if chart_id:
+                            print(f"[TRAINING] {symbol} → Chart saved: {chart_id}")
+                        else:
+                            print(f"[TRAINING] {symbol} → Chart generation failed")
+                            
+                    except Exception as e:
+                        print(f"[TRAINING ERROR] {symbol} → {e}")
                 else:
-                    print(f"[TRAINING] {symbol} → Chart generation failed")
+                    # Token qualifies but is not in TOP 5 - log warning about dataset quality
+                    warn_about_non_top5_generation(symbol, f"PPWCS scan - score {final_score}")
                     
+            except ImportError:
+                # TOP5 selector not available - skip training to avoid dataset degradation
+                print(f"[TRAINING SKIP] {symbol} → TOP5 selector not available, skipping to maintain dataset quality")
             except Exception as e:
-                print(f"[TRAINING ERROR] {symbol} → {e}")
+                print(f"[TRAINING TOP5 ERROR] {symbol} → {e}")
 
         return {
             'symbol': symbol,

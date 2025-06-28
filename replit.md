@@ -98,6 +98,18 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 28, 2025 - TOP 5 TJDE Training Data Implementation - Dataset Quality Protection Complete ✅
+Successfully implemented comprehensive TOP 5 token selection system preventing dataset quality degradation through selective training data generation:
+- **TOP 5 Selector Module**: Created utils/top5_selector.py with TOP5TokenSelector class implementing centralized logic for selecting only the 5 highest TJDE scoring tokens per scan cycle for training data generation
+- **Dataset Quality Protection**: Implemented should_generate_training_data() validation preventing training chart generation for non-TOP5 tokens, eliminating dataset bloat and maintaining high-quality CLIP model training data
+- **Complete Integration**: Updated scan_all_tokens_async.py generate_top_tjde_charts() to use select_top5_tjde_tokens() before any chart generation, ensuring only elite tokens qualify for Vision-AI training
+- **PPWCS Training Restriction**: Modified crypto_scan_service.py to check TOP 5 status before generating training charts for PPWCS ≥40 tokens, preventing dataset degradation from lower-quality signals
+- **Vision-AI Pipeline Enforcement**: Enhanced vision_ai_pipeline.py save_training_chart() with TOP 5 validation, blocking all training chart generation for non-qualifying tokens
+- **Violation Warning System**: Implemented warn_about_non_top5_generation() logging system alerting when training data generation is attempted for non-TOP5 tokens, enabling quality monitoring
+- **Selection Tracking**: Added comprehensive logging and selection history saving to data/top5_selections/ for training data provenance and quality analysis
+- **Force Refresh Alignment**: Updated force_refresh_vision_ai_charts() to work exclusively with TOP 5 tokens ensuring authentic TradingView screenshots only for elite performers
+System now maintains superior dataset quality by restricting training data generation to only the TOP 5 TJDE scoring tokens per scan cycle, preventing quality degradation from excessive low-scoring training examples.
+
 ### June 28, 2025 - Complete Production Fixes - All Critical Issues Resolved - PRODUCTION READY ✅
 Successfully resolved all five critical production issues identified in the latest debugging session ensuring robust system operation:
 - **Issue 1 - TradingView Async Event Loop Conflict**: Created utils/tradingview_async_fix.py with TradingViewAsyncFix class using thread-based execution to resolve asyncio.run() conflicts when already in event loop environment, enabling authentic TradingView screenshot generation

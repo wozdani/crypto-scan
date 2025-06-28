@@ -24,6 +24,7 @@ def save_training_chart(df: pd.DataFrame, symbol: str, timestamp: str,
                        market_phase: str = None, decision: str = None) -> str:
     """
     Save professional training chart using custom candlestick generation
+    🎯 RESTRICTED TO TOP 5 TJDE TOKENS ONLY
     
     Args:
         df: OHLCV DataFrame with proper index
@@ -39,6 +40,15 @@ def save_training_chart(df: pd.DataFrame, symbol: str, timestamp: str,
         Path to saved chart
     """
     try:
+        # 🎯 CRITICAL FIX: Check TOP 5 status before generating training charts
+        from utils.top5_selector import should_generate_training_data, warn_about_non_top5_generation
+        
+        if not should_generate_training_data(symbol, tjde_score):
+            warn_about_non_top5_generation(symbol, "Vision-AI save_training_chart")
+            return None
+        
+        print(f"[VISION-AI] {symbol}: Generating training chart (TOP 5 token)")
+        
         from trend_charting import plot_custom_candlestick_chart
         
         os.makedirs(folder, exist_ok=True)

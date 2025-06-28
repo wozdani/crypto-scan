@@ -209,14 +209,26 @@ async def async_scan_cycle():
 def generate_top_tjde_charts(results: List[Dict]):
     """Generate training charts and Vision-AI data for TOP 5 TJDE tokens only"""
     try:
-        # Apply force refresh for fresh TradingView charts
+        # 🎯 CRITICAL FIX: Select TOP 5 tokens first to prevent dataset quality degradation
+        from utils.top5_selector import select_top5_tjde_tokens, get_top5_selector
+        
+        # Select TOP 5 tokens by TJDE score
+        top5_tokens = select_top5_tjde_tokens(results)
+        
+        if not top5_tokens:
+            print("❌ [TOP5 FILTER] No tokens qualified for TOP 5 selection")
+            return
+        
+        print(f"🎯 [TOP5 FILTER] Selected {len(top5_tokens)} tokens for training data generation")
+        
+        # Apply force refresh for fresh TradingView charts (ONLY for TOP 5)
         from utils.force_refresh_charts import force_refresh_vision_ai_charts
         
-        # Generate fresh TradingView charts for TOP 5 TJDE tokens
+        # Generate fresh TradingView charts for TOP 5 TJDE tokens ONLY
         print("🔄 [FORCE REFRESH] Generating fresh TradingView charts for Vision-AI training")
         fresh_charts = force_refresh_vision_ai_charts(
-            tjde_results=results,
-            min_score=0.5,
+            tjde_results=top5_tokens,  # ✅ Use TOP 5 instead of all results
+            min_score=0.3,  # Lower threshold since these are already top performers
             max_symbols=5,
             force_regenerate=True
         )
@@ -229,8 +241,8 @@ def generate_top_tjde_charts(results: List[Dict]):
         # Import Vision-AI pipeline for additional processing
         from vision_ai_pipeline import generate_vision_ai_training_data
         
-        # Generate comprehensive Vision-AI training data with fixed function call
-        training_pairs = generate_vision_ai_training_data(results, "full")
+        # Generate comprehensive Vision-AI training data (ONLY for TOP 5)
+        training_pairs = generate_vision_ai_training_data(top5_tokens, "full")  # ✅ Use TOP 5 instead of all results
         
         if training_pairs > 0:
             print(f"\n🎯 VISION-AI PIPELINE: Generated {training_pairs} training pairs")
