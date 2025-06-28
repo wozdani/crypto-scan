@@ -164,7 +164,8 @@ def scan_cycle():
         # Run enhanced async scan cycle with event loop error tracking
         try:
             result = asyncio.run(async_scan_cycle())
-            processed_count = result if isinstance(result, int) else 0
+            # Result is a list of scan results, not an integer
+            processed_count = len(result) if isinstance(result, list) else 0
             
             print(f"Enhanced async scan processed {processed_count} tokens with TJDE analysis")
             print("Async scan completed successfully")

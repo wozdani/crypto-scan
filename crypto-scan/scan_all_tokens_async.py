@@ -156,11 +156,25 @@ async def async_scan_cycle():
         log_global_error("Whale Priority", f"Priority calculation failed: {e}")
         priority_info = {}
     
+    # Apply performance optimization
+    try:
+        from utils.performance_optimizer import optimize_scan_performance
+        perf_config = optimize_scan_performance(symbols)
+        optimized_symbols = perf_config['symbols']
+        max_concurrent = perf_config['max_concurrent']
+        
+        print(f"[PERFORMANCE] Optimized: {len(optimized_symbols)} symbols, {max_concurrent} concurrent")
+        print(f"[PERFORMANCE] Target: {len(optimized_symbols)} tokens in <15s")
+    except Exception as e:
+        log_global_error("Performance Optimization", f"Using default settings: {e}")
+        optimized_symbols = symbols[:300]  # Limit to 300 for performance
+        max_concurrent = 150
+    
     # Execute async scan with enhanced performance  
     start_time = time.time()
-    async with AsyncTokenScanner(max_concurrent=60) as scanner:
+    async with AsyncTokenScanner(max_concurrent=max_concurrent) as scanner:
         scanner.fast_mode = True  # Set fast mode after initialization
-        results = await scanner.scan_all_tokens(symbols, priority_info)
+        results = await scanner.scan_all_tokens(optimized_symbols, priority_info)
     scan_duration = time.time() - start_time
     
     print(f"[PERFORMANCE] Scan completed in {scan_duration:.1f}s (Target: <15s)")

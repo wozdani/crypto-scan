@@ -199,47 +199,23 @@ class TradingViewOnlyPipeline:
             return []
             
         try:
-            import asyncio
+            # Use the new async fix that handles event loop conflicts
+            from .tradingview_async_fix import generate_tradingview_charts_safe
             
-            # Check if we're already in an event loop
-            try:
-                asyncio.get_running_loop()
-                # Already in event loop - skip TradingView generation to avoid conflicts
-                print("[TRADINGVIEW-ONLY] Skipping screenshot generation due to event loop conflict")
-                print("[TRADINGVIEW-ONLY] Generating metadata only for Vision-AI pipeline")
+            print("[TRADINGVIEW-ONLY] Using async fix for event loop conflict resolution")
+            screenshot_paths = generate_tradingview_charts_safe(tjde_results, min_score, max_symbols)
+            
+            if screenshot_paths:
+                print(f"[TRADINGVIEW-ONLY] ✅ Generated {len(screenshot_paths)} authentic TradingView charts")
+                for path in screenshot_paths:
+                    print(f"[TRADINGVIEW-ONLY] ✅ Generated: {os.path.basename(path)}")
+            else:
+                print("[TRADINGVIEW-ONLY] ❌ No TradingView charts generated")
                 
-                # Generate only metadata without screenshots
-                metadata_paths = []
-                top_symbols = sorted(
-                    [r for r in tjde_results if r.get('tjde_score', 0) >= min_score],
-                    key=lambda x: x.get('tjde_score', 0),
-                    reverse=True
-                )[:max_symbols]
-                
-                for entry in top_symbols:
-                    symbol = entry.get('symbol', 'UNKNOWN')
-                    metadata_path = self._save_tradingview_metadata(entry)
-                    if metadata_path:
-                        metadata_paths.append(metadata_path)
-                        
-                return metadata_paths
-                
-            except RuntimeError:
-                # No event loop running - safe to create one
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                
-                try:
-                    return loop.run_until_complete(
-                        self.generate_tradingview_charts_async(
-                            tjde_results, min_score, max_symbols
-                        )
-                    )
-                finally:
-                    loop.close()
+            return screenshot_paths
                     
         except Exception as e:
-            print(f"[TRADINGVIEW-ONLY SYNC ERROR] {e}")
+            log_warning("TRADINGVIEW SYNC GENERATION ERROR", e, "Generation failed with async fix")
             return []
     
     def replace_matplotlib_charts(self, tjde_results: List[Dict]) -> Dict[str, str]:
