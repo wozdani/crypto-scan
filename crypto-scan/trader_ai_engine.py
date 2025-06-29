@@ -1392,7 +1392,7 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
         
         # === CRITICAL FIX: GPT COMMENTARY FALLBACK FOR SCORING ===
         gpt_scoring_boost = 0.0
-        clip_confidence_actual = clip_info.get("confidence", 0.0)
+        clip_confidence_actual = original_clip_confidence
         
         if gpt_commentary and clip_confidence_actual < 0.4:
             # Analyze GPT for scoring boost when CLIP unavailable
@@ -1556,11 +1556,11 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
         
         # === ETAP 9: FINAL RESULT ASSEMBLY WITH ALL ENHANCEMENTS ===
         
-        # Store enhanced CLIP info in signals for debug output
-        signals["clip_confidence"] = clip_confidence if clip_confidence > 0 else "N/A"
-        signals["clip_phase"] = clip_info.get("pattern", "N/A") if clip_info else "N/A"
-        signals["clip_contribution"] = clip_confidence * weights.get("clip_confidence_score", 0.12)
-        signals["visual_intelligence_active"] = clip_confidence > 0.4
+        # Store enhanced CLIP info in signals for debug output (use original values)
+        signals["clip_confidence"] = original_clip_confidence if original_clip_confidence > 0 else "N/A"
+        signals["clip_phase"] = original_clip_info.get("pattern", "N/A") if original_clip_info else "N/A"
+        signals["clip_contribution"] = original_clip_confidence * weights.get("clip_confidence_score", 0.12)
+        signals["visual_intelligence_active"] = original_clip_confidence > 0.4
         
         # Build final result dictionary
         result = {
@@ -1579,24 +1579,25 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                 "enhanced_score": enhanced_score
             },
             "context_modifiers": context_modifiers,
-            "clip_info": clip_info,
+            "clip_info": original_clip_info,
             "ai_pattern_matched": ai_pattern_matched,
             "ai_pattern_info": ai_pattern_info,
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
-        # Enhanced CLIP debug logging
-        if clip_info.get("confidence", 0) > 0:
-            print(f"[CLIP SUCCESS] Prediction: {clip_info.get('predicted_phase')} (confidence: {clip_info.get('confidence'):.3f})")
+        # Enhanced CLIP debug logging (use original values)
+        if original_clip_confidence > 0:
+            prediction_pattern = original_clip_info.get('predicted_label', original_clip_info.get('pattern', 'unknown'))
+            print(f"[CLIP SUCCESS] Prediction: {prediction_pattern} (confidence: {original_clip_confidence:.3f})")
         else:
             print(f"[CLIP STATUS] No valid prediction available")
         
-        # Prepare enhanced debug info for alerts and logging
+        # Prepare enhanced debug info for alerts and logging (use original values)
         debug_info = {
             "base_score": round(score, 3),
             "enhanced_score": round(enhanced_score, 3),
-            "clip_phase_prediction": clip_info.get("predicted_phase", "unknown"),
-            "clip_confidence": round(clip_info.get("confidence", 0), 3),
+            "clip_phase_prediction": original_clip_info.get("predicted_label", original_clip_info.get("pattern", "unknown")) if original_clip_info else "unknown",
+            "clip_confidence": round(original_clip_confidence, 3),
             "clip_modifier": round(clip_modifier, 3),
             "clip_boost_applied": clip_boost_applied,
             "contextual_boosts": [mod for mod in context_modifiers if "CLIP:" in mod],
@@ -1632,12 +1633,12 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                 "psych_score": round(psych_score, 3),
                 "htf_supportive_score": round(htf_supportive_score, 3),
                 "market_phase_modifier": round(market_phase_modifier, 3),
-                "clip_prediction": clip_info.get("predicted_phase", "none")
+                "clip_prediction": original_clip_info.get("predicted_label", original_clip_info.get("pattern", "none")) if original_clip_info else "none"
             },
             "market_phase": market_phase,
             "confidence": min(enhanced_score * 1.2, 1.0),
             "clip_enhanced": clip_modifier != 0,
-            "clip_info": clip_info,
+            "clip_info": original_clip_info,
             "clip_modifier": clip_modifier,
             "base_score_before_clip": score,
             "debug_info": debug_info
