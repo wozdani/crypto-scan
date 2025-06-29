@@ -153,13 +153,18 @@ class RobustTradingViewGenerator:
             
             # Check for "Invalid symbol" error before taking screenshot
             try:
-                invalid_symbol = await self.page.locator("text=Invalid symbol").is_visible()
+                # Use more specific selectors to avoid strict mode violations
+                invalid_symbol = await self.page.locator(".errorCard__message-S9sXvhAu").is_visible()
+                if not invalid_symbol:
+                    # Fallback to other invalid symbol indicators
+                    invalid_symbol = await self.page.locator("span.invalid-lu2ARROZ").is_visible()
+                
                 if invalid_symbol:
                     print(f"[ROBUST TV ERROR] Invalid symbol detected for {tv_symbol}")
                     return "INVALID_SYMBOL"  # Special return value to trigger fallback
                     
                 # Also check for other error indicators
-                symbol_not_found = await self.page.locator("text=Symbol not found").is_visible()
+                symbol_not_found = await self.page.locator("text=Symbol not found").first.is_visible()
                 if symbol_not_found:
                     print(f"[ROBUST TV ERROR] Symbol not found: {tv_symbol}")
                     return "INVALID_SYMBOL"
