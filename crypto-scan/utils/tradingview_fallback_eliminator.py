@@ -22,7 +22,7 @@ class TradingViewFallbackEliminator:
         setup: str = "unknown", 
         score: float = 0.0,
         error_reason: str = "unknown_error",
-        output_dir: str = "training_data/charts"
+        output_dir: str = "training_data/failed_charts"  # 🎯 FIX: Separate directory for failed charts
     ) -> Optional[str]:
         """
         Handle TradingView generation failure WITHOUT matplotlib fallback

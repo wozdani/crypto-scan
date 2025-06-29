@@ -580,13 +580,19 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             print(f"[CHART TOP5 ERROR] {symbol} → {e}")
             chart_eligible = False
             
-        # 🎯 CRITICAL FIX: Disable individual chart generation - use only batch TOP 5 generation
-        # Individual chart generation causes mass chart creation bypassing TOP 5 restrictions
+        # 🎯 CRITICAL FIX: HARD STOP - No individual chart generation outside TOP 5
+        # This completely prevents training data generation bypassing TOP 5 selection
         if chart_eligible:
-            print(f"[CHART SKIP] {symbol}: Individual chart generation disabled - TOP 5 TJDE charts generated in batch")
+            # FINAL TOP 5 CHECK before any training operations
+            from utils.top5_selector import should_generate_training_data
+            if not should_generate_training_data(symbol, tjde_score):
+                print(f"🧨 [TOP5 VIOLATION BLOCKED] {symbol}: Individual chart generation BLOCKED - not in TOP 5")
+                chart_eligible = False
+            else:
+                print(f"[CHART SKIP] {symbol}: Individual chart generation disabled - TOP 5 TJDE charts generated in batch")
             
-        # Keep original chart generation code for reference but disable execution
-        if False and chart_eligible:  # ✅ DISABLED to prevent mass chart generation
+        # Keep original chart generation code for reference but COMPLETELY DISABLED
+        if False and chart_eligible:  # ✅ HARD DISABLED to prevent mass chart generation
             print(f"[TRAINING] {symbol} → Generating TJDE training chart (Score: {tjde_score:.3f}, Decision: {tjde_decision})")
             try:
                 # Import contextual TJDE chart generator
