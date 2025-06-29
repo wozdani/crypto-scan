@@ -134,6 +134,18 @@ Successfully resolved critical TradingView screenshot generation issues ensuring
 - **Canvas Loading Verification**: Implemented multi-stage chart readiness verification preventing screenshots of incompletely rendered charts that were causing training data corruption
 TradingView screenshots now capture fully rendered, professional-quality charts eliminating white screen artifacts and ensuring superior Vision-AI model training with authentic market visualization.
 
+### June 29, 2025 - Complete Chart Storage Consolidation - Unified Training Data Architecture ✅
+Successfully completed comprehensive chart storage consolidation eliminating duplicate storage systems and ensuring unified training data management:
+- **Storage Consolidation**: Removed duplicate training_charts directory (266 files) consolidating all chart storage into training_data/charts (2,443 files) as single source of truth
+- **Reference Updates**: Systematically updated all Python files, JSON configuration files, and embedding references replacing "training_charts/" paths with "training_data/charts/"
+- **Embedding System Fix**: Updated data/embeddings/token_snapshot_embeddings.json paths ensuring hybrid embedding system references correct chart locations
+- **Training Data Alignment**: Updated training_data/labels.jsonl and training_dataset.jsonl references eliminating stale path issues preventing proper dataset loading
+- **Import Corrections**: Fixed crypto_scan_service.py import statements ensuring process_training_charts_for_embeddings() function calls work with new unified structure
+- **Directory Cleanup**: Completely removed obsolete training_charts folder preventing confusion and ensuring clean project architecture
+- **File Migration Verified**: Confirmed training_data/charts contains all current charts (2,443 vs 266 in old directory) maintaining data integrity
+- **Production Stability**: System now operates with single chart storage location eliminating file duplication conflicts and path confusion
+Chart storage architecture now unified with single training_data/charts directory serving all Vision-AI training, embedding generation, and chart display functions.
+
 ### June 29, 2025 - Complete Blank Chart Validation System - TradingView Screenshot Quality Enhanced ✅
 Successfully implemented comprehensive blank chart validation system eliminating empty/white TradingView screenshots that occur when canvas loads but data hasn't rendered:
 - **PIL-Based Validation Function**: Created is_chart_blank() function analyzing grayscale pixels with 99% white pixel threshold detecting empty charts
