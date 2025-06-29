@@ -202,90 +202,90 @@ class TradingViewScreenshotGenerator:
             filename = f"{symbol}_{timestamp}_tradingview_tjde.png"
             output_path = os.path.join(self.output_dir, filename)
             
-            # 🎯 SMART SYMBOL MAPPING: Try Bybit first, then Binance fallback
-            tv_symbol_attempts = [
-                f"BYBIT:{symbol.upper()}",    # Primary: Bybit
-                f"BINANCE:{symbol.upper()}"   # Fallback: Binance
-            ]
-            
             # Ensure output directory exists
             os.makedirs(self.output_dir, exist_ok=True)
             
-            # 🎯 TRY MULTIPLE SYMBOL FORMATS WITH FALLBACK
-            successful_symbol = None
+            # 🎯 INTELLIGENT SYMBOL RESOLUTION: Use resolver to find working exchange
+            print(f"[TRADINGVIEW] 🧠 Resolving symbol: {symbol}")
+            tv_symbol = resolve_tradingview_symbol(symbol)
             
-            for tv_symbol in tv_symbol_attempts:
-                print(f"[TRADINGVIEW] Attempting {tv_symbol} (TJDE: {tjde_score:.3f})")
+            if tv_symbol is None:
+                print(f"⚠️ [TRADINGVIEW RESOLVER] No valid exchange found for {symbol} - skipping TradingView generation")
+                log_warning("TRADINGVIEW SYMBOL RESOLUTION FAILED", None, f"{symbol}: No valid exchange mapping found")
+                return None
+            
+            print(f"[TRADINGVIEW] ✅ Resolved {symbol} → {tv_symbol}")
+            
+            # Create new page for TradingView screenshot
+            page = await self.context.new_page()
+            
+            try:
+                # Navigate to TradingView chart with clean URL
+                chart_url = f"https://www.tradingview.com/chart/?symbol={tv_symbol}&interval=15"
                 
-                # Create new page for this attempt
-                page = await self.context.new_page()
+                print(f"[TRADINGVIEW] Loading: {chart_url}")
+                await page.goto(chart_url, timeout=self.timeout, wait_until='domcontentloaded')
                 
+                # 🔍 ENHANCED ERROR DETECTION: Check for TradingView symbol errors FIRST
+                print(f"[TRADINGVIEW] Checking for symbol validity...")
+                await page.wait_for_timeout(2000)  # Wait for error messages to appear
+                
+                symbol_invalid = False
                 try:
-                    # Navigate to TradingView chart with clean URL
-                    chart_url = f"https://www.tradingview.com/chart/?symbol={tv_symbol}&interval=15"
+                    # Check for error messages indicating invalid symbol
+                    error_selectors = [
+                        'text*="not found"',
+                        'text*="invalid"',
+                        'text*="Symbol not found"',
+                        'text*="Invalid symbol"',
+                        'text*="doesn\'t exist"',
+                        '[class*="error"]',
+                        '[class*="not-found"]'
+                    ]
                     
-                    print(f"[TRADINGVIEW] Loading: {chart_url}")
-                    await page.goto(chart_url, timeout=self.timeout, wait_until='domcontentloaded')
+                    for selector in error_selectors:
+                        try:
+                            error_element = await page.query_selector(selector)
+                            if error_element:
+                                error_text = await error_element.text_content() if error_element else ""
+                                print(f"⚠️ [TRADINGVIEW SYMBOL ERROR] {tv_symbol}: {error_text}")
+                                symbol_invalid = True
+                                break
+                        except:
+                            continue
+                            
+                except Exception as e:
+                    print(f"[TRADINGVIEW] Error check failed: {e}")
+                
+                # If symbol is invalid, close page and return None
+                if symbol_invalid:
+                    print(f"[TRADINGVIEW] ❌ {tv_symbol} invalid - terminating TradingView generation")
+                    log_warning("TRADINGVIEW SYMBOL INVALID", None, f"{tv_symbol}: Symbol not found on TradingView")
+                    await page.close()
+                    return None
+                
+                # 🕒 Wait for chart to fully render (enhanced canvas detection)
+                print(f"[TRADINGVIEW] ✅ {tv_symbol} valid - waiting for chart elements...")
+                try:
+                    # Wait for canvas elements to appear
+                    await page.wait_for_selector("canvas", timeout=15000)
+                    print(f"[TRADINGVIEW] Canvas elements detected")
                     
-                    # 🔍 ENHANCED ERROR DETECTION: Check for TradingView symbol errors FIRST
-                    print(f"[TRADINGVIEW] Checking for symbol validity...")
-                    await page.wait_for_timeout(2000)  # Wait for error messages to appear
+                    # Wait for multiple canvas elements (TradingView uses several)
+                    await page.wait_for_function("document.querySelectorAll('canvas').length > 0", timeout=15000)
+                    print(f"[TRADINGVIEW] Multiple canvas elements confirmed")
                     
-                    symbol_invalid = False
-                    try:
-                        # Check for error messages indicating invalid symbol
-                        error_selectors = [
-                            'text*="not found"',
-                            'text*="invalid"',
-                            'text*="Symbol not found"',
-                            'text*="Invalid symbol"',
-                            'text*="doesn\'t exist"',
-                            '[class*="error"]',
-                            '[class*="not-found"]'
-                        ]
-                        
-                        for selector in error_selectors:
-                            try:
-                                error_element = await page.query_selector(selector)
-                                if error_element:
-                                    error_text = await error_element.text_content() if error_element else ""
-                                    print(f"⚠️ [TRADINGVIEW SYMBOL ERROR] {tv_symbol}: {error_text}")
-                                    symbol_invalid = True
-                                    break
-                            except:
-                                continue
-                                
-                    except Exception as e:
-                        print(f"[TRADINGVIEW] Error check failed: {e}")
+                    # 🎯 ENHANCED RENDERING TIME: More time for complex charts
+                    await page.wait_for_timeout(5000)  # 5 seconds for initial rendering
+                    print(f"[TRADINGVIEW] Initial chart rendering completed")
                     
-                    # If symbol is invalid, try next fallback
-                    if symbol_invalid:
-                        print(f"[TRADINGVIEW] ❌ {tv_symbol} invalid - trying next fallback...")
-                        await page.close()
-                        continue
+                    # 🎯 ADDITIONAL RENDERING TIME: Ensure data is fully drawn
+                    await asyncio.sleep(8)  # 8 seconds total for data rendering
+                    print(f"[TRADINGVIEW] Extended rendering time completed - chart should be fully drawn")
                     
-                    # 🕒 Wait for chart to fully render (enhanced canvas detection)
-                    print(f"[TRADINGVIEW] ✅ {tv_symbol} valid - waiting for chart elements...")
-                    try:
-                        # Wait for canvas elements to appear
-                        await page.wait_for_selector("canvas", timeout=15000)
-                        print(f"[TRADINGVIEW] Canvas elements detected")
-                        
-                        # Wait for multiple canvas elements (TradingView uses several)
-                        await page.wait_for_function("document.querySelectorAll('canvas').length > 0", timeout=15000)
-                        print(f"[TRADINGVIEW] Multiple canvas elements confirmed")
-                        
-                        # 🎯 ENHANCED RENDERING TIME: More time for complex charts
-                        await page.wait_for_timeout(5000)  # 5 seconds for initial rendering
-                        print(f"[TRADINGVIEW] Initial chart rendering completed")
-                        
-                        # 🎯 ADDITIONAL RENDERING TIME: Ensure data is fully drawn
-                        await asyncio.sleep(8)  # 8 seconds total for data rendering
-                        print(f"[TRADINGVIEW] Extended rendering time completed - chart should be fully drawn")
-                        
-                    except Exception as e:
-                        log_warning("TRADINGVIEW CHART LOADING", e, f"{symbol}: Chart may not have loaded properly")
-                        print(f"[TRADINGVIEW WARNING] {symbol}: Chart loading issue ({e}) - proceeding with screenshot")
+                except Exception as e:
+                    log_warning("TRADINGVIEW CHART LOADING", e, f"{symbol}: Chart may not have loaded properly")
+                    print(f"[TRADINGVIEW WARNING] {symbol}: Chart loading issue ({e}) - proceeding with screenshot")
                 
                 # Clean up TradingView interface elements
                 print(f"[TRADINGVIEW] Cleaning interface...")
