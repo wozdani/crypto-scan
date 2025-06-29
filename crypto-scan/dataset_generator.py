@@ -1,6 +1,6 @@
 """
 Vision-AI Dataset Generator
-Creates centralized JSONL datasets from training_charts/ PNG+JSON pairs
+Creates centralized JSONL datasets from training_data/charts/ PNG+JSON pairs
 """
 
 import os

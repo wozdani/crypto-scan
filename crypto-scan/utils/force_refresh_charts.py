@@ -86,7 +86,7 @@ def clean_old_charts_for_symbol(symbol: str, chart_dirs: List[str] = None) -> in
         Number of old charts removed
     """
     if chart_dirs is None:
-        chart_dirs = ["training_charts", "data/charts", "screenshots"]
+        chart_dirs = ["training_data/charts", "data/charts", "screenshots"]
     
     removed_count = 0
     
@@ -208,7 +208,7 @@ def check_chart_freshness_status(chart_dirs: List[str] = None) -> Dict[str, int]
         Dictionary with freshness statistics
     """
     if chart_dirs is None:
-        chart_dirs = ["training_charts", "data/charts", "screenshots"]
+        chart_dirs = ["training_data/charts", "data/charts", "screenshots"]
     
     stats = {
         'total_charts': 0,

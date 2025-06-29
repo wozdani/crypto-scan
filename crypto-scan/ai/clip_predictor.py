@@ -324,7 +324,7 @@ def main():
         "exports/", 
         "data/charts/",
         "training_data/charts/",
-        "training_charts/"
+        "training_data/charts/"
     ]
     
     found_charts = []

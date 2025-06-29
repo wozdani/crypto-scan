@@ -213,7 +213,7 @@ def cleanup_with_size_report(max_age_hours: int = 72, dry_run: bool = False) -> 
     
     # Calculate current disk usage
     total_size_before = 0
-    folder_paths = ["training_charts", "data/charts", "screenshots"]
+    folder_paths = ["training_data/charts", "data/charts", "screenshots"]
     
     for folder_path in folder_paths:
         if os.path.exists(folder_path):
@@ -263,7 +263,7 @@ def main():
     parser = argparse.ArgumentParser(description="Cleanup old chart screenshots")
     parser.add_argument("--max-age", type=int, default=72, help="Maximum age in hours (default: 72)")
     parser.add_argument("--dry-run", action="store_true", help="Only report what would be deleted")
-    parser.add_argument("--folders", nargs="+", default=["training_charts"], help="Folders to clean")
+    parser.add_argument("--folders", nargs="+", default=["training_data/charts"], help="Folders to clean")
     
     args = parser.parse_args()
     

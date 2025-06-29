@@ -65,7 +65,7 @@ def enhance_tjde_with_vision_ai(symbol: str, tjde_result: Dict,
 def find_latest_chart(symbol: str) -> Optional[str]:
     """Find the latest chart for a symbol"""
     search_paths = [
-        "training_charts",
+        "training_data/charts",
         "charts", 
         "exports",
         "training_data/charts"
