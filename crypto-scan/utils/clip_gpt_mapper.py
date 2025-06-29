@@ -117,7 +117,7 @@ def get_gpt_fallback_label(symbol: str) -> Optional[str]:
     try:
         # Search for GPT commentary files for this symbol
         gpt_patterns = [
-            f"training_charts/{symbol}_*.gpt.json",
+            f"training_data/charts/{symbol}_*.gpt.json",
             f"data/gpt_analysis/{symbol}_*.json",
             f"metadata/{symbol}_*.json"
         ]

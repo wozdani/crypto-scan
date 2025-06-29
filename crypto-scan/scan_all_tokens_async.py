@@ -356,7 +356,7 @@ def generate_top_tjde_charts(results: List[Dict]):
                         symbol=symbol,
                         candles_15m=candles_15m,
                         tjde_result=tjde_result,
-                        output_dir="training_charts",
+                        output_dir="training_data/charts",
                         alert_sent=alert_sent
                     )
                     

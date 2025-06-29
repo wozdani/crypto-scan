@@ -20,7 +20,7 @@ from PIL import Image
 
 
 def save_training_chart(df: pd.DataFrame, symbol: str, timestamp: str, 
-                       folder: str = "training_charts",  # Default to professional charts
+                       folder: str = "training_data/charts",  # Default to professional charts
                        tjde_score: float = None, clip_confidence: float = None,
                        market_phase: str = None, decision: str = None) -> str:
     """
@@ -490,7 +490,7 @@ def generate_vision_ai_training_data(tjde_results: List[Dict], vision_ai_mode: s
         chart_mapping = {}
         for result in top5_results:
             symbol = result.get('symbol', 'UNKNOWN')
-            chart_pattern = f"training_charts/{symbol}_*.png"
+            chart_pattern = f"training_data/charts/{symbol}_*.png"
             existing_charts = glob.glob(chart_pattern)
             if existing_charts:
                 # Use most recent chart
