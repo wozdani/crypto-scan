@@ -83,11 +83,28 @@ class GPTLabelConsistencyChecker:
             }
         }
         
-        # Conflict severity levels
+        # Conflict severity levels - specific pattern conflicts
         self.conflict_severity = {
-            "critical": ["pullback_in_trend vs breakout_pattern", "consolidation vs breakout"],
-            "moderate": ["trend_continuation vs pullback", "range_trading vs trend_following"],
-            "minor": ["breakout_pattern vs breakout_continuation", "pullback vs retracement"]
+            "critical": [
+                "pullback_in_trend vs breakout_pattern", 
+                "consolidation vs breakout",
+                "breakout_pattern vs consolidation_squeeze",
+                "consolidation_squeeze vs breakout_pattern",
+                "trend_movement vs breakout_movement",
+                "breakout_movement vs consolidation",
+                "reversal vs trend_movement"
+            ],
+            "moderate": [
+                "trend_continuation vs pullback", 
+                "range_trading vs trend_following",
+                "trend_movement vs consolidation",
+                "consolidation vs reversal"
+            ],
+            "minor": [
+                "breakout_pattern vs breakout_continuation", 
+                "pullback vs retracement",
+                "pullback_in_trend vs pullback_in_uptrend"
+            ]
         }
 
     def extract_labels_from_gpt_output(self, gpt_analysis: str, gpt_commentary: str) -> Tuple[Optional[str], Optional[str]]:
@@ -190,17 +207,33 @@ class GPTLabelConsistencyChecker:
         # Check for category conflicts
         if analysis_category and commentary_category:
             if analysis_category != commentary_category:
-                # Different categories = critical conflict
+                # Different categories = check specific patterns first
                 conflict_description = f"{analysis_label} ({analysis_category}) vs {commentary_label} ({commentary_category})"
-                severity = "critical"
                 
-                # Check for specific critical conflicts
-                if any(conflict in conflict_description for conflict in self.conflict_severity["critical"]):
-                    severity = "critical"
-                elif any(conflict in conflict_description for conflict in self.conflict_severity["moderate"]):
-                    severity = "moderate"
-                else:
-                    severity = "minor"
+                # Create pattern strings to check
+                direct_pattern = f"{analysis_label} vs {commentary_label}"
+                reverse_pattern = f"{commentary_label} vs {analysis_label}"
+                category_pattern = f"{analysis_category} vs {commentary_category}"
+                reverse_category_pattern = f"{commentary_category} vs {analysis_category}"
+                
+                # Check severity based on specific patterns
+                severity = "critical"  # Default for different categories
+                
+                # Check all pattern variations
+                all_patterns = [direct_pattern, reverse_pattern, category_pattern, reverse_category_pattern]
+                
+                # First check for critical conflicts
+                for pattern in all_patterns:
+                    if any(critical_pattern in pattern for critical_pattern in self.conflict_severity["critical"]):
+                        severity = "critical"
+                        break
+                
+                # Then check for moderate conflicts (only if not already critical)
+                if severity != "critical":
+                    for pattern in all_patterns:
+                        if any(moderate_pattern in pattern for moderate_pattern in self.conflict_severity["moderate"]):
+                            severity = "moderate"
+                            break
                 
                 return {
                     "has_conflict": True,
