@@ -110,7 +110,7 @@ def plot_vision_chart(symbol: str, candles: List[Dict], setup: str = "unknown",
         # Generate save path
         if not save_path:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-            save_path = f"training_charts/{symbol}_{timestamp}_vision_chart.png"
+            save_path = f"training_data/charts/{symbol}_{timestamp}_vision_chart.png"
         
         # Ensure directory exists
         os.makedirs(os.path.dirname(save_path), exist_ok=True)

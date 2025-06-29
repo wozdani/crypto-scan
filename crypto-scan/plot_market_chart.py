@@ -278,7 +278,7 @@ def test_market_chart():
         "clip": 0.539
     }
     
-    return plot_market_chart(candles, alert_info, "training_charts/test_professional_chart.png")
+    return plot_market_chart(candles, alert_info, "training_data/charts/test_professional_chart.png")
 
 if __name__ == "__main__":
     success = test_market_chart()

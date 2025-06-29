@@ -164,7 +164,7 @@ def plot_chart_vision_ai(symbol: str, candles: List = None, alert_index: int = N
             timestamp = datetime.now().strftime("%Y%m%d_%H%M")
             phase_str = phase or "unknown"
             decision_str = decision or "unknown"
-            save_path = f"training_charts/{symbol}_{timestamp}_{phase_str}_{decision_str}_vision.png"
+            save_path = f"training_data/charts/{symbol}_{timestamp}_{phase_str}_{decision_str}_vision.png"
         
         # Ensure directory exists
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -331,7 +331,7 @@ def plot_chart_vision_ai(symbol: str, candles: List = None, alert_index: int = N
         return None
 
 def generate_training_chart_with_context(symbol: str, market_data: Dict, tjde_result: Dict, 
-                                        output_dir: str = "training_charts") -> Optional[str]:
+                                        output_dir: str = "training_data/charts") -> Optional[str]:
     """
     Generate training chart with complete market context for Vision-AI
     

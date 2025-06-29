@@ -901,7 +901,7 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
             
             fast_predictor = FastCLIPPredictor()
             # Fast predictor needs chart path, not symbol
-            chart_path = f"training_charts/{symbol}_*.png"
+            chart_path = f"training_data/charts/{symbol}_*.png"
             import glob
             chart_matches = glob.glob(chart_path)
             
@@ -1100,7 +1100,7 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                     
                     # Try to find chart for symbol
                     chart_patterns = [
-                        f"training_charts/{symbol}_*.png",
+                        f"training_data/charts/{symbol}_*.png",
                         f"charts/{symbol}_*.png", 
                         f"exports/{symbol}_*.png"
                     ]
@@ -1133,7 +1133,7 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
             # Try to load GPT commentary for mapping
             gpt_commentary = ""
             try:
-                gpt_file_pattern = f"training_charts/{symbol}_*.gpt.json"
+                gpt_file_pattern = f"training_data/charts/{symbol}_*.gpt.json"
                 import glob
                 import json  # Ensure json is available in local scope
                 gpt_files = glob.glob(gpt_file_pattern)
@@ -1283,7 +1283,7 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                 
                 
                 chart_locations = [
-                    f"training_charts/{symbol}_*.png",
+                    f"training_data/charts/{symbol}_*.png",
                     f"charts/{symbol}_*.png",
                     f"exports/{symbol}_*.png", 
                     f"training_data/clip/{symbol}_*.png"

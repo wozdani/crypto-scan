@@ -314,7 +314,7 @@ if __name__ == "__main__":
         clip_label="trend_continuation",
         clip_confidence=0.85,
         tjde_score=0.72,
-        output_path="training_charts/TESTUSDT_20250627_vision_chart.png"
+        output_path="training_data/charts/TESTUSDT_20250627_vision_chart.png"
     )
     
     if result:
