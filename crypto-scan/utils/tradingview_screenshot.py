@@ -10,6 +10,7 @@ import asyncio
 from datetime import datetime
 from typing import List, Dict, Optional
 import time
+from PIL import Image
 
 # Add current directory to path for imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -34,6 +35,45 @@ try:
 except ImportError:
     PLAYWRIGHT_AVAILABLE = False
     log_warning("PLAYWRIGHT NOT AVAILABLE", None, "Falling back to professional matplotlib charts")
+
+def is_chart_blank(image_path: str, threshold: float = 0.99) -> bool:
+    """
+    🎯 CHART VALIDATION: Sprawdza czy obraz jest praktycznie pusty (biały)
+    
+    Wykrywa screenshoty gdzie canvas się załadował ale dane jeszcze nie są narysowane
+    
+    Args:
+        image_path: Ścieżka do pliku PNG
+        threshold: Próg białych pikseli (0.99 = 99% białych pikseli)
+        
+    Returns:
+        True jeśli wykres jest pusty/biały
+    """
+    try:
+        if not os.path.exists(image_path):
+            return True
+            
+        # Convert to grayscale and analyze pixel values
+        img = Image.open(image_path).convert("L")
+        pixels = list(img.getdata())
+        
+        if not pixels:
+            return True
+            
+        # Count white/near-white pixels (above 250 in 0-255 range)
+        white_pixels = sum(1 for px in pixels if px > 250)
+        ratio = white_pixels / len(pixels)
+        
+        if ratio > threshold:
+            print(f"[CHART VALIDATION] ⚠️ Blank chart detected: {os.path.basename(image_path)} ({ratio:.1%} white pixels)")
+            return True
+        else:
+            print(f"[CHART VALIDATION] ✅ Valid chart: {os.path.basename(image_path)} ({ratio:.1%} white pixels)")
+            return False
+            
+    except Exception as e:
+        log_warning("CHART VALIDATION ERROR", e, f"Failed to validate chart: {image_path}")
+        return True  # Assume blank on error
 
 class TradingViewScreenshotGenerator:
     """Generate authentic TradingView screenshots for TOP 5 TJDE tokens"""
@@ -187,6 +227,10 @@ class TradingViewScreenshotGenerator:
                     await page.wait_for_timeout(3000)  # 3 seconds for full chart rendering
                     print(f"[TRADINGVIEW] Chart rendering completed")
                     
+                    # 🎯 BONUS: Additional 5 seconds for data to render after canvas is ready
+                    await asyncio.sleep(5)
+                    print(f"[TRADINGVIEW] Extra rendering time completed - data should be drawn")
+                    
                 except Exception as e:
                     log_warning("TRADINGVIEW CHART LOADING", e, f"{symbol}: Chart may not have loaded properly")
                     print(f"[TRADINGVIEW WARNING] {symbol}: Chart loading issue ({e}) - proceeding with screenshot")
@@ -321,6 +365,16 @@ class TradingViewScreenshotGenerator:
                     file_size = os.path.getsize(output_path)
                     if file_size > 10000:  # At least 10KB
                         print(f"[TRADINGVIEW] ✅ Screenshot saved: {output_path} ({file_size} bytes)")
+                        
+                        # 🎯 CHART VALIDATION: Check if screenshot is blank/white
+                        if is_chart_blank(output_path):
+                            print(f"⚠️ [CHART VALIDATION] Pusty wykres wykryty: {symbol}")
+                            try:
+                                os.remove(output_path)
+                                print(f"[CHART VALIDATION] Usunięto pusty wykres: {output_path}")
+                            except Exception as cleanup_error:
+                                log_warning("CHART CLEANUP ERROR", cleanup_error, f"Failed to remove blank chart: {output_path}")
+                            return None
                         
                         # Generate metadata JSON
                         await self._save_screenshot_metadata(
