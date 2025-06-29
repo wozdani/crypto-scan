@@ -74,13 +74,20 @@ def should_regenerate_chart(chart_path: str, max_age_minutes: int = 60) -> bool:
         log_warning("CHART AGE CHECK ERROR", e, f"Error checking {chart_path}")
         return True  # Regenerate on error to be safe
 
-def clean_old_charts_for_symbol(symbol: str, chart_dirs: List[str] = None) -> int:
+def clean_old_charts_for_symbol(
+    symbol: str, 
+    chart_dirs: List[str] = None, 
+    preserve_history: bool = True,
+    keep_last_n_charts: int = 10
+) -> int:
     """
-    Clean old charts for a specific symbol before generating new ones
+    Clean old charts for a specific symbol before generating new ones while preserving history
     
     Args:
         symbol: Trading symbol
         chart_dirs: List of directories to check
+        preserve_history: If True, keep historical charts for trend analysis
+        keep_last_n_charts: Number of recent charts to preserve
         
     Returns:
         Number of old charts removed
@@ -95,24 +102,70 @@ def clean_old_charts_for_symbol(symbol: str, chart_dirs: List[str] = None) -> in
             continue
             
         try:
-            # Find old charts for this symbol
+            # Find all charts for this symbol and sort by modification time
+            symbol_charts = []
             for filename in os.listdir(chart_dir):
                 if filename.startswith(symbol) and filename.endswith(('.png', '.jpg', '.webp')):
                     chart_path = os.path.join(chart_dir, filename)
+                    mtime = os.path.getmtime(chart_path)
+                    symbol_charts.append((chart_path, mtime, filename))
+            
+            # Sort by modification time (newest first)
+            symbol_charts.sort(key=lambda x: x[1], reverse=True)
+            
+            if preserve_history and len(symbol_charts) > 0:
+                print(f"[HISTORY PRESERVE] Found {len(symbol_charts)} charts for {symbol}, preserving {min(keep_last_n_charts, len(symbol_charts))} recent charts")
+                
+                # Strategy: Only remove the most recent chart if it's stale, keep historical charts
+                newest_chart = symbol_charts[0] if symbol_charts else None
+                
+                if newest_chart and should_regenerate_chart(newest_chart[0], max_age_minutes=30):
+                    try:
+                        os.remove(newest_chart[0])
+                        removed_count += 1
+                        print(f"[FORCE REFRESH] Removed stale current chart: {newest_chart[2]}")
+                        
+                        # Remove associated metadata
+                        json_path = newest_chart[0].replace('.png', '.json').replace('.jpg', '.json').replace('.webp', '.json')
+                        if os.path.exists(json_path):
+                            os.remove(json_path)
+                            print(f"[FORCE REFRESH] Removed stale metadata: {os.path.basename(json_path)}")
+                    except Exception as e:
+                        log_warning("CHART REMOVAL ERROR", e, f"Failed to remove {newest_chart[0]}")
+                
+                # Keep historical charts, remove only very old ones (>72h) beyond the limit
+                historical_charts = symbol_charts[1:] if len(symbol_charts) > 1 else []
+                for i, (chart_path, mtime, filename) in enumerate(historical_charts):
+                    age_hours = (datetime.now().timestamp() - mtime) / 3600
                     
-                    # Check if chart should be regenerated
+                    # Remove charts beyond the keep limit AND older than 72 hours
+                    if i >= keep_last_n_charts and age_hours > 72:
+                        try:
+                            os.remove(chart_path)
+                            removed_count += 1
+                            print(f"[HISTORY CLEANUP] Removed very old chart: {filename} (age: {age_hours:.1f}h)")
+                            
+                            # Remove associated metadata
+                            json_path = chart_path.replace('.png', '.json').replace('.jpg', '.json').replace('.webp', '.json')
+                            if os.path.exists(json_path):
+                                os.remove(json_path)
+                        except Exception as e:
+                            log_warning("HISTORY CLEANUP ERROR", e, f"Failed to remove {chart_path}")
+                            
+            else:
+                # Original aggressive behavior: remove all stale charts (for non-TOP5 or when preserve_history=False)
+                for chart_path, mtime, filename in symbol_charts:
                     if should_regenerate_chart(chart_path, max_age_minutes=30):
                         try:
                             os.remove(chart_path)
                             removed_count += 1
                             print(f"[FORCE REFRESH] Removed old chart: {filename}")
                             
-                            # Also remove associated JSON metadata if exists
+                            # Remove associated metadata
                             json_path = chart_path.replace('.png', '.json').replace('.jpg', '.json').replace('.webp', '.json')
                             if os.path.exists(json_path):
                                 os.remove(json_path)
                                 print(f"[FORCE REFRESH] Removed old metadata: {os.path.basename(json_path)}")
-                                
                         except Exception as e:
                             log_warning("CHART REMOVAL ERROR", e, f"Failed to remove {chart_path}")
                             

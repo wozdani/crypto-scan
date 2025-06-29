@@ -271,7 +271,7 @@ async def generate_top_tjde_charts(results: List[Dict]):
             # Never reuse existing charts for TOP 5 tokens as they need real-time analysis
             print(f"   🔄 FORCE REGENERATION: TOP 5 TJDE token requires fresh TradingView screenshot")
             
-            # Clean up any existing charts for this symbol to ensure fresh generation
+            # Smart cleanup: Remove only stale current chart while preserving 72h history
             import glob
             import os
             from datetime import datetime, timedelta
@@ -279,21 +279,56 @@ async def generate_top_tjde_charts(results: List[Dict]):
             cleanup_pattern = f"training_data/charts/{symbol}_*.png"
             existing_charts = glob.glob(cleanup_pattern)
             
+            # Sort charts by modification time (newest first)
+            chart_files = []
+            for chart_path in existing_charts:
+                if os.path.exists(chart_path):
+                    mtime = os.path.getmtime(chart_path)
+                    chart_files.append((chart_path, mtime))
+            
+            chart_files.sort(key=lambda x: x[1], reverse=True)
+            
             cleaned_count = 0
-            for old_chart in existing_charts:
-                try:
-                    # Remove old chart and its metadata
-                    if os.path.exists(old_chart):
-                        os.remove(old_chart)
+            current_time = datetime.now().timestamp()
+            
+            # Strategy: Remove only the most recent chart if it's stale (>30 minutes)
+            # Keep all historical charts within 72 hours for trend analysis
+            if chart_files:
+                newest_chart, newest_mtime = chart_files[0]
+                age_minutes = (current_time - newest_mtime) / 60
+                
+                if age_minutes > 30:  # Only remove if stale
+                    try:
+                        os.remove(newest_chart)
                         cleaned_count += 1
-                    
-                    # Remove associated metadata JSON
-                    metadata_path = old_chart.replace('.png', '_metadata.json')
-                    if os.path.exists(metadata_path):
-                        os.remove(metadata_path)
                         
-                except Exception as cleanup_e:
-                    pass  # Continue even if cleanup fails
+                        # Remove associated metadata
+                        metadata_path = newest_chart.replace('.png', '_metadata.json')
+                        if os.path.exists(metadata_path):
+                            os.remove(metadata_path)
+                            
+                    except Exception as cleanup_e:
+                        pass  # Continue even if cleanup fails
+                
+                # Archive old charts beyond 72 hours (but keep some for historical reference)
+                keep_count = 0
+                for chart_path, mtime in chart_files[1:]:  # Skip the newest chart
+                    age_hours = (current_time - mtime) / 3600
+                    
+                    if age_hours > 72 and keep_count > 20:  # Keep max 20 historical charts
+                        try:
+                            os.remove(chart_path)
+                            cleaned_count += 1
+                            
+                            # Remove associated metadata
+                            metadata_path = chart_path.replace('.png', '_metadata.json')
+                            if os.path.exists(metadata_path):
+                                os.remove(metadata_path)
+                                
+                        except Exception as cleanup_e:
+                            pass
+                    else:
+                        keep_count += 1
             
             if cleaned_count > 0:
                 print(f"   🧹 Cleaned {cleaned_count} old charts for {symbol} to ensure fresh generation")
