@@ -482,7 +482,8 @@ class TradingViewScreenshotGenerator:
                         
                         # Generate metadata JSON for valid screenshots only
                         await self._save_screenshot_metadata(
-                            output_path, symbol, tjde_score, market_phase, decision
+                            output_path, symbol, tjde_score, market_phase, decision, 
+                            exchange_info, tv_symbol
                         )
                         
                         return output_path

@@ -98,6 +98,18 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 29, 2025 - ENHANCED FILENAME & METADATA SYSTEM - Exchange Tracking Complete ✅
+Successfully implemented comprehensive filename enhancement and metadata tracking system with multi-exchange integration:
+- **Enhanced Filename Format**: Implemented new filename format SYMBOL_EXCHANGE_score-XXX.png (e.g., SXPUSDT_BYBIT_score-688.png) providing immediate visual identification of exchange source and TJDE score
+- **Multi-Exchange Integration**: Full integration of MultiExchangeResolver into TradingView screenshot system with enhanced resolution logic using exchange priority order BINANCE → BYBIT → MEXC → OKX → GATEIO → KUCOIN
+- **Comprehensive Metadata Enhancement**: Enhanced screenshot metadata JSON files with exchange, tradingview_symbol, and multi_exchange_resolver fields providing complete provenance tracking for Vision-AI training data
+- **Exchange Statistics Tracking**: Integrated exchange usage statistics showing distribution across exchanges (BINANCE: 7 symbols, BYBIT: 1 symbol) enabling optimization of exchange priority algorithms
+- **Robust Fallback System**: Implemented intelligent fallback handling where failed multi-exchange resolution triggers regular symbol mapper with proper exchange extraction from TradingView symbol format
+- **Production Testing Verification**: Comprehensive testing confirmed proper filename generation (BTCUSDT_BINANCE_score-726.png, SXPUSDT_BYBIT_score-688.png) and metadata tracking across all supported exchanges
+- **Cache Utilization**: Enhanced resolver utilizes existing cache system for instant resolution of previously mapped symbols while enabling fresh resolution for new tokens
+- **Metadata Function Enhancement**: Updated _save_screenshot_metadata() with exchange_info and tv_symbol parameters providing complete exchange context in JSON metadata files
+System now provides comprehensive exchange tracking through enhanced filenames and metadata enabling complete provenance tracking for Vision-AI training data and exchange performance analysis.
+
 ### June 29, 2025 - COMPLETE TRADINGVIEW SYMBOL MAPPING FIX - 100% Resolution Rate Achieved ✅
 Successfully resolved TradingView symbol mapping issues achieving perfect 9/9 symbol resolution with intelligent exchange detection:
 - **Symbol Format Correction**: Fixed symbol format handling removing unnecessary slash conversion (BTCUSDT vs BTC/USDT) that was causing TradingView URL validation failures
