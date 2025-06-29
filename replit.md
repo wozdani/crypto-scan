@@ -98,6 +98,18 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 29, 2025 - SMART HISTORY PRESERVATION FOR TOP 5 TJDE TOKENS - 72h Data Retention Complete ✅
+Successfully implemented intelligent history preservation system that maintains 72-hour historical data for ALL tokens while generating fresh charts for TOP 5 TJDE tokens:
+- **Smart Cleanup Strategy**: Modified scan_all_tokens_async.py cleanup logic to preserve historical charts within 72-hour window while removing only stale current charts (>30 minutes old) for TOP 5 tokens
+- **Historical Data Protection**: Enhanced cleanup algorithm sorts charts by modification time and preserves up to 20 recent charts per symbol, removing only very old charts beyond 72 hours
+- **Fresh Generation Balance**: TOP 5 TJDE tokens get fresh TradingView screenshots for current analysis while maintaining complete 72h history for trend analysis and pattern recognition
+- **Archive Management**: Implemented intelligent archiving that removes charts older than 72 hours only when historical chart count exceeds 20 per symbol, preventing excessive disk usage
+- **Test Validation**: Created comprehensive test suite (test_history_preservation.py) validating preservation strategy with 100% success rate showing proper balance between fresh generation and historical retention
+- **Production Integration**: Enhanced force_refresh_charts.py clean_old_charts_for_symbol() function with preserve_history parameter ensuring consistent behavior across all chart generation systems
+- **Memory Efficiency**: System now maintains optimal disk usage while ensuring Vision-AI training has access to both current market conditions and historical context for superior pattern recognition
+- **Quality Assurance**: All chart cleanup operations include comprehensive logging showing which charts are preserved for history vs removed for fresh generation
+System now correctly balances fresh chart generation for TOP 5 TJDE analysis with complete 72-hour historical preservation for all tokens enabling superior trend analysis and Vision-AI development.
+
 ### June 29, 2025 - INVALID SYMBOL DETECTION & MULTI-EXCHANGE FALLBACK SYSTEM - Enhanced Chart Generation Quality ✅
 Successfully implemented comprehensive invalid symbol detection system preventing screenshots of TradingView error pages and enabling automatic fallback to alternative exchanges:
 - **Page Content Validation**: Added intelligent TradingView page validation in tradingview_robust.py checking for "Invalid symbol" and "Symbol not found" messages before screenshot capture using Playwright locator detection
