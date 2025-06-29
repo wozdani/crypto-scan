@@ -42,7 +42,7 @@ class TradingViewOnlyPipeline:
     def ensure_directories(self):
         """Ensure required directories exist"""
         os.makedirs(self.output_dir, exist_ok=True)
-        os.makedirs("training_charts", exist_ok=True)
+        os.makedirs("training_data/charts", exist_ok=True)
     
     async def generate_tradingview_charts_async(
         self, 
@@ -269,8 +269,8 @@ class TradingViewOnlyPipeline:
                     shutil.rmtree(old_dir)
                     print(f"[TRADINGVIEW-ONLY] 🗑️ Removed old matplotlib directory: {old_dir}")
             
-            # Move any existing training_charts/*.png to archive if they're matplotlib
-            training_dir = "training_charts"
+            # Move any existing training_data/charts/*.png to archive if they're matplotlib
+            training_dir = "training_data/charts"
             if os.path.exists(training_dir):
                 archive_dir = "archive/old_matplotlib_charts"
                 os.makedirs(archive_dir, exist_ok=True)

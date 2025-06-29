@@ -81,7 +81,7 @@ def is_screen_processed(screen_filename: str) -> bool:
     ]
     
     for metadata_file in metadata_patterns:
-        metadata_path = Path("training_charts") / metadata_file
+        metadata_path = Path("training_data/charts") / metadata_file
         if metadata_path.exists():
             try:
                 with open(metadata_path, "r", encoding="utf-8") as f:
@@ -112,7 +112,7 @@ def safe_cleanup_old_screens(
     Safely cleanup old chart screenshots that have been processed
     
     Args:
-        folder_paths: List of folders to clean (default: training_charts)
+        folder_paths: List of folders to clean (default: training_data/charts)
         max_age_hours: Maximum age in hours before cleanup (default: 72)
         dry_run: If True, only report what would be deleted
         
@@ -121,7 +121,7 @@ def safe_cleanup_old_screens(
     """
     
     if folder_paths is None:
-        folder_paths = ["training_charts", "data/charts", "screenshots"]
+        folder_paths = ["training_data/charts", "data/charts", "screenshots"]
     
     stats = {
         "total_checked": 0,
