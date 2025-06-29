@@ -144,12 +144,12 @@ class TradingViewScreenshotGenerator:
                 log_warning("TRADINGVIEW BROWSER FALLBACK", e, "Trying alternative chromium paths")
                 
                 possible_paths = [
+                    '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium',  # System Chromium
                     '/home/runner/workspace/.cache/ms-playwright/chromium-1091/chrome-linux/chrome',
                     '/home/runner/workspace/.cache/ms-playwright/chromium_headless_shell-1179/chrome-linux/headless_shell',
                     '/usr/bin/chromium',
                     '/usr/bin/chromium-browser',
-                    '/usr/bin/google-chrome',
-                    '/nix/store/*/bin/chromium'
+                    '/usr/bin/google-chrome'
                 ]
                 
                 browser_launched = False
@@ -368,7 +368,7 @@ class TradingViewScreenshotGenerator:
                     print(f"[TRADINGVIEW] Initial chart rendering completed")
                     
                     # 🎯 ADDITIONAL RENDERING TIME: Ensure data is fully drawn
-                    await asyncio.sleep(8)  # 8 seconds total for data rendering
+                    await asyncio.sleep(5)  # Reduced to 5 seconds for faster processing
                     print(f"[TRADINGVIEW] Extended rendering time completed - chart should be fully drawn")
                     
                 except Exception as e:
