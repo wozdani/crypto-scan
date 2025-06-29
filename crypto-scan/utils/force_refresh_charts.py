@@ -153,30 +153,38 @@ def force_refresh_vision_ai_charts(
         
         generated_charts = {}
         
-        for result in top_results:
-            symbol = result.get('symbol', 'UNKNOWN')
-            
-            if force_regenerate:
-                # Clean old charts for this symbol
+        # 🎯 CRITICAL FIX: Generate all charts in single batch instead of 5 separate calls
+        # This prevents multiple TradingView browser sessions and eliminates mass generation
+        
+        if force_regenerate:
+            # Clean old charts for all symbols first
+            for result in top_results:
+                symbol = result.get('symbol', 'UNKNOWN')
                 removed_count = clean_old_charts_for_symbol(symbol)
                 if removed_count > 0:
                     print(f"[FORCE REFRESH] {symbol}: Removed {removed_count} old charts")
+        
+        # Generate ALL charts in single batch call
+        try:
+            from .tradingview_async_fix import generate_tradingview_charts_safe
             
-            # Generate fresh chart using TradingView async fix
-            try:
-                from .tradingview_async_fix import generate_tradingview_charts_safe
+            # ✅ FIXED: Generate charts for ALL symbols at once instead of individual calls
+            chart_paths = generate_tradingview_charts_safe(top_results, 0.0, len(top_results))
+            
+            if chart_paths:
+                # Map generated paths to symbols
+                for i, result in enumerate(top_results):
+                    symbol = result.get('symbol', 'UNKNOWN')
+                    if i < len(chart_paths) and chart_paths[i]:
+                        generated_charts[symbol] = chart_paths[i]
+                        print(f"[FORCE REFRESH] ✅ {symbol}: Generated fresh chart: {os.path.basename(chart_paths[i])}")
+                    else:
+                        print(f"[FORCE REFRESH] ❌ {symbol}: Failed to generate fresh chart")
+            else:
+                print("[FORCE REFRESH] ❌ No charts generated from batch call")
                 
-                # Generate chart for single symbol
-                chart_paths = generate_tradingview_charts_safe([result], 0.0, 1)
-                
-                if chart_paths and len(chart_paths) > 0:
-                    generated_charts[symbol] = chart_paths[0]
-                    print(f"[FORCE REFRESH] ✅ {symbol}: Generated fresh chart: {os.path.basename(chart_paths[0])}")
-                else:
-                    print(f"[FORCE REFRESH] ❌ {symbol}: Failed to generate fresh chart")
-                    
-            except Exception as e:
-                log_warning("FORCE REFRESH CHART ERROR", e, f"Failed to generate chart for {symbol}")
+        except Exception as e:
+            log_warning("FORCE REFRESH BATCH ERROR", e, f"Failed to generate batch charts for {len(top_results)} tokens")
         
         if generated_charts:
             print(f"[FORCE REFRESH] ✅ Generated {len(generated_charts)} fresh charts")
