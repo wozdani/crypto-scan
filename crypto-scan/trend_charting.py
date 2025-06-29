@@ -525,20 +525,48 @@ def prepare_ohlcv_dataframes(candles: List) -> tuple:
         volume_data = []
         
         for candle in chart_candles:
-            timestamp = datetime.fromtimestamp(candle[0] / 1000)
-            
-            ohlc_data.append({
-                'timestamp': timestamp,
-                'open': float(candle[1]),
-                'high': float(candle[2]),
-                'low': float(candle[3]),
-                'close': float(candle[4])
-            })
-            
-            volume_data.append({
-                'timestamp': mdates.date2num(timestamp),
-                'volume': float(candle[5])
-            })
+            try:
+                # Support multiple candle formats: dict, list, tuple
+                if isinstance(candle, dict):
+                    timestamp_raw = candle.get('timestamp', candle.get('time', 0))
+                    open_price = candle.get('open', candle.get('o', 0))
+                    high_price = candle.get('high', candle.get('h', 0))
+                    low_price = candle.get('low', candle.get('l', 0))
+                    close_price = candle.get('close', candle.get('c', 0))
+                    volume = candle.get('volume', candle.get('v', 0))
+                elif isinstance(candle, (list, tuple)) and len(candle) >= 6:
+                    timestamp_raw = candle[0]
+                    open_price = candle[1]
+                    high_price = candle[2]
+                    low_price = candle[3]
+                    close_price = candle[4]
+                    volume = candle[5]
+                else:
+                    print(f"[CHART WARNING] Skipping candle with unknown format: {type(candle)}")
+                    continue
+                
+                # Handle timestamp conversion
+                if timestamp_raw > 1e12:  # Milliseconds
+                    timestamp = datetime.fromtimestamp(timestamp_raw / 1000)
+                else:  # Seconds
+                    timestamp = datetime.fromtimestamp(timestamp_raw)
+                
+                ohlc_data.append({
+                    'timestamp': timestamp,
+                    'open': float(open_price),
+                    'high': float(high_price),
+                    'low': float(low_price),
+                    'close': float(close_price)
+                })
+                
+                volume_data.append({
+                    'timestamp': mdates.date2num(timestamp),
+                    'volume': float(volume)
+                })
+                
+            except (ValueError, OSError, OverflowError, TypeError, KeyError) as e:
+                print(f"[CHART WARNING] Skipping invalid candle: {e}")
+                continue
         
         df_ohlc = pd.DataFrame(ohlc_data)
         df_volume = pd.DataFrame(volume_data)

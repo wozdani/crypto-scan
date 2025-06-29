@@ -322,7 +322,15 @@ def generate_top_tjde_charts(results: List[Dict]):
                 
                 print(f"[TJDE CHART DEBUG] {symbol} → 15M candles: {len(candles_15m)}, 5M candles: {len(candles_5m)}")
                 if candles_15m:
-                    print(f"[TJDE CHART DEBUG] {symbol} → recent_candle timestamp: {candles_15m[-1][0] if isinstance(candles_15m[-1], (list, tuple)) else 'unknown format'}")
+                    last_candle = candles_15m[-1]
+                    candle_type = type(last_candle).__name__
+                    if isinstance(last_candle, (list, tuple)):
+                        timestamp_info = f"timestamp: {last_candle[0]}"
+                    elif isinstance(last_candle, dict):
+                        timestamp_info = f"timestamp: {last_candle.get('timestamp', last_candle.get('time', 'missing'))}"
+                    else:
+                        timestamp_info = f"format: {candle_type}, value: {str(last_candle)[:100]}"
+                    print(f"[TJDE CHART DEBUG] {symbol} → recent_candle {timestamp_info}")
                 
                 if not candles_15m or len(candles_15m) < 20:
                     print(f"   [SKIP] {symbol}: Insufficient candle data even after cache fetch")
