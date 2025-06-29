@@ -383,7 +383,28 @@ async def generate_top_tjde_charts(results: List[Dict]):
                                 
                                 if alt_chart_path and alt_chart_path != "INVALID_SYMBOL" and os.path.exists(alt_chart_path):
                                     print(f"   ✅ Alternative success: {os.path.basename(alt_chart_path)}")
-                                    generated_charts[symbol] = alt_chart_path
+                                    
+                                    # 🧠 GPT ANALYSIS: Analyze alternative chart and add setup label
+                                    try:
+                                        from utils.gpt_chart_analyzer import analyze_and_label_chart
+                                        print(f"   🧠 Starting GPT analysis for alternative chart...")
+                                        
+                                        labeled_alt_path = analyze_and_label_chart(
+                                            image_path=alt_chart_path,
+                                            symbol=symbol,
+                                            tjde_score=tjde_score
+                                        )
+                                        
+                                        if labeled_alt_path and labeled_alt_path != alt_chart_path:
+                                            print(f"   🏷️ Alternative chart labeled: {os.path.basename(labeled_alt_path)}")
+                                            generated_charts[symbol] = labeled_alt_path
+                                        else:
+                                            generated_charts[symbol] = alt_chart_path
+                                            
+                                    except Exception as alt_gpt_e:
+                                        print(f"   ⚠️ Alternative GPT analysis error: {alt_gpt_e}")
+                                        generated_charts[symbol] = alt_chart_path
+                                    
                                     chart_generated = True
                                     break
                                 elif alt_chart_path == "INVALID_SYMBOL":
@@ -396,7 +417,29 @@ async def generate_top_tjde_charts(results: List[Dict]):
                 
                 elif chart_path and os.path.exists(chart_path):
                     print(f"   ✅ TradingView chart: {os.path.basename(chart_path)}")
-                    generated_charts[symbol] = chart_path
+                    
+                    # 🧠 GPT ANALYSIS: Analyze chart and add setup label for CLIP training
+                    try:
+                        from utils.gpt_chart_analyzer import analyze_and_label_chart
+                        print(f"   🧠 Starting GPT analysis for setup identification...")
+                        
+                        labeled_chart_path = analyze_and_label_chart(
+                            image_path=chart_path,
+                            symbol=symbol,
+                            tjde_score=tjde_score
+                        )
+                        
+                        if labeled_chart_path and labeled_chart_path != chart_path:
+                            print(f"   🏷️ Chart labeled: {os.path.basename(labeled_chart_path)}")
+                            generated_charts[symbol] = labeled_chart_path
+                        else:
+                            print(f"   ⚠️ GPT labeling failed - using original chart")
+                            generated_charts[symbol] = chart_path
+                        
+                    except Exception as gpt_e:
+                        print(f"   ⚠️ GPT analysis error: {gpt_e} - using original chart")
+                        generated_charts[symbol] = chart_path
+                    
                     chart_generated = True
                 else:
                     print(f"   ⚠️ TradingView failed - trying fallback...")
