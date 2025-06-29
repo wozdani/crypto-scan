@@ -895,6 +895,10 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
         clip_confidence = 0.0
         clip_info = None
         
+        # Initialize original CLIP variables (for bug fix)
+        original_clip_confidence = 0.0
+        original_clip_info = None
+        
         try:
             print(f"[CLIP FAST] Using fast CLIP predictor for {symbol}")
             from ai.clip_predictor_fast import FastCLIPPredictor
@@ -1263,6 +1267,10 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                     "boosts_applied": [mod for mod in context_modifiers if "CLIP:" in mod]
                 }
                 
+                # Store original CLIP values (for debug output fix)
+                original_clip_confidence = 0.75
+                original_clip_info = clip_info.copy()
+                
                 print(f"[CLIP INTEGRATION] {symbol}: {prediction_str}")
                 print(f"[CLIP BOOSTS] Applied: {clip_modifier:+.3f} with contextual modifiers")
                 clip_boost_applied = True
@@ -1344,6 +1352,10 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                             "adjusted_confidence": clip_confidence
                         }
                         
+                        # Store original CLIP values (for debug output fix)
+                        original_clip_confidence = clip_confidence
+                        original_clip_info = clip_info.copy()
+                        
                         context_modifiers.append(f"CLIP: {pattern} → visual pattern recognition")
                         clip_boost_applied = True
                         clip_already_used = True
@@ -1383,6 +1395,10 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                 "modifier": 0.0,
                 "prediction_source": "unavailable"
             }
+            
+            # Store original CLIP values (for debug output fix)
+            original_clip_confidence = 0.0
+            original_clip_info = clip_info.copy()
         else:
             print(f"[CLIP SUCCESS] {symbol}: Applied {clip_modifier:+.3f} boost from visual analysis")
         
