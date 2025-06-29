@@ -9,7 +9,7 @@ from typing import List, Dict, Optional
 from datetime import datetime
 
 
-def generate_dataset_jsonl(charts_folder: str = "training_charts", output_path: str = "training_dataset.jsonl") -> int:
+def generate_dataset_jsonl(charts_folder: str = "training_data/charts", output_path: str = "training_dataset.jsonl") -> int:
     """
     Generate centralized JSONL dataset from training charts and metadata
     
@@ -30,7 +30,7 @@ def generate_dataset_jsonl(charts_folder: str = "training_charts", output_path: 
     
     print(f"[DATASET] Scanning {charts_folder} for training pairs...")
     
-    # Process all PNG files in training_charts directory
+    # Process all PNG files in training_data/charts directory
     for fname in sorted(os.listdir(charts_folder)):
         if not fname.endswith(".png"):
             continue

@@ -363,7 +363,7 @@ def simulate_trader_decision_with_memory(symbol: str, market_data: dict, signals
             
             # Find recent chart for embedding
             import glob
-            chart_pattern = f"training_charts/{symbol}_*.png"
+            chart_pattern = f"training_data/charts/{symbol}_*.png"
             charts = glob.glob(chart_pattern)
             recent_chart = sorted(charts, reverse=True)[0] if charts else None
             

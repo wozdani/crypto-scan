@@ -379,7 +379,7 @@ class HybridEmbeddingSystem:
             return {}
 
 
-def process_training_charts_for_embeddings(charts_dir: str = "training_charts") -> int:
+def process_training_charts_for_embeddings(charts_dir: str = "training_data/charts") -> int:
     """Process all training charts to generate embeddings"""
     if not os.path.exists(charts_dir):
         print(f"[CHART PROCESSING] Charts directory not found: {charts_dir}")

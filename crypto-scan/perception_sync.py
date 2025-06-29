@@ -16,8 +16,8 @@ def load_clip_prediction(symbol: str) -> Optional[Dict]:
     alert_time = datetime.now().strftime('%Y%m%d_%H%M')
     
     potential_paths = [
-        f"training_charts/{symbol}_{alert_time}_clip.json",
-        f"training_charts/{symbol}_clip.json", 
+        f"training_data/charts/{symbol}_{alert_time}_clip.json",
+        f"training_data/charts/{symbol}_clip.json", 
         f"data/clip_predictions/{symbol}_latest.json",
         f"data/clip_predictions/{symbol}.json"
     ]
@@ -59,8 +59,8 @@ def calculate_enhanced_tjde_score(features: Dict) -> float:
 
 
 def find_recent_chart(symbol: str) -> Optional[str]:
-    """Find most recent chart for symbol in training_charts directory"""
-    pattern = f"training_charts/{symbol}_*.png"
+    """Find most recent chart for symbol in training_data/charts directory"""
+    pattern = f"training_data/charts/{symbol}_*.png"
     charts = glob.glob(pattern)
     
     if charts:
@@ -300,7 +300,7 @@ def test_perception_synchronization():
             json.dump(clip_data, f)
         
         # 2. Create test chart
-        os.makedirs('training_charts', exist_ok=True)
+        os.makedirs('training_data/charts', exist_ok=True)
         
         # Generate realistic pullback pattern
         x = np.arange(60)
@@ -328,7 +328,7 @@ def test_perception_synchronization():
         plt.grid(True, alpha=0.3)
         
         timestamp = datetime.now().strftime('%Y%m%d_%H%M')
-        chart_path = f'training_charts/{test_symbol}_{timestamp}_pullback_setup.png'
+        chart_path = f'training_data/charts/{test_symbol}_{timestamp}_pullback_setup.png'
         plt.savefig(chart_path, dpi=150, bbox_inches='tight', facecolor='black')
         plt.close()
         
@@ -389,7 +389,7 @@ def test_perception_synchronization():
         test_files = [
             f'data/clip_predictions/{test_symbol}_latest.json',
             chart_path
-        ] + glob.glob(f'training_charts/{test_symbol}_{timestamp}_*.png') + metadata_files
+        ] + glob.glob(f'training_data/charts/{test_symbol}_{timestamp}_*.png') + metadata_files
         
         for file_path in test_files:
             if os.path.exists(file_path):
