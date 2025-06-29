@@ -40,113 +40,86 @@ def save_training_chart(df: pd.DataFrame, symbol: str, timestamp: str,
     Returns:
         None - Function disabled, use TradingView screenshot system
     """
-    try:
-        # 🎯 CRITICAL FIX: Check TOP 5 status before generating training charts
-        from utils.top5_selector import should_generate_training_data, warn_about_non_top5_generation
+    print(f"[MATPLOTLIB DISABLED] {symbol} → Chart generation disabled, using TradingView-only system")
+    return None  # All matplotlib chart generation disabled
+
+
+def plot_chart_vision_ai(candles_15m: List, symbol: str, phase: str = "unknown",
+                        setup: str = "unknown", score: float = 0.0, 
+                        decision: str = "unknown", clip_confidence: float = 0.0,
+                        output_dir: str = "training_data/charts") -> Optional[str]:
+    """
+    🚫 MATPLOTLIB CHART GENERATION DISABLED - TradingView-only system active
+    
+    This function now returns None and redirects to TradingView screenshot system.
+    No matplotlib charts are generated to maintain dataset quality.
+    """
+    print(f"[MATPLOTLIB DISABLED] {symbol} → Chart generation disabled, using TradingView-only system")
+    return None
+
+
+def generate_chart_image(symbol: str, market_data: Dict, tjde_result: Dict,
+                        output_dir: str = "training_data/charts") -> Optional[str]:
+    """
+    🚫 MATPLOTLIB CHART GENERATION DISABLED - TradingView-only system active
+    
+    This function now returns None and redirects to TradingView screenshot system.
+    No matplotlib charts are generated to maintain dataset quality.
+    """
+    print(f"[MATPLOTLIB DISABLED] {symbol} → Chart generation disabled, using TradingView-only system")
+    return None
+
+
+def generate_vision_ai_training_data(scan_results: List[Dict], vision_ai_mode: str = "full") -> int:
+    """
+    🚫 MATPLOTLIB CHART GENERATION DISABLED - TradingView-only system active
+    
+    This function now returns 0 and redirects to TradingView screenshot system.
+    No matplotlib charts are generated to maintain dataset quality.
+    """
+    print(f"[MATPLOTLIB DISABLED] generate_vision_ai_training_data → Chart generation disabled, using TradingView-only system")
+    return 0
+
+
+# Helper functions to support legacy code - all disabled and redirect to TradingView
+def get_token_history(symbol: str) -> Dict:
+    """Legacy function - redirected to TradingView-only system"""
+    return {}
+
+
+def update_token_memory(symbol: str, data: Dict):
+    """Legacy function - redirected to TradingView-only system"""
+    pass
+
+
+def save_label_jsonl(symbol: str, data: Dict):
+    """Legacy function - redirected to TradingView-only system"""
+    pass
+
+
+def plot_custom_candlestick_chart(candles: List, symbol: str, **kwargs) -> Optional[str]:
+    """
+    🚫 MATPLOTLIB CHART GENERATION DISABLED - TradingView-only system active
+    """
+    print(f"[MATPLOTLIB DISABLED] {symbol} → Chart generation disabled, using TradingView-only system")
+    return None
+
+
+# JSONL label saving functions  
+def save_training_labels(symbol: str, timestamp: str, label_data: Dict,
+                        output: str = "training_data/labels.jsonl") -> bool:
+    """
+    Save training labels in JSONL format for CLIP training
+    
+    Args:
+        symbol: Trading symbol
+        timestamp: Timestamp string  
+        label_data: Dictionary with phase, setup, scores, etc.
+        output: Output JSONL file path
         
-        if not should_generate_training_data(symbol, tjde_score):
-            warn_about_non_top5_generation(symbol, "Vision-AI save_training_chart")
-            return None
-        
-        print(f"[VISION-AI] {symbol}: Generating training chart (TOP 5 token)")
-        
-        from trend_charting import plot_custom_candlestick_chart
-        
-        os.makedirs(folder, exist_ok=True)
-        
-        # Prepare data for custom chart
-        df_ohlc = pd.DataFrame({
-            'timestamp': df.index,
-            'open': df['Open'],
-            'high': df['High'], 
-            'low': df['Low'],
-            'close': df['Close']
-        })
-        
-        df_volume = pd.DataFrame({
-            'timestamp': [mdates.date2num(ts) for ts in df.index],
-            'volume': df['Volume']
-        })
-        
-        # Enhanced chart path
-        chart_path = f"{folder}/{symbol}_{timestamp}_vision_chart.png"
-        
-        # Generate professional Vision-AI chart with enhanced context
-        from trend_charting import plot_chart_with_context
-        
-        # Convert DataFrame back to candle list format for new function
-        candles_list = []
-        for _, row in df.iterrows():
-            candles_list.append({
-                'timestamp': int(row.name.timestamp() * 1000),
-                'open': row['Open'],
-                'high': row['High'],
-                'low': row['Low'],
-                'close': row['Close'],
-                'volume': row['Volume']
-            })
-        
-        # Memory-aware alert detection - get historical alerts from token memory
-        alert_indices = []
-        
-        try:
-            from utils.token_memory import get_token_history, update_token_memory
-            token_history = get_token_history(symbol)
-            
-            # FIX 2: Ensure current TJDE decision is saved to memory (even if avoid)
-            if tjde_score is not None and decision:
-                memory_entry = {
-                    "tjde_score": tjde_score,
-                    "decision": decision,
-                    "setup": f"{market_phase}_{decision}" if market_phase else decision,
-                    "phase": market_phase or "unknown",
-                    "vision_ai_chart": True,  # Flag for Vision-AI generation
-                    "alert_generated": tjde_score >= 0.7,  # Track alert threshold
-                    "result_after_2h": None  # For feedback loop
-                }
-                update_token_memory(symbol, memory_entry)
-                print(f"[VISION-AI MEMORY] {symbol}: Saved TJDE decision {decision} (score: {tjde_score:.3f})")
-            
-            # Extract historical alert indices from memory
-            if token_history:
-                significant_entries = [e for e in token_history[-10:] if e.get('tjde_score', 0) >= 0.5]  # Lower threshold
-                for i, entry in enumerate(significant_entries[-5:]):  # Last 5 significant decisions
-                    # Create realistic alert positions based on memory
-                    alert_pos = int(len(candles_list) * 0.6) + (i * 4)  # Spread alerts across chart
-                    if alert_pos < len(candles_list) - 5:  # Leave margin at end
-                        alert_indices.append(alert_pos)
-                        
-                print(f"[VISION-AI MEMORY] {symbol}: Found {len(significant_entries)} significant decisions in history")
-            
-        except ImportError:
-            print(f"[VISION-AI] Token memory not available for {symbol}")
-        except Exception as e:
-            print(f"[VISION-AI MEMORY ERROR] {symbol}: {e}")
-        
-        # Add current alert if TJDE score is high
-        if tjde_score and tjde_score >= 0.7:
-            alert_start = int(len(candles_list) * 0.8)
-            if alert_start < len(candles_list):
-                volumes = [c['volume'] for c in candles_list[alert_start:]]
-                current_alert = alert_start + volumes.index(max(volumes))
-                alert_indices.append(current_alert)
-        
-        print(f"[VISION-AI] {symbol}: Using {len(alert_indices)} alert points for memory training")
-        
-        saved_path = plot_chart_with_context(
-            symbol=symbol,
-            candles=candles_list,
-            alert_indices=alert_indices if alert_indices else None,
-            score=tjde_score,
-            decision=decision,
-            phase=market_phase,
-            setup=f"{market_phase}_{decision}" if market_phase and decision else None,
-            save_path=chart_path,
-            context_days=2
-        )
-        
-        if saved_path:
-            print(f"[VISION-AI] Training chart and metadata saved: {saved_path}")
+    Returns:
+        Success status
+    """
             
             # Verify JSON metadata was created
             json_path = saved_path.replace('.png', '.json')
