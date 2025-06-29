@@ -1,11 +1,13 @@
 """
-TradingView Screenshot Generator - BINANCE-Compatible Chart Capture for Vision-AI Training
-Captures authentic TradingView charts for TOP 5 TJDE tokens from BINANCE exchange only
+TradingView Screenshot Generator - Multi-Exchange Compatible Chart Capture for Vision-AI Training
+Captures authentic TradingView charts for TOP 5 TJDE tokens using intelligent multi-exchange resolution
 Features:
-- BINANCE symbol filtering to avoid incompatible tokens
+- Multi-exchange resolution (BINANCE → BYBIT → MEXC → OKX → GATEIO → KUCOIN)
+- Intelligent exchange selection based on token characteristics
 - Comprehensive screenshot validation (size, content quality)
 - Enhanced error detection and automatic cleanup
 - Professional chart quality for superior Vision-AI training
+- Exchange tracking in metadata and optional filename enhancement
 """
 
 import os
@@ -21,6 +23,7 @@ from PIL import Image
 try:
     from .tradingview_symbol_mapper import map_to_tradingview, get_tradingview_chart_url
     from .screenshot_validator import ScreenshotValidator
+    from .multi_exchange_resolver import get_multi_exchange_resolver
 except ImportError:
     # Fallback if modules not available
     def map_to_tradingview(symbol: str) -> Optional[str]:
@@ -30,6 +33,8 @@ except ImportError:
     class ScreenshotValidator:
         def validate_and_cleanup(self, *args, **kwargs):
             return True
+    def get_multi_exchange_resolver():
+        return None
 
 # Add current directory to path for imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -204,14 +209,26 @@ class TradingViewScreenshotGenerator:
         Returns:
             TradingView-compatible symbol (e.g. BINANCE:BTCUSDT) or fallback
         """
-        # Use intelligent mapping system first
+        # First try the multi-exchange resolver
+        try:
+            resolver = get_multi_exchange_resolver()
+            if resolver:
+                result = resolver.resolve_tradingview_symbol(symbol)
+                if result:
+                    tv_symbol, exchange = result
+                    print(f"[MULTI-EXCHANGE] ✅ {symbol} → {tv_symbol} ({exchange})")
+                    return tv_symbol
+        except Exception as e:
+            print(f"[MULTI-EXCHANGE] ❌ Error resolving {symbol}: {e}")
+        
+        # Fallback to existing symbol mapper
         tv_symbol = map_to_tradingview(symbol)
         
         if tv_symbol:
             print(f"[SYMBOL MAPPER] ✅ {symbol} → {tv_symbol}")
             return tv_symbol
         else:
-            # Fallback to BINANCE for major pairs (most likely to work)
+            # Final fallback to BINANCE for major pairs (most likely to work)
             major_pairs = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT', 'DOTUSDT', 'LTCUSDT']
             
             if symbol in major_pairs:
@@ -244,13 +261,40 @@ class TradingViewScreenshotGenerator:
             Path to saved screenshot or None if failed
         """
         try:
-            # 🎯 STEP 1: SMART SYMBOL RESOLUTION (no BINANCE filtering for TOP 5)
-            tv_symbol = self._resolve_tradingview_symbol(symbol)
-            print(f"[TRADINGVIEW] ✅ Smart exchange detection: {symbol} → {tv_symbol}")
+            # 🎯 STEP 1: SMART SYMBOL RESOLUTION with multi-exchange support
+            exchange_info = None
+            tv_symbol = None
             
-            # Generate filename with timestamp
+            # Get enhanced resolution with exchange info
+            try:
+                resolver = get_multi_exchange_resolver()
+                if resolver:
+                    result = resolver.resolve_tradingview_symbol(symbol)
+                    if result:
+                        tv_symbol, exchange = result
+                        exchange_info = exchange
+                        print(f"[MULTI-EXCHANGE] ✅ {symbol} → {tv_symbol} ({exchange})")
+                    else:
+                        print(f"[MULTI-EXCHANGE] ❌ {symbol} not found on any exchange")
+            except Exception as e:
+                print(f"[MULTI-EXCHANGE] ❌ Resolution error for {symbol}: {e}")
+            
+            # Fallback to regular symbol resolution
+            if not tv_symbol:
+                tv_symbol = self._resolve_tradingview_symbol(symbol)
+                exchange_info = tv_symbol.split(':')[0] if ':' in tv_symbol else 'UNKNOWN'
+                print(f"[SYMBOL MAPPER] ✅ Fallback resolution: {symbol} → {tv_symbol}")
+            
+            # Generate enhanced filename with exchange and score (optional enhancement)
             timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-            filename = f"{symbol}_{timestamp}_tradingview_tjde.png"
+            score_formatted = str(int(tjde_score * 1000)) if tjde_score > 0 else "000"
+            
+            # Enhanced filename format: SYMBOL_EXCHANGE_score-XXX.png (e.g., SXPUSDT_BYBIT_score-726.png)
+            if exchange_info and exchange_info != 'UNKNOWN':
+                filename = f"{symbol}_{exchange_info}_score-{score_formatted}.png"
+            else:
+                filename = f"{symbol}_{timestamp}_score-{score_formatted}.png"
+            
             output_path = os.path.join(self.output_dir, filename)
             
             # Ensure output directory exists
@@ -470,7 +514,9 @@ class TradingViewScreenshotGenerator:
         symbol: str, 
         tjde_score: float,
         market_phase: str,
-        decision: str
+        decision: str,
+        exchange_info: str = None,
+        tv_symbol: str = None
     ):
         """Save metadata for TradingView screenshot"""
         try:
@@ -479,6 +525,8 @@ class TradingViewScreenshotGenerator:
                 "timestamp": datetime.now().isoformat(),
                 "chart_type": "tradingview_screenshot",
                 "source": "authentic_tradingview",
+                "exchange": exchange_info or "UNKNOWN",
+                "tradingview_symbol": tv_symbol or f"UNKNOWN:{symbol}",
                 "phase": market_phase,
                 "decision": decision,
                 "tjde_score": tjde_score,
@@ -486,6 +534,7 @@ class TradingViewScreenshotGenerator:
                 "viewport": self.viewport,
                 "authentic_data": True,
                 "vision_ai_ready": True,
+                "multi_exchange_resolver": exchange_info is not None,
                 "created_at": datetime.now().isoformat()
             }
             
