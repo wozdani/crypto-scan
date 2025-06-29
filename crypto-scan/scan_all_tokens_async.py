@@ -170,6 +170,22 @@ async def async_scan_cycle():
         optimized_symbols = symbols[:752]  # Process all available symbols
         max_concurrent = 400  # Increased for 752 tokens
     
+    # 🎯 CRITICAL FIXES: Initialize performance tracking and memory validation
+    try:
+        from utils.performance_critical_fixes import (
+            validate_memory_files, track_scan_performance, performance_fixes
+        )
+        
+        # Validate all memory files before starting scan
+        memory_valid = validate_memory_files()
+        print(f"[CRITICAL FIX] Memory validation: {'✅ VALID' if memory_valid else '⚠️ REPAIRED'}")
+        
+        # Reset performance tracker
+        performance_fixes.training_worker_active = False
+        
+    except Exception as e:
+        log_global_error("Critical Fixes", f"Failed to initialize critical fixes: {e}")
+    
     # Execute async scan with enhanced performance  
     start_time = time.time()
     async with AsyncTokenScanner(max_concurrent=max_concurrent) as scanner:
@@ -177,9 +193,24 @@ async def async_scan_cycle():
         results = await scanner.scan_all_tokens(optimized_symbols, priority_info)
     scan_duration = time.time() - start_time
     
-    print(f"[PERFORMANCE] Scan completed in {scan_duration:.1f}s (Target: <15s)")
-    if scan_duration > 15:
-        print(f"[PERFORMANCE WARNING] Scan exceeded 15s target by {scan_duration-15:.1f}s")
+    # 🎯 CRITICAL FIX: Track performance and apply optimizations
+    try:
+        performance_analysis = track_scan_performance(start_time, len(results) if results else 0)
+        
+        print(f"[PERFORMANCE] Scan completed in {scan_duration:.1f}s (Target: <15s)")
+        if scan_duration > 15:
+            print(f"[PERFORMANCE WARNING] Scan exceeded 15s target by {scan_duration-15:.1f}s")
+            print(f"[PERFORMANCE ANALYSIS] Recommendations:")
+            for rec in performance_analysis.get('recommendations', []):
+                print(f"  • {rec}")
+        else:
+            print(f"[PERFORMANCE SUCCESS] ✅ Target achieved!")
+            
+    except Exception as e:
+        log_global_error("Performance Tracking", f"Failed to track performance: {e}")
+        print(f"[PERFORMANCE] Scan completed in {scan_duration:.1f}s (Target: <15s)")
+        if scan_duration > 15:
+            print(f"[PERFORMANCE WARNING] Scan exceeded 15s target by {scan_duration-15:.1f}s")
     
     # Post-scan processing
     if results:

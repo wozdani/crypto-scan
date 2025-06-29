@@ -1,0 +1,10 @@
+TRADINGVIEW SCREENSHOT FAILED
+Symbol: ZENUSDT
+Phase: unknown
+Setup: unknown  
+Score: 0.431
+Error: sync_wrapper_failed
+Timestamp: 2025-06-29T17:24:04.590882
+
+Note: This is a placeholder file created because TradingView screenshot generation failed.
+No matplotlib fallback was used to maintain dataset quality.
