@@ -17,17 +17,16 @@ from typing import List, Dict, Optional
 import time
 from PIL import Image
 
-# Import TradingView symbol resolver and validation systems
+# Import TradingView symbol mapper and validation systems
 try:
-    from .tradingview_symbol_resolver import resolve_tradingview_symbol
-    from .binance_symbol_filter import get_binance_filter
+    from .tradingview_symbol_mapper import map_to_tradingview, get_tradingview_chart_url
     from .screenshot_validator import ScreenshotValidator
 except ImportError:
     # Fallback if modules not available
-    def resolve_tradingview_symbol(symbol: str) -> Optional[str]:
+    def map_to_tradingview(symbol: str) -> Optional[str]:
         return f"BINANCE:{symbol.upper()}"
-    def get_binance_filter():
-        return None
+    def get_tradingview_chart_url(symbol: str, timeframe: str = "15") -> Optional[str]:
+        return f"https://www.tradingview.com/chart/?symbol=BINANCE:{symbol.upper()}&interval={timeframe}"
     class ScreenshotValidator:
         def validate_and_cleanup(self, *args, **kwargs):
             return True
@@ -193,31 +192,37 @@ class TradingViewScreenshotGenerator:
         """
         🎯 SMART EXCHANGE DETECTION: Resolve symbol to proper TradingView format
         
-        For TOP 5 tokens, tries multiple exchanges in priority order:
-        1. BYBIT:SYMBOL (preferred for crypto scanner)
-        2. BINANCE:SYMBOL (if available on Binance)
-        3. OKX:SYMBOL (alternative exchange)
-        4. SYMBOL (plain symbol for TradingView native pairs)
+        Uses intelligent symbol mapper to find valid TradingView exchanges:
+        1. Check symbol mapper cache first
+        2. Try multiple exchanges (BINANCE, COINBASE, BYBIT, etc.)
+        3. Verify symbol exists on TradingView
+        4. Return validated symbol or fallback
         
         Args:
-            symbol: Trading symbol (e.g. ZEUSUSDT)
+            symbol: Trading symbol (e.g. BTCUSDT)
             
         Returns:
-            TradingView-compatible symbol (e.g. BYBIT:ZEUSUSDT)
+            TradingView-compatible symbol (e.g. BINANCE:BTCUSDT) or fallback
         """
-        # Prioritize BYBIT since that's our data source
-        # Most tokens from our scanner are available on BYBIT
-        bybit_symbol = f"BYBIT:{symbol}"
+        # Use intelligent mapping system first
+        tv_symbol = map_to_tradingview(symbol)
         
-        # For major pairs, also try plain symbol (TradingView native)
-        major_pairs = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT', 'DOTUSDT', 'LTCUSDT']
-        
-        if symbol in major_pairs:
-            # Major pairs often work as plain symbols
-            return symbol
+        if tv_symbol:
+            print(f"[SYMBOL MAPPER] ✅ {symbol} → {tv_symbol}")
+            return tv_symbol
         else:
-            # Non-major pairs: use BYBIT prefix
-            return bybit_symbol
+            # Fallback to BINANCE for major pairs (most likely to work)
+            major_pairs = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT', 'DOTUSDT', 'LTCUSDT']
+            
+            if symbol in major_pairs:
+                fallback = f"BINANCE:{symbol}"
+                print(f"[SYMBOL MAPPER] ⚠️ {symbol} → {fallback} (major pair fallback)")
+                return fallback
+            else:
+                # Last resort: try BYBIT (least likely to work but worth trying)
+                fallback = f"BYBIT:{symbol}"
+                print(f"[SYMBOL MAPPER] ⚠️ {symbol} → {fallback} (BYBIT fallback)")
+                return fallback
 
     async def generate_tradingview_screenshot(
         self, 

@@ -116,8 +116,10 @@ async def capture_tradingview_screenshot():
             browser = await p.chromium.launch(headless=True)
             page = await browser.new_page()
             
-            # Navigate to TradingView
-            url = f"https://www.tradingview.com/chart/?symbol=BYBIT:{symbol}"
+            # Navigate to TradingView using intelligent symbol mapping
+            from .tradingview_symbol_mapper import map_to_tradingview
+            tv_symbol = map_to_tradingview(symbol) or f"BINANCE:{symbol}"
+            url = f"https://www.tradingview.com/chart/?symbol={tv_symbol}"
             await page.goto(url, wait_until="networkidle", timeout=30000)
             
             # Wait for chart to load
