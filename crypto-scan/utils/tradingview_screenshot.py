@@ -235,13 +235,20 @@ class TradingViewScreenshotGenerator:
                 except:
                     pass
                 
-                # Take screenshot
-                await page.screenshot(
-                    path=output_path,
-                    full_page=False,
-                    quality=95,
-                    type='png'
-                )
+                # Take screenshot with conditional quality parameter
+                if output_path.endswith(".jpg") or output_path.endswith(".jpeg"):
+                    await page.screenshot(
+                        path=output_path,
+                        full_page=False,
+                        quality=95,
+                        type='jpeg'
+                    )
+                else:
+                    await page.screenshot(
+                        path=output_path,
+                        full_page=False,
+                        type='png'
+                    )
                 
                 # Verify file was created and has reasonable size
                 if os.path.exists(output_path):
