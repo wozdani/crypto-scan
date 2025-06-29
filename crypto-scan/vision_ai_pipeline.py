@@ -22,21 +22,23 @@ def save_training_chart(df: pd.DataFrame, symbol: str, timestamp: str,
                        tjde_score: float = None, clip_confidence: float = None,
                        market_phase: str = None, decision: str = None) -> str:
     """
-    Save professional training chart using custom candlestick generation
-    🎯 RESTRICTED TO TOP 5 TJDE TOKENS ONLY
+    🚫 MATPLOTLIB CHART GENERATION DISABLED - TradingView-only system active
+    
+    This function now returns None and redirects to TradingView screenshot system.
+    No matplotlib charts are generated to maintain dataset quality.
     
     Args:
-        df: OHLCV DataFrame with proper index
+        df: OHLCV DataFrame (ignored)
         symbol: Trading symbol
-        timestamp: Timestamp string
-        folder: Output folder path
-        tjde_score: TJDE score for metadata
-        clip_confidence: CLIP confidence for metadata
-        market_phase: Market phase for metadata
-        decision: TJDE decision for metadata
+        timestamp: Timestamp string (ignored)
+        folder: Output folder path (ignored)
+        tjde_score: TJDE score for metadata (ignored)
+        clip_confidence: CLIP confidence for metadata (ignored)
+        market_phase: Market phase for metadata (ignored)
+        decision: TJDE decision for metadata (ignored)
         
     Returns:
-        Path to saved chart
+        None - Function disabled, use TradingView screenshot system
     """
     try:
         # 🎯 CRITICAL FIX: Check TOP 5 status before generating training charts

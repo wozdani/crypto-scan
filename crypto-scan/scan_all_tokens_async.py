@@ -267,16 +267,35 @@ def generate_top_tjde_charts(results: List[Dict]):
             try:
                 print(f"   🔄 Attempting TradingView chart generation...")
                 
-                # Import TradingView async fix for thread-safe generation
-                from utils.tradingview_async_fix import TradingViewAsyncFix
+                # Use sync wrapper to avoid event loop conflicts
+                from utils.tradingview_sync_wrapper import generate_tradingview_screenshot_sync
                 
-                # Generate single TradingView chart
-                tv_fix = TradingViewAsyncFix()
-                chart_path = tv_fix.generate_single_chart(
+                # Extract setup type from GPT comment
+                gpt_comment = entry.get('gpt_comment', '')
+                setup_type = 'unknown'
+                
+                if gpt_comment:
+                    if 'breakout' in gpt_comment.lower():
+                        setup_type = 'breakout_continuation'
+                    elif 'pullback' in gpt_comment.lower():
+                        setup_type = 'pullback_in_trend'
+                    elif 'consolidation' in gpt_comment.lower():
+                        setup_type = 'range_consolidation'
+                    elif 'support' in gpt_comment.lower():
+                        setup_type = 'support_bounce'
+                    elif 'resistance' in gpt_comment.lower():
+                        setup_type = 'resistance_test'
+                    else:
+                        setup_type = market_phase.replace('-', '_') if market_phase else 'unknown'
+                else:
+                    setup_type = market_phase.replace('-', '_') if market_phase else 'unknown'
+                
+                # Generate TradingView chart using sync wrapper (fixes event loop conflicts)
+                chart_path = generate_tradingview_screenshot_sync(
                     symbol=symbol, 
-                    tjde_score=tjde_score, 
-                    market_phase=market_phase,
-                    tjde_decision=tjde_decision
+                    phase=market_phase or 'unknown',
+                    setup=setup_type,
+                    score=tjde_score
                 )
                 
                 if chart_path and os.path.exists(chart_path):
@@ -289,60 +308,27 @@ def generate_top_tjde_charts(results: List[Dict]):
             except Exception as tv_e:
                 print(f"   ⚠️ TradingView error: {tv_e} - trying fallback...")
             
-            # METHOD 2: Generate PLACEHOLDER instead of fallback matplotlib
+            # METHOD 2: Use fallback eliminator instead of matplotlib fallback
             if not chart_generated:
                 try:
                     print(f"   🔄 Creating TradingView FAILED placeholder...")
                     
-                    # Extract setup from GPT commentary if available
-                    gpt_comment = entry.get('gpt_comment', '')
-                    setup_type = 'unknown'
+                    # Use the fallback eliminator for proper placeholder creation
+                    from utils.tradingview_fallback_eliminator import handle_tradingview_failure_safe
                     
-                    if gpt_comment:
-                        if 'breakout' in gpt_comment.lower():
-                            setup_type = 'breakout_continuation'
-                        elif 'pullback' in gpt_comment.lower():
-                            setup_type = 'pullback_in_trend'
-                        elif 'consolidation' in gpt_comment.lower():
-                            setup_type = 'range_consolidation'
-                        elif 'support' in gpt_comment.lower():
-                            setup_type = 'support_bounce'
-                        elif 'resistance' in gpt_comment.lower():
-                            setup_type = 'resistance_test'
-                        else:
-                            setup_type = market_phase.replace('-', '_') if market_phase else 'unknown'
+                    placeholder_path = handle_tradingview_failure_safe(
+                        symbol=symbol,
+                        error_reason="sync_wrapper_failed",
+                        phase=market_phase or 'unknown',
+                        setup=setup_type,
+                        score=tjde_score
+                    )
+                    
+                    if placeholder_path:
+                        print(f"   ⚠️ TradingView FAILED - Created placeholder: {os.path.basename(placeholder_path)}")
+                        print(f"   🚫 NO MATPLOTLIB FALLBACK - TradingView-only system enforced")
                     else:
-                        setup_type = market_phase.replace('-', '_') if market_phase else 'unknown'
-                    
-                    # Generate new format filename: SYMBOL_phase-setup_score-xxx.png
-                    score_str = f"{int(tjde_score * 1000):03d}"  # Convert 0.427 to "427"
-                    new_filename = f"{symbol}_{market_phase or 'unknown'}-{setup_type}_score-{score_str}_TRADINGVIEW_FAILED.png"
-                    output_path = f"training_data/charts/{new_filename}"
-                    
-                    print(f"   📋 PLACEHOLDER FORMAT: {new_filename}")
-                    print(f"   📊 Data: Phase={market_phase or 'unknown'}, Setup={setup_type}, Score={tjde_score:.3f}")
-                    
-                    # 🚫 NO MATPLOTLIB GENERATION - Create placeholder file instead
-                    os.makedirs("training_data/charts", exist_ok=True)
-                    
-                    # Create simple text placeholder instead of matplotlib chart
-                    placeholder_content = f"""TradingView Screenshot Generation Failed
-Symbol: {symbol}
-Phase: {market_phase or 'unknown'}
-Setup: {setup_type}
-TJDE Score: {tjde_score:.3f}
-Decision: {tjde_decision}
-
-This placeholder indicates TradingView screenshot failed.
-No matplotlib fallback - TradingView-only system active.
-"""
-                    
-                    # Save as text file with .png extension to maintain compatibility
-                    with open(output_path.replace('.png', '_placeholder.txt'), 'w') as f:
-                        f.write(placeholder_content)
-                    
-                    print(f"   ⚠️ TradingView FAILED - Created placeholder: {os.path.basename(output_path.replace('.png', '_placeholder.txt'))}")
-                    print(f"   🚫 NO MATPLOTLIB FALLBACK - TradingView-only system enforced")
+                        print(f"   ❌ Placeholder creation also failed")
                     
                 except Exception as placeholder_e:
                     print(f"   ❌ Placeholder creation failed: {placeholder_e}")

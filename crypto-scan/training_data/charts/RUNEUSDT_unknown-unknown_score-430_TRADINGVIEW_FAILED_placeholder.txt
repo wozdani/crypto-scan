@@ -1,0 +1,9 @@
+TradingView Screenshot Generation Failed
+Symbol: RUNEUSDT
+Phase: unknown
+Setup: unknown
+TJDE Score: 0.430
+Decision: avoid
+
+This placeholder indicates TradingView screenshot failed.
+No matplotlib fallback - TradingView-only system active.
