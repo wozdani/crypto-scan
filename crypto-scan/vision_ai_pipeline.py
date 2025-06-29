@@ -473,11 +473,19 @@ def generate_vision_ai_training_data(tjde_results: List[Dict], vision_ai_mode: s
     try:
         print(f"[TRADINGVIEW-ONLY] 🎯 Starting TradingView-only chart generation pipeline")
         
+        # 🎯 CRITICAL FIX: Use TOP 5 tokens for TradingView chart generation
+        # First select TOP 5 tokens to prevent generating charts for all tokens
+        top5_results = prepare_top5_training_data(tjde_results)
+        
+        if not top5_results:
+            print("[TRADINGVIEW-ONLY] No TOP 5 tokens available for chart generation")
+            return 0
+        
         # Import TradingView-only pipeline
         from utils.tradingview_only_pipeline import generate_tradingview_only_charts
         
-        # Generate authentic TradingView screenshots ONLY
-        chart_mapping = generate_tradingview_only_charts(tjde_results)
+        # Generate authentic TradingView screenshots ONLY for TOP 5 tokens
+        chart_mapping = generate_tradingview_only_charts(top5_results)  # ✅ Use TOP 5 instead of all results
         
         charts_generated = len(chart_mapping)
         
@@ -490,7 +498,7 @@ def generate_vision_ai_training_data(tjde_results: List[Dict], vision_ai_mode: s
             
         # Generate metadata for training (but NO fallback charts)
         training_pairs_created = 0
-        top5_results = prepare_top5_training_data(tjde_results)
+        # ✅ Use already prepared TOP 5 results instead of calling prepare_top5_training_data again
         
         if top5_results and vision_ai_mode != "minimal":
             timestamp = datetime.now().strftime("%Y%m%d_%H%M")

@@ -250,15 +250,15 @@ def generate_top_tjde_charts(results: List[Dict]):
             print("\n🎯 VISION-AI PIPELINE: No training data generated")
             log_global_error("Vision-AI Pipeline", "No training data generated")
         
-        # Original chart generation logic (kept for compatibility)
-        valid_results = [r for r in results if r.get('tjde_score', 0) > 0]
+        # 🎯 CRITICAL FIX: Use ONLY TOP 5 tokens instead of all valid results
+        # This prevents generating charts for every token and maintains dataset quality
         
-        if not valid_results:
-            print("[CHART GEN] No valid TJDE results for chart generation")
+        if not top5_tokens:
+            print("[CHART GEN] No TOP 5 TJDE tokens available for chart generation")
             return
             
-        # Sort by TJDE score descending and take TOP 5
-        top_5_tjde = sorted(valid_results, key=lambda x: x.get('tjde_score', 0), reverse=True)[:5]
+        # Use the already selected TOP 5 tokens instead of reprocessing all results
+        top_5_tjde = top5_tokens  # ✅ Use pre-selected TOP 5 instead of sorting all results again
         
         print(f"\n📊 GENERATING CHARTS FOR TOP 5 TJDE TOKENS:")
         
