@@ -224,10 +224,19 @@ def generate_top_tjde_charts(results: List[Dict]):
         # Apply force refresh for fresh TradingView charts (ONLY for TOP 5)
         from utils.force_refresh_charts import force_refresh_vision_ai_charts
         
-        # 🚫 TEMPORARILY DISABLED: TradingView generation due to browser dependency issues
-        print("⚠️ [TRADINGVIEW DISABLED] TradingView chart generation temporarily disabled - browser dependencies missing")
-        print("📊 [FALLBACK] Using matplotlib-based chart generation for training data")
-        fresh_charts = None
+        # Generate fresh TradingView charts for TOP 5 TJDE tokens ONLY
+        print("🔄 [FORCE REFRESH] Generating fresh TradingView charts for Vision-AI training")
+        fresh_charts = force_refresh_vision_ai_charts(
+            tjde_results=top5_tokens,  # ✅ Use TOP 5 instead of all results
+            min_score=0.3,  # Lower threshold since these are already top performers
+            max_symbols=5,
+            force_regenerate=True
+        )
+        
+        if fresh_charts:
+            print(f"✅ [FORCE REFRESH] Generated {len(fresh_charts)} fresh TradingView charts")
+        else:
+            print("❌ [FORCE REFRESH] No fresh charts generated - falling back to Vision-AI pipeline")
         
         # Import Vision-AI pipeline for additional processing
         from vision_ai_pipeline import generate_vision_ai_training_data
@@ -295,12 +304,28 @@ def generate_top_tjde_charts(results: List[Dict]):
                 candles_15m = market_data.get('candles_15m', market_data.get('candles', []))
                 candles_5m = market_data.get('candles_5m', [])
                 
+                # 🆘 EMERGENCY FALLBACK: Fetch from saved cache if market_data is empty
+                if not candles_15m or len(candles_15m) < 20:
+                    print(f"[CACHE FETCH] {symbol} → market_data has {len(candles_15m)} candles, fetching from cache...")
+                    try:
+                        import json
+                        import os
+                        cache_file = f"data/scan_results/{symbol}_candles.json"
+                        if os.path.exists(cache_file):
+                            with open(cache_file, 'r') as f:
+                                cached_data = json.load(f)
+                                candles_15m = cached_data.get('candles_15m', [])
+                                candles_5m = cached_data.get('candles_5m', [])
+                                print(f"[CACHE SUCCESS] {symbol} → Loaded {len(candles_15m)} 15M, {len(candles_5m)} 5M candles from cache")
+                    except Exception as e:
+                        print(f"[CACHE ERROR] {symbol} → Failed to load from cache: {e}")
+                
                 print(f"[TJDE CHART DEBUG] {symbol} → 15M candles: {len(candles_15m)}, 5M candles: {len(candles_5m)}")
                 if candles_15m:
                     print(f"[TJDE CHART DEBUG] {symbol} → recent_candle timestamp: {candles_15m[-1][0] if isinstance(candles_15m[-1], (list, tuple)) else 'unknown format'}")
                 
                 if not candles_15m or len(candles_15m) < 20:
-                    print(f"   [SKIP] {symbol}: Insufficient candle data after Vision-AI check")
+                    print(f"   [SKIP] {symbol}: Insufficient candle data even after cache fetch")
                     log_token_error(symbol, "CHART", f"Insufficient candle data: {len(candles_15m) if candles_15m else 0} candles")
                     continue
                 

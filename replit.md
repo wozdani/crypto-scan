@@ -119,6 +119,9 @@ Successfully resolved critical issue where TOP 5 TJDE tokens showed "Insufficien
 - **Fallback Chart System**: System now uses matplotlib-based chart generation for training data while TradingView dependency issues are resolved
 - **TOP 5 Integration Maintained**: All fixes preserve TOP 5 token selection system ensuring dataset quality protection
 - **Comprehensive Testing**: Verified fix extracts 96 15M candles correctly vs old logic that found 0 candles
+- **TradingView Re-enabled**: Re-enabled TradingView generation for production deployment with Playwright support
+- **Market Data Pipeline Fix**: Added complete market_data structure to scan_token_async.py results including candles_15m and candles_5m for chart generation
+- **Emergency Cache Fallback**: Implemented fallback system to load candles from cache when market_data is incomplete
 System now correctly processes candle data for chart generation eliminating "Insufficient candle data" errors that were blocking training data generation for valid TOP 5 TJDE tokens.
 
 ### June 28, 2025 - Complete Production Fixes - All Critical Issues Resolved - PRODUCTION READY ✅

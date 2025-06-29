@@ -841,7 +841,17 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             "alert_sent": alert_sent,
             "training_chart_saved": training_chart_saved,
             "timestamp": datetime.now().isoformat(),
-            "processing_time": processing_time
+            "processing_time": processing_time,
+            # 🎯 CRITICAL FIX: Include market_data for chart generation
+            "market_data": {
+                "symbol": symbol,
+                "price_usd": price,
+                "volume_24h": volume_24h,
+                "candles_15m": candles_15m,
+                "candles_5m": candles_5m,
+                "orderbook": orderbook_data,
+                "data_sources": getattr(market_data, 'data_sources', ['cache']) if market_data else ['cache']
+            }
         }
         
         return result
