@@ -151,6 +151,23 @@ class RobustTradingViewGenerator:
                 print("[ROBUST TV ERROR] Chart failed to load")
                 return None
             
+            # Check for "Invalid symbol" error before taking screenshot
+            try:
+                invalid_symbol = await self.page.locator("text=Invalid symbol").is_visible()
+                if invalid_symbol:
+                    print(f"[ROBUST TV ERROR] Invalid symbol detected for {tv_symbol}")
+                    return "INVALID_SYMBOL"  # Special return value to trigger fallback
+                    
+                # Also check for other error indicators
+                symbol_not_found = await self.page.locator("text=Symbol not found").is_visible()
+                if symbol_not_found:
+                    print(f"[ROBUST TV ERROR] Symbol not found: {tv_symbol}")
+                    return "INVALID_SYMBOL"
+                    
+            except Exception as validation_error:
+                print(f"[ROBUST TV WARNING] Symbol validation failed: {validation_error}")
+                # Continue with screenshot anyway if validation fails
+            
             # Take screenshot
             try:
                 screenshot_data = await self.page.screenshot(

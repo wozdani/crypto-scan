@@ -189,6 +189,22 @@ class MultiExchangeResolver:
         
         return url
     
+    def get_all_possible_exchanges(self, symbol: str) -> List[Tuple[str, str]]:
+        """Get all possible exchange combinations for fallback purposes"""
+        
+        exchanges = ["BINANCE", "BYBIT", "MEXC", "OKX", "GATEIO", "KUCOIN"]
+        possible_combinations = []
+        
+        for exchange in exchanges:
+            tv_symbol = f"{exchange}:{symbol}"
+            
+            # Quick likelihood check
+            if self._test_exchange_availability(tv_symbol, exchange):
+                possible_combinations.append((tv_symbol, exchange))
+        
+        print(f"[RESOLVER] 🔄 Found {len(possible_combinations)} possible exchanges for {symbol}")
+        return possible_combinations
+    
     def batch_resolve_symbols(self, symbols: List[str]) -> Dict[str, Optional[Tuple[str, str]]]:
         """Resolve multiple symbols at once"""
         

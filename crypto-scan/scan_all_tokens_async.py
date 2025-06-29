@@ -301,7 +301,7 @@ async def generate_top_tjde_charts(results: List[Dict]):
             # 🎯 SINGLE CHART GENERATION: Try TradingView first, then fallback to custom
             chart_generated = False
             
-            # METHOD 1: Try TradingView generation (authentic charts)
+            # METHOD 1: Try TradingView generation (authentic charts) with multi-exchange fallback
             try:
                 print(f"   🔄 Attempting TradingView chart generation...")
                 
@@ -316,7 +316,50 @@ async def generate_top_tjde_charts(results: List[Dict]):
                         decision=entry.get('decision', 'unknown')
                     )
                 
-                if chart_path and os.path.exists(chart_path):
+                # Handle invalid symbol case - try alternative exchanges
+                if chart_path == "INVALID_SYMBOL":
+                    print(f"   ⚠️ Invalid symbol detected - trying alternative exchanges...")
+                    
+                    # Try alternative exchanges using multi-exchange resolver
+                    from utils.multi_exchange_resolver import get_multi_exchange_resolver
+                    resolver = get_multi_exchange_resolver()
+                    
+                    if resolver:
+                        # Get all possible exchange combinations
+                        alternative_results = resolver.get_all_possible_exchanges(symbol)
+                        
+                        # Get the original failed exchange to skip it
+                        original_resolution = resolver.resolve_tradingview_symbol(symbol)
+                        original_exchange = original_resolution[1] if original_resolution else "UNKNOWN"
+                        
+                        for i, (tv_symbol, exchange) in enumerate(alternative_results[:3]):  # Try up to 3 alternatives
+                            if exchange != original_exchange:  # Skip the one that already failed
+                                print(f"   🔄 Trying alternative: {tv_symbol} ({exchange})")
+                                
+                                # Temporarily override resolver result
+                                resolver.cache[symbol] = (tv_symbol, exchange)
+                                
+                                # Try generation with alternative exchange
+                                alt_chart_path = await generator.generate_screenshot(
+                                    symbol=symbol, 
+                                    tjde_score=tjde_score,
+                                    decision=entry.get('decision', 'unknown')
+                                )
+                                
+                                if alt_chart_path and alt_chart_path != "INVALID_SYMBOL" and os.path.exists(alt_chart_path):
+                                    print(f"   ✅ Alternative success: {os.path.basename(alt_chart_path)}")
+                                    generated_charts[symbol] = alt_chart_path
+                                    chart_generated = True
+                                    break
+                                elif alt_chart_path == "INVALID_SYMBOL":
+                                    print(f"   ❌ Alternative {exchange} also invalid")
+                                else:
+                                    print(f"   ❌ Alternative {exchange} failed: {alt_chart_path}")
+                    
+                    if not chart_generated:
+                        print(f"   ❌ All exchanges failed for {symbol}")
+                
+                elif chart_path and os.path.exists(chart_path):
                     print(f"   ✅ TradingView chart: {os.path.basename(chart_path)}")
                     generated_charts[symbol] = chart_path
                     chart_generated = True
