@@ -411,10 +411,10 @@ class AsyncCryptoScanner:
                 else:
                     print(f"✅ Batch {batch_num}: {len(valid_results)}/{len(batch)} successful | Rate: {rate:.1f} tokens/s")
                 
-                # Early termination check for performance
-                if elapsed > 12 and self.fast_mode:  # Stop at 12s in fast mode
-                    print(f"⚡ FAST MODE: Early termination at {elapsed:.1f}s to meet <15s target")
-                    break
+                # Early termination check for performance (disabled to allow full 752 token processing)
+                # if elapsed > 12 and self.fast_mode:  # Stop at 12s in fast mode
+                #     print(f"⚡ FAST MODE: Early termination at {elapsed:.1f}s to meet <15s target")
+                #     break
                     
             except asyncio.TimeoutError:
                 if not self.fast_mode:
