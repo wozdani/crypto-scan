@@ -1,0 +1,10 @@
+TRADINGVIEW SCREENSHOT FAILED
+Symbol: RLCUSDT
+Phase: unknown
+Setup: unknown  
+Score: 0.431
+Error: sync_wrapper_failed
+Timestamp: 2025-06-29T17:08:45.022423
+
+Note: This is a placeholder file created because TradingView screenshot generation failed.
+No matplotlib fallback was used to maintain dataset quality.
