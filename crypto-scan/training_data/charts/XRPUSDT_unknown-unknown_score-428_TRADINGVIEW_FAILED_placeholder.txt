@@ -1,10 +1,10 @@
 TRADINGVIEW SCREENSHOT FAILED
-Symbol: CTSIUSDT
+Symbol: XRPUSDT
 Phase: unknown
 Setup: unknown  
-Score: 0.428
+Score: 0.429
 Error: sync_wrapper_failed
-Timestamp: 2025-06-29T17:13:41.343157
+Timestamp: 2025-06-29T17:13:40.715784
 
 Note: This is a placeholder file created because TradingView screenshot generation failed.
 No matplotlib fallback was used to maintain dataset quality.
