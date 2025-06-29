@@ -2,7 +2,7 @@ modules = ["python-3.11", "python3"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["cairo", "ffmpeg-full", "freetype", "ghostscript", "gitFull", "glibcLocales", "gobject-introspection", "gtk3", "lcms2", "libimagequant", "libjpeg", "libjpeg_turbo", "libpng", "libtiff", "libwebp", "libxcrypt", "openjpeg", "openssl", "pkg-config", "playwright-driver", "qhull", "tcl", "tk", "unzip", "which", "zlib"]
+packages = ["cairo", "ffmpeg-full", "freetype", "ghostscript", "gitFull", "glibcLocales", "gobject-introspection", "gtk3", "lcms2", "libimagequant", "libjpeg", "libjpeg_turbo", "libpng", "libtiff", "libwebp", "libxcrypt", "openjpeg", "openssl", "pkg-config", "playwright-driver", "qhull", "tcl", "tk", "unzip", "which", "zlib", "chromium"]
 
 [workflows]
 runButton = "Project"

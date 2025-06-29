@@ -145,7 +145,11 @@ class TradingViewScreenshotGenerator:
                 
                 possible_paths = [
                     '/home/runner/workspace/.cache/ms-playwright/chromium-1091/chrome-linux/chrome',
-                    '/home/runner/workspace/.cache/ms-playwright/chromium_headless_shell-1179/chrome-linux/headless_shell'
+                    '/home/runner/workspace/.cache/ms-playwright/chromium_headless_shell-1179/chrome-linux/headless_shell',
+                    '/usr/bin/chromium',
+                    '/usr/bin/chromium-browser',
+                    '/usr/bin/google-chrome',
+                    '/nix/store/*/bin/chromium'
                 ]
                 
                 browser_launched = False
