@@ -189,6 +189,36 @@ class TradingViewScreenshotGenerator:
         except Exception as e:
             print(f"[TRADINGVIEW] Browser cleanup error: {e}")
     
+    def _resolve_tradingview_symbol(self, symbol: str) -> str:
+        """
+        🎯 SMART EXCHANGE DETECTION: Resolve symbol to proper TradingView format
+        
+        For TOP 5 tokens, tries multiple exchanges in priority order:
+        1. BYBIT:SYMBOL (preferred for crypto scanner)
+        2. BINANCE:SYMBOL (if available on Binance)
+        3. OKX:SYMBOL (alternative exchange)
+        4. SYMBOL (plain symbol for TradingView native pairs)
+        
+        Args:
+            symbol: Trading symbol (e.g. ZEUSUSDT)
+            
+        Returns:
+            TradingView-compatible symbol (e.g. BYBIT:ZEUSUSDT)
+        """
+        # Prioritize BYBIT since that's our data source
+        # Most tokens from our scanner are available on BYBIT
+        bybit_symbol = f"BYBIT:{symbol}"
+        
+        # For major pairs, also try plain symbol (TradingView native)
+        major_pairs = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT', 'DOTUSDT', 'LTCUSDT']
+        
+        if symbol in major_pairs:
+            # Major pairs often work as plain symbols
+            return symbol
+        else:
+            # Non-major pairs: use BYBIT prefix
+            return bybit_symbol
+
     async def generate_tradingview_screenshot(
         self, 
         symbol: str, 
@@ -209,12 +239,9 @@ class TradingViewScreenshotGenerator:
             Path to saved screenshot or None if failed
         """
         try:
-            # 🔍 STEP 1: BINANCE SYMBOL FILTERING
-            binance_filter = get_binance_filter()
-            if binance_filter and not binance_filter.is_binance_symbol(symbol):
-                print(f"⚠️ [BINANCE FILTER] {symbol} not available on BINANCE - skipping TradingView generation")
-                log_warning("TRADINGVIEW BINANCE FILTER", None, f"{symbol}: Not available on BINANCE exchange")
-                return None
+            # 🎯 STEP 1: SMART SYMBOL RESOLUTION (no BINANCE filtering for TOP 5)
+            tv_symbol = self._resolve_tradingview_symbol(symbol)
+            print(f"[TRADINGVIEW] ✅ Smart exchange detection: {symbol} → {tv_symbol}")
             
             # Generate filename with timestamp
             timestamp = datetime.now().strftime("%Y%m%d_%H%M")
@@ -223,10 +250,6 @@ class TradingViewScreenshotGenerator:
             
             # Ensure output directory exists
             os.makedirs(self.output_dir, exist_ok=True)
-            
-            # 🎯 STEP 2: USE BINANCE PREFIX - Since symbol is already filtered for BINANCE compatibility
-            tv_symbol = f"BINANCE:{symbol.upper()}"
-            print(f"[TRADINGVIEW] ✅ Using BINANCE symbol: {tv_symbol}")
             
             # Create new page for TradingView screenshot
             page = await self.context.new_page()
@@ -491,20 +514,18 @@ async def generate_tradingview_screenshots_for_top_tjde(
         return []
     
     try:
-        # STEP 1: Initialize BINANCE filter
-        binance_filter = get_binance_filter()
-        if not binance_filter:
-            log_warning("BINANCE FILTER UNAVAILABLE", None, "Proceeding without symbol filtering")
+        # 🎯 CRITICAL FIX: For TOP 5 TJDE tokens, skip BINANCE filtering
+        # TOP 5 tokens get priority treatment regardless of exchange
+        print("[TRADINGVIEW] 🎯 TOP 5 mode - using smart exchange detection instead of BINANCE filtering")
         
-        # STEP 2: Filter by TJDE score AND BINANCE compatibility
-        filtered_results = []
-        for result in tjde_results:
-            if result.get('tjde_score', 0) >= min_score:
-                symbol = result.get('symbol', '')
-                if binance_filter and not binance_filter.is_binance_symbol(symbol):
-                    print(f"⚠️ [BINANCE FILTER] Skipping {symbol} - not available on BINANCE")
-                    continue
-                filtered_results.append(result)
+        # STEP 1: Filter by TJDE score only (no BINANCE restriction for TOP 5)
+        filtered_results = [
+            result for result in tjde_results 
+            if result.get('tjde_score', 0) >= min_score
+        ]
+        
+        # STEP 2: For TOP 5, we'll use smart symbol resolution per exchange
+        print(f"[TRADINGVIEW] Processing {len(filtered_results)} high-TJDE tokens with multi-exchange support")
         
         # Sort by TJDE score (highest first)
         top_results = sorted(

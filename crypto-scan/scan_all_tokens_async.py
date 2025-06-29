@@ -358,13 +358,59 @@ def generate_top_tjde_charts(results: List[Dict]):
         for symbol, path in generated_charts.items():
             print(f"   • {symbol}: {os.path.basename(path)}")
         
-        # Generate Vision-AI metadata (NO additional charts)
+        # Generate Vision-AI metadata ONLY (NO additional chart generation)
         try:
-            from vision_ai_pipeline import generate_vision_ai_training_data
-            training_pairs = generate_vision_ai_training_data(top5_tokens, "metadata_only")
+            print("[VISION-AI] 🎯 Generating metadata for TOP 5 tokens (no duplicate charts)")
+            
+            # Generate metadata directly without calling generate_vision_ai_training_data 
+            # to prevent duplicate TradingView pipeline execution
+            from vision_ai_pipeline import save_label_jsonl
+            from datetime import datetime
+            
+            training_pairs = 0
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+            
+            for symbol in top5_tokens:
+                try:
+                    # Find the token data from results
+                    token_data = None
+                    for result in results:  # Use 'results' instead of undefined 'top5_results'
+                        if result.get('symbol') == symbol:
+                            token_data = result
+                            break
+                    
+                    if not token_data:
+                        continue
+                    
+                    tjde_score = token_data.get('tjde_score', 0)
+                    phase = token_data.get('market_phase', 'unknown')
+                    decision = token_data.get('tjde_decision', 'unknown')
+                    setup = token_data.get('setup_type', phase)
+                    clip_confidence = token_data.get('clip_confidence', 0.0)
+                    
+                    # Create training metadata
+                    label_data = {
+                        "phase": phase,
+                        "setup": setup,
+                        "tjde_score": tjde_score,
+                        "tjde_decision": decision,
+                        "confidence": clip_confidence,
+                        "data_source": "unified_generation",
+                        "chart_type": "authentic_tradingview",
+                        "has_chart": symbol in generated_charts,
+                        "chart_path": generated_charts.get(symbol, None)
+                    }
+                    
+                    if save_label_jsonl(symbol, timestamp, label_data):
+                        training_pairs += 1
+                        print(f"[VISION-AI] Label saved: {symbol} - {setup}")
+                        
+                except Exception as e:
+                    print(f"[VISION-AI ERROR] {symbol}: {e}")
             
             if training_pairs > 0:
-                print(f"🎯 VISION-AI METADATA: {training_pairs} training pairs")
+                print(f"🎯 VISION-AI METADATA: {training_pairs} training pairs (no duplicate generation)")
+                
         except Exception as metadata_e:
             print(f"⚠️ Vision-AI metadata generation failed: {metadata_e}")
         
