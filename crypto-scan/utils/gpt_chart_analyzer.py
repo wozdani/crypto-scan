@@ -233,19 +233,29 @@ Keep it concise and technical."""
         try:
             from utils.gpt_label_consistency import check_gpt_label_consistency
             
-            # Extract labels from analysis and commentary separately
-            # Look for both SETUP: pattern and general content
-            setup_pattern = re.search(r'SETUP:\s*([^\n]+)', gpt_analysis or "", re.IGNORECASE)
-            analysis_pattern = re.search(r'ANALYSIS:\s*([^\n]+)', gpt_analysis or "", re.IGNORECASE)
+            # FIXED: Compare two different label sources
+            # 1. setup_label comes from extract_setup_label_from_commentary() 
+            # 2. Extract SETUP: field directly from GPT response
             
-            analysis_text = setup_pattern.group(1) if setup_pattern else ""
-            commentary_text = analysis_pattern.group(1) if analysis_pattern else gpt_analysis or ""
+            # Extract SETUP: field from GPT response (direct field)
+            setup_field_pattern = re.search(r'\*\*SETUP:\*\*\s*([^\n*]+)', gpt_analysis or "", re.IGNORECASE)
+            if not setup_field_pattern:
+                setup_field_pattern = re.search(r'SETUP:\s*([^\n]+)', gpt_analysis or "", re.IGNORECASE)
             
-            consistency_check = check_gpt_label_consistency(
-                gpt_analysis=analysis_text,
-                gpt_commentary=commentary_text,
-                symbol=symbol
-            )
+            setup_field_text = setup_field_pattern.group(1).strip() if setup_field_pattern else ""
+            
+            # Compare setup_label (from commentary extraction) vs setup_field_text (from direct parsing)
+            if setup_label and setup_field_text and setup_label != setup_field_text:
+                print(f"[CONFLICT DEBUG] {symbol}: setup_label='{setup_label}' vs setup_field='{setup_field_text}'")
+                
+                consistency_check = check_gpt_label_consistency(
+                    gpt_analysis=setup_label,  # From extract_setup_label_from_commentary()
+                    gpt_commentary=setup_field_text,  # From **SETUP:** field
+                    symbol=symbol
+                )
+            else:
+                # No conflict if labels are identical or one is missing
+                consistency_check = {"has_conflict": False, "reason": "identical_or_missing"}
             
             # If critical conflict detected, flag for review
             if consistency_check.get('has_conflict') and consistency_check.get('severity') == 'critical':
