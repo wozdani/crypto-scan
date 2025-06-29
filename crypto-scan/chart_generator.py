@@ -197,7 +197,13 @@ def generate_alert_focused_training_chart(
     Returns:
         Ścieżka do wygenerowanego wykresu lub None
     """
-    try:
+    # 🚫 MATPLOTLIB CHART GENERATION DISABLED - TradingView-only system active
+    print(f"[MATPLOTLIB DISABLED] {symbol} → Chart generation disabled, using TradingView-only system")
+    return None
+    
+    # Keep original code for reference but disable execution
+    if False:  # ✅ DISABLED to enforce TradingView-only generation
+        try:
         if not candles_15m or len(candles_15m) < 20:
             print(f"[CHART WARNING] {symbol}: Za mało danych świecowych ({len(candles_15m) if candles_15m else 0})")
             return None
