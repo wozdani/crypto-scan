@@ -309,8 +309,8 @@ def simple_scan_fallback(symbols):
         import asyncio
         from scan_all_tokens_async import scan_symbols_async
         
-        # Run with lower concurrency for stability
-        results = asyncio.run(scan_symbols_async(symbols[:100], max_concurrent=8))
+        # Run with lower concurrency for stability but ALL symbols
+        results = asyncio.run(scan_symbols_async(symbols, max_concurrent=8))
         print(f"Async batch fallback processed {len(results)} tokens")
         
         if len(results) == 0:
