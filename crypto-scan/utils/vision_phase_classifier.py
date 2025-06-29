@@ -89,10 +89,6 @@ class VisionPhaseClassifier:
         """
         print(f"[MATPLOTLIB DISABLED] {symbol} → Vision chart generation disabled, using TradingView-only system")
         return None
-            
-        except Exception as e:
-            print(f"[VISION] ❌ Chart generation failed: {e}")
-            return None
     
     def predict_chart_setup(self, image_path: str) -> Dict:
         """
