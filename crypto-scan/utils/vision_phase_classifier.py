@@ -76,88 +76,19 @@ class VisionPhaseClassifier:
     
     def generate_chart_image(self, symbol: str, candles: List[List], save_path: str = None, style: str = "vision") -> str:
         """
-        Generate chart image from candle data using matplotlib
+        🚫 MATPLOTLIB CHART GENERATION DISABLED - TradingView-only system active
         
         Args:
             symbol: Trading symbol
             candles: OHLCV candle data
             save_path: Optional custom save path
+            style: Chart style
             
         Returns:
-            Path to generated chart image
+            None - Function disabled, use TradingView screenshot system
         """
-        try:
-            if not candles or len(candles) < 10:
-                raise ValueError("Insufficient candle data for chart generation")
-            
-            # Prepare data
-            timestamps = [candle[0] for candle in candles]
-            opens = [float(candle[1]) for candle in candles]
-            highs = [float(candle[2]) for candle in candles]
-            lows = [float(candle[3]) for candle in candles]
-            closes = [float(candle[4]) for candle in candles]
-            volumes = [float(candle[5]) for candle in candles]
-            
-            # Convert timestamps to datetime
-            dates = [datetime.fromtimestamp(ts/1000) for ts in timestamps]
-            
-            # Create chart
-            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), height_ratios=[3, 1])
-            
-            # Price chart with candlesticks
-            for i, (date, open_price, high, low, close) in enumerate(zip(dates, opens, highs, lows, closes)):
-                color = 'green' if close >= open_price else 'red'
-                # Body
-                ax1.plot([date, date], [min(open_price, close), max(open_price, close)], 
-                        color=color, linewidth=3, alpha=0.8)
-                # Wicks
-                ax1.plot([date, date], [low, high], color=color, linewidth=1, alpha=0.6)
-            
-            # Price line overlay
-            ax1.plot(dates, closes, color='blue', linewidth=1, alpha=0.7)
-            
-            # Moving averages
-            if len(closes) >= 21:
-                ma21 = np.convolve(closes, np.ones(21)/21, mode='valid')
-                ma21_dates = dates[20:]
-                ax1.plot(ma21_dates, ma21, color='orange', linewidth=1, label='MA21')
-            
-            if len(closes) >= 50:
-                ma50 = np.convolve(closes, np.ones(50)/50, mode='valid')
-                ma50_dates = dates[49:]
-                ax1.plot(ma50_dates, ma50, color='purple', linewidth=1, label='MA50')
-            
-            # Format price chart
-            ax1.set_title(f'{symbol} - Chart Analysis', fontsize=14, fontweight='bold')
-            ax1.set_ylabel('Price (USDT)', fontsize=12)
-            ax1.grid(True, alpha=0.3)
-            ax1.legend()
-            
-            # Volume chart
-            volume_colors = ['green' if closes[i] >= opens[i] else 'red' for i in range(len(closes))]
-            ax2.bar(dates, volumes, color=volume_colors, alpha=0.7, width=0.8)
-            ax2.set_ylabel('Volume', fontsize=12)
-            ax2.set_xlabel('Time', fontsize=12)
-            ax2.grid(True, alpha=0.3)
-            
-            # Format x-axis
-            for ax in [ax1, ax2]:
-                ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-                ax.xaxis.set_major_locator(mdates.HourLocator(interval=2))
-                plt.setp(ax.xaxis.get_majorticklabels(), rotation=45)
-            
-            plt.tight_layout()
-            
-            # Save chart
-            if not save_path:
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                save_path = self.snapshots_dir / f"{symbol}_{timestamp}.png"
-            
-            plt.savefig(save_path, dpi=150, bbox_inches='tight', facecolor='white')
-            plt.close()
-            
-            print(f"[VISION] 📊 Chart saved: {save_path}")
-            return str(save_path)
+        print(f"[MATPLOTLIB DISABLED] {symbol} → Vision chart generation disabled, using TradingView-only system")
+        return None
             
         except Exception as e:
             print(f"[VISION] ❌ Chart generation failed: {e}")

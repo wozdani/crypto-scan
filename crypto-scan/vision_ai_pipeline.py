@@ -3,11 +3,9 @@ Vision-AI CLIP Pipeline for Trend-Mode System
 Complete implementation of auto-labeled charts and CLIP-based training
 """
 
-import matplotlib
-matplotlib.use('Agg')  # Ensure non-interactive backend
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-import mplfinance as mpf
+# 🚫 MATPLOTLIB IMPORTS DISABLED - TradingView-only system active
+# All chart generation now uses authentic TradingView screenshots only
+# import mplfinance as mpf  # DISABLED for TradingView-only system
 import json
 import os
 import glob
