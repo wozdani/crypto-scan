@@ -218,7 +218,7 @@ async def async_scan_cycle():
         save_scan_summary(results)
         
         # Generate training charts for TOP 5 TJDE tokens only
-        generate_top_tjde_charts(results)
+        await generate_top_tjde_charts(results)
         
         # Check for high-value setups
         high_score_setups = [r for r in results if r.get('ppwcs_score', 0) >= 50 or r.get('tjde_score', 0) >= 0.8]
@@ -237,7 +237,7 @@ async def async_scan_cycle():
     
     return results
 
-def generate_top_tjde_charts(results: List[Dict]):
+async def generate_top_tjde_charts(results: List[Dict]):
     """🎯 UNIFIED: Generate training charts for TOP 5 TJDE tokens - SINGLE GENERATION PER TOKEN"""
     try:
         # 🎯 CRITICAL FIX: Select TOP 5 tokens first to prevent dataset quality degradation
