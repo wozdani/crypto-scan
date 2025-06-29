@@ -207,7 +207,7 @@ async def async_scan_cycle():
     return results
 
 def generate_top_tjde_charts(results: List[Dict]):
-    """Generate training charts and Vision-AI data for TOP 5 TJDE tokens only"""
+    """🎯 UNIFIED: Generate training charts for TOP 5 TJDE tokens - SINGLE GENERATION PER TOKEN"""
     try:
         # 🎯 CRITICAL FIX: Select TOP 5 tokens first to prevent dataset quality degradation
         from utils.top5_selector import select_top5_tjde_tokens, get_top5_selector
@@ -221,174 +221,160 @@ def generate_top_tjde_charts(results: List[Dict]):
         
         print(f"🎯 [TOP5 FILTER] Selected {len(top5_tokens)} tokens for training data generation")
         
-        # Apply force refresh for fresh TradingView charts (ONLY for TOP 5)
-        from utils.force_refresh_charts import force_refresh_vision_ai_charts
+        # 🔥 CRITICAL FIX: UNIFIED CHART GENERATION - Only ONE chart per token
+        # Track which tokens already have charts to prevent duplication
+        generated_charts = {}
         
-        # Generate fresh TradingView charts for TOP 5 TJDE tokens ONLY
-        print("🔄 [FORCE REFRESH] Generating fresh TradingView charts for Vision-AI training")
-        fresh_charts = force_refresh_vision_ai_charts(
-            tjde_results=top5_tokens,  # ✅ Use TOP 5 instead of all results
-            min_score=0.3,  # Lower threshold since these are already top performers
-            max_symbols=5,
-            force_regenerate=True
-        )
+        print(f"\n📊 UNIFIED CHART GENERATION FOR TOP 5 TJDE TOKENS:")
         
-        if fresh_charts:
-            print(f"✅ [FORCE REFRESH] Generated {len(fresh_charts)} fresh TradingView charts")
-        else:
-            print("❌ [FORCE REFRESH] No fresh charts generated - falling back to Vision-AI pipeline")
-        
-        # Import Vision-AI pipeline for additional processing
-        from vision_ai_pipeline import generate_vision_ai_training_data
-        
-        # Generate comprehensive Vision-AI training data (ONLY for TOP 5)
-        training_pairs = generate_vision_ai_training_data(top5_tokens, "full")  # ✅ Use TOP 5 instead of all results
-        
-        if training_pairs > 0:
-            print(f"\n🎯 VISION-AI PIPELINE: Generated {training_pairs} training pairs")
-        else:
-            print("\n🎯 VISION-AI PIPELINE: No training data generated")
-            log_global_error("Vision-AI Pipeline", "No training data generated")
-        
-        # 🎯 CRITICAL FIX: Use ONLY TOP 5 tokens instead of all valid results
-        # This prevents generating charts for every token and maintains dataset quality
-        
-        if not top5_tokens:
-            print("[CHART GEN] No TOP 5 TJDE tokens available for chart generation")
-            return
-            
-        # Use the already selected TOP 5 tokens instead of reprocessing all results
-        top_5_tjde = top5_tokens  # ✅ Use pre-selected TOP 5 instead of sorting all results again
-        
-        print(f"\n📊 GENERATING CHARTS FOR TOP 5 TJDE TOKENS:")
-        
-        chart_count = 0
-        for i, entry in enumerate(top_5_tjde, 1):
+        for i, entry in enumerate(top5_tokens, 1):
             symbol = entry.get('symbol', 'UNKNOWN')
             tjde_score = entry.get('tjde_score', 0)
             tjde_decision = entry.get('tjde_decision', 'unknown')
-            market_data = entry.get('market_data', {})
+            market_phase = entry.get('market_phase', 'unknown')
             
             print(f"{i}. {symbol}: TJDE {tjde_score:.3f} ({tjde_decision})")
             
+            # 🔍 CHECK: Does this token already have a recent chart?
+            import glob
+            import os
+            from datetime import datetime, timedelta
+            
+            current_time = datetime.now()
+            recent_pattern = f"training_data/charts/{symbol}_*.png"
+            existing_charts = glob.glob(recent_pattern)
+            
+            recent_chart_found = False
+            for chart_path in existing_charts:
+                try:
+                    # Check if chart is recent (within last 30 minutes)
+                    file_mtime = datetime.fromtimestamp(os.path.getmtime(chart_path))
+                    if (current_time - file_mtime).total_seconds() < 1800:  # 30 minutes
+                        print(f"   ✅ Using existing chart: {os.path.basename(chart_path)}")
+                        generated_charts[symbol] = chart_path
+                        recent_chart_found = True
+                        break
+                except:
+                    continue
+            
+            if recent_chart_found:
+                continue  # Skip to next token - already has recent chart
+            
+            # 🎯 SINGLE CHART GENERATION: Try TradingView first, then fallback to custom
+            chart_generated = False
+            
+            # METHOD 1: Try TradingView generation (authentic charts)
             try:
-                from chart_generator import generate_alert_focused_training_chart
+                print(f"   🔄 Attempting TradingView chart generation...")
                 
-                # CRITICAL FIX: Check if Vision-AI already generated charts for this token
-                import glob
-                import os
-                from datetime import datetime, timedelta
+                # Import TradingView async fix for thread-safe generation
+                from utils.tradingview_async_fix import TradingViewAsyncFix
                 
-                # Check for recent charts (last 30 minutes) to avoid duplicate work
-                current_time = datetime.now()
-                recent_pattern = f"training_data/charts/{symbol}_*.png"
-                existing_charts = glob.glob(recent_pattern)
+                # Generate single TradingView chart
+                tv_fix = TradingViewAsyncFix()
+                chart_path = tv_fix.generate_single_chart(
+                    symbol=symbol, 
+                    tjde_score=tjde_score, 
+                    market_phase=market_phase,
+                    tjde_decision=tjde_decision
+                )
                 
-                recent_chart_found = False
-                for chart_path in existing_charts:
-                    try:
-                        # Check if chart is recent (within last 30 minutes)
-                        file_mtime = datetime.fromtimestamp(os.path.getmtime(chart_path))
-                        if (current_time - file_mtime).total_seconds() < 1800:  # 30 minutes
-                            print(f"   ✅ Using existing Vision-AI chart: {chart_path}")
-                            chart_count += 1
-                            recent_chart_found = True
-                            break
-                    except:
-                        continue
-                
-                if recent_chart_found:
-                    continue  # Skip regeneration if recent chart exists
-                
-                # 🎯 CRITICAL FIX: Extract candle data from correct market_data fields
-                candles_15m = market_data.get('candles_15m', market_data.get('candles', []))
-                candles_5m = market_data.get('candles_5m', [])
-                
-                # 🆘 EMERGENCY FALLBACK: Fetch from saved cache if market_data is empty
-                if not candles_15m or len(candles_15m) < 20:
-                    print(f"[CACHE FETCH] {symbol} → market_data has {len(candles_15m)} candles, fetching from cache...")
-                    try:
+                if chart_path and os.path.exists(chart_path):
+                    print(f"   ✅ TradingView chart: {os.path.basename(chart_path)}")
+                    generated_charts[symbol] = chart_path
+                    chart_generated = True
+                else:
+                    print(f"   ⚠️ TradingView failed - trying fallback...")
+                    
+            except Exception as tv_e:
+                print(f"   ⚠️ TradingView error: {tv_e} - trying fallback...")
+            
+            # METHOD 2: Fallback to custom chart generation
+            if not chart_generated:
+                try:
+                    print(f"   🔄 Generating custom chart...")
+                    
+                    market_data = entry.get('market_data', {})
+                    candles_15m = market_data.get('candles_15m', market_data.get('candles', []))
+                    
+                    # Emergency cache fetch if no candles
+                    if not candles_15m or len(candles_15m) < 20:
                         import json
-                        import os
                         cache_file = f"data/scan_results/{symbol}_candles.json"
                         if os.path.exists(cache_file):
                             with open(cache_file, 'r') as f:
                                 cached_data = json.load(f)
                                 candles_15m = cached_data.get('candles_15m', [])
-                                candles_5m = cached_data.get('candles_5m', [])
-                                print(f"[CACHE SUCCESS] {symbol} → Loaded {len(candles_15m)} 15M, {len(candles_5m)} 5M candles from cache")
-                    except Exception as e:
-                        print(f"[CACHE ERROR] {symbol} → Failed to load from cache: {e}")
-                
-                print(f"[TJDE CHART DEBUG] {symbol} → 15M candles: {len(candles_15m)}, 5M candles: {len(candles_5m)}")
-                if candles_15m:
-                    last_candle = candles_15m[-1]
-                    candle_type = type(last_candle).__name__
-                    if isinstance(last_candle, (list, tuple)):
-                        timestamp_info = f"timestamp: {last_candle[0]}"
-                    elif isinstance(last_candle, dict):
-                        timestamp_info = f"timestamp: {last_candle.get('timestamp', last_candle.get('time', 'missing'))}"
-                    else:
-                        timestamp_info = f"format: {candle_type}, value: {str(last_candle)[:100]}"
-                    print(f"[TJDE CHART DEBUG] {symbol} → recent_candle {timestamp_info}")
-                
-                if not candles_15m or len(candles_15m) < 20:
-                    print(f"   [SKIP] {symbol}: Insufficient candle data even after cache fetch")
-                    log_token_error(symbol, "CHART", f"Insufficient candle data: {len(candles_15m) if candles_15m else 0} candles")
-                    continue
-                
-                # Generate custom trend-mode chart
-                try:
-                    from trend_charting import generate_trend_mode_chart
                     
-                    tjde_result = {
-                        'final_score': tjde_score,
-                        'market_phase': entry.get('market_phase', 'unknown'),
-                        'decision': tjde_decision,
-                        'clip_confidence': entry.get('clip_confidence', None),
-                        'breakdown': entry.get('breakdown', {})
-                    }
+                    if candles_15m and len(candles_15m) >= 20:
+                        # Generate custom chart using trend_charting
+                        try:
+                            from trend_charting import generate_trend_mode_chart
+                            
+                            tjde_result = {
+                                'final_score': tjde_score,
+                                'market_phase': market_phase,
+                                'decision': tjde_decision,
+                                'clip_confidence': entry.get('clip_confidence', None)
+                            }
+                            
+                            chart_path = generate_trend_mode_chart(
+                                symbol=symbol,
+                                candles_15m=candles_15m,
+                                tjde_result=tjde_result,
+                                output_dir="training_data/charts"
+                            )
+                            
+                            if chart_path:
+                                print(f"   ✅ Custom chart: {os.path.basename(chart_path)}")
+                                generated_charts[symbol] = chart_path
+                                chart_generated = True
+                            
+                        except ImportError:
+                            # Final fallback to basic chart generator
+                            from chart_generator import generate_alert_focused_training_chart
+                            chart_path = generate_alert_focused_training_chart(
+                                symbol=symbol,
+                                candles_15m=candles_15m,
+                                tjde_score=tjde_score,
+                                tjde_phase=market_phase,
+                                tjde_decision=tjde_decision
+                            )
+                            
+                            if chart_path:
+                                print(f"   ✅ Basic chart: {os.path.basename(chart_path)}")
+                                generated_charts[symbol] = chart_path
+                                chart_generated = True
                     
-                    # Determine if alert was sent based on score
-                    alert_sent = tjde_score >= 0.7 and tjde_decision in ['join_trend', 'consider_entry']
-                    
-                    chart_path = generate_trend_mode_chart(
-                        symbol=symbol,
-                        candles_15m=candles_15m,
-                        tjde_result=tjde_result,
-                        output_dir="training_data/charts",
-                        alert_sent=alert_sent
-                    )
-                    
-                except ImportError:
-                    # Fallback to original chart generation
-                    from chart_generator import generate_alert_focused_training_chart
-                    chart_path = generate_alert_focused_training_chart(
-                        symbol=symbol,
-                        candles_15m=candles_15m,
-                        tjde_score=tjde_score,
-                        tjde_phase=entry.get('market_phase', 'unknown'),
-                        tjde_decision=tjde_decision,
-                        tjde_clip_confidence=entry.get('clip_confidence', None),
-                        setup_label=entry.get('setup_type', None)
-                    )
-                
-                if chart_path:
-                    chart_count += 1
-                    print(f"   ✅ Chart generated: {chart_path}")
-                else:
-                    print(f"   ❌ Chart generation failed")
-                    log_token_error(symbol, "CHART", "Chart generation returned None")
-                    
-            except Exception as chart_e:
-                print(f"   ❌ Chart error for {symbol}: {chart_e}")
-                log_chart_error(symbol, f"Chart generation failed: {chart_e}")
+                except Exception as custom_e:
+                    print(f"   ❌ Custom chart failed: {custom_e}")
+            
+            if not chart_generated:
+                print(f"   ❌ All chart generation methods failed for {symbol}")
         
-        print(f"📊 Processed {chart_count}/{len(top_5_tjde)} training charts for TOP TJDE tokens (includes existing Vision-AI charts)")
+        # 🎯 FINAL REPORT: Show unified results
+        print(f"\n📊 UNIFIED GENERATION COMPLETE:")
+        print(f"   ✅ Charts generated: {len(generated_charts)}/{len(top5_tokens)}")
+        for symbol, path in generated_charts.items():
+            print(f"   • {symbol}: {os.path.basename(path)}")
         
+        # Generate Vision-AI metadata (NO additional charts)
+        try:
+            from vision_ai_pipeline import generate_vision_ai_training_data
+            training_pairs = generate_vision_ai_training_data(top5_tokens, "metadata_only")
+            
+            if training_pairs > 0:
+                print(f"🎯 VISION-AI METADATA: {training_pairs} training pairs")
+        except Exception as metadata_e:
+            print(f"⚠️ Vision-AI metadata generation failed: {metadata_e}")
+        
+        return generated_charts
+    
     except Exception as e:
-        print(f"[CHART GEN ERROR] {e}")
-        log_global_error("Chart Generation", f"Chart generation pipeline failed: {e}")
+        print(f"[UNIFIED CHART ERROR] {e}")
+        from crypto_scan_service import log_warning
+        log_warning("UNIFIED CHART GENERATION", e, "Unified chart generation failed")
+        return {}
 
 def save_scan_summary(results: List[Dict]):
     """Save scan summary for dashboard"""

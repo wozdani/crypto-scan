@@ -160,6 +160,47 @@ class TradingViewAsyncFix:
             log_warning("TRADINGVIEW ASYNC GENERATION ERROR", e, "Async generation failed")
             return []
     
+    def generate_single_chart(
+        self, 
+        symbol: str, 
+        tjde_score: float, 
+        market_phase: str, 
+        tjde_decision: str
+    ) -> Optional[str]:
+        """
+        Generate single TradingView chart for a specific symbol
+        
+        Args:
+            symbol: Trading symbol
+            tjde_score: TJDE score
+            market_phase: Market phase
+            tjde_decision: TJDE decision
+            
+        Returns:
+            Path to generated chart or None if failed
+        """
+        try:
+            if not PLAYWRIGHT_AVAILABLE:
+                log_warning("PLAYWRIGHT UNAVAILABLE", None, "Cannot generate TradingView screenshots")
+                return None
+            
+            # Create a single result entry
+            result = {
+                'symbol': symbol,
+                'tjde_score': tjde_score,
+                'market_phase': market_phase,
+                'tjde_decision': tjde_decision
+            }
+            
+            # Use existing batch generation with single item
+            charts = self.generate_charts_sync_safe([result], min_score=0.0, max_symbols=1)
+            
+            return charts[0] if charts else None
+            
+        except Exception as e:
+            log_warning("SINGLE CHART GENERATION ERROR", e, f"Failed to generate chart for {symbol}")
+            return None
+    
     def __del__(self):
         """Cleanup thread pool"""
         try:

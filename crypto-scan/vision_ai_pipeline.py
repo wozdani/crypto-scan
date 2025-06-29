@@ -517,7 +517,7 @@ def generate_vision_ai_training_data(tjde_results: List[Dict], vision_ai_mode: s
         training_pairs_created = 0
         # ✅ Use already prepared TOP 5 results instead of calling prepare_top5_training_data again
         
-        if top5_results and vision_ai_mode != "minimal":
+        if top5_results and vision_ai_mode not in ["minimal"]:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M")
             
             for result in top5_results:
