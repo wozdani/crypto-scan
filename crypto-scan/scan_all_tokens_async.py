@@ -306,45 +306,77 @@ def generate_top_tjde_charts(results: List[Dict]):
                                 cached_data = json.load(f)
                                 candles_15m = cached_data.get('candles_15m', [])
                     
-                    if candles_15m and len(candles_15m) >= 20:
-                        # Generate custom chart using trend_charting
-                        try:
-                            from trend_charting import generate_trend_mode_chart
-                            
-                            tjde_result = {
-                                'final_score': tjde_score,
-                                'market_phase': market_phase,
-                                'decision': tjde_decision,
-                                'clip_confidence': entry.get('clip_confidence', None)
-                            }
-                            
-                            chart_path = generate_trend_mode_chart(
+                    # 🎯 NEW SYSTEM: Generate only TradingView screenshots with new naming format
+                    # COMPLETELY ELIMINATE matplotlib charts - TradingView ONLY
+                    try:
+                        print(f"   🎯 NEW SYSTEM: TradingView-only generation with new naming format")
+                        
+                        # Extract setup from GPT commentary if available
+                        gpt_comment = entry.get('gpt_comment', '')
+                        setup_type = 'pattern_analysis'
+                        
+                        if gpt_comment:
+                            if 'breakout' in gpt_comment.lower():
+                                setup_type = 'breakout_continuation'
+                            elif 'pullback' in gpt_comment.lower():
+                                setup_type = 'pullback_in_trend'
+                            elif 'consolidation' in gpt_comment.lower():
+                                setup_type = 'range_consolidation'
+                            elif 'support' in gpt_comment.lower():
+                                setup_type = 'support_bounce'
+                            elif 'resistance' in gpt_comment.lower():
+                                setup_type = 'resistance_test'
+                            else:
+                                setup_type = market_phase.replace('-', '_')
+                        else:
+                            setup_type = market_phase.replace('-', '_')
+                        
+                        # Generate new format filename: SYMBOL_phase-setup_score-xxx.png
+                        score_str = f"{int(tjde_score * 1000):03d}"  # Convert 0.427 to "427"
+                        new_filename = f"{symbol}_{market_phase}-{setup_type}_score-{score_str}.png"
+                        output_path = f"training_data/charts/{new_filename}"
+                        
+                        print(f"   📋 NEW FORMAT: {new_filename}")
+                        print(f"   📊 Data: Phase={market_phase}, Setup={setup_type}, Score={tjde_score:.3f}")
+                        
+                        # Use TradingView screenshot generator with new naming
+                        from utils.tradingview_screenshot import TradingViewScreenshotGenerator
+                        
+                        # Create generator instance
+                        tv_generator = TradingViewScreenshotGenerator()
+                        
+                        # Initialize browser context if needed
+                        import asyncio
+                        if not hasattr(tv_generator, 'context') or tv_generator.context is None:
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            loop.run_until_complete(tv_generator.__aenter__())
+                        
+                        # Generate TradingView screenshot with new filename
+                        screenshot_path = loop.run_until_complete(
+                            tv_generator.generate_tradingview_screenshot(
                                 symbol=symbol,
-                                candles_15m=candles_15m,
-                                tjde_result=tjde_result,
-                                output_dir="training_data/charts"
-                            )
-                            
-                            if chart_path:
-                                print(f"   ✅ Custom chart: {os.path.basename(chart_path)}")
-                                generated_charts[symbol] = chart_path
-                                chart_generated = True
-                            
-                        except ImportError:
-                            # Final fallback to basic chart generator
-                            from chart_generator import generate_alert_focused_training_chart
-                            chart_path = generate_alert_focused_training_chart(
-                                symbol=symbol,
-                                candles_15m=candles_15m,
                                 tjde_score=tjde_score,
-                                tjde_phase=market_phase,
-                                tjde_decision=tjde_decision
+                                market_phase=market_phase,
+                                decision=tjde_decision
                             )
+                        )
+                        
+                        if screenshot_path and os.path.exists(screenshot_path):
+                            # Rename to new format
+                            os.makedirs("training_data/charts", exist_ok=True)
+                            import shutil
+                            shutil.move(screenshot_path, output_path)
                             
-                            if chart_path:
-                                print(f"   ✅ Basic chart: {os.path.basename(chart_path)}")
-                                generated_charts[symbol] = chart_path
-                                chart_generated = True
+                            print(f"   ✅ TradingView NEW FORMAT: {new_filename}")
+                            generated_charts[symbol] = output_path
+                            chart_generated = True
+                        else:
+                            print(f"   ❌ TradingView generation failed for {symbol}")
+                            
+                    except Exception as tv_error:
+                        print(f"   ❌ TradingView NEW SYSTEM failed: {tv_error}")
+                        # NO FALLBACK TO MATPLOTLIB - TradingView only!
                     
                 except Exception as custom_e:
                     print(f"   ❌ Custom chart failed: {custom_e}")
