@@ -53,23 +53,56 @@ class TradingViewScreenshotGenerator:
         try:
             self.playwright = await async_playwright().start()
             
-            # Launch browser with optimized settings for chart capture
-            self.browser = await self.playwright.chromium.launch(
-                headless=True,
-                args=[
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-web-security',
-                    '--disable-features=VizDisplayCompositor',
-                    '--disable-dev-shm-usage',
-                    '--no-first-run',
-                    '--disable-default-apps',
-                    '--disable-extensions',
-                    '--disable-background-timer-throttling',
-                    '--disable-backgrounding-occluded-windows',
-                    '--disable-renderer-backgrounding'
+            # Launch browser with fallback for different chromium versions
+            browser_args = [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-web-security',
+                '--disable-features=VizDisplayCompositor',
+                '--disable-dev-shm-usage',
+                '--no-first-run',
+                '--disable-default-apps',
+                '--disable-extensions',
+                '--disable-background-timer-throttling',
+                '--disable-backgrounding-occluded-windows',
+                '--disable-renderer-backgrounding'
+            ]
+            
+            try:
+                # Try launching with default chromium
+                self.browser = await self.playwright.chromium.launch(
+                    headless=True,
+                    args=browser_args
+                )
+                print("[TRADINGVIEW] Using default chromium launcher")
+            except Exception as e:
+                # Fallback: try with specific executable path
+                log_warning("TRADINGVIEW BROWSER FALLBACK", e, "Trying alternative chromium paths")
+                
+                possible_paths = [
+                    '/home/runner/workspace/.cache/ms-playwright/chromium-1091/chrome-linux/chrome',
+                    '/home/runner/workspace/.cache/ms-playwright/chromium_headless_shell-1179/chrome-linux/headless_shell'
                 ]
-            )
+                
+                browser_launched = False
+                for executable_path in possible_paths:
+                    try:
+                        import os
+                        if os.path.exists(executable_path):
+                            self.browser = await self.playwright.chromium.launch(
+                                headless=True,
+                                executable_path=executable_path,
+                                args=browser_args
+                            )
+                            print(f"[TRADINGVIEW] Using chromium from: {executable_path}")
+                            browser_launched = True
+                            break
+                    except:
+                        continue
+                
+                if not browser_launched:
+                    log_warning("TRADINGVIEW BROWSER ERROR", None, "Failed to launch chromium with any available executable")
+                    raise Exception("No working chromium executable found")
             
             # Create context with optimal settings
             self.context = await self.browser.new_context(
