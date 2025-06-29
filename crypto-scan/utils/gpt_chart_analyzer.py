@@ -226,6 +226,40 @@ Keep it concise and technical."""
         else:
             print(f"[GPT COMMENTARY] No analysis content returned")
         
+        # Check for label consistency using the new consistency checker
+        label_conflict = False
+        consistency_check = {"has_conflict": False}
+        
+        try:
+            from utils.gpt_label_consistency import check_gpt_label_consistency
+            
+            # Extract labels from analysis and commentary separately
+            # Look for both SETUP: pattern and general content
+            setup_pattern = re.search(r'SETUP:\s*([^\n]+)', gpt_analysis or "", re.IGNORECASE)
+            analysis_pattern = re.search(r'ANALYSIS:\s*([^\n]+)', gpt_analysis or "", re.IGNORECASE)
+            
+            analysis_text = setup_pattern.group(1) if setup_pattern else ""
+            commentary_text = analysis_pattern.group(1) if analysis_pattern else gpt_analysis or ""
+            
+            consistency_check = check_gpt_label_consistency(
+                gpt_analysis=analysis_text,
+                gpt_commentary=commentary_text,
+                symbol=symbol
+            )
+            
+            # If critical conflict detected, flag for review
+            if consistency_check.get('has_conflict') and consistency_check.get('severity') == 'critical':
+                label_conflict = True
+                log_warning("GPT LABEL CONFLICT", None, 
+                          f"{symbol}: {consistency_check['description']} - CRITICAL CONFLICT DETECTED")
+                print(f"[LABEL CONFLICT] {symbol}: {consistency_check.get('conflict_type', 'unknown')} - {consistency_check.get('severity', 'unknown')}")
+            elif consistency_check.get('has_conflict'):
+                print(f"[LABEL CHECK] {symbol}: Minor inconsistency - {consistency_check.get('description', 'no details')}")
+        
+        except Exception as e:
+            log_warning("CONSISTENCY CHECK ERROR", e, f"Failed to check label consistency for {symbol}")
+            consistency_check = {"has_conflict": False, "error": str(e)}
+        
         return {
             'success': True,
             'gpt_commentary': gpt_analysis,
@@ -234,7 +268,9 @@ Keep it concise and technical."""
             'tjde_score': tjde_score,
             'image_path': image_path,
             'model': 'gpt-4o',
-            'tokens_used': response.usage.total_tokens if response.usage else None
+            'tokens_used': response.usage.total_tokens if response.usage else None,
+            'label_conflict': label_conflict,
+            'consistency_check': consistency_check
         }
         
     except Exception as e:
@@ -307,14 +343,17 @@ def rename_chart_with_setup_label(
                 with open(original_metadata, 'r') as f:
                     metadata = json.load(f)
                 
-                # Add GPT analysis data
+                # Add GPT analysis data including consistency check results
                 metadata.update({
                     'gpt_analysis': gpt_analysis.get('gpt_commentary', ''),
                     'setup_label': setup_label,
                     'gpt_model': gpt_analysis.get('model', 'gpt-4o'),
                     'gpt_tokens': gpt_analysis.get('tokens_used'),
                     'original_filename': original_filename,
-                    'renamed_for_clip_training': True
+                    'renamed_for_clip_training': True,
+                    'label_conflict': gpt_analysis.get('label_conflict', False),
+                    'consistency_check': gpt_analysis.get('consistency_check', {}),
+                    'needs_review': gpt_analysis.get('label_conflict', False)
                 })
                 
                 # Save updated metadata
