@@ -12,13 +12,20 @@ from typing import List, Dict, Optional
 import time
 from PIL import Image
 
-# Import TradingView symbol resolver
+# Import TradingView symbol resolver and validation systems
 try:
     from .tradingview_symbol_resolver import resolve_tradingview_symbol
+    from .binance_symbol_filter import get_binance_filter
+    from .screenshot_validator import ScreenshotValidator
 except ImportError:
-    # Fallback if resolver not available
+    # Fallback if modules not available
     def resolve_tradingview_symbol(symbol: str) -> Optional[str]:
         return f"BINANCE:{symbol.upper()}"
+    def get_binance_filter():
+        return None
+    class ScreenshotValidator:
+        def validate_and_cleanup(self, *args, **kwargs):
+            return True
 
 # Add current directory to path for imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -197,6 +204,13 @@ class TradingViewScreenshotGenerator:
             Path to saved screenshot or None if failed
         """
         try:
+            # 🔍 STEP 1: BINANCE SYMBOL FILTERING
+            binance_filter = get_binance_filter()
+            if binance_filter and not binance_filter.is_binance_symbol(symbol):
+                print(f"⚠️ [BINANCE FILTER] {symbol} not available on BINANCE - skipping TradingView generation")
+                log_warning("TRADINGVIEW BINANCE FILTER", None, f"{symbol}: Not available on BINANCE exchange")
+                return None
+            
             # Generate filename with timestamp
             timestamp = datetime.now().strftime("%Y%m%d_%H%M")
             filename = f"{symbol}_{timestamp}_tradingview_tjde.png"
@@ -205,16 +219,9 @@ class TradingViewScreenshotGenerator:
             # Ensure output directory exists
             os.makedirs(self.output_dir, exist_ok=True)
             
-            # 🎯 INTELLIGENT SYMBOL RESOLUTION: Use resolver to find working exchange
-            print(f"[TRADINGVIEW] 🧠 Resolving symbol: {symbol}")
-            tv_symbol = resolve_tradingview_symbol(symbol)
-            
-            if tv_symbol is None:
-                print(f"⚠️ [TRADINGVIEW RESOLVER] No valid exchange found for {symbol} - skipping TradingView generation")
-                log_warning("TRADINGVIEW SYMBOL RESOLUTION FAILED", None, f"{symbol}: No valid exchange mapping found")
-                return None
-            
-            print(f"[TRADINGVIEW] ✅ Resolved {symbol} → {tv_symbol}")
+            # 🎯 STEP 2: USE BINANCE PREFIX - Since symbol is already filtered for BINANCE compatibility
+            tv_symbol = f"BINANCE:{symbol.upper()}"
+            print(f"[TRADINGVIEW] ✅ Using BINANCE symbol: {tv_symbol}")
             
             # Create new page for TradingView screenshot
             page = await self.context.new_page()
