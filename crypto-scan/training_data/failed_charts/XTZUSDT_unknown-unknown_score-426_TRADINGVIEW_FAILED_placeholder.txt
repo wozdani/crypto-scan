@@ -2,9 +2,9 @@ TRADINGVIEW SCREENSHOT FAILED
 Symbol: XTZUSDT
 Phase: unknown
 Setup: unknown  
-Score: 0.426
+Score: 0.427
 Error: sync_wrapper_failed
-Timestamp: 2025-06-29T17:37:26.054575
+Timestamp: 2025-06-29T17:38:01.910220
 
 Note: This is a placeholder file created because TradingView screenshot generation failed.
 No matplotlib fallback was used to maintain dataset quality.

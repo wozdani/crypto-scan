@@ -1,10 +1,10 @@
 TRADINGVIEW SCREENSHOT FAILED
-Symbol: CTSIUSDT
+Symbol: ATOMUSDT
 Phase: unknown
 Setup: unknown  
 Score: 0.427
 Error: sync_wrapper_failed
-Timestamp: 2025-06-29T17:38:01.907415
+Timestamp: 2025-06-29T17:38:01.912941
 
 Note: This is a placeholder file created because TradingView screenshot generation failed.
 No matplotlib fallback was used to maintain dataset quality.
