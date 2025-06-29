@@ -224,19 +224,10 @@ def generate_top_tjde_charts(results: List[Dict]):
         # Apply force refresh for fresh TradingView charts (ONLY for TOP 5)
         from utils.force_refresh_charts import force_refresh_vision_ai_charts
         
-        # Generate fresh TradingView charts for TOP 5 TJDE tokens ONLY
-        print("🔄 [FORCE REFRESH] Generating fresh TradingView charts for Vision-AI training")
-        fresh_charts = force_refresh_vision_ai_charts(
-            tjde_results=top5_tokens,  # ✅ Use TOP 5 instead of all results
-            min_score=0.3,  # Lower threshold since these are already top performers
-            max_symbols=5,
-            force_regenerate=True
-        )
-        
-        if fresh_charts:
-            print(f"✅ [FORCE REFRESH] Generated {len(fresh_charts)} fresh TradingView charts")
-        else:
-            print("❌ [FORCE REFRESH] No fresh charts generated - falling back to Vision-AI pipeline")
+        # 🚫 TEMPORARILY DISABLED: TradingView generation due to browser dependency issues
+        print("⚠️ [TRADINGVIEW DISABLED] TradingView chart generation temporarily disabled - browser dependencies missing")
+        print("📊 [FALLBACK] Using matplotlib-based chart generation for training data")
+        fresh_charts = None
         
         # Import Vision-AI pipeline for additional processing
         from vision_ai_pipeline import generate_vision_ai_training_data
@@ -300,9 +291,13 @@ def generate_top_tjde_charts(results: List[Dict]):
                 if recent_chart_found:
                     continue  # Skip regeneration if recent chart exists
                 
-                # Extract candle data from market_data - prioritize scan result data
-                candles_15m = market_data.get('candles', [])
-                print(f"[TJDE CHART DEBUG] {symbol} → 15M candles: {len(candles_15m)}, recent_candle timestamp: {candles_15m[-1][0] if candles_15m else 'N/A'}")
+                # 🎯 CRITICAL FIX: Extract candle data from correct market_data fields
+                candles_15m = market_data.get('candles_15m', market_data.get('candles', []))
+                candles_5m = market_data.get('candles_5m', [])
+                
+                print(f"[TJDE CHART DEBUG] {symbol} → 15M candles: {len(candles_15m)}, 5M candles: {len(candles_5m)}")
+                if candles_15m:
+                    print(f"[TJDE CHART DEBUG] {symbol} → recent_candle timestamp: {candles_15m[-1][0] if isinstance(candles_15m[-1], (list, tuple)) else 'unknown format'}")
                 
                 if not candles_15m or len(candles_15m) < 20:
                     print(f"   [SKIP] {symbol}: Insufficient candle data after Vision-AI check")

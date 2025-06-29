@@ -110,6 +110,17 @@ Successfully implemented comprehensive TOP 5 token selection system preventing d
 - **Force Refresh Alignment**: Updated force_refresh_vision_ai_charts() to work exclusively with TOP 5 tokens ensuring authentic TradingView screenshots only for elite performers
 System now maintains superior dataset quality by restricting training data generation to only the TOP 5 TJDE scoring tokens per scan cycle, preventing quality degradation from excessive low-scoring training examples.
 
+### June 29, 2025 - Critical Chart Generation Data Fix - Candle Data Pipeline Restored ✅
+Successfully resolved critical issue where TOP 5 TJDE tokens showed "Insufficient candle data: 0 candles" despite having 96 15M candles available:
+- **Root Cause Identification**: Chart generation logic in scan_all_tokens_async.py was extracting candles from wrong field ('candles' instead of 'candles_15m')
+- **Data Extraction Fix**: Updated line 304 from `market_data.get('candles', [])` to `market_data.get('candles_15m', market_data.get('candles', []))` ensuring proper 15M candle access
+- **Enhanced Debug Logging**: Added comprehensive candle count logging showing both 15M and 5M candle availability with timestamp validation
+- **TradingView Dependencies Issue**: Temporarily disabled TradingView chart generation due to missing Playwright browser dependencies in Replit environment
+- **Fallback Chart System**: System now uses matplotlib-based chart generation for training data while TradingView dependency issues are resolved
+- **TOP 5 Integration Maintained**: All fixes preserve TOP 5 token selection system ensuring dataset quality protection
+- **Comprehensive Testing**: Verified fix extracts 96 15M candles correctly vs old logic that found 0 candles
+System now correctly processes candle data for chart generation eliminating "Insufficient candle data" errors that were blocking training data generation for valid TOP 5 TJDE tokens.
+
 ### June 28, 2025 - Complete Production Fixes - All Critical Issues Resolved - PRODUCTION READY ✅
 Successfully resolved all five critical production issues identified in the latest debugging session ensuring robust system operation:
 - **Issue 1 - TradingView Async Event Loop Conflict**: Created utils/tradingview_async_fix.py with TradingViewAsyncFix class using thread-based execution to resolve asyncio.run() conflicts when already in event loop environment, enabling authentic TradingView screenshot generation
