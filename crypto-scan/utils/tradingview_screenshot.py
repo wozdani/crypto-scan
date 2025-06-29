@@ -1,6 +1,11 @@
 """
-TradingView Screenshot Generator - Real Chart Capture for Vision-AI Training
-Captures authentic TradingView charts for TOP 5 TJDE tokens eliminating matplotlib artifacts
+TradingView Screenshot Generator - BINANCE-Compatible Chart Capture for Vision-AI Training
+Captures authentic TradingView charts for TOP 5 TJDE tokens from BINANCE exchange only
+Features:
+- BINANCE symbol filtering to avoid incompatible tokens
+- Comprehensive screenshot validation (size, content quality)
+- Enhanced error detection and automatic cleanup
+- Professional chart quality for superior Vision-AI training
 """
 
 import os
@@ -394,33 +399,31 @@ class TradingViewScreenshotGenerator:
                         type='png'
                     )
                 
-                # Verify file was created and has reasonable size
+                # 🔍 STEP 3: COMPREHENSIVE SCREENSHOT VALIDATION
                 if os.path.exists(output_path):
-                    file_size = os.path.getsize(output_path)
-                    if file_size > 10000:  # At least 10KB
-                        print(f"[TRADINGVIEW] ✅ Screenshot saved: {output_path} ({file_size} bytes)")
+                    # Use screenshot validator for comprehensive validation
+                    validator = ScreenshotValidator(min_file_size=50000)  # 50KB minimum
+                    validation_result = validator.validate_screenshot(output_path, symbol)
+                    
+                    if validation_result['valid']:
+                        print(f"[TRADINGVIEW] ✅ Valid screenshot: {output_path} ({validation_result['file_size']} bytes, {validation_result['white_pixel_ratio']:.1%} white)")
                         
-                        # 🎯 CHART VALIDATION: Check if screenshot is blank/white
-                        if is_chart_blank(output_path):
-                            print(f"⚠️ [CHART VALIDATION] Pusty wykres wykryty: {symbol}")
-                            try:
-                                os.remove(output_path)
-                                print(f"[CHART VALIDATION] Usunięto pusty wykres: {output_path}")
-                            except Exception as cleanup_error:
-                                log_warning("CHART CLEANUP ERROR", cleanup_error, f"Failed to remove blank chart: {output_path}")
-                            return None
-                        
-                        # Generate metadata JSON
+                        # Generate metadata JSON for valid screenshots only
                         await self._save_screenshot_metadata(
                             output_path, symbol, tjde_score, market_phase, decision
                         )
                         
                         return output_path
                     else:
-                        print(f"[TRADINGVIEW] ❌ Screenshot too small: {file_size} bytes")
+                        print(f"⚠️ [TRADINGVIEW VALIDATION] {symbol}: {validation_result['error']}")
+                        log_warning("TRADINGVIEW SCREENSHOT INVALID", None, f"{symbol}: {validation_result['error']}")
+                        
+                        # Automatically cleanup invalid screenshot
+                        validator.cleanup_invalid_screenshot(output_path, symbol)
                         return None
                 else:
                     print(f"[TRADINGVIEW] ❌ Screenshot file not created")
+                    log_warning("TRADINGVIEW SCREENSHOT MISSING", None, f"{symbol}: File not created after capture")
                     return None
                     
             except Exception as e:
@@ -488,11 +491,20 @@ async def generate_tradingview_screenshots_for_top_tjde(
         return []
     
     try:
-        # Filter and sort by TJDE score
-        filtered_results = [
-            result for result in tjde_results 
-            if result.get('tjde_score', 0) >= min_score
-        ]
+        # STEP 1: Initialize BINANCE filter
+        binance_filter = get_binance_filter()
+        if not binance_filter:
+            log_warning("BINANCE FILTER UNAVAILABLE", None, "Proceeding without symbol filtering")
+        
+        # STEP 2: Filter by TJDE score AND BINANCE compatibility
+        filtered_results = []
+        for result in tjde_results:
+            if result.get('tjde_score', 0) >= min_score:
+                symbol = result.get('symbol', '')
+                if binance_filter and not binance_filter.is_binance_symbol(symbol):
+                    print(f"⚠️ [BINANCE FILTER] Skipping {symbol} - not available on BINANCE")
+                    continue
+                filtered_results.append(result)
         
         # Sort by TJDE score (highest first)
         top_results = sorted(
@@ -502,14 +514,20 @@ async def generate_tradingview_screenshots_for_top_tjde(
         )[:max_symbols]
         
         if not top_results:
-            print(f"[TRADINGVIEW] No tokens meet minimum TJDE score {min_score}")
+            print(f"[TRADINGVIEW] No tokens meet minimum TJDE score {min_score} and BINANCE compatibility")
             return []
         
-        print(f"[TRADINGVIEW] Generating screenshots for TOP {len(top_results)} TJDE tokens:")
+        # Show filtering statistics
+        total_candidates = len([r for r in tjde_results if r.get('tjde_score', 0) >= min_score])
+        filtered_count = total_candidates - len(filtered_results)
+        if filtered_count > 0:
+            print(f"[BINANCE FILTER] Filtered out {filtered_count}/{total_candidates} tokens not available on BINANCE")
+        
+        print(f"[TRADINGVIEW] Generating screenshots for TOP {len(top_results)} BINANCE-compatible TJDE tokens:")
         for i, result in enumerate(top_results, 1):
             symbol = result.get('symbol', 'UNKNOWN')
             score = result.get('tjde_score', 0)
-            print(f"  {i}. {symbol}: TJDE {score:.3f}")
+            print(f"  {i}. {symbol}: TJDE {score:.3f} (BINANCE verified)")
         
         screenshot_paths = []
         
