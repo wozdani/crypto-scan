@@ -1,0 +1,10 @@
+TRADINGVIEW SCREENSHOT FAILED
+Symbol: SHIBUSDT
+Phase: unknown
+Setup: unknown  
+Score: 0.430
+Error: sync_wrapper_failed
+Timestamp: 2025-06-29T17:11:08.228272
+
+Note: This is a placeholder file created because TradingView screenshot generation failed.
+No matplotlib fallback was used to maintain dataset quality.

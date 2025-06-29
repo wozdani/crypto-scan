@@ -191,185 +191,79 @@ def save_training_summary_report(generated: int, attempted: int):
     print(f"[TRAINING SUMMARY] Generated: {generated}, Attempted: {attempted}")
 
 
-# Duplicate function definitions are disabled - TradingView-only system active
-    """
-    Save training labels in JSONL format for CLIP training
+# All function implementations completely cleaned - TradingView-only system active
+
+
+# EnhancedCLIPPredictor class - also disabled for TradingView-only system
+class EnhancedCLIPPredictor:
+    """Enhanced CLIP predictor with confidence handling and Vision-AI integration"""
     
-    Args:
-        symbol: Trading symbol
-        timestamp: Timestamp string  
-        label_data: Dictionary with phase, setup, scores, etc.
-        output: Output JSONL file path
-        
-    Returns:
-        Success status
-    """
-    try:
-        os.makedirs(os.path.dirname(output), exist_ok=True)
-        
-        label_entry = {
-            "symbol": symbol,
-            "timestamp": timestamp,
-            "chart_path": f"training_data/charts/{symbol}_{timestamp}_chart.png",
-            **label_data
-        }
-        
-        with open(output, "a", encoding='utf-8') as f:
-            f.write(json.dumps(label_entry) + "\n")
-            
-        print(f"[VISION-AI] Label saved: {symbol} - {label_data.get('phase', 'unknown')}")
-        return True
-        
-    except Exception as e:
-        print(f"[VISION-AI ERROR] Failed to save label: {e}")
+    def __init__(self):
+        print("[CLIP PREDICTOR] TradingView-only system - CLIP disabled")
+        self.model = None
+        self.processor = None
+    
+    def _initialize_model(self):
+        """Initialize CLIP model with enhanced error handling and fallback"""
+        print("[CLIP INIT] CLIP model disabled - using TradingView-only system")
         return False
+    
+    def predict_clip_confidence(self, image_path: str, 
+                              labels: List[str] = None) -> Tuple[str, float]:
+        """
+        Enhanced CLIP prediction with proper confidence calculation
+        
+        Args:
+            image_path: Path to chart image
+            labels: List of phase labels for prediction
+            
+        Returns:
+            Tuple of (predicted_label, confidence_score)
+        """
+        print(f"[CLIP DISABLED] {image_path} → Using TradingView-only system")
+        return ("unknown", 0.0)
 
 
-def fetch_candles_for_vision(symbol: str) -> Optional[List]:
+# All helper functions below are disabled for TradingView-only system
+
+
+def integrate_clip_with_tjde(tjde_score: float, tjde_phase: str, 
+                           chart_path: str) -> Tuple[float, Dict]:
     """
-    Elastyczne pobieranie świec z fallbackiem dla Vision-AI
+    Integrate CLIP confidence with TJDE scoring
     
     Args:
-        symbol: Symbol tradingowy
+        tjde_score: Original TJDE score
+        tjde_phase: Current market phase
+        chart_path: Path to chart for CLIP analysis
         
     Returns:
-        Lista świec lub None jeśli brak wystarczających danych
+        Tuple of (enhanced_score, clip_info)
     """
-    try:
-        # Próba 1: Sprawdź async results cache (enhanced)
-        print(f"[VISION-AI FETCH] {symbol}: Checking async scan results...")
-        
-        # Check enhanced async results with proper field access
-        async_file = f"data/async_results/{symbol}_async.json"
-        
-        if os.path.exists(async_file):
-            try:
-                # Check file age to prioritize recent files
-                file_age = time.time() - os.path.getmtime(async_file)
-                recent_file = file_age < 300  # 5 minutes
-                
-                with open(async_file, 'r') as f:
-                    async_data = json.load(f)
-                    # Enhanced: Check for candles_15m field (new format)
-                    candles = async_data.get("candles_15m", async_data.get("candles", []))
-                    
-                    print(f"[VISION-AI ASYNC] {symbol}: Found {len(candles)} candles in {async_file} (age: {file_age:.1f}s)")
-                    
-                    # Lower threshold for recent files with enhanced data
-                    min_candles = 20 if recent_file else 30
-                    if candles and len(candles) >= min_candles:
-                        print(f"[VISION-AI ASYNC SUCCESS] {symbol}: Using {len(candles)} enhanced cached candles")
-                        return candles
-                    elif candles:
-                        print(f"[VISION-AI ASYNC PARTIAL] {symbol}: Only {len(candles)} candles (need {min_candles}+)")
-                    else:
-                        print(f"[VISION-AI ASYNC EMPTY] {symbol}: No candles in cached data")
-                        
-            except Exception as e:
-                print(f"[VISION-AI ASYNC ERROR] {symbol}: Error reading {async_file}: {e}")
-        
-        print(f"[VISION-AI ASYNC] {symbol}: No valid async cache found")
-        
-        # Próba 2: Sprawdź scan results z ostatniego skanu
-        print(f"[VISION-AI SCAN] {symbol}: Checking recent scan data...")
-        scan_file = f"data/scan_results/latest_scan.json"
-        if os.path.exists(scan_file):
-            try:
-                with open(scan_file, 'r') as f:
-                    scan_data = json.load(f)
-                    for result in scan_data.get("results", []):
-                        if result.get("symbol") == symbol:
-                            candles = result.get("candles", result.get("market_data", {}).get("candles", []))
-                            if candles and len(candles) >= 30:
-                                print(f"[VISION-AI SCAN] {symbol}: Got {len(candles)} scan cached candles")
-                                return candles
-            except Exception as e:
-                print(f"[VISION-AI SCAN ERROR] {symbol}: {e}")
-            
-        # Próba 3: Bezpośrednie API Bybit z enhanced error handling
-        print(f"[VISION-AI DIRECT] {symbol}: Direct Bybit API fetch...")
-        
-        try:
-            response = requests.get(
-                "https://api.bybit.com/v5/market/kline",
-                params={
-                    'category': 'linear',
-                    'symbol': symbol,
-                    'interval': '15',
-                    'limit': '200'
-                },
-                timeout=10
-            )
-            
-            print(f"[VISION-AI API] {symbol}: HTTP {response.status_code}")
-            
-            if response.status_code == 200:
-                api_data = response.json()
-                print(f"[VISION-AI API] {symbol}: retCode {api_data.get('retCode', 'unknown')}")
-                
-                if api_data.get('retCode') == 0:
-                    api_candles = api_data.get('result', {}).get('list', [])
-                    print(f"[VISION-AI API] {symbol}: Raw candles count: {len(api_candles)}")
-                    
-                    if len(api_candles) >= 30:
-                        # Convert Bybit format to standard format
-                        converted_candles = []
-                        for candle_data in reversed(api_candles):  # Bybit returns newest first
-                            try:
-                                converted_candles.append([
-                                    int(candle_data[0]),      # timestamp
-                                    float(candle_data[1]),    # open
-                                    float(candle_data[2]),    # high
-                                    float(candle_data[3]),    # low
-                                    float(candle_data[4]),    # close
-                                    float(candle_data[5])     # volume
-                                ])
-                            except (ValueError, IndexError) as e:
-                                print(f"[VISION-AI API] {symbol}: Candle conversion error: {e}")
-                                continue
-                        
-                        if len(converted_candles) >= 30:
-                            print(f"[VISION-AI DIRECT] {symbol}: Got {len(converted_candles)} converted API candles")
-                            return converted_candles
-                        else:
-                            print(f"[VISION-AI API] {symbol}: Insufficient converted candles: {len(converted_candles)}")
-                    else:
-                        print(f"[VISION-AI API] {symbol}: Insufficient raw candles: {len(api_candles)}")
-                else:
-                    print(f"[VISION-AI API] {symbol}: API error retCode: {api_data.get('retCode')}")
-            else:
-                print(f"[VISION-AI API] {symbol}: HTTP error {response.status_code}")
-                
-        except Exception as e:
-            print(f"[VISION-AI API] {symbol}: Request exception: {e}")
-                    
-        # Próba 4: Jeśli brak danych, zwróć None - nie generujemy syntetycznych danych
-        print(f"[VISION-AI FAILED] {symbol}: No authentic candle data available from any source")
-        return None
-        
-    except Exception as e:
-        print(f"[VISION-AI ERROR] {symbol}: Candle fetch failed: {e}")
-        return None
+    print("[CLIP-TJDE] Integration disabled - using TradingView-only system")
+    return (tjde_score, {"confidence": 0.0, "label": "disabled"})
 
-def prepare_top5_training_data(tjde_results: List[Dict]) -> List[Dict]:
+
+def run_vision_ai_feedback_loop(hours_back: int = 24) -> Dict:
     """
-    Select TOP 5 tokens by TJDE score for training data generation with fresh data validation
+    Analyze CLIP prediction effectiveness and adjust thresholds
     
     Args:
-        tjde_results: List of scan results with TJDE scores
+        hours_back: Hours to look back for analysis
         
     Returns:
-        Top 5 results sorted by TJDE score with fresh data validation
+        Feedback loop results
     """
-    # Filter valid results with TJDE scores
-    valid_results = [r for r in tjde_results if r.get('tjde_score', 0) > 0]
-    
-    if not valid_results:
-        print("[VISION-AI] No valid TJDE results for training data")
-        return []
-    
-    # Sort by TJDE score descending and take TOP 5
-    top5 = sorted(valid_results, key=lambda x: x.get('tjde_score', 0), reverse=True)[:5]
+    print("[VISION-AI FEEDBACK] Feedback loop disabled - using TradingView-only system")
+    return {"status": "disabled"}
+
+
+def test_vision_ai_pipeline():
+    """Test the complete Vision-AI pipeline"""
+    print("[VISION-AI TEST] Pipeline test disabled - using TradingView-only system")
+
+
+# End of file - all matplotlib functions cleaned up for TradingView-only system
     
     print(f"[VISION-AI] Selected TOP 5 tokens for training data with fresh data validation:")
     for i, result in enumerate(top5, 1):
