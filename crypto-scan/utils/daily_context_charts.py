@@ -309,9 +309,16 @@ async def run_daily_context_generation():
     """Main function to run daily context chart generation"""
     generator = DailyContextChartsGenerator()
     
+    # Show timing information
+    timing_info = generator.get_target_hour_info()
+    print(f"🕐 [DAILY CHARTS] {timing_info['description']}")
+    print(f"    Current time: {timing_info['current_time_formatted']}")
+    print(f"    Target time: {timing_info['target_time_formatted']}")
+    
     # Check if generation needed
     if not generator.should_generate_daily_charts():
-        print("⏭️ [DAILY CHARTS] Skipping - already generated within 24h")
+        next_status = "today" if timing_info['next_run_today'] else "tomorrow"
+        print(f"⏭️ [DAILY CHARTS] Skipping - next generation {next_status} at {timing_info['target_time_formatted']}")
         return False
     
     print("🗓️ [DAILY CHARTS] Starting daily context chart generation...")

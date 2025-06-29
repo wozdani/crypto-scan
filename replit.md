@@ -98,10 +98,10 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 29, 2025 - DAILY CONTEXT CHARTS SYSTEM COMPLETE - Full Production Implementation ✅
-Successfully implemented comprehensive daily context chart generation system providing 24-hour historical market overview separate from training data:
-- **Complete Daily Chart Generator**: Created utils/daily_context_charts.py with DailyContextChartsGenerator class providing automated 24-hour context chart generation for all available tokens
-- **Smart 24-Hour Timer System**: Implemented should_generate_daily_charts() with timestamp tracking ensuring charts generate once per 24 hours preventing redundant processing
+### June 29, 2025 - MIDNIGHT UTC DAILY CHARTS SYSTEM - Perfect 1D Candle Closure Timing ✅
+Successfully configured daily context chart system to generate precisely at 00:00 UTC (midnight) corresponding to end of 1D candle closure:
+- **Midnight UTC Timing**: Updated DailyContextChartsGenerator to default target_hour=0 ensuring charts generate at 00:00 UTC when daily candle closes providing optimal market context
+- **1D Candle Closure Alignment**: Enhanced should_generate_daily_charts() with precise hour-based timing logic ensuring charts capture complete 24-hour market data at optimal moment
 - **TradingView Integration**: Full integration with existing RobustTradingViewGenerator system reusing proven screenshot generation with proper exchange resolution
 - **Separate Directory Structure**: Daily charts stored in context_charts_daily/ with DAILY_TOKEN_EXCHANGE_15M_YYYYMMDD.png naming convention completely separate from training data
 - **Enhanced Metadata System**: Daily chart metadata includes type: "daily_context_chart", purpose: "historical_context_only", not_for_training: true ensuring clear separation from Vision-AI pipeline
