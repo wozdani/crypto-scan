@@ -52,30 +52,37 @@ def extract_setup_label_from_commentary(gpt_commentary: str) -> str:
     if not gpt_commentary:
         return "unknown_setup"
     
-    # Common trading setup patterns
+    # Common trading setup patterns - SYNCHRONIZED WITH GPT PROMPT
     setup_patterns = [
-        # Trend patterns
+        # TREND PATTERNS (exact match with prompt)
+        (r'\bpullback_in_trend\b', 'pullback_in_trend'),
+        (r'\btrend_continuation\b', 'trend_continuation'),
+        (r'\bmomentum_follow\b', 'momentum_follow'),
+        
+        # BREAKOUT PATTERNS (exact match with prompt)  
+        (r'\bbreakout_pattern\b', 'breakout_pattern'),
+        (r'\bresistance_break\b', 'resistance_break'),
+        (r'\bsupport_break\b', 'support_break'),
+        
+        # REVERSAL PATTERNS (exact match with prompt)
+        (r'\breversal_pattern\b', 'reversal_pattern'),
+        (r'\bdouble_top\b', 'double_top'),
+        (r'\bhead_shoulders\b', 'head_shoulders'),
+        
+        # CONSOLIDATION PATTERNS (exact match with prompt)
+        (r'\brange_trading\b', 'range_trading'),
+        (r'\bconsolidation_squeeze\b', 'consolidation_squeeze'),
+        (r'\btriangle_pattern\b', 'triangle_pattern'),
+        
+        # FALLBACK: Legacy patterns for backward compatibility
         (r'\b(?:trend\s*)?pullback(?:\s+(?:in|to|from)\s+\w+)?', 'pullback_in_trend'),
         (r'\b(?:trend\s*)?continuation(?:\s+pattern)?', 'trend_continuation'),
-        (r'\bmomentum\s+(?:continuation|follow)', 'momentum_continuation'),
-        (r'\btrend\s*following(?:\s+momentum)?', 'trend_following'),
-        
-        # Breakout patterns
         (r'\bbreakout(?:\s+(?:above|below|from)\s+\w+)?', 'breakout_pattern'),
-        (r'\bbreak(?:\s+(?:above|below|out)\s+\w+)?', 'breakout_pattern'),
-        (r'\bresistance\s+break', 'resistance_breakout'),
-        (r'\bsupport\s+break', 'support_breakdown'),
-        
-        # Reversal patterns
+        (r'\bresistance\s+break', 'resistance_break'),
+        (r'\bsupport\s+break', 'support_break'),
         (r'\breversal(?:\s+pattern)?', 'reversal_pattern'),
-        (r'\bdouble\s+(?:top|bottom)', 'double_pattern'),
-        (r'\bhead\s+and\s+shoulders?', 'head_shoulders'),
-        (r'\bwedge(?:\s+pattern)?', 'wedge_pattern'),
-        
-        # Range patterns  
         (r'\brange(?:\s+(?:bound|trading))?', 'range_trading'),
-        (r'\bconsolidation', 'consolidation'),
-        (r'\bsideways?', 'sideways_movement'),
+        (r'\bconsolidation', 'consolidation_squeeze'),
         (r'\baccumulation', 'accumulation_zone'),
         
         # Support/Resistance
@@ -166,29 +173,38 @@ def analyze_chart_with_gpt(image_path: str, symbol: str, tjde_score: float) -> D
                 'error': 'encoding_failed'
             }
         
-        # GPT prompt for trading setup analysis
+        # GPT prompt for trading setup analysis - Enhanced for consistency
         prompt = f"""Analyze this TradingView chart for {symbol} (TJDE score: {tjde_score:.3f}).
 
-Identify the trading setup and market structure. Focus on:
-1. Current trend direction and strength
-2. Support/resistance levels and price action
-3. Volume patterns and momentum
-4. Specific setup type (pullback, breakout, reversal, consolidation, etc.)
+You must identify the PRIMARY setup pattern using ONLY ONE of these exact terms:
 
-Provide a concise analysis in this format:
-SETUP: [specific setup name like "pullback_in_uptrend", "resistance_breakout", "consolidation_squeeze"]
-ANALYSIS: [2-3 sentence technical analysis]
+TREND PATTERNS:
+- pullback_in_trend (price pulling back within an established trend)
+- trend_continuation (trend resuming after brief pause)
+- momentum_follow (strong directional momentum)
 
-Be specific about the setup type - use terms like:
-- pullback_in_trend, trend_continuation, momentum_follow
-- breakout_pattern, resistance_break, support_break  
-- reversal_pattern, double_top, head_shoulders
-- range_trading, consolidation, squeeze_pattern
-- support_test, resistance_test, key_level_test
-- flag_pattern, triangle_pattern, wedge_pattern
-- fakeout_pattern, volume_spike, no_clear_pattern
+BREAKOUT PATTERNS:
+- breakout_pattern (price breaking key level with volume)
+- resistance_break (breaking above resistance)
+- support_break (breaking below support)
 
-Keep it concise and technical."""
+REVERSAL PATTERNS:
+- reversal_pattern (clear trend change signal)
+- double_top (or double_bottom reversal)
+- head_shoulders (reversal formation)
+
+CONSOLIDATION PATTERNS:
+- range_trading (sideways movement between levels)
+- consolidation_squeeze (tight range compression)
+- triangle_pattern (converging price action)
+
+Choose the SINGLE most dominant pattern. If unclear, use "no_clear_pattern".
+
+Required format:
+SETUP: [exact term from above list]
+ANALYSIS: [2-3 sentence technical explanation why you chose this specific setup]
+
+Be consistent - the SETUP field must match your analysis description exactly."""
 
         # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
         # do not change this unless explicitly requested by the user

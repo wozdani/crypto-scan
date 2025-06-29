@@ -98,17 +98,18 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 29, 2025 - GPT LABEL CONSISTENCY DETECTION SYSTEM - Critical Bug Fix Complete ✅
-Successfully fixed critical bug in conflict detection logic ensuring proper real-time identification of critical conflicts between different GPT label extraction methods:
+### June 29, 2025 - GPT LABEL CONSISTENCY DETECTION SYSTEM - Critical Bug Fix + Prompt Enhancement Complete ✅
+Successfully fixed critical bug in conflict detection logic and enhanced GPT prompt consistency ensuring superior training data quality:
 - **Root Cause Resolution**: Fixed fundamental flaw where system compared labels from same GPT response instead of two distinct extraction methods (extract_setup_label_from_commentary vs direct **SETUP:** field parsing)
 - **Two-Source Comparison Logic**: Enhanced gpt_chart_analyzer.py to properly compare setup_label (from pattern matching function) vs setup_field_text (from direct **SETUP:** regex extraction)
 - **Real-time Conflict Detection Active**: System now correctly identifies conflicts like WLDUSDT breakout_pattern vs consolidation_squeeze during live TOP 5 TJDE chart generation
 - **Production Validation Confirmed**: Live testing shows proper conflict detection with [GPT LABEL CONFLICT] warning and critical severity classification for category mismatches
-- **Enhanced Debug Output**: Added [CONFLICT DEBUG] logging showing exact label comparison enabling immediate troubleshooting of GPT inconsistencies
-- **Category Mismatch Classification**: Conflicts between breakout_movement and consolidation categories properly flagged as "critical" severity ensuring training data quality protection
-- **Vision-AI Training Protection**: System prevents inconsistent label data from contaminating CLIP model development through automated conflict detection and flagging
-- **Complete Pipeline Integration**: Conflict detection seamlessly integrated into analyze_chart_with_gpt() workflow with automatic metadata updating and warning logging
-System now provides authentic real-time conflict detection between different GPT analysis methods ensuring superior Vision-AI training data consistency and quality.
+- **Enhanced GPT Prompt Consistency**: Redesigned GPT prompt to use exact standardized terms (pullback_in_trend, breakout_pattern, consolidation_squeeze, etc.) eliminating ambiguous descriptions
+- **Synchronized Label System**: Updated extract_setup_label_from_commentary() to recognize same exact terms as GPT prompt reducing inconsistencies at source
+- **Deterministic Setup Categories**: GPT now must choose from 4 specific categories (TREND, BREAKOUT, REVERSAL, CONSOLIDATION) with defined sub-patterns preventing interpretation conflicts
+- **Backward Compatibility**: Maintained fallback patterns for legacy data while prioritizing new standardized terminology for consistency
+- **Vision-AI Training Protection**: Dual-layer approach prevents inconsistent label data from contaminating CLIP model development through source consistency + conflict detection
+System now provides both authentic real-time conflict detection and proactive consistency enhancement ensuring superior Vision-AI training data quality through standardized GPT responses.
 
 ### June 29, 2025 - MIDNIGHT UTC DAILY CHARTS SYSTEM - Perfect 1D Candle Closure Timing ✅
 Successfully configured daily context chart system to generate precisely at 00:00 UTC (midnight) corresponding to end of 1D candle closure:
