@@ -266,30 +266,37 @@ async def generate_top_tjde_charts(results: List[Dict]):
             
             print(f"{i}. {symbol}: TJDE {tjde_score:.3f} ({tjde_decision})")
             
-            # 🔍 CHECK: Does this token already have a recent chart?
+            # 🚫 FORCE REGENERATION FOR TOP 5 TJDE TOKENS
+            # Vision-AI requires FRESH screenshots - market phases change every 15-60 minutes
+            # Never reuse existing charts for TOP 5 tokens as they need real-time analysis
+            print(f"   🔄 FORCE REGENERATION: TOP 5 TJDE token requires fresh TradingView screenshot")
+            
+            # Clean up any existing charts for this symbol to ensure fresh generation
             import glob
             import os
             from datetime import datetime, timedelta
             
-            current_time = datetime.now()
-            recent_pattern = f"training_data/charts/{symbol}_*.png"
-            existing_charts = glob.glob(recent_pattern)
+            cleanup_pattern = f"training_data/charts/{symbol}_*.png"
+            existing_charts = glob.glob(cleanup_pattern)
             
-            recent_chart_found = False
-            for chart_path in existing_charts:
+            cleaned_count = 0
+            for old_chart in existing_charts:
                 try:
-                    # Check if chart is recent (within last 30 minutes)
-                    file_mtime = datetime.fromtimestamp(os.path.getmtime(chart_path))
-                    if (current_time - file_mtime).total_seconds() < 1800:  # 30 minutes
-                        print(f"   ✅ Using existing chart: {os.path.basename(chart_path)}")
-                        generated_charts[symbol] = chart_path
-                        recent_chart_found = True
-                        break
-                except:
-                    continue
+                    # Remove old chart and its metadata
+                    if os.path.exists(old_chart):
+                        os.remove(old_chart)
+                        cleaned_count += 1
+                    
+                    # Remove associated metadata JSON
+                    metadata_path = old_chart.replace('.png', '_metadata.json')
+                    if os.path.exists(metadata_path):
+                        os.remove(metadata_path)
+                        
+                except Exception as cleanup_e:
+                    pass  # Continue even if cleanup fails
             
-            if recent_chart_found:
-                continue  # Skip to next token - already has recent chart
+            if cleaned_count > 0:
+                print(f"   🧹 Cleaned {cleaned_count} old charts for {symbol} to ensure fresh generation")
             
             # 🎯 SINGLE CHART GENERATION: Try TradingView first, then fallback to custom
             chart_generated = False

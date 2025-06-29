@@ -124,10 +124,10 @@ class RobustTradingViewGenerator:
             tv_symbol, exchange = self._resolve_symbol(symbol)
             print(f"[ROBUST TV] {symbol} → {tv_symbol} ({exchange})")
             
-            # Generate filename
+            # Generate filename with timestamp for freshness
             timestamp = datetime.now().strftime("%Y%m%d_%H%M")
             score_formatted = str(int(tjde_score * 1000)) if tjde_score > 0 else "000"
-            filename = f"{symbol}_{exchange}_score-{score_formatted}.png"
+            filename = f"{symbol}_{exchange}_score-{score_formatted}_{timestamp}.png"
             
             # Ensure output directory
             os.makedirs("training_data/charts", exist_ok=True)

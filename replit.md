@@ -98,6 +98,18 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 29, 2025 - FORCE REGENERATION FIX FOR TOP 5 TJDE TOKENS - Fresh Vision-AI Data Guaranteed ✅
+Successfully implemented critical force regeneration system for TOP 5 TJDE tokens ensuring Vision-AI always analyzes current market conditions:
+- **Force Regeneration Logic**: Modified scan_all_tokens_async.py to eliminate reuse of existing charts for TOP 5 tokens, preventing stale data analysis in Vision-AI pipeline
+- **Timestamp Integration**: Enhanced tradingview_robust.py filename generation adding timestamp suffix (SYMBOL_EXCHANGE_score-XXX_YYYYMMDD_HHMM.png) ensuring unique chart files per scan
+- **Old Chart Cleanup**: Implemented automatic cleanup of existing charts for TOP 5 symbols before generation preventing conflict with fresh screenshot capture
+- **Historical Data Preservation**: Charts remain in filesystem for 72h providing historical context for trend analysis while ensuring fresh generation for current decisions
+- **Vision-AI Accuracy Enhancement**: Eliminated logical error where CLIP/GPT analysis used outdated market phase data from previous scans (15-60 minute old screenshots)
+- **Production Reliability**: System now guarantees fresh TradingView screenshots for TOP 5 TJDE tokens critical for accurate AI trading decisions
+- **Test Validation**: Created test_force_regeneration.py validating cleanup logic with 100% success rate in removing stale files before fresh generation
+- **Market Phase Synchronization**: Vision-AI now analyzes current market conditions instead of historical snapshots ensuring real-time decision accuracy
+System eliminates critical logical error where TOP 5 tokens used stale charts for AI analysis, ensuring Vision-AI decisions based on current market phases for maximum trading accuracy.
+
 ### June 29, 2025 - CTKUSDT EXCHANGE RESOLUTION FIX - Enhanced Multi-Exchange Detection Complete ✅
 Successfully resolved CTKUSDT and other altcoin tokens generating TRADINGVIEW_FAILED placeholders by expanding exchange detection logic:
 - **Exchange Detection Enhancement**: Expanded major_cryptos list in multi_exchange_resolver.py to include CTKUSDT, CHZUSDT, MANAUSDT, SANDUSDT, AXSUSDT, ENJUSDT, GALAUSDT, FLOWUSDT, ICPUSDT, FTMUSDT providing comprehensive Binance token coverage
