@@ -612,7 +612,7 @@ def generate_tjde_training_chart_contextual(symbol, candles_15m, tjde_score, tjd
         import numpy as np
 
         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M")
-        folder = "training_charts"
+        folder = "training_data/charts"
         os.makedirs(folder, exist_ok=True)
 
         # Detect alert point in the data
@@ -798,7 +798,7 @@ def generate_tjde_training_chart_simple(symbol, price_series, tjde_score, tjde_p
         import os
 
         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M")
-        folder = "training_charts"
+        folder = "training_data/charts"
         os.makedirs(folder, exist_ok=True)
 
         label = f"{tjde_phase.upper()} | TJDE: {round(tjde_score, 3)}"
