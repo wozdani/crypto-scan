@@ -139,16 +139,49 @@ class TradingViewScreenshotGenerator:
                 print(f"[TRADINGVIEW] Loading: {chart_url}")
                 await page.goto(chart_url, timeout=self.timeout, wait_until='domcontentloaded')
                 
-                # Wait for chart to load
+                # 🕒 Wait for chart to fully render (enhanced canvas detection)
                 print(f"[TRADINGVIEW] Waiting for chart elements to load...")
-                await page.wait_for_timeout(8000)  # 8 seconds for chart loading
-                
-                # Try to wait for chart canvas
                 try:
-                    await page.wait_for_selector('canvas', timeout=5000)
-                    print(f"[TRADINGVIEW] Chart canvas detected")
-                except:
-                    print(f"[TRADINGVIEW] Canvas not detected, continuing...")
+                    # Wait for canvas elements to appear
+                    await page.wait_for_selector("canvas", timeout=10000)
+                    print(f"[TRADINGVIEW] Canvas elements detected")
+                    
+                    # Wait for multiple canvas elements (TradingView uses several)
+                    await page.wait_for_function("document.querySelectorAll('canvas').length > 0", timeout=10000)
+                    print(f"[TRADINGVIEW] Multiple canvas elements confirmed")
+                    
+                    # Additional time for chart data to load and render
+                    await page.wait_for_timeout(3000)  # 3 seconds for full chart rendering
+                    print(f"[TRADINGVIEW] Chart rendering completed")
+                    
+                except Exception as e:
+                    log_warning("TRADINGVIEW CHART LOADING", e, f"{symbol}: Chart may not have loaded properly")
+                    print(f"[TRADINGVIEW WARNING] {symbol}: Chart loading issue ({e}) - proceeding with screenshot")
+                
+                # 🔍 Check for TradingView errors (invalid symbol, chart loading issues)
+                print(f"[TRADINGVIEW] Checking for chart errors...")
+                try:
+                    # Check for error messages
+                    error_selectors = [
+                        '[class*="error"]',
+                        '[class*="not-found"]',
+                        'text*="not found"',
+                        'text*="invalid"',
+                        'text*="Symbol not found"'
+                    ]
+                    
+                    for selector in error_selectors:
+                        try:
+                            error_element = await page.query_selector(selector)
+                            if error_element:
+                                error_text = await error_element.text_content() if error_element else ""
+                                log_warning("TRADINGVIEW SYMBOL ERROR", None, f"{symbol}: {error_text}")
+                                print(f"[TRADINGVIEW ERROR] {symbol}: Chart error detected - {error_text}")
+                        except:
+                            continue
+                            
+                except Exception as e:
+                    print(f"[TRADINGVIEW] Error check failed: {e}")
                 
                 # Clean up TradingView interface elements
                 print(f"[TRADINGVIEW] Cleaning interface...")
