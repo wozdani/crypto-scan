@@ -36,13 +36,13 @@ except ImportError:
 
 def plot_chart_with_context(symbol, candles, alert_indices=None, alert_index=None, score=None, decision=None, phase=None, setup=None, save_path="chart.png", context_days=2):
     """
-    Enhanced chart generation with extended context for better Vision-AI training
+    🚫 MATPLOTLIB CHART GENERATION DISABLED - TradingView-only system active
     
     Args:
         symbol: Trading symbol
-        candles: List of candle data with timestamp, open, high, low, close, volume
-        alert_indices: List of historical alert indices for memory learning
-        alert_index: Single alert index for backward compatibility
+        candles: List of candle data
+        alert_indices: List of alert indices
+        alert_index: Single alert index
         score: TJDE score
         decision: Trading decision
         phase: Market phase
