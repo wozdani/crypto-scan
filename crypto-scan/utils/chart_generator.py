@@ -1,11 +1,9 @@
 """
-Chart Generator for Computer Vision Training
-Generates realistic chart patterns for ML training when market data is unavailable
+Chart Generator - DISABLED
+🚫 ALL MATPLOTLIB FUNCTIONS DISABLED - TradingView-only system active
+All functions in this module now return None and redirect to TradingView screenshot system
 """
 
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
 from datetime import datetime, timedelta
 from typing import List, Optional
 import os
@@ -19,7 +17,7 @@ def create_pattern_chart(
     style: str = "professional"
 ) -> Optional[str]:
     """
-    Create chart with specific pattern for Computer Vision training
+    🚫 MATPLOTLIB CHART GENERATION DISABLED - TradingView-only system active
     
     Args:
         pattern_type: Type of pattern to generate
@@ -28,24 +26,24 @@ def create_pattern_chart(
         style: Chart style
         
     Returns:
-        Path to saved chart or None if failed
+        None - Function disabled, use TradingView screenshot system
     """
-    try:
-        # Generate pattern-specific data
-        candles = _generate_pattern_data(pattern_type, 96)
-        
-        if not candles:
-            return None
-        
-        # Create chart image
-        return _create_chart_image(candles, pattern_type, symbol, save_path, style)
-        
-    except Exception as e:
-        print(f"[CHART GEN] Error creating {pattern_type} chart: {e}")
-        return None
+    print(f"[MATPLOTLIB DISABLED] {symbol} → Pattern chart generation disabled, using TradingView-only system")
+    return None
 
 
 def _generate_pattern_data(pattern_type: str, count: int) -> List[List]:
+    """
+    🚫 MATPLOTLIB DATA GENERATION DISABLED - TradingView-only system active
+    
+    Returns:
+        Empty list - Function disabled
+    """
+    print(f"[MATPLOTLIB DISABLED] Pattern data generation disabled for {pattern_type}")
+    return []
+
+
+def _generate_pattern_data_original(pattern_type: str, count: int) -> List[List]:
     """Generate realistic OHLCV data for specific patterns"""
     
     base_price = 50000
@@ -101,7 +99,24 @@ def _create_chart_image(
     save_path: str = None,
     style: str = "professional"
 ) -> str:
-    """Create chart image from candle data"""
+    """
+    🚫 MATPLOTLIB CHART IMAGE CREATION DISABLED - TradingView-only system active
+    
+    Returns:
+        None - Function disabled
+    """
+    print(f"[MATPLOTLIB DISABLED] {symbol} → Chart image creation disabled, using TradingView-only system")
+    return None
+
+
+def _create_chart_image_original(
+    candles: List[List],
+    pattern_type: str,
+    symbol: str,
+    save_path: str = None,
+    style: str = "professional"
+) -> str:
+    """Create chart image from candle data - ORIGINAL DISABLED VERSION"""
     
     # Process data
     times = [datetime.fromtimestamp(c[0] / 1000) for c in candles]

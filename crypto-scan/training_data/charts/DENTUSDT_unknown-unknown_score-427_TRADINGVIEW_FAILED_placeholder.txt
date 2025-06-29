@@ -1,0 +1,9 @@
+TradingView Screenshot Generation Failed
+Symbol: DENTUSDT
+Phase: unknown
+Setup: unknown
+TJDE Score: 0.428
+Decision: avoid
+
+This placeholder indicates TradingView screenshot failed.
+No matplotlib fallback - TradingView-only system active.
