@@ -298,36 +298,16 @@ def generate_top_tjde_charts(results: List[Dict]):
             try:
                 print(f"   🔄 Attempting TradingView chart generation...")
                 
-                # Use sync wrapper to avoid event loop conflicts
-                from utils.tradingview_sync_wrapper import generate_tradingview_screenshot_sync
+                # Use robust TradingView generator
+                from utils.tradingview_robust import RobustTradingViewGenerator
                 
-                # Extract setup type from GPT comment
-                gpt_comment = entry.get('gpt_comment', '')
-                setup_type = 'unknown'
-                
-                if gpt_comment:
-                    if 'breakout' in gpt_comment.lower():
-                        setup_type = 'breakout_continuation'
-                    elif 'pullback' in gpt_comment.lower():
-                        setup_type = 'pullback_in_trend'
-                    elif 'consolidation' in gpt_comment.lower():
-                        setup_type = 'range_consolidation'
-                    elif 'support' in gpt_comment.lower():
-                        setup_type = 'support_bounce'
-                    elif 'resistance' in gpt_comment.lower():
-                        setup_type = 'resistance_test'
-                    else:
-                        setup_type = market_phase.replace('-', '_') if market_phase else 'unknown'
-                else:
-                    setup_type = market_phase.replace('-', '_') if market_phase else 'unknown'
-                
-                # Generate TradingView chart using sync wrapper (fixes event loop conflicts)
-                chart_path = generate_tradingview_screenshot_sync(
-                    symbol=symbol, 
-                    phase=market_phase or 'unknown',
-                    setup=setup_type,
-                    score=tjde_score
-                )
+                # Generate TradingView chart using robust generator
+                async with RobustTradingViewGenerator() as generator:
+                    chart_path = await generator.generate_screenshot(
+                        symbol=symbol, 
+                        tjde_score=tjde_score,
+                        decision=entry.get('decision', 'unknown')
+                    )
                 
                 if chart_path and os.path.exists(chart_path):
                     print(f"   ✅ TradingView chart: {os.path.basename(chart_path)}")
