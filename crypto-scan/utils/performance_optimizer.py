@@ -101,8 +101,8 @@ class PerformanceOptimizer:
         # Calculate required concurrency (with overhead factor)
         optimal_concurrency = int(target_per_second * 2.5)  # 2.5x overhead for safety
         
-        # Cap at reasonable limits
-        optimal_concurrency = min(optimal_concurrency, 300)  # Max 300 concurrent
+        # Cap at reasonable limits for 752 token processing
+        optimal_concurrency = min(optimal_concurrency, 400)  # Max 400 concurrent for 752 tokens
         optimal_concurrency = max(optimal_concurrency, 50)   # Min 50 concurrent
         
         print(f"[PERFORMANCE] Target: {symbol_count} tokens in <{self.target_time}s")
@@ -120,8 +120,8 @@ class PerformanceOptimizer:
         Returns:
             Performance configuration
         """
-        # Prioritize high-volume tokens
-        prioritized_symbols = self.prioritize_high_volume_tokens(symbols, 300)
+        # Prioritize high-volume tokens - Process all 752 symbols
+        prioritized_symbols = self.prioritize_high_volume_tokens(symbols, 752)
         
         # Calculate optimal concurrency
         optimal_concurrency = self.optimize_concurrency_for_target(len(prioritized_symbols))
@@ -200,7 +200,7 @@ class PerformanceOptimizer:
             'request_timeout': 2.0,  # Fast timeout
             'fast_mode': True,
             'enable_compression': True,
-            'connection_pool_size': 300,
+            'connection_pool_size': 400,
             'connection_pool_maxsize': 400
         }
     

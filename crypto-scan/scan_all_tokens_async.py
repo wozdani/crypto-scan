@@ -168,7 +168,7 @@ async def async_scan_cycle():
     except Exception as e:
         log_global_error("Performance Optimization", f"Using default settings: {e}")
         optimized_symbols = symbols[:752]  # Process all available symbols
-        max_concurrent = 300  # Increased for 752 tokens
+        max_concurrent = 400  # Increased for 752 tokens
     
     # Execute async scan with enhanced performance  
     start_time = time.time()
