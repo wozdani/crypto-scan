@@ -167,8 +167,8 @@ async def async_scan_cycle():
         print(f"[PERFORMANCE] Target: {len(optimized_symbols)} tokens in <15s")
     except Exception as e:
         log_global_error("Performance Optimization", f"Using default settings: {e}")
-        optimized_symbols = symbols[:300]  # Limit to 300 for performance
-        max_concurrent = 150
+        optimized_symbols = symbols[:752]  # Process all available symbols
+        max_concurrent = 300  # Increased for 752 tokens
     
     # Execute async scan with enhanced performance  
     start_time = time.time()

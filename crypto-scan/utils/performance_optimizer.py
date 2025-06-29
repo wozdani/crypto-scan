@@ -26,11 +26,11 @@ class PerformanceOptimizer:
     
     def __init__(self):
         self.target_time = 15  # Target scan time in seconds
-        self.max_concurrent = 200  # Aggressive concurrency
+        self.max_concurrent = 400  # Very aggressive concurrency for 752 tokens
         self.volume_threshold = 100000  # Minimum volume threshold
         self.batch_size = 50  # Process in batches
         
-    def prioritize_high_volume_tokens(self, symbols: List[str], limit: int = 300) -> List[str]:
+    def prioritize_high_volume_tokens(self, symbols: List[str], limit: int = 752) -> List[str]:
         """
         Prioritize tokens by volume to focus on most active markets
         
