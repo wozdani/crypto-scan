@@ -116,7 +116,9 @@ class MultiExchangeResolver:
             'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT',
             'DOTUSDT', 'LTCUSDT', 'LINKUSDT', 'AVAXUSDT', 'MATICUSDT',
             'WLDUSDT', 'SUIUSDT', 'JUPUSDT', 'PEOPLEUSDT', 'COMPUSDT',
-            'XRPUSDT', 'ATOMUSDT', 'FILUSDT', 'NEARUSDT', 'ALGOUSDT'
+            'XRPUSDT', 'ATOMUSDT', 'FILUSDT', 'NEARUSDT', 'ALGOUSDT',
+            'CTKUSDT', 'CHZUSDT', 'MANAUSDT', 'SANDUSDT', 'AXSUSDT',
+            'ENJUSDT', 'GALAUSDT', 'FLOWUSDT', 'ICPUSDT', 'FTMUSDT'
         ]
         
         if exchange == "BINANCE":
@@ -129,8 +131,13 @@ class MultiExchangeResolver:
                 print(f"[RESOLVER] ✅ {tv_symbol} DeFi token on BINANCE")
                 return True
                 
-            # Popular altcoins
-            if any(keyword in symbol for keyword in ['GMT', 'ZEN', 'CTSI', 'XTZ']):
+            # Popular altcoins - extended coverage
+            popular_altcoins = [
+                'GMT', 'ZEN', 'CTSI', 'XTZ', 'CTK', 'ENJ', 'MANA', 'SAND', 
+                'AXS', 'GALA', 'CHZ', 'FTM', 'ICP', 'FLOW', 'OCEAN', 
+                'FET', 'AGIX', 'RLC', 'SLP', 'TLM', 'PYR', 'ALICE'
+            ]
+            if any(keyword in symbol for keyword in popular_altcoins):
                 print(f"[RESOLVER] ✅ {tv_symbol} popular altcoin on BINANCE")
                 return True
         
