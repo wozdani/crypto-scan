@@ -79,7 +79,7 @@ class TradingViewScreenshotGenerator:
     """Generate authentic TradingView screenshots for TOP 5 TJDE tokens"""
     
     def __init__(self):
-        self.output_dir = "training_charts"
+        self.output_dir = "training_data/charts"
         self.browser = None
         self.context = None
         self.viewport = {"width": 1920, "height": 1080}

@@ -396,7 +396,7 @@ def generate_tjde_training_chart(
     candles_5m: List = None, 
     tjde_result: Dict = None,
     clip_info: Dict = None,
-    output_dir: str = "training_charts"
+    output_dir: str = "training_data/charts"
 ) -> Optional[str]:
     """
     Generate TJDE-based training chart with complete analysis overlay
@@ -982,7 +982,7 @@ def _save_chart_metadata(
     tjde_score: float, 
     decision: str,
     tjde_breakdown: Dict = None,
-    output_dir: str = "training_charts"
+    output_dir: str = "training_data/charts"
 ) -> bool:
     """Save chart metadata as JSON for training purposes"""
     try:

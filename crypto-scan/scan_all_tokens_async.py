@@ -281,7 +281,7 @@ def generate_top_tjde_charts(results: List[Dict]):
                 
                 # Check for recent charts (last 30 minutes) to avoid duplicate work
                 current_time = datetime.now()
-                recent_pattern = f"training_charts/{symbol}_*.png"
+                recent_pattern = f"training_data/charts/{symbol}_*.png"
                 existing_charts = glob.glob(recent_pattern)
                 
                 recent_chart_found = False
