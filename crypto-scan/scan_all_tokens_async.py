@@ -372,7 +372,11 @@ async def generate_top_tjde_charts(results: List[Dict]):
                                 print(f"   🔄 Trying alternative: {tv_symbol} ({exchange})")
                                 
                                 # Temporarily override resolver result
-                                resolver.cache[symbol] = (tv_symbol, exchange)
+                                resolver.cache[symbol] = {
+                                    'tv_symbol': tv_symbol,
+                                    'exchange': exchange,
+                                    'cached_at': datetime.now().isoformat()
+                                }
                                 
                                 # Try generation with alternative exchange
                                 alt_chart_path = await generator.generate_screenshot(
@@ -459,7 +463,7 @@ async def generate_top_tjde_charts(results: List[Dict]):
                         symbol=symbol,
                         error_reason="sync_wrapper_failed",
                         phase=market_phase or 'unknown',
-                        setup=setup_type,
+                        setup=entry.get('setup_type', 'unknown_setup'),
                         score=tjde_score
                     )
                     
