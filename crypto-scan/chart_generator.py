@@ -328,14 +328,14 @@ def generate_alert_focused_training_chart(
         ax2.set_title('Volume', fontsize=10)
         
         # 9. ZAPISZ WYKRES
-        os.makedirs("training_charts", exist_ok=True)
+        os.makedirs("training_data/charts", exist_ok=True)
         timestamp_str = datetime.now().strftime("%Y%m%d_%H%M")
         
         # Nazwa pliku z kontekstem
         phase_short = tjde_phase.replace('-', '').replace('_', '')[:8]
         decision_short = tjde_decision.replace('_', '')[:4]
         filename = f"{symbol}_{timestamp_str}_{phase_short}_{decision_short}_alert.png"
-        filepath = os.path.join("training_charts", filename)
+        filepath = os.path.join("training_data/charts", filename)
         
         plt.tight_layout()
         
@@ -1194,7 +1194,7 @@ def generate_chart_async_safe(
         
         # Generate chart path with timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        chart_path = f"training_charts/{symbol}_{timestamp}_professional_async.png"
+        chart_path = f"training_data/charts/{symbol}_{timestamp}_professional_async.png"
         
         # Generate professional TradingView/Bybit-style chart (alert candle = LAST as requested)
         success = plot_market_chart(candles_15m, alert_info, chart_path)

@@ -271,7 +271,7 @@ def scan_cycle():
     
     # Run Phase 4 Embedding processing periodically
     try:
-        from hybrid_embedding_system import process_training_charts_for_embeddings
+        from hybrid_embedding_system import process_training_data_charts_for_embeddings
         
         # Process training charts for embeddings (very low frequency)
         if random.random() < 0.02:  # 2% chance each cycle

@@ -579,7 +579,7 @@ def prepare_ohlcv_dataframes(candles: List) -> tuple:
 
 
 def generate_trend_mode_chart(symbol: str, candles_15m: List, tjde_result: Dict,
-                            output_dir: str = "training_charts", 
+                            output_dir: str = "training_data/charts", 
                             alert_sent: bool = False) -> Optional[str]:
     """
     Generate custom trend-mode chart for Vision-AI training
