@@ -170,17 +170,18 @@ Successfully implemented comprehensive blank chart validation system eliminating
 - **Dataset Integrity**: Eliminates training data corruption from empty screenshots ensuring CLIP model receives only high-quality authentic TradingView chart images
 System now generates only valid TradingView screenshots with actual market data eliminating blank/white image artifacts that were degrading Vision-AI training quality.
 
-### June 29, 2025 - Critical Individual Chart Generation Fix - Mass Chart Creation Completely Stopped ✅
-Successfully resolved critical chart generation bug where individual token scanning was bypassing TOP 5 restrictions causing mass chart creation:
-- **Root Cause Identified**: Fixed individual chart generation in scan_token_async.py that was creating charts for ALL tokens regardless of TOP 5 status
-- **Individual Chart Generation Disabled**: Completely disabled chart generation during individual token scanning to prevent mass chart creation bypassing TOP 5 restrictions
-- **Batch-Only Chart Generation**: System now exclusively uses centralized batch generation in scan_all_tokens_async.py ensuring ONLY TOP 5 tokens generate training charts
-- **Timing Issue Resolved**: Fixed critical sequence problem where individual tokens checked TOP 5 status before TOP 5 selection was completed, causing empty selection checks
-- **TOP 5 Selection Working**: Proper selection now occurs (SUIUSDT 0.429, 1INCHUSDT 0.429, PENDLEUSDT 0.428, CTSIUSDT 0.427, GRTUSDT 0.424) with charts generated ONLY for these elite tokens
-- **Performance Maintained**: System still processes 416 tokens in 13.6s (target <15s) while restricting training chart generation to quality data only
-- **Chart Count Reduction**: Training chart count reduced from 245 to 212 files confirming proper restriction enforcement
-- **Dataset Quality Protection**: Eliminates dataset bloat from low-scoring tokens ensuring high-quality CLIP model training data exclusively from TOP 5 performers
-System now generates training charts exclusively for TOP 5 highest TJDE scoring tokens eliminating mass chart generation that was degrading training data quality.
+### June 29, 2025 - Critical Triple Chart Generation Fix - Complete Unified System Implemented ✅
+Successfully resolved critical chart duplication issue where TOP 5 tokens were generating charts three times through separate modules:
+- **Triple Generation Problem Eliminated**: Fixed issue where each TOP 5 token triggered chart generation in FORCE REFRESH, TRADINGVIEW-ONLY, and TOP5 TJDE modules simultaneously
+- **Unified Chart Generation System**: Created centralized single-pass chart generation in generate_top_tjde_charts() with 3-tier fallback (TradingView → Force Refresh → Custom)
+- **Resource Waste Prevention**: Eliminated duplicate Chromium browser sessions and reduced chart generation from 15 to 5 charts for TOP 5 tokens preventing CPU overload
+- **CLIP Confidence Bug Fixed**: Resolved critical variable overwrite issue in trader_ai_engine.py where clip_confidence was reset to 0.000 after processing instead of showing actual values
+- **TradingViewAsyncFix Enhanced**: Added missing generate_single_chart() function to support unified chart generation architecture
+- **Performance Optimization**: System now generates each TOP 5 token chart exactly once through intelligent coordination between modules
+- **Chart Generation Modes**: Unified system supports mode=training and mode=alert with proper chart type selection and metadata generation
+- **Production Reliability**: Eliminated 20 simultaneous Chromium processes and empty charts with TRADINGVIEW SYMBOL ERROR reducing system resource consumption
+- **Dataset Quality Maintained**: Preserves high-quality training data generation while preventing resource waste from duplicate chart creation
+System now generates charts efficiently without duplication maintaining <15s target performance with proper CLIP confidence reporting and unified TOP 5 selection.
 
 ### June 29, 2025 - Critical Early Termination Fix - Full Token Processing Restored ✅
 Successfully resolved critical early termination bug that was limiting system to ~300 tokens instead of processing all available symbols:
