@@ -102,70 +102,80 @@ class DailyContextChartsGenerator:
         return f"DAILY_{symbol}_{exchange}_15M_{date_str}.png"
     
     async def generate_daily_chart(self, symbol: str) -> Optional[str]:
-        """Generate single daily context chart"""
+        """Generate single daily context chart using existing TradingView generator"""
         try:
             print(f"[DAILY CHART] Generating context chart for {symbol}...")
             
-            # Import required modules for custom screenshot generation
-            from playwright.async_api import async_playwright
+            # Use existing robust TradingView generator system
+            from .tradingview_robust import RobustTradingViewGenerator
             from .multi_exchange_resolver import get_multi_exchange_resolver
             
-            # Generate daily chart using custom implementation
+            # Resolve symbol
             resolver = get_multi_exchange_resolver()
-            tv_symbol, exchange = resolver.resolve_symbol(symbol)
+            result = resolver.resolve_tradingview_symbol(symbol)
+            if result:
+                tv_symbol, exchange = result
+            else:
+                # Fallback to BINANCE
+                tv_symbol = f"BINANCE:{symbol}"
+                exchange = "BINANCE"
             
-            date_str = datetime.now().strftime('%Y%m%d')
-            daily_filename = f"DAILY_{symbol}_{exchange}_15M_{date_str}.png"
-            chart_path = self.output_dir / daily_filename
-            
-            # Take screenshot directly
-            async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
-                page = await browser.new_page()
+            # Generate chart using existing system
+            async with RobustTradingViewGenerator() as generator:
+                # Temporarily modify screenshot directory
+                original_generate = generator.generate_screenshot
                 
-                try:
-                    # Navigate to TradingView
-                    url = f"https://www.tradingview.com/chart/?symbol={tv_symbol}&interval=15"
-                    await page.goto(url, wait_until='domcontentloaded', timeout=15000)
+                async def custom_generate_screenshot(symbol_param, tjde_score=0.0, decision="context"):
+                    # Generate chart with regular system
+                    result = await original_generate(symbol_param, tjde_score, decision)
                     
-                    # Wait for chart to load
-                    await page.wait_for_selector("canvas", timeout=8000)
-                    await asyncio.sleep(3)  # Additional wait for data
-                    
-                    # Take screenshot
-                    await page.screenshot(path=str(chart_path), full_page=False)
-                    
-                    # Verify file was created
-                    if chart_path.exists() and chart_path.stat().st_size > 10000:
-                        # Save metadata
-                        metadata = {
-                            'symbol': symbol,
-                            'exchange': exchange,
-                            'tradingview_symbol': tv_symbol,
-                            'type': 'daily_context_chart',
-                            'generated_at': datetime.now().isoformat(),
-                            'interval': '15M',
-                            'purpose': 'historical_context_only',
-                            'not_for_training': True,
-                            'filename': daily_filename
-                        }
+                    if result and result != "INVALID_SYMBOL":
+                        # Move to daily context directory and rename
+                        original_path = Path(result)
+                        date_str = datetime.now().strftime('%Y%m%d')
+                        daily_filename = f"DAILY_{symbol}_{exchange}_15M_{date_str}.png"
+                        daily_path = self.output_dir / daily_filename
                         
-                        metadata_file = chart_path.with_suffix('.json')
-                        with open(metadata_file, 'w') as f:
-                            json.dump(metadata, f, indent=2)
+                        # Move file
+                        import shutil
+                        shutil.move(str(original_path), str(daily_path))
+                        
+                        # Move metadata if exists
+                        original_metadata = original_path.with_suffix('.json')
+                        if original_metadata.exists():
+                            # Update metadata for daily context
+                            with open(original_metadata, 'r') as f:
+                                metadata = json.load(f)
+                            
+                            # Update for daily context
+                            metadata.update({
+                                'type': 'daily_context_chart',
+                                'purpose': 'historical_context_only',
+                                'not_for_training': True,
+                                'original_filename': original_path.name,
+                                'daily_filename': daily_filename
+                            })
+                            
+                            daily_metadata = daily_path.with_suffix('.json')
+                            with open(daily_metadata, 'w') as f:
+                                json.dump(metadata, f, indent=2)
+                            
+                            # Remove original metadata
+                            original_metadata.unlink()
                         
                         print(f"   ✅ Context chart: {daily_filename}")
-                        return str(chart_path)
-                    else:
-                        print(f"   ❌ Chart file too small or not created for {symbol}")
-                        return None
-                        
-                except Exception as screenshot_error:
-                    print(f"   ❌ Screenshot error for {symbol}: {screenshot_error}")
-                    return None
+                        return str(daily_path)
                     
-                finally:
-                    await browser.close()
+                    return result
+                
+                # Generate screenshot
+                chart_result = await custom_generate_screenshot(symbol)
+                
+                if chart_result and chart_result != "INVALID_SYMBOL":
+                    return chart_result
+                else:
+                    print(f"   ❌ Failed to generate chart for {symbol}")
+                    return None
                 
         except Exception as e:
             print(f"   ❌ Error generating chart for {symbol}: {e}")
