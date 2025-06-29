@@ -1040,16 +1040,20 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
             grade = "weak"
         
         # CLIP pattern override for strong visual signals
-        if clip_info and clip_confidence > 0.75:
-            pattern = clip_info.get('pattern', '')
+        if original_clip_info and original_clip_confidence > 0.75:
+            pattern = original_clip_info.get('pattern', '')
             if pattern == 'breakout-continuation' and score >= 0.55:
                 print(f"[CLIP OVERRIDE] Strong breakout pattern detected - upgrading decision")
                 if decision == "avoid":
                     decision = "consider_entry"
                     grade = "moderate"
         
+        # Store original CLIP confidence before it gets overwritten
+        original_clip_confidence = clip_confidence
+        original_clip_info = clip_info
+        
         print(f"[TJDE DEBUG] Final decision for {symbol}: {decision}, Score: {score:.3f}")
-        print(f"[TJDE DEBUG] Phase: {market_phase} | CLIP Confidence: {clip_confidence:.3f} | Visual Intelligence Active: {clip_confidence > 0.4}")
+        print(f"[TJDE DEBUG] Phase: {market_phase} | CLIP Confidence: {original_clip_confidence:.3f} | Visual Intelligence Active: {original_clip_confidence > 0.4}")
         logging.debug(f"[TJDE DEBUG] Complete decision for {symbol}: decision={decision}, score={score:.3f}, grade={grade}, phase={market_phase}")
         
         if context_modifiers:
@@ -1059,7 +1063,8 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
         # === ETAP 6: ADVANCED CLIP INTEGRATION WITH CONTEXTUAL BOOSTS ===
         clip_modifier = 0.0
         clip_predicted_phase = ""
-        clip_info = {
+        # Note: We preserve original clip_info and create a new one for additional processing
+        additional_clip_info = {
             "predicted_phase": "N/A",
             "confidence": 0.0,
             "modifier": 0.0,
