@@ -23,30 +23,71 @@ from utils.tradingview_robust import RobustTradingViewGenerator
 class DailyContextChartsGenerator:
     """Daily context charts generator for market overview"""
     
-    def __init__(self):
+    def __init__(self, target_hour: int = 0):
+        """
+        Initialize daily context charts generator
+        
+        Args:
+            target_hour: Hour of day (0-23) when to generate daily charts (default: 0 = 00:00 UTC - end of 1D candle)
+        """
+        self.target_hour = target_hour  # Hour when daily charts should be generated (0 = midnight UTC)
         self.output_dir = Path("context_charts_daily")
         self.output_dir.mkdir(exist_ok=True)
         self.last_run_file = Path("data/daily_context_last_run.json")
         self.generator = RobustTradingViewGenerator()
         
     def should_generate_daily_charts(self) -> bool:
-        """Check if 24 hours have passed since last generation"""
+        """
+        Check if charts should be generated based on target hour and last run date
+        
+        Charts are generated once per day at 00:00 UTC (midnight) - end of 1D candle
+        This ensures daily context charts capture complete 24h market data
+        """
+        current_time = datetime.now()
+        
+        # If no last run file, generate if we're at or past target hour
         if not self.last_run_file.exists():
-            return True
+            should_run = current_time.hour >= self.target_hour
+            print(f"[DAILY CHARTS] First run - current hour: {current_time.hour}, target: {self.target_hour}, should run: {should_run}")
+            return should_run
             
         try:
             with open(self.last_run_file, 'r') as f:
                 data = json.load(f)
             
             last_run = datetime.fromisoformat(data['last_run'])
-            hours_since = (datetime.now() - last_run).total_seconds() / 3600
+            last_run_date = last_run.date()
+            current_date = current_time.date()
             
-            print(f"[DAILY CHARTS] Last run: {hours_since:.1f}h ago")
-            return hours_since >= 24.0
+            # If it's a new day and we're at or past target hour
+            if current_date > last_run_date and current_time.hour >= self.target_hour:
+                print(f"[DAILY CHARTS] New day ({current_date}) and past target hour ({self.target_hour}:00), should generate")
+                return True
+            
+            # If same day but we haven't run yet today and we're at target hour
+            if current_date == last_run_date:
+                hours_since = (current_time - last_run).total_seconds() / 3600
+                print(f"[DAILY CHARTS] Same day, last run: {hours_since:.1f}h ago")
+                return False
+            
+            print(f"[DAILY CHARTS] Current: {current_time.hour}:00, Target: {self.target_hour}:00, Last: {last_run_date}")
+            return False
             
         except Exception as e:
             print(f"[DAILY CHARTS] Error reading last run: {e}")
-            return True
+            return current_time.hour >= self.target_hour
+    
+    def get_target_hour_info(self) -> dict:
+        """Get information about target hour configuration"""
+        current_time = datetime.now()
+        return {
+            'target_hour_utc': self.target_hour,
+            'target_time_formatted': f"{self.target_hour:02d}:00 UTC",
+            'current_hour_utc': current_time.hour,
+            'current_time_formatted': f"{current_time.hour:02d}:{current_time.minute:02d} UTC",
+            'next_run_today': current_time.hour < self.target_hour,
+            'description': f"Daily charts generate once per day at {self.target_hour:02d}:00 UTC"
+        }
     
     def mark_daily_run_complete(self):
         """Mark current timestamp as last successful run"""
