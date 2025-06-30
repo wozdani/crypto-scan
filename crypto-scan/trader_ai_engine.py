@@ -1680,6 +1680,57 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
             except Exception as memory_error:
                 print(f"[TOKEN MEMORY ERROR] {symbol}: {memory_error}")
 
+        # 🛡️ ENHANCED FAKEOUT DETECTION: Analiza realizacji pattern'u
+        fakeout_detected = False
+        fakeout_penalty = 0.0
+        
+        # Sprawdź czy po breakout nie ma kontynuacji (fakeout detection)
+        if len(candles) >= 5:
+            try:
+                recent_candles = candles[-5:]  # 5 ostatnich świec
+                last_candle = recent_candles[-1]
+                prev_candle = recent_candles[-2] if len(recent_candles) > 1 else last_candle
+                
+                # Detect fakeout scenarios
+                if isinstance(last_candle, (list, tuple)) and len(last_candle) >= 5:
+                    open_price = float(last_candle[1])
+                    high_price = float(last_candle[2])
+                    low_price = float(last_candle[3])
+                    close_price = float(last_candle[4])
+                    volume = float(last_candle[5]) if len(last_candle) > 5 else 1000
+                    
+                    # Fakeout pattern 1: Duża podaż po breakout (długi upper wick)
+                    body_size = abs(close_price - open_price)
+                    upper_wick = high_price - max(open_price, close_price)
+                    total_range = high_price - low_price
+                    
+                    if total_range > 0:
+                        upper_wick_ratio = upper_wick / total_range
+                        
+                        # Fakeout detected: upper wick > 50% range i close < open
+                        if upper_wick_ratio > 0.5 and close_price < open_price:
+                            fakeout_detected = True
+                            fakeout_penalty = 0.3  # Obniż score o 30%
+                            print(f"[FAKEOUT DETECTED] {symbol}: Large upper wick {upper_wick_ratio:.1%} + red close → fakeout")
+                        
+                        # Fakeout pattern 2: Brak kontynuacji po breakout
+                        elif body_size < total_range * 0.3 and volume < 500:  # Słaba świeca + niski volume
+                            fakeout_detected = True
+                            fakeout_penalty = 0.2  # Obniż score o 20%
+                            print(f"[FAKEOUT DETECTED] {symbol}: Weak continuation after breakout → potential fakeout")
+                
+                # Apply fakeout penalty
+                if fakeout_detected:
+                    original_score = final_result.get("final_score", 0.0)
+                    penalized_score = original_score * (1.0 - fakeout_penalty)
+                    final_result["final_score"] = penalized_score
+                    final_result["fakeout_detected"] = True
+                    final_result["fakeout_penalty"] = fakeout_penalty
+                    print(f"[FAKEOUT PENALTY] {symbol}: Score {original_score:.3f} → {penalized_score:.3f} (penalty: {fakeout_penalty:.1%})")
+                    
+            except Exception as fakeout_error:
+                print(f"[FAKEOUT ERROR] {symbol}: {fakeout_error}")
+        
         # 🔧 CRITICAL FIX: Fallback decision logic - nie może być "unknown"
         final_decision = final_result.get("decision", "unknown")
         final_score = final_result.get("final_score", 0.0)

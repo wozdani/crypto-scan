@@ -777,7 +777,13 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         if tjde_alert_condition:
             alert_level = tjde_alert_fix.get("alert_level", 2)
             enhanced_decision = tjde_alert_fix.get("enhanced_decision", tjde_decision)
-            print(f"[🚨 TJDE ALERT] {symbol} → TJDE: {tjde_score:.3f} ({enhanced_decision}) Level {alert_level}")
+            
+            # 🔐 CRITICAL FIX: Nie wysyłaj alertów dla "unknown" decision
+            if enhanced_decision in ["unknown", "none", None, ""]:
+                print(f"[TJDE ALERT BLOCK] {symbol}: Decision is '{enhanced_decision}' - ALERT BLOCKED to prevent false signals")
+                tjde_alert_condition = False  # Disable alert
+            else:
+                print(f"[🚨 TJDE ALERT] {symbol} → TJDE: {tjde_score:.3f} ({enhanced_decision}) Level {alert_level}")
             
             try:
                 # Create dedicated TJDE trend-mode alert
