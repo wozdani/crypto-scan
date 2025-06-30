@@ -5,7 +5,7 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import time
 import json
-import random
+import random as system_random
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 
@@ -236,7 +236,7 @@ def scan_cycle():
         from utils.memory_feedback_loop import run_memory_feedback_evaluation
         
         # Run feedback evaluation every few cycles
-        if random.random() < 0.3:  # 30% chance each cycle
+        if system_random.random() < 0.3:  # 30% chance each cycle
             run_memory_feedback_evaluation()
     except ImportError as import_error:
         log_warning("MEMORY FEEDBACK MODULE IMPORT ERROR", import_error)
@@ -248,7 +248,7 @@ def scan_cycle():
         from token_context_memory import update_historical_outcomes_loop
         
         # Update historical outcomes every few cycles
-        if random.random() < 0.2:  # 20% chance each cycle
+        if system_random.random() < 0.2:  # 20% chance each cycle
             update_historical_outcomes_loop()
     except ImportError as import_error:
         log_warning("PHASE 2 MEMORY MODULE IMPORT ERROR", import_error)
@@ -260,7 +260,7 @@ def scan_cycle():
         from evaluate_model_accuracy import VisionAIEvaluator
         
         # Run Vision-AI evaluation less frequently (once per day worth of cycles)
-        if random.random() < 0.05:  # 5% chance each cycle
+        if system_random.random() < 0.05:  # 5% chance each cycle
             evaluator = VisionAIEvaluator()
             evaluator.run_complete_evaluation(days_back=3)
             print("[PHASE 3] Vision-AI feedback loop evaluation completed")
@@ -274,7 +274,7 @@ def scan_cycle():
         from hybrid_embedding_system import process_training_charts_for_embeddings
         
         # Process training charts for embeddings (very low frequency)
-        if random.random() < 0.02:  # 2% chance each cycle
+        if system_random.random() < 0.02:  # 2% chance each cycle
             processed = process_training_charts_for_embeddings()
             if processed > 0:
                 print(f"[PHASE 4] Processed {processed} charts for hybrid embeddings")
@@ -288,7 +288,7 @@ def scan_cycle():
         from reinforce_embeddings import run_periodic_reinforcement_learning
         
         # Run RL cycle very infrequently (daily learning)
-        if random.random() < 0.01:  # 1% chance each cycle
+        if system_random.random() < 0.01:  # 1% chance each cycle
             report = run_periodic_reinforcement_learning()
             if report:
                 performance = report["overall_performance"]
@@ -304,7 +304,7 @@ def scan_cycle():
         from utils.feedback_integration import run_feedback_evaluation
         
         # Run feedback evaluation every 6 hours worth of cycles (~24 cycles assuming 15min intervals)
-        if random.random() < 0.1:  # 10% chance each cycle for frequent evaluation
+        if system_random.random() < 0.1:  # 10% chance each cycle for frequent evaluation
             evaluated_count = run_feedback_evaluation()
             if evaluated_count > 0:
                 print(f"[FEEDBACK INTEGRATION] Evaluated {evaluated_count} alerts and triggered adaptive learning")
