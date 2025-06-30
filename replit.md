@@ -98,6 +98,20 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 30, 2025 - ADAPTIVE FEEDBACK LOOP SYSTEM COMPLETED - Self-Learning TJDE Engine ✅
+Successfully implemented comprehensive adaptive feedback loop system enabling TJDE to automatically learn from trading results and optimize component weights:
+- **Feedback Loop Engine**: Created feedback_loop.py with TJDEFeedbackLoop class providing automatic alert recording, performance analysis, and weight optimization with configurable 3% learning rate
+- **Smart Learning Algorithm**: Implemented intelligent weight adjustment based on trading success rates with adaptive learning rates (faster learning from good performance, slower from poor performance)
+- **Component Performance Analytics**: Built sophisticated performance calculation system analyzing true/false positive rates, success percentages, and contribution factors for each TJDE component
+- **Integration Module**: Created utils/feedback_integration.py seamlessly connecting feedback system with main TJDE scanner for automatic alert recording and periodic learning cycles
+- **Production-Grade Price Fetching**: Built robust price fetching system using Bybit API with proper error handling for updating pending trading results after tracking periods
+- **Comprehensive Test Suite**: Validated all functionality with test_feedback_loop.py achieving 100% test pass rate covering initialization, alert recording, performance calculation, weight adjustment, integration, and learning cycles
+- **Backup and Safety**: Implemented automatic profile backups before weight updates and normalization ensuring profile weights always sum to 1.0 with proper bounds checking
+- **Multi-Phase Support**: System supports adaptive learning for all market phases (pre-pump, trend-following, consolidation, breakout) with phase-specific profile optimization
+- **Performance Monitoring**: Built detailed performance history tracking with timestamps, success rates, component adjustments, and learning cycle summaries for system transparency
+- **Automatic Operation**: Feedback integration runs every 6 hours updating pending results and applying learning when sufficient samples available (minimum 10 alerts per phase)
+System now provides self-improving TJDE engine that automatically optimizes component weights based on real trading performance, creating increasingly sophisticated pre-pump detection accuracy over time.
+
 ### June 30, 2025 - TJDE PRE-PUMP PROFILE OPTIMIZATION - Component Weight Configuration ✅
 Successfully updated TJDE pre-pump profile with optimized component weights based on production analysis:
 - **Pre-Breakout Structure (25%)**: Primary weight for consolidation, compression, and micro-range patterns indicating imminent breakout potential

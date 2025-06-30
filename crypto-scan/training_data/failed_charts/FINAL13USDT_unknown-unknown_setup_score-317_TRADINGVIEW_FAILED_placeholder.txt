@@ -1,0 +1,10 @@
+TRADINGVIEW SCREENSHOT FAILED
+Symbol: FINAL13USDT
+Phase: unknown
+Setup: unknown_setup  
+Score: 0.317
+Error: sync_wrapper_failed
+Timestamp: 2025-06-30T19:06:33.488539
+
+Note: This is a placeholder file created because TradingView screenshot generation failed.
+No matplotlib fallback was used to maintain dataset quality.
