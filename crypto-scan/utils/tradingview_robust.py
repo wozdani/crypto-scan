@@ -119,6 +119,19 @@ class RobustTradingViewGenerator:
     ) -> Optional[str]:
         """Generate TradingView screenshot with enhanced reliability"""
         
+        # 🔒 CRITICAL: TOP5 HARD BLOCK - Prevent training data generation outside TOP 5
+        try:
+            from .top5_selector import should_generate_training_data
+            if not should_generate_training_data(symbol, tjde_score):
+                print(f"🚫 [TOP5 BLOCK] {symbol}: TradingView screenshot BLOCKED - not in TOP 5 (TJDE: {tjde_score:.3f})")
+                return None
+        except ImportError:
+            print(f"🚫 [TOP5 BLOCK] {symbol}: TOP5 selector unavailable - blocking screenshot to maintain dataset quality")
+            return None
+        except Exception as e:
+            print(f"🚫 [TOP5 BLOCK] {symbol}: TOP5 check failed ({e}) - blocking screenshot")
+            return None
+        
         try:
             # Resolve symbol
             tv_symbol, exchange = self._resolve_symbol(symbol)
@@ -285,6 +298,16 @@ class RobustTradingViewGenerator:
         """
         Last resort: Try brute-force BINANCE fallback without validation
         """
+        # 🔒 CRITICAL: TOP5 HARD BLOCK even in fallback
+        try:
+            from .top5_selector import should_generate_training_data
+            if not should_generate_training_data(symbol, tjde_score):
+                print(f"🚫 [TOP5 FALLBACK BLOCK] {symbol}: BINANCE fallback BLOCKED - not in TOP 5 (TJDE: {tjde_score:.3f})")
+                return None
+        except Exception:
+            print(f"🚫 [TOP5 FALLBACK BLOCK] {symbol}: TOP5 check failed - blocking fallback screenshot")
+            return None
+            
         try:
             print(f"[ROBUST TV] 🚨 BRUTE-FORCE FALLBACK: Trying BINANCE:{symbol}")
             
