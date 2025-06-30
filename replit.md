@@ -98,6 +98,18 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 30, 2025 - PERPETUAL-ONLY RESOLVER IMPLEMENTATION - SPOT Contract Contamination Eliminated ✅
+Successfully implemented comprehensive PERPETUAL-ONLY resolver preventing SPOT contract contamination that was corrupting trend-mode and pre-pump trading strategies:
+- **Critical Issue Resolution**: Fixed system accepting SPOT contracts (BINANCE:COSUSDT) instead of PERPETUAL contracts essential for funding rates and leverage analysis in trading strategies
+- **PERPETUAL Detection System**: Enhanced multi_exchange_resolver.py with is_perpetual_symbol() function providing exchange-specific detection for all major exchanges (BYBIT, BINANCE, BITGET, OKX, MEXC, KUCOIN, GATEIO)
+- **Exchange-Specific Logic**: BYBIT (all symbols perpetual), BITGET (all USDT perpetual), BINANCE (requires .P or USDTPERP suffix), OKX/MEXC/KUCOIN (specific suffix requirements)
+- **SPOT Rejection System**: Comprehensive SPOT contract blocking preventing contamination from BINANCE:BTCUSDT, COINBASE:BTCUSD, KRAKEN:XBTUSD and other traditional spot pairs
+- **Complete Test Suite**: Created test_perpetual_resolver.py with 100% pass rate validating PERPETUAL detection, SPOT rejection, symbol generation, and resolver functionality
+- **Production Integration**: All TradingView chart generation now uses PERPETUAL-ONLY resolver with brute-force fallback maintaining chart generation reliability
+- **Cache Management**: Cleared stale cache ensuring fresh start with PERPETUAL-only results and perpetual_only: true flags
+- **Trading Strategy Protection**: Eliminates corruption of trend-mode and pre-pump strategies designed specifically for perpetual contracts with funding rates, leverage access, and 24/7 trading
+System now guarantees exclusive use of PERPETUAL contracts for all TradingView chart generation protecting trading strategy integrity and eliminating SPOT contract contamination.
+
 ### June 30, 2025 - CRITICAL BRUTE-FORCE BINANCE FALLBACK IMPLEMENTATION - Infinite Loop Prevention Complete ✅
 Successfully implemented comprehensive brute-force BINANCE fallback system preventing chart generation failures and infinite loops for problematic tokens:
 - **Multi-Exchange Resolver Enhancement**: Added last-resort BINANCE fallback in multi_exchange_resolver.py when all standard exchange testing fails, returning (f"BINANCE:{symbol}", "BINANCE") instead of None

@@ -67,6 +67,10 @@ class MultiExchangeResolver:
         if tv_symbol.startswith("BYBIT:"):
             return True
         
+        # BITGET: All USDT symbols are perpetual contracts
+        if tv_symbol.startswith("BITGET:") and "USDT" in tv_symbol:
+            return True
+        
         # Perpetual contract suffixes across exchanges
         perp_suffixes = [
             ".P",           # BINANCE perpetual (BINANCE:BTCUSDT.P)
@@ -89,16 +93,19 @@ class MultiExchangeResolver:
         Returns:
             List of potential perpetual TradingView symbols
         """
+        # Generate base symbol without USDT for certain exchanges
+        base_symbol = symbol.replace("USDT", "") if symbol.endswith("USDT") else symbol
+        
         return [
-            f"BYBIT:{symbol}",           # BYBIT perpetual (no suffix needed)
-            f"BINANCE:{symbol}.P",       # BINANCE perpetual
-            f"BINANCE:{symbol}USDTPERP", # BINANCE perpetual alt
-            f"OKX:{symbol}USDTPERP",     # OKX perpetual
-            f"MEXC:{symbol}_USDT",       # MEXC perpetual
-            f"KUCOIN:{symbol}USDTM",     # KUCOIN perpetual
-            f"KUCOIN:{symbol}USDTPERP",  # KUCOIN perpetual alt
-            f"GATEIO:{symbol}_USDT",     # GATEIO perpetual
-            f"BITGET:{symbol}USDT"       # BITGET perpetual
+            f"BYBIT:{symbol}",                    # BYBIT perpetual (no suffix needed)
+            f"BINANCE:{symbol}.P",                # BINANCE perpetual
+            f"BINANCE:{base_symbol}USDTPERP",     # BINANCE perpetual alt
+            f"OKX:{base_symbol}USDTPERP",         # OKX perpetual
+            f"MEXC:{base_symbol}_USDT",           # MEXC perpetual
+            f"KUCOIN:{base_symbol}USDTM",         # KUCOIN perpetual
+            f"KUCOIN:{base_symbol}USDTPERP",      # KUCOIN perpetual alt
+            f"GATEIO:{base_symbol}_USDT",         # GATEIO perpetual
+            f"BITGET:{base_symbol}USDT"           # BITGET perpetual
         ]
     
     def resolve_tradingview_symbol(self, symbol: str) -> Optional[Tuple[str, str]]:
