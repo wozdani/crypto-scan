@@ -58,6 +58,8 @@ async def get_candles_async(symbol: str, interval: str, session: aiohttp.ClientS
         async with session.get(url, params=params, timeout=5) as response:
             if response.status != 200:
                 print(f"[CANDLE API] {symbol} {interval}m → HTTP {response.status}")
+                if response.status == 403:
+                    raise Exception(f"HTTP 403 Forbidden - geographical restriction for {symbol}")
                 return []
             
             data = await response.json()
@@ -101,6 +103,8 @@ async def get_ticker_async(symbol: str, session: aiohttp.ClientSession) -> Optio
         
         async with session.get(url, params=params, timeout=5) as response:
             if response.status != 200:
+                if response.status == 403:
+                    raise Exception(f"HTTP 403 Forbidden - geographical restriction for {symbol}")
                 return None
             
             data = await response.json()
@@ -133,6 +137,8 @@ async def get_orderbook_async(symbol: str, session: aiohttp.ClientSession, depth
         async with session.get(url, params=params, timeout=5) as response:
             if response.status != 200:
                 print(f"[ORDERBOOK PROD] {symbol} → HTTP {response.status}")
+                if response.status == 403:
+                    raise Exception(f"HTTP 403 Forbidden - geographical restriction for {symbol}")
                 return None
             
             data = await response.json()
@@ -170,8 +176,18 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             return_exceptions=True
         )
         
-        # Process data using enhanced data processor
+        # Process data using enhanced data processor  
         print(f"[DATA VALIDATION] {symbol} → ticker: {type(ticker)}, 15m: {type(candles_15m)}, 5m: {type(candles_5m)}, orderbook: {type(orderbook)}")
+        
+        # Debug raw exception content
+        if isinstance(ticker, Exception):
+            print(f"[EXCEPTION DEBUG] {symbol} ticker: {str(ticker)[:100]}")
+        if isinstance(candles_15m, Exception):
+            print(f"[EXCEPTION DEBUG] {symbol} 15m: {str(candles_15m)[:100]}")
+        if isinstance(candles_5m, Exception):
+            print(f"[EXCEPTION DEBUG] {symbol} 5m: {str(candles_5m)[:100]}")
+        if isinstance(orderbook, Exception):
+            print(f"[EXCEPTION DEBUG] {symbol} orderbook: {str(orderbook)[:100]}")
         
         # Check for HTTP 403 geographical restrictions BEFORE converting exceptions to None
         geographic_restriction = (
@@ -180,6 +196,10 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             isinstance(candles_5m, Exception) and "403" in str(candles_5m) or
             isinstance(orderbook, Exception) and "403" in str(orderbook)
         )
+        
+        # Enhanced debug for geographic detection
+        if geographic_restriction:
+            print(f"[GEO RESTRICTION] {symbol} → HTTP 403 detected - will use mock data fallback")
         
         # Convert exceptions to None for enhanced processor
         if isinstance(ticker, Exception):
