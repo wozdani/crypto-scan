@@ -481,14 +481,38 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         "volume_confirmation": 0.5
                     }
                     
-                    # Run unified TJDE analysis
-                    unified_result = analyze_symbol_with_unified_tjde(
-                        symbol=symbol,
-                        market_data=market_data,
-                        candles_15m=candles_15m or [],
-                        candles_5m=candles_5m or [],
-                        signals=signals
-                    )
+                    # Run unified TJDE analysis v2 with fallback to v1
+                    try:
+                        from unified_tjde_engine_v2 import analyze_symbol_with_unified_tjde_v2
+                        unified_result = analyze_symbol_with_unified_tjde_v2(
+                            symbol=symbol,
+                            market_data=market_data,
+                            candles_15m=candles_15m or [],
+                            candles_5m=candles_5m or [],
+                            signals=signals
+                        )
+                        print(f"[TJDE v2] {symbol}: Using enhanced TJDE v2 engine")
+                        
+                        # Fallback to v1 if v2 fails or returns low-quality result
+                        if unified_result.get("error") or unified_result.get("final_score", 0) == 0:
+                            unified_result = analyze_symbol_with_unified_tjde(
+                                symbol=symbol,
+                                market_data=market_data,
+                                candles_15m=candles_15m or [],
+                                candles_5m=candles_5m or [],
+                                signals=signals
+                            )
+                            print(f"[TJDE v1 FALLBACK] {symbol}: Falling back to v1 engine")
+                    except ImportError:
+                        # Use v1 if v2 not available
+                        unified_result = analyze_symbol_with_unified_tjde(
+                            symbol=symbol,
+                            market_data=market_data,
+                            candles_15m=candles_15m or [],
+                            candles_5m=candles_5m or [],
+                            signals=signals
+                        )
+                        print(f"[TJDE v1] {symbol}: Using TJDE v1 engine")
                     
                     if unified_result and not unified_result.get("error"):
                         # Convert unified result to legacy format for compatibility

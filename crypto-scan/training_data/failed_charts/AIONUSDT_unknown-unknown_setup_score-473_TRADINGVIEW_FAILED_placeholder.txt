@@ -1,0 +1,10 @@
+TRADINGVIEW SCREENSHOT FAILED
+Symbol: AIONUSDT
+Phase: unknown
+Setup: unknown_setup  
+Score: 0.473
+Error: sync_wrapper_failed
+Timestamp: 2025-06-30T18:36:30.811693
+
+Note: This is a placeholder file created because TradingView screenshot generation failed.
+No matplotlib fallback was used to maintain dataset quality.
