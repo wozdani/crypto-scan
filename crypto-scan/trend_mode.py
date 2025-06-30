@@ -498,10 +498,16 @@ def send_tjde_alert(symbol: str, ctx: Dict):
             print(f"[TJDE ALERT] {symbol}: Cooldown active, skipping alert")
             return
         
+        # 🔒 CRITICAL FIX: Nie wysyłaj alertów dla "unknown" decision
+        decision = ctx.get("decision", "unknown")
+        if decision in ["unknown", "none", None, ""]:
+            print(f"[TJDE ALERT BLOCK] {symbol}: Decision is '{decision}' - alert blocked to prevent false signals")
+            return
+        
         # Prepare enhanced alert data with context_modifiers
         alert_data = {
             "symbol": symbol,
-            "decision": ctx.get("decision", "unknown"),
+            "decision": decision,
             "final_score": ctx.get("final_score", 0.0),
             "grade": ctx.get("grade", "unknown"),
             "confidence": ctx.get("confidence", 0.0),

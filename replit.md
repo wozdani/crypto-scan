@@ -98,6 +98,21 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 30, 2025 - CRITICAL DECISION LOGIC BUG FIX - Unknown Decision Fallback System Complete ✅
+Successfully resolved critical bug in `simulate_trader_decision_advanced()` function that was returning "unknown" decisions causing false alerts:
+- **Variable Reference Fix**: Fixed undefined variable error - changed `return result` to `return final_result` in trader_ai_engine.py line 1683
+- **Intelligent Fallback Logic**: Implemented comprehensive fallback system preventing "unknown" decisions:
+  - Score ≥0.7 → "join_trend" (high confidence trades)
+  - Score ≥0.45 → "consider_entry" (medium confidence setups)  
+  - Strong trend + active CLIP → "consider_entry" (technical confirmation)
+  - All others → "avoid" (risk management)
+- **Alert Blocking System**: Added safeguards in both alert systems:
+  - `utils/tjde_alert_system.py` blocks alerts when decision="unknown"
+  - `trend_mode.py send_tjde_alert()` prevents false signals from unknown decisions
+- **Production Stability**: Eliminates false alerts and ensures trend-following strategy always produces definitive trading decisions
+- **Comprehensive Coverage**: Fixed decision logic in all three locations (trader_ai_engine.py, utils/tjde_alert_system.py, trend_mode.py) ensuring consistent behavior
+System now guarantees definitive decisions ("join_trend", "consider_entry", "avoid") eliminating problematic "unknown" decisions that were causing inappropriate alerts in trend-mode strategy.
+
 ### June 29, 2025 - GPT LABEL CONSISTENCY DETECTION SYSTEM - Critical Bug Fix + Prompt Enhancement Complete ✅
 Successfully fixed critical bug in conflict detection logic and enhanced GPT prompt consistency ensuring superior training data quality:
 - **Root Cause Resolution**: Fixed fundamental flaw where system compared labels from same GPT response instead of two distinct extraction methods (extract_setup_label_from_commentary vs direct **SETUP:** field parsing)
