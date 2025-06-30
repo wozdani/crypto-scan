@@ -1,282 +1,374 @@
-#!/usr/bin/env python3
 """
 Feedback Integration Module
-Integruje system uczenia się z głównym skannerem TJDE.
-
-Funkcje:
-- Automatyczne zapisywanie wyników alertów
-- Integracja z systemem alertów Telegram
-- Okresowe uruchamianie feedback loop
-- Monitoring skuteczności decyzji
+Automatyzuje proces logowania wyników alertów i uruchamiania feedback loop
+Integruje alert system z ewaluacją +6h i zapisem do feedback_results.json
 """
 
-import json
 import os
-from datetime import datetime, timedelta
-from typing import Dict, Optional, Any
-import asyncio
+import json
+import time
+from datetime import datetime, timedelta, timezone
+from typing import Dict, List, Optional, Any
+import requests
+from utils.log_feedback_result import log_feedback_result
 
-# Import feedback loop (with error handling for circular imports)
-try:
-    from feedback_loop import TJDEFeedbackLoop, record_trading_result
-except ImportError:
-    print("[FEEDBACK INTEGRATION] Warning: Could not import feedback_loop module")
-    TJDEFeedbackLoop = None
-    record_trading_result = None
+# File paths
+PENDING_ALERTS_FILE = "data/pending_feedback_alerts.json"
+FEEDBACK_RESULTS_FILE = "data/feedback_results.json"
 
 class FeedbackIntegration:
-    """
-    Integration layer between TJDE scanner and feedback learning system
-    """
+    """Manages automatic feedback collection for TJDE alerts"""
     
     def __init__(self):
-        self.feedback_system = TJDEFeedbackLoop() if TJDEFeedbackLoop else None
-        self.last_learning_run = None
-        self.learning_interval_hours = 6  # Run learning every 6 hours
-        print("[FEEDBACK INTEGRATION] Feedback integration initialized")
+        self.pending_alerts = self._load_pending_alerts()
+        
+    def _load_pending_alerts(self) -> List[Dict]:
+        """Load pending alerts waiting for evaluation"""
+        if not os.path.exists(PENDING_ALERTS_FILE):
+            return []
+        
+        try:
+            with open(PENDING_ALERTS_FILE, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, FileNotFoundError):
+            return []
     
-    def record_tjde_alert(
-        self,
-        symbol: str,
-        tjde_result: Dict[str, Any],
-        current_price: float,
-        market_phase: str = "unknown"
-    ) -> bool:
+    def _save_pending_alerts(self):
+        """Save pending alerts to file"""
+        os.makedirs(os.path.dirname(PENDING_ALERTS_FILE), exist_ok=True)
+        try:
+            with open(PENDING_ALERTS_FILE, "w") as f:
+                json.dump(self.pending_alerts, f, indent=2)
+        except Exception as e:
+            print(f"[FEEDBACK INTEGRATION ERROR] Failed to save pending alerts: {e}")
+    
+    def record_alert_for_feedback(
+        self, 
+        symbol: str, 
+        score_components: Dict[str, float], 
+        phase: str, 
+        alert_time: str = None,
+        entry_price: float = None,
+        additional_data: Dict[str, Any] = None
+    ):
         """
-        Record TJDE alert for learning purposes
+        Records a new TJDE alert for later feedback evaluation
+        
+        Args:
+            symbol: Trading symbol (e.g., PEPEUSDT)
+            score_components: Component scores from simulate_trader_decision_advanced
+            phase: Market phase (pre-pump, trend, breakout, consolidation)
+            alert_time: ISO timestamp of alert
+            entry_price: Entry price at alert time
+            additional_data: Additional context data
+        """
+        
+        alert_record = {
+            "symbol": symbol,
+            "score_components": score_components,
+            "phase": phase,
+            "alert_time": alert_time or datetime.now(timezone.utc).isoformat(),
+            "entry_price": entry_price,
+            "evaluation_time": (datetime.now(timezone.utc) + timedelta(hours=6)).isoformat(),
+            "status": "pending",
+            "recorded_at": datetime.now(timezone.utc).isoformat(),
+            "additional_data": additional_data or {}
+        }
+        
+        # Add to pending alerts
+        self.pending_alerts.append(alert_record)
+        self._save_pending_alerts()
+        
+        print(f"[FEEDBACK INTEGRATION] Recorded alert for {symbol} - evaluation at +6h")
+        print(f"[FEEDBACK INTEGRATION] Entry price: {entry_price}, Phase: {phase}")
+        
+    def evaluate_pending_alerts(self) -> int:
+        """
+        Evaluates all pending alerts that are due for +6h evaluation
+        
+        Returns:
+            Number of alerts evaluated
+        """
+        current_time = datetime.now(timezone.utc)
+        evaluated_count = 0
+        remaining_alerts = []
+        
+        for alert in self.pending_alerts:
+            try:
+                evaluation_time = datetime.fromisoformat(alert["evaluation_time"].replace('Z', '+00:00'))
+                
+                if current_time >= evaluation_time:
+                    # Time for evaluation
+                    success = self._evaluate_single_alert(alert)
+                    if success:
+                        evaluated_count += 1
+                        print(f"[FEEDBACK EVALUATION] Completed: {alert['symbol']}")
+                    else:
+                        # Keep for retry later
+                        remaining_alerts.append(alert)
+                        print(f"[FEEDBACK EVALUATION] Failed: {alert['symbol']} - will retry")
+                else:
+                    # Not yet due for evaluation
+                    remaining_alerts.append(alert)
+                    
+            except Exception as e:
+                print(f"[FEEDBACK EVALUATION ERROR] {alert.get('symbol', 'unknown')}: {e}")
+                # Keep problematic alerts for manual review
+                alert["error"] = str(e)
+                remaining_alerts.append(alert)
+        
+        # Update pending alerts
+        self.pending_alerts = remaining_alerts
+        self._save_pending_alerts()
+        
+        if evaluated_count > 0:
+            print(f"[FEEDBACK INTEGRATION] Evaluated {evaluated_count} alerts, {len(remaining_alerts)} remaining")
+        
+        return evaluated_count
+    
+    def _evaluate_single_alert(self, alert: Dict) -> bool:
+        """
+        Evaluate single alert performance and log feedback result
+        
+        Args:
+            alert: Alert record to evaluate
+            
+        Returns:
+            True if evaluation successful, False otherwise
+        """
+        try:
+            symbol = alert["symbol"]
+            entry_price = alert.get("entry_price")
+            
+            if not entry_price:
+                print(f"[FEEDBACK EVALUATION] {symbol}: No entry price recorded")
+                return False
+            
+            # Get current price
+            current_price = self._fetch_current_price(symbol)
+            if not current_price:
+                print(f"[FEEDBACK EVALUATION] {symbol}: Could not fetch current price")
+                return False
+            
+            # Calculate performance
+            profit_loss_pct = ((current_price - entry_price) / entry_price) * 100
+            
+            # Determine success criteria (adjust based on phase)
+            phase = alert.get("phase", "unknown")
+            success_threshold = self._get_success_threshold(phase)
+            was_successful = profit_loss_pct >= success_threshold
+            
+            # Log feedback result
+            log_feedback_result(
+                symbol=symbol,
+                score_components=alert["score_components"],
+                phase=phase,
+                was_successful=was_successful,
+                entry_price=entry_price,
+                exit_price=current_price,
+                profit_loss_pct=profit_loss_pct,
+                alert_time=alert["alert_time"],
+                additional_data={
+                    **alert.get("additional_data", {}),
+                    "evaluation_hours": 6,
+                    "success_threshold": success_threshold,
+                    "evaluation_timestamp": datetime.now(timezone.utc).isoformat()
+                }
+            )
+            
+            print(f"[FEEDBACK RESULT] {symbol}: {'SUCCESS' if was_successful else 'FAILURE'} "
+                  f"({profit_loss_pct:+.2f}% vs {success_threshold:+.2f}% threshold)")
+            
+            return True
+            
+        except Exception as e:
+            print(f"[FEEDBACK EVALUATION ERROR] {alert.get('symbol', 'unknown')}: {e}")
+            return False
+    
+    def _fetch_current_price(self, symbol: str) -> Optional[float]:
+        """
+        Fetch current price using Bybit API
         
         Args:
             symbol: Trading symbol
-            tjde_result: Complete TJDE analysis result
-            current_price: Current market price
-            market_phase: Detected market phase
             
         Returns:
-            True if recorded successfully
+            Current price or None if failed
         """
-        
-        if not self.feedback_system:
-            return False
-        
         try:
-            # Extract key information from TJDE result
-            score = tjde_result.get("final_score", 0.0)
-            decision = tjde_result.get("enhanced_decision", "unknown")
+            # Use Bybit API to get current price
+            url = f"https://api.bybit.com/v5/market/tickers"
+            params = {
+                "category": "spot",
+                "symbol": symbol
+            }
             
-            # Extract score components from breakdown
-            score_components = {}
-            if "tjde_breakdown" in tjde_result:
-                breakdown = tjde_result["tjde_breakdown"]
-                
-                # Map breakdown components to feedback system format
-                component_mapping = {
-                    "pre_breakout_structure": ["structure_score", "consolidation_score", "breakout_structure"],
-                    "volume_structure": ["volume_score", "volume_analysis", "volume_trend"],
-                    "liquidity_behavior": ["liquidity_score", "orderbook_score", "liquidity_analysis"],
-                    "clip_confidence": ["clip_confidence", "vision_confidence"],
-                    "gpt_label_match": ["gpt_match", "label_consistency", "gpt_confidence"],
-                    "heatmap_window": ["heatmap_score", "resistance_gap"],
-                    "orderbook_setup": ["orderbook_quality", "bid_strength"],
-                    "market_phase_modifier": ["phase_bonus", "market_context"]
-                }
-                
-                for feedback_component, breakdown_keys in component_mapping.items():
-                    for key in breakdown_keys:
-                        if key in breakdown:
-                            score_components[feedback_component] = breakdown[key]
-                            break
-                    else:
-                        score_components[feedback_component] = 0.0
+            response = requests.get(url, params=params, timeout=10)
+            response.raise_for_status()
             
-            # Ensure we have reasonable default components
-            if not score_components:
-                # Create default component distribution based on score
-                base_weight = score / 8  # Distribute evenly across 8 components
-                score_components = {
-                    "pre_breakout_structure": base_weight * 1.2,  # Slightly higher
-                    "volume_structure": base_weight * 1.1,
-                    "liquidity_behavior": base_weight * 0.9,
-                    "clip_confidence": base_weight * 0.8,
-                    "gpt_label_match": base_weight * 0.8,
-                    "heatmap_window": base_weight * 0.7,
-                    "orderbook_setup": base_weight * 0.6,
-                    "market_phase_modifier": base_weight * 0.5
-                }
+            data = response.json()
+            if data.get("retCode") == 0 and data.get("result", {}).get("list"):
+                ticker = data["result"]["list"][0]
+                return float(ticker.get("lastPrice", 0))
             
-            # Record the alert
-            self.feedback_system.record_alert_result(
-                symbol=symbol,
-                phase=market_phase,
-                score=score,
-                decision=decision,
-                score_components=score_components,
-                entry_price=current_price,
-                alert_time=datetime.now().isoformat(),
-                was_successful=None,  # Will be determined later
-                hours_tracked=2  # Track for 2 hours
-            )
-            
-            print(f"[FEEDBACK INTEGRATION] Recorded alert: {symbol} {decision} {score:.3f}")
-            return True
+            print(f"[PRICE FETCH] {symbol}: No price data in API response")
+            return None
             
         except Exception as e:
-            print(f"[FEEDBACK INTEGRATION] Error recording alert {symbol}: {e}")
-            return False
+            print(f"[PRICE FETCH ERROR] {symbol}: {e}")
+            return None
     
-    def should_run_learning(self) -> bool:
-        """Check if it's time to run learning cycle"""
-        if not self.last_learning_run:
-            return True
-        
-        time_since_last = datetime.now() - self.last_learning_run
-        return time_since_last.total_seconds() > (self.learning_interval_hours * 3600)
-    
-    def run_learning_cycle(self) -> Optional[Dict[str, Any]]:
+    def _get_success_threshold(self, phase: str) -> float:
         """
-        Run feedback learning cycle if conditions are met
+        Get success threshold based on market phase
         
+        Args:
+            phase: Market phase
+            
         Returns:
-            Learning results or None if not run
+            Success threshold percentage
         """
-        
-        if not self.feedback_system:
-            return None
-        
-        if not self.should_run_learning():
-            return None
-        
-        try:
-            print("[FEEDBACK INTEGRATION] Starting learning cycle...")
-            result = self.feedback_system.run_feedback_loop()
-            self.last_learning_run = datetime.now()
-            
-            if result.get("profiles_updated", 0) > 0:
-                print(f"[FEEDBACK INTEGRATION] Learning completed: {result['profiles_updated']} profiles updated")
-            else:
-                print("[FEEDBACK INTEGRATION] Learning completed: No profile updates")
-            
-            return result
-            
-        except Exception as e:
-            print(f"[FEEDBACK INTEGRATION] Error in learning cycle: {e}")
-            return None
-    
-    def get_learning_status(self) -> Dict[str, Any]:
-        """Get current learning system status"""
-        
-        if not self.feedback_system:
-            return {"status": "disabled", "reason": "feedback_system_not_available"}
-        
-        # Count pending and completed results
-        pending_count = sum(1 for r in self.feedback_system.feedback_data if r.get("status") == "pending")
-        completed_count = sum(1 for r in self.feedback_system.feedback_data if r.get("status") == "completed")
-        
-        # Calculate time since last learning
-        time_since_learning = None
-        if self.last_learning_run:
-            time_since_learning = (datetime.now() - self.last_learning_run).total_seconds() / 3600
-        
-        return {
-            "status": "active",
-            "pending_results": pending_count,
-            "completed_results": completed_count,
-            "total_results": len(self.feedback_system.feedback_data),
-            "hours_since_last_learning": time_since_learning,
-            "next_learning_in_hours": max(0, self.learning_interval_hours - (time_since_learning or 0)) if time_since_learning else 0,
-            "learning_ready": self.should_run_learning()
+        thresholds = {
+            "pre-pump": 3.0,      # 3% for pre-pump alerts
+            "trend": 2.0,         # 2% for trend-following
+            "breakout": 4.0,      # 4% for breakout alerts
+            "consolidation": 1.5, # 1.5% for consolidation
+            "unknown": 2.0        # Default 2%
         }
+        
+        return thresholds.get(phase, 2.0)
     
-    def update_pending_results(self) -> int:
+    def get_pending_count(self) -> int:
+        """Get number of pending alerts"""
+        return len(self.pending_alerts)
+    
+    def get_due_count(self) -> int:
+        """Get number of alerts due for evaluation"""
+        current_time = datetime.now(timezone.utc)
+        due_count = 0
+        
+        for alert in self.pending_alerts:
+            try:
+                evaluation_time = datetime.fromisoformat(alert["evaluation_time"].replace('Z', '+00:00'))
+                if current_time >= evaluation_time:
+                    due_count += 1
+            except Exception:
+                continue
+                
+        return due_count
+    
+    def cleanup_old_pending_alerts(self, days_old: int = 7):
         """
-        Update pending trading results
+        Remove pending alerts older than specified days
         
-        Returns:
-            Number of results updated
+        Args:
+            days_old: Days after which to remove old alerts
         """
+        cutoff_time = datetime.now(timezone.utc) - timedelta(days=days_old)
+        original_count = len(self.pending_alerts)
         
-        if not self.feedback_system:
-            return 0
+        self.pending_alerts = [
+            alert for alert in self.pending_alerts
+            if datetime.fromisoformat(alert.get("recorded_at", "1970-01-01T00:00:00+00:00").replace('Z', '+00:00')) >= cutoff_time
+        ]
         
-        try:
-            before_count = sum(1 for r in self.feedback_system.feedback_data if r.get("status") == "pending")
-            self.feedback_system.update_pending_results()
-            after_count = sum(1 for r in self.feedback_system.feedback_data if r.get("status") == "pending")
-            
-            updated = before_count - after_count
-            if updated > 0:
-                print(f"[FEEDBACK INTEGRATION] Updated {updated} pending results")
-            
-            return updated
-            
-        except Exception as e:
-            print(f"[FEEDBACK INTEGRATION] Error updating pending results: {e}")
-            return 0
+        removed_count = original_count - len(self.pending_alerts)
+        if removed_count > 0:
+            self._save_pending_alerts()
+            print(f"[FEEDBACK CLEANUP] Removed {removed_count} old pending alerts")
 
-# Global instance for easy access
-_feedback_integration = None
+# Global instance for easy integration
+feedback_integration = FeedbackIntegration()
 
-def get_feedback_integration() -> FeedbackIntegration:
-    """Get global feedback integration instance"""
-    global _feedback_integration
-    if _feedback_integration is None:
-        _feedback_integration = FeedbackIntegration()
-    return _feedback_integration
-
-def record_tjde_decision(
-    symbol: str,
-    tjde_result: Dict[str, Any],
-    current_price: float,
-    market_phase: str = "unknown"
+def record_tjde_alert_for_feedback(
+    symbol: str, 
+    tjde_result: Dict, 
+    market_data: Dict = None
 ) -> bool:
     """
-    Convenience function to record TJDE decision
-    Can be called from scanner modules
-    """
-    integration = get_feedback_integration()
-    return integration.record_tjde_alert(symbol, tjde_result, current_price, market_phase)
-
-def run_periodic_learning() -> Optional[Dict[str, Any]]:
-    """
-    Run learning cycle if ready
-    Can be called from main scanner loop
-    """
-    integration = get_feedback_integration()
-    return integration.run_learning_cycle()
-
-def get_learning_status() -> Dict[str, Any]:
-    """Get current learning system status"""
-    integration = get_feedback_integration()
-    return integration.get_learning_status()
-
-def update_trading_results() -> int:
-    """Update pending trading results"""
-    integration = get_feedback_integration()
-    return integration.update_pending_results()
-
-async def periodic_feedback_worker():
-    """
-    Async worker for periodic feedback operations
-    Can be run as background task
-    """
-    integration = get_feedback_integration()
+    Convenience function to record TJDE alert for feedback evaluation
     
-    while True:
-        try:
-            # Update pending results every 30 minutes
-            integration.update_pending_results()
-            
-            # Run learning cycle if ready
-            integration.run_learning_cycle()
-            
-            # Wait 30 minutes before next check
-            await asyncio.sleep(30 * 60)
-            
-        except Exception as e:
-            print(f"[FEEDBACK INTEGRATION] Error in periodic worker: {e}")
-            await asyncio.sleep(5 * 60)  # Wait 5 minutes on error
+    Args:
+        symbol: Trading symbol
+        tjde_result: Result from TJDE analysis with score_components
+        market_data: Market data with current price
+        
+    Returns:
+        True if successfully recorded
+    """
+    try:
+        # Extract data from TJDE result
+        score_components = tjde_result.get("score_components", {})
+        phase = tjde_result.get("market_phase", "unknown")
+        
+        # Get entry price from market data
+        entry_price = None
+        if market_data and "price_usd" in market_data:
+            entry_price = float(market_data["price_usd"])
+        elif market_data and "candles_15m" in market_data:
+            candles = market_data["candles_15m"]
+            if candles and len(candles) > 0:
+                # Use close price of last candle
+                entry_price = float(candles[-1][4] if isinstance(candles[-1], list) else candles[-1].get("close", 0))
+        
+        # Record alert
+        feedback_integration.record_alert_for_feedback(
+            symbol=symbol,
+            score_components=score_components,
+            phase=phase,
+            entry_price=entry_price,
+            additional_data={
+                "tjde_score": tjde_result.get("final_score", 0),
+                "tjde_decision": tjde_result.get("decision", "unknown"),
+                "confidence": tjde_result.get("confidence", 0)
+            }
+        )
+        
+        return True
+        
+    except Exception as e:
+        print(f"[FEEDBACK RECORD ERROR] {symbol}: {e}")
+        return False
 
-if __name__ == "__main__":
-    # Test feedback integration
-    integration = FeedbackIntegration()
-    status = integration.get_learning_status()
-    print(f"[FEEDBACK INTEGRATION] Status: {status}")
+def run_feedback_evaluation():
+    """Run feedback evaluation for all due alerts"""
+    try:
+        evaluated = feedback_integration.evaluate_pending_alerts()
+        
+        # If we evaluated alerts, trigger feedback loop learning
+        if evaluated > 0:
+            try:
+                from feedback_loop import TJDEFeedbackLoop
+                feedback_loop = TJDEFeedbackLoop()
+                
+                # Run learning for all phases
+                phases = ["pre-pump", "trend", "breakout", "consolidation"]
+                for phase in phases:
+                    try:
+                        feedback_loop.learn_from_feedback(phase)
+                        print(f"[FEEDBACK LEARNING] Updated weights for {phase} phase")
+                    except Exception as e:
+                        print(f"[FEEDBACK LEARNING ERROR] {phase}: {e}")
+                        
+            except Exception as e:
+                print(f"[FEEDBACK LOOP ERROR] Failed to run learning: {e}")
+        
+        return evaluated
+        
+    except Exception as e:
+        print(f"[FEEDBACK EVALUATION ERROR] {e}")
+        return 0
+
+def get_feedback_stats():
+    """Get feedback system statistics"""
+    return {
+        "pending_alerts": feedback_integration.get_pending_count(),
+        "due_for_evaluation": feedback_integration.get_due_count(),
+        "total_feedback_results": len(feedback_integration._load_pending_alerts())
+    }
+
+# Auto-cleanup on import
+try:
+    feedback_integration.cleanup_old_pending_alerts()
+except Exception:
+    pass

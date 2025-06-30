@@ -226,6 +226,9 @@ def simulate_trader_decision_advanced(ctx: Dict) -> Dict:
         
         ctx["decision_reasons"] = reasons
         
+        # Add score_components for feedback logging
+        ctx["score_components"] = score_breakdown.copy() if score_breakdown else {}
+        
         return ctx
         
     except Exception as e:
@@ -525,8 +528,8 @@ def send_tjde_alert(symbol: str, ctx: Dict):
         _save_alert_for_feedback_analysis(symbol, alert_data)
         
         # Log to feedback_loop_v2 system
-        from utils.feedback_integration import log_tjde_alert_for_feedback
-        log_tjde_alert_for_feedback(symbol, ctx, ctx.get("used_features", {}))
+        from utils.feedback_integration import record_tjde_alert_for_feedback
+        record_tjde_alert_for_feedback(symbol, ctx, ctx.get("used_features", {}))
         
         # Enhanced Telegram message with context_modifiers
         enhanced_message = f"""🚨 TJDE ADAPTIVE ALERT: {symbol}

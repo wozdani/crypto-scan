@@ -298,6 +298,21 @@ def scan_cycle():
         log_warning("PHASE 5 REINFORCEMENT LEARNING MODULE IMPORT ERROR", import_error)
     except Exception as phase5_error:
         log_warning("PHASE 5 REINFORCEMENT LEARNING ERROR", phase5_error)
+    
+    # Run TJDE Feedback Integration - evaluate +6h alerts and trigger learning
+    try:
+        from utils.feedback_integration import run_feedback_evaluation
+        
+        # Run feedback evaluation every 6 hours worth of cycles (~24 cycles assuming 15min intervals)
+        if random.random() < 0.1:  # 10% chance each cycle for frequent evaluation
+            evaluated_count = run_feedback_evaluation()
+            if evaluated_count > 0:
+                print(f"[FEEDBACK INTEGRATION] Evaluated {evaluated_count} alerts and triggered adaptive learning")
+            
+    except ImportError as import_error:
+        log_warning("FEEDBACK INTEGRATION MODULE IMPORT ERROR", import_error)
+    except Exception as feedback_error:
+        log_warning("FEEDBACK INTEGRATION ERROR", feedback_error)
 
 def simple_scan_fallback(symbols):
     """Fallback using async batch scan with lower concurrency"""
