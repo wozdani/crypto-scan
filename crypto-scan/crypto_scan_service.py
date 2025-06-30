@@ -185,8 +185,7 @@ def scan_cycle():
             print("Async scan completed successfully")
             
             # CHART CLEANUP: Run after successful scan (5% chance per cycle)
-            import random
-            if random.random() < 0.05:  # 5% chance
+            if system_random.random() < 0.05:  # 5% chance
                 try:
                     from utils.chart_cleanup import cleanup_with_size_report
                     print("🧹 Running automatic chart cleanup...")
