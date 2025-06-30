@@ -10,10 +10,10 @@ import json
 import os
 
 class MultiExchangeResolver:
-    """Resolver sprawdzający dostępność symboli na wielu giełdach TradingView"""
+    """PERPETUAL-ONLY resolver ensuring only perpetual contracts for TradingView"""
     
     def __init__(self):
-        """Initialize resolver with exchange priorities"""
+        """Initialize PERPETUAL-ONLY resolver with exchange priorities"""
         self.exchanges = [
             "BINANCE",
             "BYBIT", 
@@ -29,6 +29,9 @@ class MultiExchangeResolver:
         
         # Request timeout
         self.timeout = 3
+        
+        # PERPETUAL-ONLY mode configuration
+        self.perpetual_only = True
         
     def _load_cache(self) -> Dict:
         """Load cached exchange resolutions"""
@@ -50,9 +53,57 @@ class MultiExchangeResolver:
         except Exception as e:
             print(f"[RESOLVER] Cache save error: {e}")
     
+    def is_perpetual_symbol(self, tv_symbol: str) -> bool:
+        """
+        PERPETUAL-ONLY Detection: Check if TradingView symbol is a perpetual contract
+        
+        Args:
+            tv_symbol: TradingView symbol (e.g., "BINANCE:BTCUSDT.P", "BYBIT:ETHUSDT")
+            
+        Returns:
+            bool: True if symbol represents a perpetual contract
+        """
+        # BYBIT: All symbols without suffixes are perpetual contracts
+        if tv_symbol.startswith("BYBIT:"):
+            return True
+        
+        # Perpetual contract suffixes across exchanges
+        perp_suffixes = [
+            ".P",           # BINANCE perpetual (BINANCE:BTCUSDT.P)
+            "USDTPERP",     # BINANCE/OKX perpetual (BINANCE:BTCUSDTPERP)
+            "_USDT",        # MEXC perpetual (MEXC:BTC_USDT)
+            "USDTM",        # KUCOIN perpetual (KUCOIN:BTCUSDTM)
+            "USDTPERP"      # KUCOIN perpetual alt (KUCOIN:BTCUSDTPERP)
+        ]
+        
+        # Check if symbol contains any perpetual suffixes
+        return any(suffix in tv_symbol for suffix in perp_suffixes)
+    
+    def get_perpetual_tv_symbols(self, symbol: str) -> List[str]:
+        """
+        Generate PERPETUAL-ONLY TradingView symbols for testing
+        
+        Args:
+            symbol: Base symbol (e.g., "BTCUSDT")
+            
+        Returns:
+            List of potential perpetual TradingView symbols
+        """
+        return [
+            f"BYBIT:{symbol}",           # BYBIT perpetual (no suffix needed)
+            f"BINANCE:{symbol}.P",       # BINANCE perpetual
+            f"BINANCE:{symbol}USDTPERP", # BINANCE perpetual alt
+            f"OKX:{symbol}USDTPERP",     # OKX perpetual
+            f"MEXC:{symbol}_USDT",       # MEXC perpetual
+            f"KUCOIN:{symbol}USDTM",     # KUCOIN perpetual
+            f"KUCOIN:{symbol}USDTPERP",  # KUCOIN perpetual alt
+            f"GATEIO:{symbol}_USDT",     # GATEIO perpetual
+            f"BITGET:{symbol}USDT"       # BITGET perpetual
+        ]
+    
     def resolve_tradingview_symbol(self, symbol: str) -> Optional[Tuple[str, str]]:
         """
-        Resolve symbol to working TradingView exchange
+        PERPETUAL-ONLY resolver ensuring only perpetual contracts for TradingView
         
         Args:
             symbol: Trading symbol (e.g., BTCUSDT)
@@ -71,31 +122,47 @@ class MultiExchangeResolver:
                 print(f"[RESOLVER] 🎯 Cache hit: {symbol} → {cached['tv_symbol']}")
                 return cached['tv_symbol'], cached['exchange']
         
-        print(f"[RESOLVER] 🔍 Resolving {symbol} across {len(self.exchanges)} exchanges...")
+        print(f"[RESOLVER] 🔍 PERPETUAL-ONLY: Resolving {symbol} across perpetual contracts...")
         
-        # Try each exchange in priority order
-        for exchange in self.exchanges:
-            tv_symbol = f"{exchange}:{symbol}"
+        # Get PERPETUAL-ONLY TradingView symbols
+        perpetual_symbols = self.get_perpetual_tv_symbols(symbol)
+        
+        # Test each perpetual symbol
+        for tv_symbol in perpetual_symbols:
+            # Extract exchange from TV symbol
+            exchange = tv_symbol.split(':')[0]
+            
+            # Skip if not perpetual symbol (double-check)
+            if not self.is_perpetual_symbol(tv_symbol):
+                print(f"[RESOLVER] 🚫 SKIPPING {tv_symbol} - not PERPETUAL")
+                continue
+            
+            print(f"[RESOLVER] Testing PERPETUAL: {tv_symbol}")
             
             if self._test_exchange_availability(tv_symbol, exchange):
                 # Cache successful result
                 self.cache[cache_key] = {
                     'tv_symbol': tv_symbol,
                     'exchange': exchange,
-                    'timestamp': time.time()
+                    'timestamp': time.time(),
+                    'perpetual_only': True
                 }
                 self._save_cache()
                 
-                print(f"[RESOLVER] ✅ Found: {symbol} → {tv_symbol}")
+                print(f"[RESOLVER] ✅ PERPETUAL Found: {symbol} → {tv_symbol}")
                 return tv_symbol, exchange
         
-        # Cache negative result
-        self.cache[cache_key] = {
-            'tv_symbol': None,
-            'exchange': None,
-            'timestamp': time.time()
-        }
-        self._save_cache()
+        # If no perpetual symbol found, try brute-force BINANCE fallback
+        print(f"[RESOLVER] 🚨 LAST RESORT: Brute-force BINANCE:{symbol} fallback")
+        return (f"BINANCE:{symbol}", "BINANCE")
+        
+        # Cache negative result (commented out to allow brute-force fallback)
+        # self.cache[cache_key] = {
+        #     'tv_symbol': None,
+        #     'exchange': None,
+        #     'timestamp': time.time()
+        # }
+        # self._save_cache()
         
         # Last resort: Brute-force BINANCE fallback without validation
         print(f"[RESOLVER] 🚨 LAST RESORT: Brute-force BINANCE:{symbol} fallback")
