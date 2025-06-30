@@ -642,11 +642,11 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             except Exception as e:
                 print(f"[TRAINING ERROR] {symbol} → {e}")
         else:
-            print(f"[TRAINING SKIP] {symbol} → Below thresholds (PPWCS: {ppwcs_score}, TJDE: {tjde_score:.3f})")
+            print(f"[TRAINING SKIP] {symbol} → Below TJDE threshold: {tjde_score:.3f}")
         
         # Alert processing with diagnostics and CRITICAL TJDE THRESHOLD FIX
         alert_sent = False
-        print(f"[ALERT CHECK] {symbol} → PPWCS: {ppwcs_score}, TJDE: {tjde_score}")
+        print(f"[ALERT CHECK] {symbol} → TJDE: {tjde_score}")
         
         # CRITICAL FIX: Add TJDE-based alert logic for high scores
         from utils.alert_threshold_fix import fix_alert_thresholds, should_generate_alert
@@ -741,7 +741,7 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         
         # Save results with diagnostics (if save function available)
         try:
-            save_async_result(symbol, ppwcs_score, tjde_score, tjde_decision, market_data)
+            save_async_result(symbol, tjde_score, tjde_decision, market_data)
             print(f"[SAVE SUCCESS] {symbol} → Result saved")
         except Exception as e:
             print(f"[SAVE ERROR] {symbol} → {e}")
@@ -752,7 +752,6 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
 
         result = {
             "symbol": symbol,
-            "ppwcs_score": ppwcs_score,
             "tjde_score": tjde_score,
             "tjde_decision": tjde_decision,
             "price": price,
@@ -809,16 +808,15 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
 def save_async_result(symbol: str, tjde_score: float, tjde_decision: str, market_data: Dict):
     """Save scan result with candle data for Vision-AI access"""
     try:
-        # Base result
+        # Base result - TJDE v2 only
         result = {
             "symbol": symbol,
-            "ppwcs_score": ppwcs_score,
             "tjde_score": tjde_score,
             "tjde_decision": tjde_decision,
             "price_usd": market_data.get("price_usd", 0),
             "volume_24h": market_data.get("volume_24h", 0),
             "timestamp": datetime.now().isoformat(),
-            "scan_method": "async_token_scan"
+            "scan_method": "tjde_v2_async"
         }
         
         # Add candle data for Vision-AI pipeline
