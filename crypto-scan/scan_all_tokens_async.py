@@ -115,7 +115,8 @@ class AsyncTokenScanner:
         print(f"- Processed: {self.successful_scans}/{len(symbols)} tokens")
         print(f"- Total time: {total_time:.1f}s (TARGET: <15s)")
         print(f"- Performance: {tokens_per_second:.1f} tokens/second")
-        print(f"- API calls: {self.total_api_calls} ({self.total_api_calls/len(symbols):.1f} per token)")
+        api_per_token = self.total_api_calls/len(symbols) if len(symbols) > 0 else 0
+        print(f"- API calls: {self.total_api_calls} ({api_per_token:.1f} per token)")
         
         # Top performers
         if results:
