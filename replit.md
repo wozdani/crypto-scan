@@ -98,6 +98,18 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### June 30, 2025 - UNIFIED PRE-PUMP TJDE ENGINE v3.0 DEPLOYMENT - Complete PPWCS Replacement ✅
+Successfully deployed comprehensive Unified Pre-Pump TJDE Engine replacing legacy PPWCS with single decision system covering all market phases:
+- **Unified TJDE Engine Implementation**: Created unified_tjde_engine.py with UnifiedTJDEEngine class supporting 4 market phases (pre-pump, trend-following, consolidation, breakout) with phase-specific scoring profiles and intelligent decision making
+- **Pre-Pump Specialization**: Implemented dedicated pre-pump detection in utils/prepump_alert_system.py with specialized pre-pump alert system featuring 2-hour cooldowns, early entry signals, and enhanced Telegram notifications
+- **Complete Scanner Integration**: Successfully integrated unified engine into scan_token_async.py replacing all legacy PPWCS calls with analyze_symbol_with_unified_tjde() providing enhanced decision accuracy across all market conditions
+- **Multi-Phase Alert System**: Enhanced alert processing to handle pre-pump early entry alerts separately from standard TJDE trend-mode alerts with phase-specific cooldowns and specialized messaging
+- **Comprehensive Fallback Logic**: Implemented robust fallback system combining unified engine (70% weight) with legacy TJDE engine (30% weight) for enhanced accuracy, ensuring continuous operation even during engine transitions
+- **Phase-Specific Decision Enhancement**: Added intelligent phase detection with market-specific scoring adjustments enabling superior pre-pump identification, breakout confirmation, and consolidation analysis
+- **Production Testing Verified**: Confirmed all 4 scoring profiles loaded correctly, phase detection operational, alert system integration complete, and scanner producing unified TJDE scores across all market phases
+- **Architecture Transition Complete**: Successfully transitioned from dual PPWCS/TJDE system to unified single-engine approach maintaining all existing functionality while adding advanced pre-pump capabilities
+System now provides comprehensive market analysis through single unified engine eliminating complexity of separate scoring systems while significantly enhancing pre-pump detection accuracy.
+
 ### June 30, 2025 - COMPLETE FAKEOUT PROTECTION & UNKNOWN DECISION BLOCKING SYSTEM ✅
 Successfully implemented comprehensive anti-fakeout system and eliminated all "unknown" decision alerts preventing false signals like CUDISUSDT:
 - **Enhanced Fakeout Detection**: Added advanced pattern analysis in `simulate_trader_decision_advanced()` detecting:
