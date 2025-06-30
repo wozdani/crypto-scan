@@ -98,17 +98,18 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### June 30, 2025 - PERPETUAL-ONLY RESOLVER IMPLEMENTATION - SPOT Contract Contamination Eliminated ✅
-Successfully implemented comprehensive PERPETUAL-ONLY resolver preventing SPOT contract contamination that was corrupting trend-mode and pre-pump trading strategies:
-- **Critical Issue Resolution**: Fixed system accepting SPOT contracts (BINANCE:COSUSDT) instead of PERPETUAL contracts essential for funding rates and leverage analysis in trading strategies
-- **PERPETUAL Detection System**: Enhanced multi_exchange_resolver.py with is_perpetual_symbol() function providing exchange-specific detection for all major exchanges (BYBIT, BINANCE, BITGET, OKX, MEXC, KUCOIN, GATEIO)
-- **Exchange-Specific Logic**: BYBIT (all symbols perpetual), BITGET (all USDT perpetual), BINANCE (requires .P or USDTPERP suffix), OKX/MEXC/KUCOIN (specific suffix requirements)
-- **SPOT Rejection System**: Comprehensive SPOT contract blocking preventing contamination from BINANCE:BTCUSDT, COINBASE:BTCUSD, KRAKEN:XBTUSD and other traditional spot pairs
-- **Complete Test Suite**: Created test_perpetual_resolver.py with 100% pass rate validating PERPETUAL detection, SPOT rejection, symbol generation, and resolver functionality
-- **Production Integration**: All TradingView chart generation now uses PERPETUAL-ONLY resolver with brute-force fallback maintaining chart generation reliability
-- **Cache Management**: Cleared stale cache ensuring fresh start with PERPETUAL-only results and perpetual_only: true flags
-- **Trading Strategy Protection**: Eliminates corruption of trend-mode and pre-pump strategies designed specifically for perpetual contracts with funding rates, leverage access, and 24/7 trading
-System now guarantees exclusive use of PERPETUAL contracts for all TradingView chart generation protecting trading strategy integrity and eliminating SPOT contract contamination.
+### June 30, 2025 - BYBIT DUAL FORMAT SUPPORT COMPLETED - Enhanced PERPETUAL-ONLY Resolution ✅
+Successfully implemented comprehensive BYBIT dual format support enhancing PERPETUAL-ONLY resolver with complete coverage of both BYBIT standard and .P suffix formats:
+- **BYBIT Dual Format Support**: Enhanced multi_exchange_resolver.py to recognize both BYBIT:SYMBOL and BYBIT:SYMBOL.P formats as perpetual contracts maintaining complete BYBIT exchange compatibility
+- **Enhanced Symbol Generation**: Updated get_perpetual_tv_symbols() to include both BYBIT:BTCUSDT and BYBIT:BTCUSDT.P in potential TV symbols list ensuring comprehensive exchange coverage
+- **PERPETUAL Detection Enhancement**: Updated is_perpetual_symbol() function to explicitly handle BYBIT dual formats with clear documentation for both standard and .P suffix support
+- **Comprehensive Test Coverage**: Enhanced test_perpetual_resolver.py with dual format validation confirming both BYBIT:BTCUSDT and BYBIT:DARKUSDT.P correctly identified as perpetual contracts
+- **Production Validation**: Live system testing confirms proper resolution of BYBIT symbols with successful TradingView chart generation (e.g., SUNUSDT → BYBIT:SUNUSDT)
+- **Order-Specific Testing**: Symbol generation includes both BYBIT variants in preferred order ensuring maximum compatibility across different TradingView symbol requirements
+- **Complete Documentation Update**: Updated function comments to reflect dual format support maintaining clear understanding of BYBIT exchange handling
+- **Test Suite Enhancement**: Added explicit validation for BYBIT dual format support in perpetual symbol generation tests ensuring both formats included in output
+- **System Integration**: Full integration with existing PERPETUAL-ONLY resolver maintaining 100% perpetual contract integrity while adding enhanced BYBIT format coverage
+System now provides complete BYBIT format support with both standard and .P suffix recognition ensuring maximum TradingView compatibility while maintaining exclusive perpetual contract usage.
 
 ### June 30, 2025 - CRITICAL BRUTE-FORCE BINANCE FALLBACK IMPLEMENTATION - Infinite Loop Prevention Complete ✅
 Successfully implemented comprehensive brute-force BINANCE fallback system preventing chart generation failures and infinite loops for problematic tokens:
