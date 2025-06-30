@@ -84,6 +84,13 @@ class AsyncTokenScanner:
         
         # Process in chunks for memory efficiency and progress display
         chunk_size = min(50, len(tasks)) if len(tasks) > 0 else 1
+        # Ensure chunk_size is never 0 to prevent range() error
+        chunk_size = max(1, chunk_size)
+        
+        if len(tasks) == 0:
+            print("No tasks to process")
+            return []
+            
         for i in range(0, len(tasks), chunk_size):
             chunk_tasks = tasks[i:i + chunk_size]
             chunk_symbols = symbols[i:i + chunk_size]
