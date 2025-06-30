@@ -133,6 +133,7 @@ def process_async_data_enhanced_with_5m(symbol: str, ticker_data: Optional[Dict]
     # Must have 15M candles for processing
     if not has_15m_candles:
         print(f"[VALIDATION FAILED] {symbol}: No 15M candle data")
+        print(f"[DATA VALIDATION FAILED] {symbol} → Enhanced processor rejected data")
         return None
     
     # If no price but we have candles, try final price extraction
