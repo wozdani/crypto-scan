@@ -173,6 +173,14 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         # Process data using enhanced data processor
         print(f"[DATA VALIDATION] {symbol} → ticker: {type(ticker)}, 15m: {type(candles_15m)}, 5m: {type(candles_5m)}, orderbook: {type(orderbook)}")
         
+        # Check for HTTP 403 geographical restrictions BEFORE converting exceptions to None
+        geographic_restriction = (
+            isinstance(ticker, Exception) and "403" in str(ticker) or
+            isinstance(candles_15m, Exception) and "403" in str(candles_15m) or
+            isinstance(candles_5m, Exception) and "403" in str(candles_5m) or
+            isinstance(orderbook, Exception) and "403" in str(orderbook)
+        )
+        
         # Convert exceptions to None for enhanced processor
         if isinstance(ticker, Exception):
             ticker = None
@@ -189,17 +197,12 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         candles_5m_data = {"result": {"list": candles_5m}} if candles_5m and isinstance(candles_5m, list) and len(candles_5m) > 0 else None
         orderbook_data = {"result": orderbook} if orderbook else None
         
-        # Smart API Fallback: Detect if we're in geographical restriction environment (HTTP 403) vs real production failure
-        geographic_restriction = (
-            isinstance(ticker, Exception) and "403" in str(ticker) or
-            isinstance(candles_15m, Exception) and "403" in str(candles_15m) or
-            isinstance(candles_5m, Exception) and "403" in str(candles_5m) or
-            isinstance(orderbook, Exception) and "403" in str(orderbook)
-        )
+        # Smart API Fallback: We already checked geographic_restriction above
         
+        # Check for complete API failure - all critical data missing
         complete_api_failure = (
             (not ticker_data or ticker is None) and
-            (not candles_data or (isinstance(candles_15m, list) and len(candles_15m) == 0)) and
+            (not candles_data or not candles_15m or (isinstance(candles_15m, list) and len(candles_15m) == 0)) and
             (not orderbook_data or orderbook is None)
         )
         
