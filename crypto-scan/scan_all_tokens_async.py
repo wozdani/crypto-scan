@@ -101,8 +101,8 @@ class AsyncTokenScanner:
                 elif result:
                     results.append(result)
                     # Compact progress display
-                    if completed % 10 == 0 or result.get("ppwcs_score", 0) >= 40:
-                        print(f"[{completed}/{len(symbols)}] {symbol}: PPWCS {result['ppwcs_score']:.1f}, TJDE {result['tjde_decision']}")
+                    if completed % 10 == 0 or result.get("tjde_score", 0) >= 0.7:
+                        print(f"[{completed}/{len(symbols)}] {symbol}: TJDE {result['tjde_score']:.3f} ({result['tjde_decision']})")
                 else:
                     if completed % 20 == 0:  # Less frequent logging for skipped tokens
                         print(f"[{completed}/{len(symbols)}] {symbol}: Skipped")
@@ -119,10 +119,10 @@ class AsyncTokenScanner:
         
         # Top performers
         if results:
-            sorted_results = sorted(results, key=lambda x: x.get('ppwcs_score', 0), reverse=True)
+            sorted_results = sorted(results, key=lambda x: x.get('tjde_score', 0), reverse=True)
             print(f"\n🔥 TOP 10 PERFORMERS:")
             for i, result in enumerate(sorted_results[:10], 1):
-                print(f"{i:2d}. {result['symbol']:12} PPWCS {result['ppwcs_score']:5.1f} TJDE {result['tjde_decision']:12} Vol ${result['volume_24h']:>12,.0f}")
+                print(f"{i:2d}. {result['symbol']:12} TJDE {result['tjde_score']:5.3f} ({result['tjde_decision']:12}) Vol ${result['volume_24h']:>12,.0f}")
         
         return results
 
@@ -267,11 +267,11 @@ async def async_scan_cycle():
         await generate_top_tjde_charts(results)
         
         # Check for high-value setups
-        high_score_setups = [r for r in results if r.get('ppwcs_score', 0) >= 50 or r.get('tjde_score', 0) >= 0.8]
+        high_score_setups = [r for r in results if r.get('tjde_score', 0) >= 0.8]
         if high_score_setups:
             print(f"\n⚡ {len(high_score_setups)} HIGH-VALUE SETUPS DETECTED")
             for setup in high_score_setups:
-                print(f"   {setup['symbol']}: PPWCS {setup['ppwcs_score']:.1f}, TJDE {setup['tjde_decision']}")
+                print(f"   {setup['symbol']}: TJDE {setup['tjde_score']:.3f} ({setup['tjde_decision']})")
     
     # Display comprehensive error summary at end of scan
     error_count = get_error_count()
@@ -602,7 +602,7 @@ def save_scan_summary(results: List[Dict]):
             "scan_time": datetime.now().isoformat(),
             "total_processed": len(results),
             "scan_method": "async_parallel",
-            "top_performers": sorted(results, key=lambda x: x.get('ppwcs_score', 0), reverse=True)[:20],
+            "top_performers": sorted(results, key=lambda x: x.get('tjde_score', 0), reverse=True)[:20],
             "high_tjde_scores": [r for r in results if r.get('tjde_score', 0) >= 0.7],
             "alerts_sent": len([r for r in results if r.get('alert_sent', False)])
         }
