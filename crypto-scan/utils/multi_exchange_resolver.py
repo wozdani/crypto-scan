@@ -63,7 +63,8 @@ class MultiExchangeResolver:
         Returns:
             bool: True if symbol represents a perpetual contract
         """
-        # BYBIT: All symbols without suffixes are perpetual contracts
+        # BYBIT: All symbols are perpetual contracts (both standard and .P suffix)
+        # BYBIT:DARKUSDT → valid, BYBIT:DARKUSDT.P → valid
         if tv_symbol.startswith("BYBIT:"):
             return True
         
@@ -97,7 +98,8 @@ class MultiExchangeResolver:
         base_symbol = symbol.replace("USDT", "") if symbol.endswith("USDT") else symbol
         
         return [
-            f"BYBIT:{symbol}",                    # BYBIT perpetual (no suffix needed)
+            f"BYBIT:{symbol}",                    # BYBIT perpetual (standard format)
+            f"BYBIT:{symbol}.P",                  # BYBIT perpetual (with .P suffix)
             f"BINANCE:{symbol}.P",                # BINANCE perpetual
             f"BINANCE:{base_symbol}USDTPERP",     # BINANCE perpetual alt
             f"OKX:{base_symbol}USDTPERP",         # OKX perpetual
