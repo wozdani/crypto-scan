@@ -392,6 +392,26 @@ class TJDEFeedbackLoop:
         
         return True
     
+    def get_available_profiles(self) -> Dict[str, Dict]:
+        """
+        Get all available scoring profiles
+        
+        Returns:
+            Dictionary of profile_name -> profile_weights
+        """
+        profiles = {}
+        
+        # Load default profiles if not already loaded
+        for profile_name in ["pre-pump", "trend", "breakout", "consolidation"]:
+            try:
+                profile = self.load_profile(profile_name)
+                if profile:
+                    profiles[profile_name] = profile
+            except Exception as e:
+                print(f"[FEEDBACK LOOP] Error loading profile {profile_name}: {e}")
+        
+        return profiles
+    
     def run_feedback_loop(self) -> Dict[str, Any]:
         """
         Main feedback loop execution
