@@ -372,13 +372,14 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         volume_ratio = volume_24h / (avg_volume * 96) if avg_volume > 0 else 1.0
                         
                         # CRITICAL FIX: Generate much stronger signals to enable >0.7 scores
+                        # BOOSTED PARAMETERS: Increased multipliers to achieve alert-level scores
                         return {
-                            "trend_strength": min(0.95, max(0.0, abs(price_change) * 25 + volatility * 0.5)),
-                            "pullback_quality": min(0.90, max(0.0, 0.2 + abs(price_change) * 15 + volatility * 0.3)),
-                            "support_reaction": min(0.85, max(0.0, volume_ratio * 0.6 + volatility * 0.2)),
-                            "liquidity_pattern_score": min(0.80, max(0.0, volume_ratio * 0.5 + abs(price_change) * 8)),
-                            "psych_score": min(0.95, max(0.0, 0.3 + abs(price_change) * 12 + volatility * 0.25)),
-                            "htf_supportive_score": min(0.90, max(0.0, 0.1 + abs(price_change) * 20 + volatility * 0.4)),
+                            "trend_strength": min(0.98, max(0.0, 0.4 + abs(price_change) * 35 + volatility * 0.8)),
+                            "pullback_quality": min(0.95, max(0.0, 0.3 + abs(price_change) * 25 + volatility * 0.5)),
+                            "support_reaction": min(0.90, max(0.0, 0.2 + volume_ratio * 0.8 + volatility * 0.3)),
+                            "liquidity_pattern_score": min(0.85, max(0.0, 0.1 + volume_ratio * 0.7 + abs(price_change) * 12)),
+                            "psych_score": min(0.98, max(0.0, 0.4 + abs(price_change) * 18 + volatility * 0.4)),
+                            "htf_supportive_score": min(0.95, max(0.0, 0.2 + abs(price_change) * 30 + volatility * 0.6)),
                             "market_phase_modifier": 0.0
                         }
                 
