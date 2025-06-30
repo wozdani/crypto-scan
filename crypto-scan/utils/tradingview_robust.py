@@ -143,7 +143,8 @@ class RobustTradingViewGenerator:
                 print("[ROBUST TV] Page loaded successfully")
             except Exception as nav_error:
                 print(f"[ROBUST TV ERROR] Navigation failed: {nav_error}")
-                return None
+                # Try brute-force BINANCE fallback before giving up
+                return await self._try_brute_force_fallback(symbol, tjde_score, decision)
             
             # Wait for chart with progressive timeouts
             chart_ready = await self._wait_for_chart_progressive()
@@ -161,13 +162,15 @@ class RobustTradingViewGenerator:
                 
                 if invalid_symbol:
                     print(f"[ROBUST TV ERROR] Invalid symbol detected for {tv_symbol}")
-                    return "INVALID_SYMBOL"  # Special return value to trigger fallback
+                    # Try brute-force BINANCE fallback before returning INVALID_SYMBOL
+                    return await self._try_brute_force_fallback(symbol, tjde_score, decision)
                     
                 # Also check for other error indicators
                 symbol_not_found = await self.page.locator("text=Symbol not found").first.is_visible()
                 if symbol_not_found:
                     print(f"[ROBUST TV ERROR] Symbol not found: {tv_symbol}")
-                    return "INVALID_SYMBOL"
+                    # Try brute-force BINANCE fallback before giving up
+                    return await self._try_brute_force_fallback(symbol, tjde_score, decision)
                     
             except Exception as validation_error:
                 print(f"[ROBUST TV WARNING] Symbol validation failed: {validation_error}")
@@ -277,6 +280,66 @@ class RobustTradingViewGenerator:
             
         except Exception as e:
             print(f"[ROBUST TV ERROR] Metadata save failed: {e}")
+    
+    async def _try_brute_force_fallback(self, symbol: str, tjde_score: float, decision: str) -> Optional[str]:
+        """
+        Last resort: Try brute-force BINANCE fallback without validation
+        """
+        try:
+            print(f"[ROBUST TV] 🚨 BRUTE-FORCE FALLBACK: Trying BINANCE:{symbol}")
+            
+            # Generate filename for fallback
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+            score_formatted = str(int(tjde_score * 1000)) if tjde_score > 0 else "000"
+            filename = f"{symbol}_BINANCE_score-{score_formatted}_{timestamp}.png"
+            
+            # Ensure output directory
+            os.makedirs("training_data/charts", exist_ok=True)
+            file_path = f"training_data/charts/{filename}"
+            
+            # Try brute-force BINANCE URL
+            fallback_url = f"https://www.tradingview.com/chart/?symbol=BINANCE:{symbol}&interval=15"
+            print(f"[ROBUST TV] Loading fallback URL: {fallback_url}")
+            
+            try:
+                await self.page.goto(fallback_url, wait_until='domcontentloaded', timeout=15000)
+                print("[ROBUST TV] ✅ Brute-force navigation successful!")
+                
+                # Quick chart loading check
+                chart_ready = await self._wait_for_chart_progressive()
+                if not chart_ready:
+                    print("[ROBUST TV] Brute-force chart loading failed")
+                    return None
+                
+                # Take screenshot immediately (no validation for fallback)
+                screenshot_data = await self.page.screenshot(
+                    path=file_path,
+                    full_page=False
+                )
+                
+                # Verify screenshot quality
+                if os.path.exists(file_path):
+                    file_size = os.path.getsize(file_path)
+                    if file_size > 10000:  # Minimum 10KB
+                        print(f"[ROBUST TV SUCCESS] ✅ Brute-force success: {filename} ({file_size} bytes)")
+                        
+                        # Save metadata
+                        await self._save_metadata(file_path, symbol, f"BINANCE:{symbol}", "BINANCE", tjde_score, decision)
+                        
+                        return file_path
+                    else:
+                        print(f"[ROBUST TV] Brute-force screenshot too small: {file_size} bytes")
+                        if os.path.exists(file_path):
+                            os.remove(file_path)
+                        return None
+                        
+            except Exception as fallback_nav_error:
+                print(f"[ROBUST TV] ❌ Brute-force navigation failed: {fallback_nav_error}")
+                return None
+                
+        except Exception as e:
+            print(f"[ROBUST TV ERROR] Brute-force fallback failed: {e}")
+            return None
 
 async def test_robust_generator():
     """Quick test of robust generator"""

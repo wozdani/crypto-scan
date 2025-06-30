@@ -97,8 +97,9 @@ class MultiExchangeResolver:
         }
         self._save_cache()
         
-        print(f"[RESOLVER] ❌ Not found: {symbol} on any exchange")
-        return None
+        # Last resort: Brute-force BINANCE fallback without validation
+        print(f"[RESOLVER] 🚨 LAST RESORT: Brute-force BINANCE:{symbol} fallback")
+        return (f"BINANCE:{symbol}", "BINANCE")
     
     def _test_exchange_availability(self, tv_symbol: str, exchange: str) -> bool:
         """Test if symbol is available on specific exchange using intelligent heuristics"""
