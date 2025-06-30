@@ -18,9 +18,8 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 # Import training data manager
 from utils.training_data_manager import TrainingDataManager
 
-# Import scoring and analysis modules with proper error handling
-PPWCS_AVAILABLE = True  # Always available with realistic calculation
-print("[IMPORT SUCCESS] Realistic PPWCS calculation implemented")
+# PPWCS SYSTEM REMOVED - Using TJDE v2 only
+print("[SYSTEM] PPWCS system completely removed - using TJDE v2 exclusively")
 
 try:
     from trader_ai_engine import simulate_trader_decision_advanced, CANDIDATE_PHASES
@@ -256,136 +255,8 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         # market_data is already properly structured from enhanced processor
         print(f"[MARKET DATA SUCCESS] {symbol} → Price: ${price}, Volume: {volume_24h}")
         
-        # PPWCS Scoring with import validation
-        if PPWCS_AVAILABLE:
-            try:
-                print(f"[DEBUG] {symbol} → Running PPWCS scoring")
-                print(f"[DEBUG] {symbol} → market_data keys: {list(market_data.keys()) if isinstance(market_data, dict) else 'NOT DICT'}")
-                print(f"[DEBUG] {symbol} → market_data type: {type(market_data)}")
-                
-                # Use conservative PPWCS calculation to prevent spam alerts
-                def calculate_realistic_ppwcs(candles_15m, candles_5m, price, volume_24h, orderbook):
-                    """Calculate conservative PPWCS scores - most tokens 15-45 range"""
-                    score = 15.0  # Start with low base
-                    
-                    if not candles_15m or len(candles_15m) < 10:
-                        return 20.0  # Low score for insufficient data
-                    
-                    # 1. Volume Analysis (0-15 points max) - Very conservative
-                    try:
-                        recent_volumes = [candle[5] for candle in candles_15m[-5:]]
-                        avg_volume = sum(recent_volumes) / len(recent_volumes)
-                        if volume_24h > avg_volume * 100:  # Extreme volume spike
-                            score += 15
-                        elif volume_24h > avg_volume * 50:  # Very high volume
-                            score += 10
-                        elif volume_24h > avg_volume * 20:  # High volume
-                            score += 5
-                        else:
-                            score += 1  # Minimal points
-                    except:
-                        score += 1
-                    
-                    # 2. Price Movement Analysis (0-25 points)
-                    try:
-                        closes = [candle[4] for candle in candles_15m[-10:]]
-                        price_change = (closes[-1] - closes[0]) / closes[0]
-                        if abs(price_change) > 0.05:  # >5% movement
-                            score += 20
-                        elif abs(price_change) > 0.03:  # >3% movement
-                            score += 15
-                        elif abs(price_change) > 0.01:  # >1% movement
-                            score += 10
-                        else:
-                            score += 5
-                    except:
-                        score += 5
-                    
-                    # 3. Volatility/Range Analysis (0-20 points)
-                    try:
-                        highs = [candle[2] for candle in candles_15m[-5:]]
-                        lows = [candle[3] for candle in candles_15m[-5:]]
-                        avg_range = sum((h-l)/l for h,l in zip(highs, lows)) / len(highs)
-                        if avg_range > 0.02:  # High volatility
-                            score += 15
-                        elif avg_range > 0.01:
-                            score += 10
-                        else:
-                            score += 5
-                    except:
-                        score += 5
-                    
-                    # 3. Momentum Analysis (0-8 points max) - Conservative
-                    try:
-                        if len(candles_5m) >= 12:
-                            recent_closes = [candle[4] for candle in candles_5m[-12:]]
-                            momentum = abs((recent_closes[-1] - recent_closes[0]) / recent_closes[0])
-                            if momentum > 0.15:  # Very strong momentum
-                                score += 8
-                            elif momentum > 0.10:  # Strong momentum  
-                                score += 5
-                            elif momentum > 0.05:  # Medium momentum
-                                score += 2
-                            else:
-                                score += 0  # No points for weak momentum
-                        else:
-                            score += 0
-                    except:
-                        score += 0
-                    
-                    # 4. Special Conditions (0-12 points max) - Only for exceptional cases
-                    special_points = 0
-                    
-                    # Orderbook analysis if available
-                    if orderbook and orderbook.get('bids') and orderbook.get('asks'):
-                        try:
-                            bid_depth = sum([float(bid[1]) for bid in orderbook['bids'][:5]])
-                            ask_depth = sum([float(ask[1]) for ask in orderbook['asks'][:5]])
-                            if bid_depth > ask_depth * 10:  # Extreme bid pressure
-                                special_points += 12
-                            elif bid_depth > ask_depth * 5:  # Very strong bid pressure
-                                special_points += 6
-                            elif bid_depth > ask_depth * 2:  # Strong bid pressure
-                                special_points += 3
-                        except:
-                            pass
-                    
-                    score += special_points
-                    
-                    # Allow full range for exceptional cases - można osiągnąć 100 punktów
-                    return min(max(score, 15.0), 100.0)  # Range 15-100, perfect score możliwy
-                
-                ppwcs_score = calculate_realistic_ppwcs(candles_15m, candles_5m, price, volume_24h, orderbook)
-                
-                # Calculate checklist score using market data
-                from utils.scoring import compute_checklist_score
-                
-                signals = {
-                    'volume_spike': volume_24h > 10000000,  # 10M+ volume
-                    'price_movement': abs(market_data.get('price_change_24h', 0)) > 0.15,  # 15%+ change
-                    'whale_activity': ppwcs_score > 50,  # High score indicates activity
-                    'dex_inflow': False,  # Would need DEX data
-                    'social_momentum': ppwcs_score > 55,  # Very high activity
-                    'stage_minus1_detected': ppwcs_score > 45,  # Market tension
-                    'orderbook_anomaly': orderbook is not None and len(orderbook.get('bids', [])) > 10
-                }
-                
-                checklist_score, checklist_summary = compute_checklist_score(signals)
-                
-                print(f"[PPWCS SUCCESS] {symbol}: score={ppwcs_score}, signals_count={len(signals.get('signals', {}) if signals else {})}")
-                
-            except Exception as e:
-                print(f"[PPWCS FALLBACK] {symbol}: {type(e).__name__}: {e}")
-                print(f"[PPWCS FALLBACK] {symbol} → market_data structure:")
-                if isinstance(market_data, dict):
-                    for key, value in market_data.items():
-                        print(f"  {key}: {type(value)} = {str(value)[:100]}")
-                ppwcs_score = calculate_basic_score(market_data)
-                signals = {"final_score": ppwcs_score, "signals": {}}
-        else:
-            print(f"[PPWCS NOT AVAILABLE] {symbol} → Using fallback scoring (import failed)")
-            ppwcs_score = calculate_basic_score(market_data)
-            signals = {"final_score": ppwcs_score, "signals": {}}
+        # PPWCS SYSTEM COMPLETELY REMOVED - Using TJDE v2 only
+        print(f"[SYSTEM] {symbol} → PPWCS removed, using TJDE v2 exclusively")
         
         # TJDE Analysis with import validation
         if TJDE_AVAILABLE:
@@ -983,46 +854,7 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         print(f"❌ {symbol} → error: {e}")
         return None
 
-def calculate_basic_score(market_data: Dict) -> float:
-    """Basic scoring when PPWCS unavailable"""
-    print(f"[BASIC SCORE] Calculating fallback score")
-    
-    if not market_data:
-        print(f"[BASIC SCORE] No market_data provided")
-        return 40.0
-    
-    try:
-        print(f"[BASIC SCORE] market_data available: {list(market_data.keys()) if isinstance(market_data, dict) else 'NOT DICT'}")
-        
-        score = 0.0
-        volume_24h = market_data.get("volume_24h", 0)
-        price_change = abs(market_data.get("price_change_24h", 0))
-        
-        print(f"[BASIC SCORE] volume_24h: {volume_24h}, price_change_24h: {price_change}%")
-        
-        # Volume scoring
-        if volume_24h > 10_000_000:
-            score += 40
-        elif volume_24h > 5_000_000:
-            score += 25
-        elif volume_24h > 1_000_000:
-            score += 15
-        
-        # Price movement scoring
-        if price_change > 15:
-            score += 35
-        elif price_change > 10:
-            score += 25
-        elif price_change > 5:
-            score += 15
-        
-        final_score = min(100, score) if score > 0 else 45.0
-        print(f"[BASIC SCORE] Final calculated score: {final_score}")
-        return final_score
-        
-    except Exception as e:
-        print(f"[BASIC SCORE] Error calculating: {e}")
-        return 40.0
+# PPWCS calculate_basic_score REMOVED - Using TJDE v2 only
 
 async def send_async_alert(symbol: str, ppwcs_score: float, tjde_score: float, tjde_decision: str, market_data: Dict) -> bool:
     """Send alert for high-scoring tokens"""
