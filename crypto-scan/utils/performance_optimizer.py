@@ -120,8 +120,8 @@ class PerformanceOptimizer:
         Returns:
             Performance configuration
         """
-        # Prioritize high-volume tokens - Process all 752 symbols
-        prioritized_symbols = self.prioritize_high_volume_tokens(symbols, 752)
+        # Prioritize high-volume tokens - Process all 9999 symbols
+        prioritized_symbols = self.prioritize_high_volume_tokens(symbols, 9999)
         
         # Calculate optimal concurrency
         optimal_concurrency = self.optimize_concurrency_for_target(len(prioritized_symbols))
