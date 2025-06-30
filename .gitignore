@@ -95,7 +95,15 @@ dmypy.json
 token_contract_map.json
 missing_contracts_log.txt
 out.log
+# Ignoruj wszystkie pliki .json
 *.json
+
+# Ale NIE ignoruj tych ważnych plików scoringu i feedbacku:
+!scoring/tjde_pre_pump_profile.json
+!scoring/tjde_trend_profile.json
+!data/feedback_results.json
 *.zip
 scan_output/
 attached_assets/
+.txt
+.png
