@@ -7,6 +7,7 @@ Analizuje performance alertów i generuje feedback dla systemu self-learning
 
 import json
 import os
+import random as system_random
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Tuple, Optional
 
@@ -183,16 +184,14 @@ def _simulate_performance_based_on_score(score: float) -> float:
     Symuluje performance na podstawie score (do testów bez live data)
     W produkcji należy usunąć i używać prawdziwych danych cenowych
     """
-    import random
-    
     # Higher scores tend to perform better (but with randomness)
     base_performance = score * 10  # Convert 0-1 score to 0-10% range
     
     # Add some randomness
-    random_factor = random.uniform(-3, 3)
+    random_factor = system_random.uniform(-3, 3)
     
     # Simulate market conditions
-    market_noise = random.uniform(-2, 2)
+    market_noise = system_random.uniform(-2, 2)
     
     return base_performance + random_factor + market_noise
 
