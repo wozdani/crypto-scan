@@ -202,26 +202,9 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         use_mock_fallback = complete_api_failure and not candles_data
         
         if use_mock_fallback:
-            try:
-                from utils.mock_data_generator import get_mock_data_for_symbol, log_mock_data_usage
-                mock_data = get_mock_data_for_symbol(symbol)
-                
-                # Use mock data to replace failed API calls
-                if not ticker_data:
-                    ticker_data = {"result": {"list": [mock_data["ticker"]]}}
-                if not candles_data:
-                    candles_data = {"result": {"list": mock_data["candles_15m"]}}
-                if not candles_5m_data:
-                    candles_5m_data = {"result": {"list": mock_data["candles_5m"]}}
-                    candles_5m = mock_data["candles_5m"]  # Update the local variable too
-                if not orderbook_data:
-                    orderbook_data = {"result": mock_data["orderbook"]}
-                
-                log_mock_data_usage(symbol, ["ticker", "candles_15m", "candles_5m", "orderbook"])
-                
-            except Exception as e:
-                print(f"[MOCK DATA FAILED] {symbol} → Error generating mock data: {e}")
-                return None
+            print(f"[API COMPLETE FAILURE] {symbol} → All API calls failed, but on production server this indicates a problem")
+            print(f"[API FAILURE DEBUG] ticker: {bool(ticker_data)}, candles: {bool(candles_data)}, orderbook: {bool(orderbook_data)}")
+            return None  # On production server, don't use mock data - investigate API issues instead
         
         # Enhanced debug for data conversion
         print(f"[DATA CONVERT] {symbol} → ticker_data: {bool(ticker_data)}, candles_data: {bool(candles_data)}, candles_5m_data: {bool(candles_5m_data)}, orderbook_data: {bool(orderbook_data)}")
