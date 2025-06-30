@@ -30,6 +30,11 @@ def send_tjde_trend_alert(alert_data: Dict) -> bool:
         price = alert_data.get("price", 0.0)
         volume_24h = alert_data.get("volume_24h", 0.0)
         
+        # 🔒 CRITICAL FIX: Nie wysyłaj alertów dla "unknown" decision
+        if tjde_decision in ["unknown", "none", None, ""]:
+            print(f"[TJDE ALERT BLOCK] {symbol}: Decision is '{tjde_decision}' - alert blocked to prevent false signals")
+            return False
+        
         # Build alert message
         alert_lines = []
         

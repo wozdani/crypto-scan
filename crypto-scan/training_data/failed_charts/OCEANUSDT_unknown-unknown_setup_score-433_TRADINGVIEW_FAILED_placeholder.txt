@@ -1,0 +1,10 @@
+TRADINGVIEW SCREENSHOT FAILED
+Symbol: OCEANUSDT
+Phase: unknown
+Setup: unknown_setup  
+Score: 0.433
+Error: sync_wrapper_failed
+Timestamp: 2025-06-29T20:10:58.691650
+
+Note: This is a placeholder file created because TradingView screenshot generation failed.
+No matplotlib fallback was used to maintain dataset quality.

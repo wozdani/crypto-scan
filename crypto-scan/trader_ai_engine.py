@@ -1680,7 +1680,36 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
             except Exception as memory_error:
                 print(f"[TOKEN MEMORY ERROR] {symbol}: {memory_error}")
 
-        return result
+        # 🔧 CRITICAL FIX: Fallback decision logic - nie może być "unknown"
+        final_decision = final_result.get("decision", "unknown")
+        final_score = final_result.get("final_score", 0.0)
+        
+        if final_decision == "unknown" or final_decision is None:
+            print(f"[DECISION FALLBACK] {symbol}: Decision was 'unknown', applying fallback logic...")
+            
+            # Inteligentny fallback na podstawie score i komponentów
+            score_components = final_result.get("score_breakdown", {})
+            trend_component = score_components.get("trend_strength", 0.0)
+            clip_component = score_components.get("clip_prediction", "none")
+            
+            if final_score >= 0.7:
+                final_decision = "join_trend"
+                print(f"[FALLBACK LOGIC] {symbol}: High score {final_score:.3f} → join_trend")
+            elif final_score >= 0.45:
+                final_decision = "consider_entry" 
+                print(f"[FALLBACK LOGIC] {symbol}: Medium score {final_score:.3f} → consider_entry")
+            elif trend_component > 0.15 and clip_component not in ["none", "unknown"]:
+                final_decision = "consider_entry"
+                print(f"[FALLBACK LOGIC] {symbol}: Strong trend+CLIP → consider_entry")
+            else:
+                final_decision = "avoid"
+                print(f"[FALLBACK LOGIC] {symbol}: Weak setup {final_score:.3f} → avoid")
+            
+            # Aktualizuj final_result z nową decyzją
+            final_result["decision"] = final_decision
+            print(f"[DECISION FIXED] {symbol}: 'unknown' → '{final_decision}'")
+
+        return final_result
         
         # Enhanced logging for CLIP integration
         if clip_modifier != 0:
