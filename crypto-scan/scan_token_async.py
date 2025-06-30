@@ -93,6 +93,9 @@ async def get_candles_async(symbol: str, interval: str, session: aiohttp.ClientS
             
     except Exception as e:
         print(f"Error fetching {interval}m candles for {symbol}: {e}")
+        # Re-raise HTTP 403 geographical restrictions
+        if "HTTP 403 Forbidden - geographical restriction" in str(e):
+            raise e
         return []
 
 async def get_ticker_async(symbol: str, session: aiohttp.ClientSession) -> Optional[Dict]:
@@ -121,7 +124,10 @@ async def get_ticker_async(symbol: str, session: aiohttp.ClientSession) -> Optio
                 "low_24h": float(ticker.get("lowPrice24h", 0))
             }
             
-    except Exception:
+    except Exception as e:
+        # Re-raise HTTP 403 geographical restrictions
+        if "HTTP 403 Forbidden - geographical restriction" in str(e):
+            raise e
         return None
 
 async def get_orderbook_async(symbol: str, session: aiohttp.ClientSession, depth: int = 25) -> Optional[Dict]:
@@ -155,6 +161,9 @@ async def get_orderbook_async(symbol: str, session: aiohttp.ClientSession, depth
             
     except Exception as e:
         print(f"[ORDERBOOK PROD ERROR] {symbol} → {e}")
+        # Re-raise HTTP 403 geographical restrictions
+        if "HTTP 403 Forbidden - geographical restriction" in str(e):
+            raise e
         return None
 
 async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority_info: Dict = None) -> Optional[Dict]:
