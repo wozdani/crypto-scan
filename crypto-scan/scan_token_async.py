@@ -189,20 +189,47 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         candles_5m_data = {"result": {"list": candles_5m}} if candles_5m and isinstance(candles_5m, list) and len(candles_5m) > 0 else None
         orderbook_data = {"result": orderbook} if orderbook else None
         
-        # API Failure Fallback: Use realistic mock data ONLY when all API calls fail
-        # On user's production server, API should work normally, so prioritize authentic data
+        # Smart API Fallback: Detect if we're in geographical restriction environment (HTTP 403) vs real production failure
+        geographic_restriction = (
+            isinstance(ticker, Exception) and "403" in str(ticker) or
+            isinstance(candles_15m, Exception) and "403" in str(candles_15m) or
+            isinstance(candles_5m, Exception) and "403" in str(candles_5m) or
+            isinstance(orderbook, Exception) and "403" in str(orderbook)
+        )
+        
         complete_api_failure = (
             (not ticker_data or ticker is None) and
             (not candles_data or (isinstance(candles_15m, list) and len(candles_15m) == 0)) and
             (not orderbook_data or orderbook is None)
         )
         
-        # Only use mock data if we have complete API failure AND we're in development environment
-        # On production server with working API, use partial data rather than mock data
-        use_mock_fallback = complete_api_failure and not candles_data
+        # Use mock data in development environment with geographical restrictions (HTTP 403)
+        # but not in production with real API failures
+        use_mock_fallback = complete_api_failure and geographic_restriction
         
         if use_mock_fallback:
-            print(f"[API COMPLETE FAILURE] {symbol} → All API calls failed, but on production server this indicates a problem")
+            try:
+                from utils.mock_data_generator import get_mock_data_for_symbol, log_mock_data_usage
+                mock_data = get_mock_data_for_symbol(symbol)
+                
+                # Use mock data to replace failed API calls
+                if not ticker_data:
+                    ticker_data = {"result": {"list": [mock_data["ticker"]]}}
+                if not candles_data:
+                    candles_data = {"result": {"list": mock_data["candles_15m"]}}
+                if not candles_5m_data:
+                    candles_5m_data = {"result": {"list": mock_data["candles_5m"]}}
+                    candles_5m = mock_data["candles_5m"]  # Update the local variable too
+                if not orderbook_data:
+                    orderbook_data = {"result": mock_data["orderbook"]}
+                
+                log_mock_data_usage(symbol, ["ticker", "candles_15m", "candles_5m", "orderbook"])
+                
+            except Exception as e:
+                print(f"[MOCK DATA FAILED] {symbol} → Error generating mock data: {e}")
+                return None
+        elif complete_api_failure:
+            print(f"[API COMPLETE FAILURE] {symbol} → All API calls failed on production server - investigate API issues")
             print(f"[API FAILURE DEBUG] ticker: {bool(ticker_data)}, candles: {bool(candles_data)}, orderbook: {bool(orderbook_data)}")
             return None  # On production server, don't use mock data - investigate API issues instead
         
