@@ -1,10 +1,10 @@
 TRADINGVIEW SCREENSHOT FAILED
-Symbol: EXT7USDT
+Symbol: PROD5USDT
 Phase: unknown
 Setup: unknown_setup  
-Score: 0.317
+Score: 0.332
 Error: sync_wrapper_failed
-Timestamp: 2025-06-30T19:15:43.205683
+Timestamp: 2025-06-30T19:30:25.948019
 
 Note: This is a placeholder file created because TradingView screenshot generation failed.
 No matplotlib fallback was used to maintain dataset quality.
