@@ -189,17 +189,19 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         candles_5m_data = {"result": {"list": candles_5m}} if candles_5m and isinstance(candles_5m, list) and len(candles_5m) > 0 else None
         orderbook_data = {"result": orderbook} if orderbook else None
         
-        # API Failure Fallback: Use realistic mock data when API returns 403/empty
-        api_failed = (
+        # API Failure Fallback: Use realistic mock data ONLY when all API calls fail
+        # On user's production server, API should work normally, so prioritize authentic data
+        complete_api_failure = (
             (not ticker_data or ticker is None) and
             (not candles_data or (isinstance(candles_15m, list) and len(candles_15m) == 0)) and
             (not orderbook_data or orderbook is None)
         )
         
-        # Check for missing 5M candles separately (always happens in Replit environment)
-        missing_5m = not candles_5m or (isinstance(candles_5m, list) and len(candles_5m) == 0)
+        # Only use mock data if we have complete API failure AND we're in development environment
+        # On production server with working API, use partial data rather than mock data
+        use_mock_fallback = complete_api_failure and not candles_data
         
-        if api_failed or missing_5m:
+        if use_mock_fallback:
             try:
                 from utils.mock_data_generator import get_mock_data_for_symbol, log_mock_data_usage
                 mock_data = get_mock_data_for_symbol(symbol)

@@ -126,10 +126,10 @@ class TokenValidator:
             if symbol in major_tokens:
                 return True, None  # Assume major tokens have complete data
             
-            # Try spot category first (most common)
+            # Try linear category first (perpetual contracts - matches main system)
             url = f"https://api.bybit.com/v5/market/kline"
             params = {
-                "category": "spot",
+                "category": "linear",
                 "symbol": symbol,
                 "interval": interval,
                 "limit": "10"  # Small limit for quick test
