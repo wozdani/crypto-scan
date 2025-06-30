@@ -15,13 +15,14 @@ from datetime import datetime, timedelta
 
 
 DEFAULT_TJDE_WEIGHTS = {
-    "trend_strength": 0.25,
-    "pullback_quality": 0.2,
-    "support_reaction": 0.15,
-    "liquidity_pattern_score": 0.1,
-    "psych_score": 0.1,
-    "htf_supportive_score": 0.1,
-    "market_phase_modifier": 0.1
+    "trend_strength": 0.220,
+    "pullback_quality": 0.180,
+    "support_reaction": 0.160,
+    "clip_confidence_score": 0.120,
+    "liquidity_pattern_score": 0.120,
+    "psych_score": 0.080,
+    "htf_supportive_score": 0.060,
+    "market_phase_modifier": 0.030
 }
 
 
