@@ -192,6 +192,30 @@ async def async_scan_cycle():
         optimized_symbols = symbols[:752]  # Process all available symbols
         max_concurrent = 400  # Increased for 752 tokens
     
+    # 🔍 TOKEN VALIDATION: Filter tokens for complete data availability
+    try:
+        from utils.token_validator import filter_tokens_by_completeness
+        
+        print(f"[TOKEN VALIDATOR] Validating {len(optimized_symbols)} symbols for 5M candle availability...")
+        complete_tokens, partial_tokens, invalid_tokens = await filter_tokens_by_completeness(optimized_symbols)
+        
+        total_valid = len(complete_tokens) + len(partial_tokens)
+        print(f"[TOKEN VALIDATOR] Results:")
+        print(f"  ✅ Complete data (15M+5M): {len(complete_tokens)} tokens")
+        print(f"  ⚠️ Partial data (15M only): {len(partial_tokens)} tokens") 
+        print(f"  ❌ Invalid tokens: {len(invalid_tokens)} tokens")
+        
+        # Use all tokens with at least 15M data (complete + partial)
+        validated_symbols = complete_tokens + partial_tokens
+        if len(validated_symbols) < len(optimized_symbols):
+            print(f"[TOKEN VALIDATOR] Filtered out {len(optimized_symbols) - len(validated_symbols)} invalid tokens")
+        
+        optimized_symbols = validated_symbols
+        
+    except Exception as e:
+        log_global_error("Token Validation", f"Failed to validate tokens: {e}")
+        print(f"[TOKEN VALIDATOR] Error - proceeding with original {len(optimized_symbols)} symbols")
+    
     # 🎯 CRITICAL FIXES: Initialize performance tracking and memory validation
     try:
         from utils.performance_critical_fixes import (
