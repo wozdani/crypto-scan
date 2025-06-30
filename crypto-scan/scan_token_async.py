@@ -463,7 +463,57 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     **trend_features
                 }
                 
-                tjde_result = simulate_trader_decision_advanced(symbol, market_data, features)
+                # UNIFIED TJDE ENGINE - Replace legacy TJDE with unified system
+                try:
+                    from unified_tjde_engine import analyze_symbol_with_unified_tjde
+                    
+                    # Prepare signals for unified engine
+                    signals = {
+                        "trend_strength": trend_features.get("trend_strength", 0.5),
+                        "clip_confidence": 0.0,
+                        "gpt_label": "unknown",
+                        "liquidity_behavior": 0.5,
+                        "volume_behavior_score": trend_features.get("volume_behavior_score", 0.5),
+                        "pullback_quality": trend_features.get("pullback_quality", 0.5),
+                        "support_reaction_strength": trend_features.get("support_reaction_strength", 0.5),
+                        "bounce_confirmation_strength": 0.5,
+                        "momentum_persistence": 0.5,
+                        "volume_confirmation": 0.5
+                    }
+                    
+                    # Run unified TJDE analysis
+                    unified_result = analyze_symbol_with_unified_tjde(
+                        symbol=symbol,
+                        market_data=market_data,
+                        candles_15m=candles_15m or [],
+                        candles_5m=candles_5m or [],
+                        signals=signals
+                    )
+                    
+                    if unified_result and not unified_result.get("error"):
+                        # Convert unified result to legacy format for compatibility
+                        tjde_result = {
+                            "final_score": unified_result.get("final_score", 0.0),
+                            "decision": unified_result.get("decision", "avoid"),
+                            "market_phase": unified_result.get("market_phase", "unknown"),
+                            "debug_info": {
+                                "trend_strength": signals["trend_strength"],
+                                "pullback_quality": signals["pullback_quality"],
+                                "support_reaction": signals["support_reaction_strength"],
+                                "volume_behavior_score": signals["volume_behavior_score"],
+                                "quality_grade": unified_result.get("quality_grade", "unknown"),
+                                "components": unified_result.get("components", {}),
+                                "score_breakdown": unified_result.get("score_breakdown", {})
+                            }
+                        }
+                        print(f"[UNIFIED TJDE] {symbol}: phase={unified_result.get('market_phase')}, score={unified_result.get('final_score'):.3f}, decision={unified_result.get('decision')}")
+                    else:
+                        print(f"[UNIFIED TJDE FALLBACK] {symbol}: Using legacy TJDE")
+                        tjde_result = simulate_trader_decision_advanced(symbol, market_data, features)
+                        
+                except ImportError:
+                    print(f"[TJDE LEGACY] {symbol}: Unified engine not available, using legacy")
+                    tjde_result = simulate_trader_decision_advanced(symbol, market_data, features)
                 
                 if tjde_result and isinstance(tjde_result, dict):
                     final_score = tjde_result.get("final_score", 0.4)
@@ -783,26 +833,57 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 print(f"[TJDE ALERT BLOCK] {symbol}: Decision is '{enhanced_decision}' - ALERT BLOCKED to prevent false signals")
                 tjde_alert_condition = False  # Disable alert
             else:
-                print(f"[🚨 TJDE ALERT] {symbol} → TJDE: {tjde_score:.3f} ({enhanced_decision}) Level {alert_level}")
+                print(f"[🚨 UNIFIED TJDE ALERT] {symbol} → Score: {tjde_score:.3f}, Decision: {enhanced_decision}, Phase: {tjde_phase}, Level: {alert_level}")
             
             try:
-                # Create dedicated TJDE trend-mode alert
-                from utils.tjde_alert_system import send_tjde_trend_alert_with_cooldown
-                
-                tjde_alert_data = {
-                    "symbol": symbol,
-                    "tjde_score": tjde_score,
-                    "tjde_decision": enhanced_decision,
-                    "original_decision": tjde_alert_fix.get("original_decision", tjde_decision),
-                    "alert_level": alert_level,
-                    "reasoning": tjde_alert_fix.get("reasoning", []),
-                    "price": price,
-                    "volume_24h": volume_24h,
-                    "timestamp": datetime.now().isoformat()
-                }
-                
-                # Send TJDE alert (separate from PPWCS system)
-                tjde_alert_success = send_tjde_trend_alert_with_cooldown(tjde_alert_data)
+                # UNIFIED TJDE ALERT SYSTEM - Handle all market phases
+                if tjde_phase == "pre-pump" and enhanced_decision in ["early_entry", "monitor"]:
+                    # PRE-PUMP EARLY ENTRY ALERT
+                    print(f"[🚀 PRE-PUMP DETECTED] {symbol}: {enhanced_decision.upper()} opportunity")
+                    from utils.prepump_alert_system import send_prepump_alert_with_cooldown
+                    
+                    # Prepare unified pre-pump alert data
+                    prepump_alert_data = {
+                        "symbol": symbol,
+                        "final_score": tjde_score,
+                        "decision": enhanced_decision,
+                        "market_phase": tjde_phase,
+                        "quality_grade": tjde_breakdown.get("quality_grade", "unknown"),
+                        "components": tjde_breakdown.get("components", {}),
+                        "score_breakdown": tjde_breakdown.get("score_breakdown", {}),
+                        "price": price,
+                        "volume_24h": volume_24h,
+                        "reasoning": tjde_alert_fix.get("reasoning", []),
+                        "timestamp": datetime.now().isoformat()
+                    }
+                    
+                    # Send pre-pump alert with 2-hour cooldown
+                    tjde_alert_success = send_prepump_alert_with_cooldown(prepump_alert_data)
+                    
+                    if tjde_alert_success:
+                        print(f"[✅ PRE-PUMP ALERT SENT] {symbol}: {enhanced_decision.upper()} - Early entry opportunity detected")
+                    else:
+                        print(f"[❌ PRE-PUMP COOLDOWN] {symbol}: Alert blocked due to 2-hour cooldown")
+                        
+                else:
+                    # STANDARD TJDE TREND-MODE ALERT
+                    from utils.tjde_alert_system import send_tjde_trend_alert_with_cooldown
+                    
+                    tjde_alert_data = {
+                        "symbol": symbol,
+                        "tjde_score": tjde_score,
+                        "tjde_decision": enhanced_decision,
+                        "original_decision": tjde_alert_fix.get("original_decision", tjde_decision),
+                        "alert_level": alert_level,
+                        "reasoning": tjde_alert_fix.get("reasoning", []),
+                        "price": price,
+                        "volume_24h": volume_24h,
+                        "market_phase": tjde_phase,
+                        "timestamp": datetime.now().isoformat()
+                    }
+                    
+                    # Send TJDE trend-mode alert (60-minute cooldown)
+                    tjde_alert_success = send_tjde_trend_alert_with_cooldown(tjde_alert_data)
                 
                 if tjde_alert_success:
                     print(f"[TJDE ALERT SUCCESS] {symbol} → Level {alert_level} alert sent with cooldown")
