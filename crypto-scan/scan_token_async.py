@@ -268,7 +268,9 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         # Enhanced debug for data conversion
         print(f"[DATA CONVERT] {symbol} → ticker_data: {bool(ticker_data)}, candles_data: {bool(candles_data)}, candles_5m_data: {bool(candles_5m_data)}, orderbook_data: {bool(orderbook_data)}")
         if candles_data:
-            print(f"[CANDLES READY] {symbol} → 15M: {len(candles_15m)}, 5M: {len(candles_5m) if candles_5m else 0} candles")
+            candles_15m_len = len(candles_15m) if candles_15m and isinstance(candles_15m, list) else 0
+            candles_5m_len = len(candles_5m) if candles_5m and isinstance(candles_5m, list) else 0
+            print(f"[CANDLES READY] {symbol} → 15M: {candles_15m_len}, 5M: {candles_5m_len} candles")
         
         # Debug candle data format
         if candles_15m is not None and isinstance(candles_15m, list):

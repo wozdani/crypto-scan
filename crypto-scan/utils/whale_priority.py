@@ -294,3 +294,20 @@ def get_whale_boost_for_symbol(symbol, priority_info):
         boost += 3
     
     return boost
+
+def check_whale_priority(symbol):
+    """
+    Quick check if symbol has whale priority
+    
+    Args:
+        symbol: Trading symbol to check
+        
+    Returns:
+        bool: True if symbol has whale priority, False otherwise
+    """
+    try:
+        whale_history = load_whale_history()
+        priority_tokens = get_priority_tokens(whale_history)
+        return symbol in priority_tokens
+    except Exception:
+        return False
