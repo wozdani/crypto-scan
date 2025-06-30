@@ -1404,7 +1404,7 @@ def detect_silent_accumulation(symbol, market_data, rsi_series):
             
             # Przygotuj sygnały
             signals = {"silent_accumulation": True}
-            ppwcs_score = 60
+            tjde_score = 0.60  # PPWCS REMOVED - Using TJDE v2 equivalent
             
             # Import funkcji alert/GPT na poziomie modułu aby uniknąć circular imports
             try:
@@ -1415,7 +1415,7 @@ def detect_silent_accumulation(symbol, market_data, rsi_series):
                 # Zamiast importu, zapisz dane do pliku alert cache
                 alert_data = {
                     "symbol": symbol,
-                    "ppwcs_score": ppwcs_score,
+                    "tjde_score": tjde_score,
                     "signals": signals,
                     "detector_type": "silent_accumulation",
                     "timestamp": str(datetime.now())
@@ -1605,7 +1605,7 @@ def detect_silent_accumulation_v1(symbol, market_data, rsi_series, orderbook=Non
                 "explanations": explanations,
                 "buying_pressure": buying_pressure_detected
             }
-            ppwcs_score = 65
+            tjde_score = 0.65  # PPWCS REMOVED - Using TJDE v2 equivalent
             
             # Import funkcji alert/GPT na poziomie wykonywania
             try:
@@ -1620,7 +1620,7 @@ def detect_silent_accumulation_v1(symbol, market_data, rsi_series, orderbook=Non
                     
                     # Przygotuj dane w formacie oczekiwanym przez funkcje
                     data = {
-                        "ppwcs_score": ppwcs_score,
+                        "tjde_score": tjde_score,
                         "whale_activity": "Micro whale activity" in explanations,
                         "dex_inflow": inflow if inflow > 2 * inflow_avg(symbol) else 0,
                         "compressed": False,
@@ -1641,7 +1641,7 @@ def detect_silent_accumulation_v1(symbol, market_data, rsi_series, orderbook=Non
                     # Formatuj wiadomość alertu (plain text without markdown)
                     alert_message = f"🔵 SILENT ACCUMULATION v1 DETECTED\n\n"
                     alert_message += f"📊 Symbol: {symbol}\n"
-                    alert_message += f"🎯 PPWCS Score: {ppwcs_score}\n"
+                    alert_message += f"🎯 TJDE Score: {tjde_score:.3f}\n"
                     alert_message += f"✅ Signals ({score} pts): {', '.join(explanations)}\n"
                     alert_message += f"⚡ Buying Pressure: {'Yes' if buying_pressure_detected else 'No'}\n"
                     alert_message += f"🕒 Time: {datetime.now().strftime('%H:%M UTC')}"
@@ -1658,7 +1658,7 @@ def detect_silent_accumulation_v1(symbol, market_data, rsi_series, orderbook=Non
                     # Fallback - zapisz do cache jak poprzednio
                     alert_data = {
                         "symbol": symbol,
-                        "ppwcs_score": ppwcs_score,
+                        "tjde_score": tjde_score,
                         "signals": signals,
                         "detector_type": "silent_accumulation_v1",
                         "timestamp": str(datetime.now()),

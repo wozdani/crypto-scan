@@ -105,6 +105,11 @@ Successfully completed the final elimination of all PPWCS system remnants achiev
 - **Alert System Simplification**: Updated all alert checking and threshold logic to use exclusively TJDE scores eliminating dual-system complexity
 - **Result Structure Cleanup**: Cleaned up all result dictionaries and return values removing ppwcs_score fields ensuring single decision system consistency
 - **Print Statement Modernization**: Updated all debug and status output to show only TJDE scores and decisions removing confusing dual-system messaging
+- **Async Scanner Coordination Files**: Completely cleaned ppwcs_score references from scan_all_tokens_async.py, async_scanner.py, and all display/import logic
+- **TOP 10 Display Modernization**: Updated TOP 10 performers display to show TJDE score format "TJDE 0.426 (consider_entry)" replacing legacy PPWCS format
+- **High-Value Setup Detection**: Modified high-value setup detection to use TJDE ≥0.8 threshold exclusively removing PPWCS ≥50 dual criteria
+- **Summary Statistics Update**: Updated scan summary to sort by tjde_score instead of ppwcs_score ensuring consistent data structures
+- **Import System Cleanup**: Removed compute_ppwcs and log_ppwcs_score imports from async_scanner.py completing import system modernization
 - **Architecture Verification**: Confirmed complete system transition from dual (PPWCS + TJDE) to single unified TJDE v2 decision engine with zero legacy code remnants
 - **Import Validation**: Tested system imports and basic functionality confirming clean operation without PPWCS dependencies
 - **Function Signature Consistency**: All scanning functions now use consistent TJDE v2-only parameters and return values across the entire codebase

@@ -20,7 +20,8 @@ load_dotenv()
 # Import essential modules
 from utils.bybit_cache_manager import get_bybit_symbols_cached
 from stages.stage_minus2_1 import detect_stage_minus2_1
-from utils.scoring import compute_ppwcs, compute_checklist_score, get_alert_level, save_score, log_ppwcs_score
+# PPWCS SYSTEM REMOVED - Using TJDE v2 only
+from utils.scoring import compute_checklist_score, get_alert_level, save_score
 from utils.alert_system import process_alert
 from utils.coingecko import build_coingecko_cache
 from utils.whale_priority import prioritize_whale_tokens
