@@ -199,8 +199,8 @@ async def async_scan_cycle():
         print(f"[PERFORMANCE] Target: {len(optimized_symbols)} tokens in <15s")
     except Exception as e:
         log_global_error("Performance Optimization", f"Using default settings: {e}")
-        optimized_symbols = symbols[:752]  # Process all available symbols
-        max_concurrent = 400  # Increased for 752 tokens
+        optimized_symbols = symbols[:9999]  # Process all available symbols
+        max_concurrent = 400  # Increased for 9999 tokens
     
     # 🔍 TOKEN VALIDATION: Filter tokens for complete data availability
     try:

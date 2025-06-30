@@ -30,7 +30,7 @@ class PerformanceOptimizer:
         self.volume_threshold = 100000  # Minimum volume threshold
         self.batch_size = 50  # Process in batches
         
-    def prioritize_high_volume_tokens(self, symbols: List[str], limit: int = 752) -> List[str]:
+    def prioritize_high_volume_tokens(self, symbols: List[str], limit: int = 9999) -> List[str]:
         """
         Prioritize tokens by volume to focus on most active markets
         
@@ -101,7 +101,7 @@ class PerformanceOptimizer:
         # Calculate required concurrency (with overhead factor)
         optimal_concurrency = int(target_per_second * 2.5)  # 2.5x overhead for safety
         
-        # Cap at reasonable limits for 752 token processing
+        # Cap at reasonable limits for 9999 token processing
         optimal_concurrency = min(optimal_concurrency, 400)  # Max 400 concurrent for 752 tokens
         optimal_concurrency = max(optimal_concurrency, 50)   # Min 50 concurrent
         

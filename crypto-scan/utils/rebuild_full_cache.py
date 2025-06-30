@@ -106,7 +106,7 @@ def create_full_production_cache():
     ]
     
     # Ensure we have exactly 752 symbols
-    production_symbols = production_symbols[:752]
+    production_symbols = production_symbols[:9999]
     
     # Save to both cache locations
     cache_paths = [
