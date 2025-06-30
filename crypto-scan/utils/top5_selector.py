@@ -16,12 +16,13 @@ class TOP5TokenSelector:
         self._session_id = None
         self._selection_timestamp = None
     
-    def select_top5_tokens(self, tjde_results: List[Dict]) -> List[Dict]:
+    def select_top5_tokens(self, tjde_results: List[Dict], prefer_complete_data: bool = True) -> List[Dict]:
         """
         Select TOP 5 tokens by TJDE score for training data generation
         
         Args:
             tjde_results: List of scan results with TJDE scores
+            prefer_complete_data: Prefer tokens with complete 15M+5M candle data
             
         Returns:
             Top 5 results sorted by TJDE score
@@ -32,6 +33,16 @@ class TOP5TokenSelector:
         if not valid_results:
             print("[TOP5 SELECTOR] No valid TJDE results for training data")
             return []
+        
+        # Prefer tokens with complete data if enabled
+        if prefer_complete_data:
+            complete_data_results = [r for r in valid_results if not r.get('partial_data', False)]
+            if len(complete_data_results) >= 5:
+                valid_results = complete_data_results
+                print(f"[TOP5 SELECTOR] Using {len(complete_data_results)} tokens with complete 15M+5M data")
+            else:
+                incomplete_count = len(valid_results) - len(complete_data_results)
+                print(f"[TOP5 SELECTOR] ⚠️ Including {incomplete_count} tokens with partial data (insufficient complete tokens)")
         
         # Sort by TJDE score descending and take TOP 5
         top5 = sorted(valid_results, key=lambda x: x.get('tjde_score', 0), reverse=True)[:5]

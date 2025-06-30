@@ -147,6 +147,28 @@ async def async_scan_cycle():
     except Exception as e:
         log_global_error("CoinGecko Cache", f"Cache building failed: {e}")
     
+    # 🛡 FILTER TOKENS: Remove tokens without 5M candles (retCode 10001)
+    try:
+        from utils.token_validator import filter_tokens_by_completeness
+        
+        print(f"🛡 Filtering tokens for complete 15M+5M candle data...")
+        complete_tokens, partial_tokens, invalid_tokens = await filter_tokens_by_completeness(symbols[:100])  # Test subset first
+        
+        print(f"✅ Complete tokens (15M+5M): {len(complete_tokens)}")
+        print(f"⚠️ Partial tokens (15M only): {len(partial_tokens)}")
+        print(f"❌ Invalid tokens: {len(invalid_tokens)}")
+        
+        # Use only complete tokens for analysis to avoid retCode 10001 errors
+        if complete_tokens:
+            symbols = complete_tokens + symbols[100:]  # Replace tested subset with complete tokens
+            print(f"🎯 Using {len(complete_tokens)} validated + {len(symbols[100:])} unvalidated tokens")
+        else:
+            print(f"⚠️ Token validation returned no complete tokens - using all symbols")
+        
+    except Exception as e:
+        log_global_error("Token Validation", f"Token filtering failed: {e}")
+        print(f"⚠️ Token validation error - using all {len(symbols)} symbols")
+    
     # Whale prioritization
     try:
         symbols, priority_symbols, priority_info = prioritize_whale_tokens(symbols)

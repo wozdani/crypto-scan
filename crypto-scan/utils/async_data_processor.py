@@ -149,6 +149,16 @@ def process_async_data_enhanced_with_5m(symbol: str, ticker_data: Optional[Dict]
         print(f"[VALIDATION FAILED] {symbol}: No valid price found")
         return None
     
+    # Determine data completeness - CRITICAL for TOP5 filtering
+    # Token is considered partial if it lacks 5M candles (common with retCode 10001)
+    is_partial_data = not has_5m_candles  # Missing 5M candles indicates partial data
+    data_quality = "COMPLETE" if has_5m_candles else "PARTIAL_15M_ONLY"
+    
+    if is_partial_data:
+        print(f"[DATA QUALITY] {symbol}: ⚠️ PARTIAL - 15M only (missing 5M candles)")
+    else:
+        print(f"[DATA QUALITY] {symbol}: ✅ COMPLETE - 15M + 5M candles available")
+    
     # Return enhanced market data with both timeframes
     market_data = {
         "symbol": symbol,
@@ -166,8 +176,9 @@ def process_async_data_enhanced_with_5m(symbol: str, ticker_data: Optional[Dict]
         "recent_volumes": [c["volume"] for c in candles_15m[-10:]] if len(candles_15m) >= 10 else [],
         "ticker_data": ticker_data,
         "orderbook_data": orderbook_data,
-        "partial_data": False,
-        "is_partial": False,
+        "partial_data": is_partial_data,  # CRITICAL: Mark tokens without 5M candles
+        "is_partial": is_partial_data,    # Alias for compatibility
+        "data_quality": data_quality,     # Human-readable status
         "data_sources": ["async_enhanced"],
         "price_change_24h": ((candles_15m[-1]["close"] - candles_15m[-96]["close"]) / candles_15m[-96]["close"] * 100) if len(candles_15m) >= 96 else 0.0
     }
