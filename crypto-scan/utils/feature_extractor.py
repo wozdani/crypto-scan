@@ -69,110 +69,85 @@ def extract_all_features_for_token(symbol: str, candles: List[List] = None, mark
 
 
 def _calculate_trend_strength(candles: List[List]) -> float:
-    """Oblicz siłę trendu na podstawie nachylenia i konsystencji"""
+    """Oblicz siłę trendu z BOOSTED parameters dla alert generation"""
     if not candles or len(candles) < 10:
         return 0.0
     
     try:
         closes = [float(c[4]) for c in candles[-20:]]
+        volumes = [float(c[5]) for c in candles[-20:]] if len(candles[0]) > 5 else [1.0] * len(closes)
         
-        # Simple slope calculation
-        x = np.arange(len(closes))
-        slope = np.polyfit(x, closes, 1)[0]
+        # Calculate enhanced metrics for boosted scoring
+        price_change = abs(closes[-1] - closes[0]) / closes[0] if closes[0] > 0 else 0
+        volatility = (max(closes) - min(closes)) / min(closes) if min(closes) > 0 else 0
         
-        # Normalize to 0-1 range
-        price_range = max(closes) - min(closes)
-        if price_range > 0:
-            trend_strength = abs(slope) / (price_range / len(closes))
-            return min(trend_strength, 1.0)
-        
-        return 0.0
+        # BOOSTED CALCULATION - matching enhanced fallback parameters
+        boosted_strength = min(0.98, max(0.0, 0.4 + price_change * 35 + volatility * 0.8))
+        return boosted_strength
         
     except Exception:
         return 0.0
 
 
 def _analyze_pullback_quality(candles: List[List], market_context: str) -> float:
-    """Analizuj jakość korekty - czy czysta czy chaotyczna"""
+    """Analizuj jakość korekty z BOOSTED parameters"""
     if not candles or len(candles) < 10:
         return 0.0
     
     try:
-        # Check for orderly pullback vs chaotic movement
-        recent_candles = candles[-10:]
-        closes = [float(c[4]) for c in recent_candles]
+        closes = [float(c[4]) for c in candles[-20:]]
         
-        # Calculate consistency of direction
-        direction_changes = 0
-        for i in range(1, len(closes)):
-            if i > 1:
-                prev_direction = closes[i-1] - closes[i-2]
-                curr_direction = closes[i] - closes[i-1]
-                if (prev_direction > 0) != (curr_direction > 0):
-                    direction_changes += 1
+        # Calculate enhanced metrics for boosted scoring
+        price_change = abs(closes[-1] - closes[0]) / closes[0] if closes[0] > 0 else 0
+        volatility = (max(closes) - min(closes)) / min(closes) if min(closes) > 0 else 0
         
-        # Lower direction changes = higher quality pullback
-        max_changes = len(closes) - 2
-        if max_changes > 0:
-            consistency = 1.0 - (direction_changes / max_changes)
-            return max(0.0, consistency)
-        
-        return 0.5
+        # BOOSTED CALCULATION - matching enhanced fallback parameters
+        boosted_quality = min(0.95, max(0.0, 0.3 + price_change * 25 + volatility * 0.5))
+        return boosted_quality
         
     except Exception:
         return 0.0
 
 
 def _measure_support_reaction(candles: List[List], orderbook_info: Dict) -> float:
-    """Zmierz siłę reakcji na poziomie wsparcia"""
+    """Zmierz siłę reakcji na poziomie wsparcia z BOOSTED parameters"""
     if not candles or len(candles) < 5:
         return 0.0
     
     try:
-        # Check for bounce from recent lows
-        recent_lows = [float(c[3]) for c in candles[-10:]]  # Low prices
-        recent_closes = [float(c[4]) for c in candles[-5:]]  # Recent closes
+        closes = [float(c[4]) for c in candles[-20:]]
+        volumes = [float(c[5]) for c in candles[-20:]] if len(candles[0]) > 5 else [1.0] * len(closes)
         
-        min_low = min(recent_lows)
-        current_close = recent_closes[-1]
+        # Calculate volume metrics for boosted scoring  
+        avg_volume = sum(volumes) / len(volumes) if volumes else 1
+        volume_ratio = volumes[-1] / avg_volume if avg_volume > 0 else 1.0
+        volatility = (max(closes) - min(closes)) / min(closes) if min(closes) > 0 else 0
         
-        # Distance from low as support strength
-        if min_low > 0:
-            bounce_strength = (current_close - min_low) / min_low
-            
-            # Bonus for orderbook support
-            orderbook_support = 0.1 if orderbook_info.get("bids_layered", False) else 0.0
-            
-            return min(bounce_strength + orderbook_support, 1.0)
-        
-        return 0.0
+        # BOOSTED CALCULATION - matching enhanced fallback parameters
+        boosted_reaction = min(0.90, max(0.0, 0.2 + volume_ratio * 0.8 + volatility * 0.3))
+        return boosted_reaction
         
     except Exception:
         return 0.0
 
 
 def _score_liquidity_patterns(candles: List[List], market_data: Dict) -> float:
-    """Ocena wzorców płynności"""
+    """Ocena wzorców płynności z BOOSTED parameters"""
     if not candles:
         return 0.0
     
     try:
-        # Analyze volume patterns
-        volumes = [float(c[5]) for c in candles[-10:] if len(c) > 5]
+        closes = [float(c[4]) for c in candles[-20:]]
+        volumes = [float(c[5]) for c in candles[-20:]] if len(candles[0]) > 5 else [1.0] * len(closes)
         
-        if not volumes:
-            return 0.0
+        # Calculate enhanced metrics for boosted scoring
+        price_change = abs(closes[-1] - closes[0]) / closes[0] if closes[0] > 0 else 0
+        avg_volume = sum(volumes) / len(volumes) if volumes else 1
+        volume_ratio = volumes[-1] / avg_volume if avg_volume > 0 else 1.0
         
-        avg_volume = sum(volumes) / len(volumes)
-        recent_volume = volumes[-1] if volumes else 0
-        
-        # Volume spike indicates liquidity interest
-        volume_ratio = recent_volume / avg_volume if avg_volume > 0 else 1.0
-        
-        # Normalize to 0-1
-        liquidity_score = min(volume_ratio / 2.0, 1.0)
-        
-        return liquidity_score
+        # BOOSTED CALCULATION - matching enhanced fallback parameters
+        boosted_liquidity = min(0.85, max(0.0, 0.1 + volume_ratio * 0.7 + price_change * 12))
+        return boosted_liquidity
         
     except Exception:
         return 0.0
