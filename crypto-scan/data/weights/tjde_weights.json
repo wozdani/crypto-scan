@@ -2,7 +2,7 @@
   "trend_strength": 0.22,
   "pullback_quality": 0.18,
   "support_reaction": 0.16,
-  "clip_confidence_score": 0.15,
+  "clip_confidence_score": 0.25,
   "liquidity_pattern_score": 0.12,
   "psych_score": 0.08,
   "htf_supportive_score": 0.06,

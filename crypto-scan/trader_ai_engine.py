@@ -872,6 +872,23 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
         psych_score = signals.get('psych_score', 0.5)
         htf_supportive_score = signals.get('htf_supportive_score', 0.3)
         market_phase_modifier = signals.get('market_phase_modifier', 0.0)
+        
+        # CRITICAL FIX: Add fallback logic for market_phase_modifier when it's 0.0
+        if market_phase_modifier == 0.0:
+            if market_phase == "trend-following":
+                market_phase_modifier = 0.3
+                print(f"[MARKET_PHASE_MODIFIER] Phase: trend-following → Modifier: +0.030")
+            elif market_phase == "breakout-continuation":
+                market_phase_modifier = 0.2
+                print(f"[MARKET_PHASE_MODIFIER] Phase: breakout-continuation → Modifier: +0.020")
+            elif market_phase == "consolidation":
+                market_phase_modifier = 0.15
+                print(f"[MARKET_PHASE_MODIFIER] Phase: consolidation → Modifier: +0.015")
+            else:
+                market_phase_modifier = 0.1
+                print(f"[MARKET_PHASE_MODIFIER] Phase: {market_phase} → Modifier: +0.010")
+            print(f"[MODIFIER] market_phase={market_phase}, modifier=+{market_phase_modifier:.3f}")
+        
         volume_behavior = signals.get('volume_behavior', 'neutral')
         price_action_pattern = signals.get('price_action_pattern', 'continuation')
         htf_trend_match = signals.get('htf_trend_match', True)
@@ -917,15 +934,24 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                 print(f"[CLIP FAST DEBUG] Using chart: {latest_chart}")
                 if not os.path.exists(latest_chart):
                     print(f"[CLIP FAST ERROR] Chart file not found: {latest_chart}")
+                    clip_prediction = None
                 else:
                     print(f"[CLIP FAST DEBUG] Chart file exists, size: {os.path.getsize(latest_chart)} bytes")
-                    
-                clip_prediction = fast_predictor.predict_fast(latest_chart)
-                print(f"[CLIP FAST RESULT] {symbol}: FastCLIP returned = {clip_prediction}")
+                    clip_prediction = fast_predictor.predict_fast(latest_chart)
+                    print(f"[CLIP FAST RESULT] {symbol}: FastCLIP returned = {clip_prediction}")
             else:
-                print(f"[CLIP FAST WARNING] No chart files found, using fallback")
-                clip_prediction = fast_predictor.predict_fast("dummy_chart.png")  # Fallback
-                print(f"[CLIP FAST FALLBACK] {symbol}: Fallback result = {clip_prediction}")
+                print(f"[CLIP FAST ERROR] No chart found for {symbol}, skipping CLIP scoring")
+                # Try to find latest chart in training_data/charts/ as fallback
+                fallback_pattern = f"training_data/charts/*{symbol}*.png"
+                fallback_matches = glob.glob(fallback_pattern)
+                if fallback_matches:
+                    latest_chart = sorted(fallback_matches, reverse=True)[0]
+                    print(f"[CLIP FALLBACK] Found fallback chart: {latest_chart}")
+                    clip_prediction = fast_predictor.predict_fast(latest_chart)
+                    print(f"[CLIP FALLBACK RESULT] {symbol}: {clip_prediction}")
+                else:
+                    print(f"[CLIP FALLBACK ERROR] No fallback charts found for {symbol}")
+                    clip_prediction = None
             
             if clip_prediction and clip_prediction.get('confidence', 0) > 0.4:
                 clip_info = clip_prediction
@@ -979,7 +1005,14 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
         
         # Add score breakdown for debugging
         print(f"[SCORE BREAKDOWN] Trend: {trend_strength:.3f}×{weights['trend_strength']:.3f}={trend_strength*float(weights['trend_strength']):.3f}")
+        print(f"[SCORE BREAKDOWN] Pullback: {pullback_quality:.3f}×{weights['pullback_quality']:.3f}={pullback_quality*float(weights['pullback_quality']):.3f}")
+        print(f"[SCORE BREAKDOWN] Support: {support_reaction:.3f}×{weights['support_reaction']:.3f}={support_reaction*float(weights['support_reaction']):.3f}")
         print(f"[SCORE BREAKDOWN] CLIP: {clip_confidence:.3f}×{weights.get('clip_confidence_score', 0.12):.3f}={clip_contribution:.3f}")
+        print(f"[SCORE BREAKDOWN] Liquidity: {liquidity_pattern_score:.3f}×{weights['liquidity_pattern_score']:.3f}={liquidity_pattern_score*float(weights['liquidity_pattern_score']):.3f}")
+        print(f"[SCORE BREAKDOWN] Psychology: {psych_score:.3f}×{weights['psych_score']:.3f}={psych_score*float(weights['psych_score']):.3f}")
+        print(f"[SCORE BREAKDOWN] HTF Support: {htf_supportive_score:.3f}×{weights['htf_supportive_score']:.3f}={htf_supportive_score*float(weights['htf_supportive_score']):.3f}")
+        print(f"[SCORE BREAKDOWN] Phase Modifier: {market_phase_modifier:.3f}×{weights['market_phase_modifier']:.3f}={market_phase_modifier*float(weights['market_phase_modifier']):.3f}")
+        print(f"[SCORE BREAKDOWN] Total: {score:.3f}")
         
         # Initialize phase_modifier variable
         phase_modifier = 0.0
@@ -1005,7 +1038,35 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
             context_modifiers.append("htf_alignment_boost")
             print(f"[CONTEXT MODIFIER] +0.05 for htf_alignment_boost")
         
-        # === ETAP 5: INTERPRETACJA KOŃCOWA ===
+        # === ETAP 5: DYNAMIC SCORE BOOSTING FOR KNOWN SETUPS ===
+        original_score = score
+        
+        # CRITICAL FIX: Add dynamic boosting for low scores with known good patterns
+        if score < 0.7 and price_action_pattern in ["momentum_follow", "breakout_pattern", "trend_continuation"]:
+            boost_amount = 0.05
+            score += boost_amount
+            print(f"[TJDE BOOST] Low score boosted for known setup '{price_action_pattern}': +{boost_amount:.3f} → {score:.3f}")
+        
+        if score < 0.7 and market_phase in ["breakout-continuation", "trend-following"] and trend_strength > 0.6:
+            boost_amount = 0.03
+            score += boost_amount
+            print(f"[TJDE BOOST] Strong trend in good phase: +{boost_amount:.3f} → {score:.3f}")
+            
+        # Additional boost if multiple strong components are present
+        strong_components = sum([
+            trend_strength > 0.7,
+            pullback_quality > 0.6,
+            support_reaction > 0.6,
+            clip_confidence > 0.7,
+            liquidity_pattern_score > 0.6
+        ])
+        
+        if strong_components >= 3 and score < 0.7:
+            boost_amount = 0.04
+            score += boost_amount
+            print(f"[TJDE BOOST] Multiple strong components ({strong_components}/5): +{boost_amount:.3f} → {score:.3f}")
+        
+        # === ETAP 6: INTERPRETACJA KOŃCOWA ===
         if score >= 0.70:
             decision = "join_trend"
             grade = "strong"

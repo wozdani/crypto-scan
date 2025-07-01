@@ -18,7 +18,7 @@ DEFAULT_TJDE_WEIGHTS = {
     "trend_strength": 0.220,
     "pullback_quality": 0.180,
     "support_reaction": 0.160,
-    "clip_confidence_score": 0.120,
+    "clip_confidence_score": 0.250,
     "liquidity_pattern_score": 0.120,
     "psych_score": 0.080,
     "htf_supportive_score": 0.060,
