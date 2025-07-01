@@ -154,56 +154,40 @@ def _score_liquidity_patterns(candles: List[List], market_data: Dict) -> float:
 
 
 def _detect_market_psychology(candles: List[List], candle_behavior: Dict) -> float:
-    """Wykryj psychologię rynku - manipulacje, panikę"""
+    """Wykryj psychologię rynku z BOOSTED parameters"""
     if not candles:
         return 0.5
     
     try:
-        # Check for manipulation patterns
-        manipulation_score = 0.0
+        closes = [float(c[4]) for c in candles[-20:]]
         
-        # Large wicks suggest manipulation
-        recent_candles = candles[-5:]
-        for candle in recent_candles:
-            if len(candle) >= 5:
-                high, low, open_p, close = float(candle[2]), float(candle[3]), float(candle[1]), float(candle[4])
-                body = abs(close - open_p)
-                total_range = high - low
-                
-                if total_range > 0:
-                    wick_ratio = (total_range - body) / total_range
-                    if wick_ratio > 0.7:  # Large wicks
-                        manipulation_score += 0.2
+        # Calculate enhanced metrics for boosted scoring
+        price_change = abs(closes[-1] - closes[0]) / closes[0] if closes[0] > 0 else 0
+        volatility = (max(closes) - min(closes)) / min(closes) if min(closes) > 0 else 0
         
-        # Normalize
-        manipulation_score = min(manipulation_score, 1.0)
-        
-        return manipulation_score
+        # BOOSTED CALCULATION - matching enhanced fallback parameters
+        boosted_psych = min(0.98, max(0.0, 0.4 + price_change * 18 + volatility * 0.4))
+        return boosted_psych
         
     except Exception:
         return 0.5
 
 
 def _evaluate_htf_support(candles: List[List], symbol: str) -> float:
-    """Oceń wsparcie z wyższych timeframe'ów"""
+    """Oceń wsparcie z wyższych timeframe'ów z BOOSTED parameters"""
     if not candles:
         return 0.0
     
     try:
-        # Simple HTF analysis based on longer trend
-        if len(candles) >= 50:
-            long_term_closes = [float(c[4]) for c in candles[-50:]]
-            short_term_closes = [float(c[4]) for c in candles[-10:]]
-            
-            long_term_avg = sum(long_term_closes) / len(long_term_closes)
-            short_term_avg = sum(short_term_closes) / len(short_term_closes)
-            
-            # HTF supportive if short term above long term
-            if long_term_avg > 0:
-                htf_support = (short_term_avg - long_term_avg) / long_term_avg
-                return max(0.0, min(htf_support * 2, 1.0))  # Normalize
+        closes = [float(c[4]) for c in candles[-20:]]
         
-        return 0.0
+        # Calculate enhanced metrics for boosted scoring
+        price_change = abs(closes[-1] - closes[0]) / closes[0] if closes[0] > 0 else 0
+        volatility = (max(closes) - min(closes)) / min(closes) if min(closes) > 0 else 0
+        
+        # BOOSTED CALCULATION - matching enhanced fallback parameters
+        boosted_htf = min(0.95, max(0.0, 0.2 + price_change * 30 + volatility * 0.6))
+        return boosted_htf
         
     except Exception:
         return 0.0
