@@ -133,6 +133,26 @@ def unified_tjde_decision_engine(token_data: Dict, market_phase: str, clip_resul
         # Normalizuj score do zakresu 0.0-1.0
         final_score = max(0.0, min(1.0, final_score))
         
+        # === GPT+CLIP PATTERN ALIGNMENT BOOSTER v2 ===
+        original_score = final_score
+        clip_confidence = clip_result.get("confidence", 0.0) if clip_result else 0.0
+        
+        # Trusted patterns that get score boost
+        trusted_patterns = ["momentum_follow", "breakout-continuation", "trend-following", "trend_continuation"]
+        
+        # Apply pattern boost for trusted patterns  
+        if gpt_label in trusted_patterns:
+            final_score += 0.15
+            print(f"[GPT PATTERN BOOST v2] {token_data.get('symbol', 'UNKNOWN')}: '{gpt_label}' → Score {original_score:.3f} + 0.15 = {final_score:.3f}")
+            
+            # Additional boost for high CLIP confidence
+            if clip_confidence > 0.6:
+                final_score += 0.05
+                print(f"[CLIP CONFIDENCE BOOST v2] {token_data.get('symbol', 'UNKNOWN')}: CLIP {clip_confidence:.2f} → Score {final_score-0.05:.3f} + 0.05 = {final_score:.3f}")
+        
+        # Ensure boosted score is still bounded [0.0, 1.0]
+        final_score = max(0.0, min(1.0, final_score))
+        
         # 4. Zaawansowana logika decyzyjna TJDE v2
         decision = make_advanced_decision(final_score, market_phase, score_components, clip_result, gpt_label)
         

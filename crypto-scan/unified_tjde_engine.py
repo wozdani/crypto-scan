@@ -225,7 +225,28 @@ class UnifiedTJDEEngine:
             # Ensure score is bounded [0.0, 1.0]
             final_score = max(0.0, min(1.0, weighted_score))
             
-            # Generate decision based on phase and score
+            # === GPT+CLIP PATTERN ALIGNMENT BOOSTER ===
+            original_score = final_score
+            gpt_label = signals.get("gpt_label", "unknown")
+            clip_confidence = signals.get("clip_confidence", 0.0)
+            
+            # Trusted patterns that get score boost
+            trusted_patterns = ["momentum_follow", "breakout-continuation", "trend-following", "trend_continuation"]
+            
+            # Apply pattern boost for trusted patterns
+            if gpt_label in trusted_patterns:
+                final_score += 0.15
+                print(f"[GPT PATTERN BOOST] {symbol}: '{gpt_label}' → Score {original_score:.3f} + 0.15 = {final_score:.3f}")
+                
+                # Additional boost for high CLIP confidence
+                if clip_confidence > 0.6:
+                    final_score += 0.05
+                    print(f"[CLIP CONFIDENCE BOOST] {symbol}: CLIP {clip_confidence:.2f} → Score {final_score-0.05:.3f} + 0.05 = {final_score:.3f}")
+            
+            # Ensure boosted score is still bounded [0.0, 1.0]
+            final_score = max(0.0, min(1.0, final_score))
+            
+            # Generate decision based on phase and boosted score
             decision = self._generate_phase_decision(market_phase, final_score, components)
             
             # Generate quality grade
@@ -336,10 +357,26 @@ class UnifiedTJDEEngine:
         components["psych_score"] = signals.get("psych_score", 0.0)
         components["htf_supportive_score"] = signals.get("htf_supportive_score", 0.5)
         
-        # GPT label match for trend patterns
+        # === GPT+CLIP PATTERN ALIGNMENT BOOSTER ===
         gpt_label = signals.get("gpt_label", "unknown")
+        clip_confidence = signals.get("clip_confidence", 0.0)
+        
+        # Enhanced GPT pattern matching for trend patterns
         trend_keywords = ["trend", "momentum", "continuation", "following", "impulse"]
-        label_match = 1.0 if any(keyword in gpt_label.lower() for keyword in trend_keywords) else 0.3
+        trusted_patterns = ["momentum_follow", "breakout-continuation", "trend-following", "trend_continuation"]
+        
+        # Check for trusted patterns that deserve boost
+        is_trusted_pattern = gpt_label in trusted_patterns
+        has_high_clip_confidence = clip_confidence > 0.6
+        
+        if is_trusted_pattern:
+            label_match = 1.0  # High match for trusted patterns
+            print(f"[GPT PATTERN BOOST] {symbol}: '{gpt_label}' is trusted pattern")
+        elif any(keyword in gpt_label.lower() for keyword in trend_keywords):
+            label_match = 0.8  # Good match for trend keywords
+        else:
+            label_match = 0.3  # Default low match
+            
         components["gpt_label_match"] = label_match
         
         components["market_phase_modifier"] = 1.0

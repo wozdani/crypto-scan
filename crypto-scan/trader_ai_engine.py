@@ -652,7 +652,7 @@ def interpret_orderbook(symbol: str, market_data: Dict = None) -> Dict:
         }
 
 
-def compute_trader_score(features: Dict, symbol: str = None) -> Dict:
+def compute_trader_score(features: Dict, symbol: str = None, gpt_info: Dict = None, clip_info: Dict = None) -> Dict:
     """
     🧠 Inteligentny heurystyczny scoring jak trader
     
@@ -691,7 +691,7 @@ def compute_trader_score(features: Dict, symbol: str = None) -> Dict:
         }
         
         # Context-aware weight adjustments (jak myśli trader)
-        market_context = signals.get("market_context", "neutral")
+        market_context = features.get("market_context", "neutral")
         weights = base_weights.copy()
         context_adjustment = "standard"
         
@@ -736,40 +736,15 @@ def compute_trader_score(features: Dict, symbol: str = None) -> Dict:
             weights = {k: v * 0.3 for k, v in weights.items()}
             context_adjustment = "distribution_avoid"
         
-        # === CALCULATE ACTUAL TJDE COMPONENTS ===
-        # Get candles from features if available
-        candles_15m = signals.get('candles_15m', [])
-        candles_5m = signals.get('candles_5m', [])
-        symbol_from_signals = signals.get('symbol', 'UNKNOWN')
+        # Use features values directly (no need for recalculation in compute_trader_score)
+        trend_strength = features.get('trend_strength', 0.0)
+        pullback_quality = features.get('pullback_quality', 0.0)
+        support_reaction = features.get('support_reaction_strength', 0.0)
+        volume_behavior_score = features.get('volume_behavior_score', 0.0)
+        psych_score = features.get('psych_score', 0.0)
         
-        # Calculate real TJDE component scores - ALWAYS execute calculations
-        print(f"[TJDE CALC DEBUG] {symbol}: Starting calculations with {len(candles_15m)} candles")
-        
-        # Calculate with available data (even if less than 20 candles)
-        trend_strength = compute_trend_strength(candles_15m, symbol)
-        pullback_quality = compute_pullback_quality(candles_15m, symbol)
-        support_reaction = compute_support_reaction(candles_15m, symbol)
-        volume_behavior_score = compute_volume_behavior_score(candles_15m, symbol)
-        psych_score = compute_psych_score(candles_15m, symbol)
-        
-        # Add fallback for psych_score
-        if psych_score is None:
-            psych_score = 0.0
-            print(f"[DEBUG FALLBACK] {symbol}: psych_score was None, using 0.0")
-        
-        # Update features with calculated values
-        signals['trend_strength'] = trend_strength
-        signals['pullback_quality'] = pullback_quality
-        signals['support_reaction_strength'] = support_reaction
-        signals['volume_behavior_score'] = volume_behavior_score
-        signals['psych_score'] = psych_score
-        
-        print(f"[TJDE CALC] {symbol}: trend={trend_strength:.3f}, pullback={pullback_quality:.3f}, support={support_reaction:.3f}")
+        print(f"[TJDE CALC] {symbol}: Using provided features - trend={trend_strength:.3f}, pullback={pullback_quality:.3f}, support={support_reaction:.3f}")
         print(f"[TJDE CALC] {symbol}: volume={volume_behavior_score:.3f}, psych={psych_score:.3f}")
-        
-        # Validate calculations were successful
-        if all(val == 0.0 for val in [trend_strength, pullback_quality, support_reaction, volume_behavior_score, psych_score]):
-            print(f"[TJDE CALC WARNING] {symbol}: All components returned 0.0 - calculation functions may have failed")
         
         # Enhanced scoring logic with consistency validation
         score_breakdown = {}
@@ -777,7 +752,7 @@ def compute_trader_score(features: Dict, symbol: str = None) -> Dict:
         significant_components = 0
         
         for feature, weight in weights.items():
-            feature_value = signals.get(feature, 0.0)
+            feature_value = features.get(feature, 0.0)
             # Ensure value is in 0.0-1.0 range
             feature_value = max(0.0, min(1.0, feature_value))
             
@@ -801,6 +776,29 @@ def compute_trader_score(features: Dict, symbol: str = None) -> Dict:
             print(f"[GPT SCORING FIX] Adjusted final score: {final_score:.3f}")
         else:
             final_score = max(0.0, min(1.0, total_score))
+        
+        # GPT + CLIP pattern alignment booster
+        setup_label = gpt_info.get('setup_label') if gpt_info else None
+        clip_confidence = clip_info.get('confidence', 0.0) if clip_info else 0.0
+        
+        trusted_trend_labels = ["momentum_follow", "breakout-continuation", "trend-following", "trend_continuation"]
+        reasoning = []
+        
+        if setup_label in trusted_trend_labels:
+            original_score = final_score
+            final_score += 0.15
+            reasoning.append(f"Pattern '{setup_label}' suggests strong trend-following setup → +0.15 score")
+            print(f"[GPT PATTERN BOOST] {symbol}: '{setup_label}' → Score {original_score:.3f} + 0.15 = {final_score:.3f}")
+            
+            # Additional boost for high CLIP confidence + trusted pattern
+            if clip_confidence > 0.6:
+                original_score_with_gpt = final_score
+                final_score += 0.05  # dodatkowe wzmocnienie za zgodność wizualną
+                reasoning.append(f"High CLIP confidence ({clip_confidence:.2f}) + trusted pattern → +0.05 extra boost")
+                print(f"[CLIP CONFIDENCE BOOST] {symbol}: CLIP {clip_confidence:.2f} → Score {original_score_with_gpt:.3f} + 0.05 = {final_score:.3f}")
+        
+        # Cap final score at 1.0
+        final_score = min(1.0, final_score)
         
         # Quality grade assessment (jak trader ocenia setup)
         if final_score >= 0.85:
@@ -828,11 +826,11 @@ def compute_trader_score(features: Dict, symbol: str = None) -> Dict:
         # Enhanced logging dla tradera
         if symbol:
             # Show individual component values from features (after calculation)
-            calc_trend = signals.get('trend_strength', 0.0)
-            calc_pullback = signals.get('pullback_quality', 0.0)
-            calc_support = signals.get('support_reaction_strength', 0.0)
-            calc_volume = signals.get('volume_behavior_score', 0.0)
-            calc_psych = signals.get('psych_score', 0.0)
+            calc_trend = features.get('trend_strength', 0.0)
+            calc_pullback = features.get('pullback_quality', 0.0)
+            calc_support = features.get('support_reaction_strength', 0.0)
+            calc_volume = features.get('volume_behavior_score', 0.0)
+            calc_psych = features.get('psych_score', 0.0)
             
             print(f"[TJDE SCORE] trend_strength={calc_trend:.2f}, pullback_quality={calc_pullback:.2f}, final_score={final_score:.2f}")
             print(f"[TJDE SCORE] volume_behavior_score={calc_volume:.1f}, psych_score={calc_psych:.1f}, support_reaction={calc_support:.1f}")
@@ -842,7 +840,7 @@ def compute_trader_score(features: Dict, symbol: str = None) -> Dict:
             print(f"[TRADER SCORE] {symbol}: {breakdown_str}")
         
         # Log to file dla analizy
-        _log_trader_score(symbol, result, signals)
+        _log_trader_score(symbol, result, features)
         
         return result
         
@@ -1660,6 +1658,70 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                 
         except Exception as ai_error:
             print(f"[AI PATTERN ERROR] {symbol}: {ai_error}")
+        
+        # === ETAP 8.5: GPT+CLIP PATTERN ALIGNMENT BOOSTER ===
+        # Prepare gpt_info and clip_info for compute_trader_score function
+        gpt_info = {}
+        if gpt_commentary:
+            # Extract setup label from GPT commentary
+            try:
+                from utils.gpt_chart_analyzer import extract_setup_label_from_commentary
+                setup_label = extract_setup_label_from_commentary(gpt_commentary)
+            except ImportError:
+                setup_label = "unknown"
+                print(f"[IMPORT WARNING] extract_setup_label_from_commentary not available")
+            gpt_info = {
+                'setup_label': setup_label,
+                'commentary': gpt_commentary
+            }
+        
+        clip_info = {
+            'confidence': original_clip_confidence,
+            'pattern': original_clip_info.get("pattern", "unknown") if original_clip_info else "unknown",
+            'prediction_source': original_clip_info.get("prediction_source", "unavailable") if original_clip_info else "unavailable"
+        }
+        
+        # Derive market context from analysis
+        market_context = "neutral"  # Default market context
+        if trend_strength > 0.7 and pullback_quality > 0.6:
+            market_context = "impulse"
+        elif pullback_quality > 0.7:
+            market_context = "pullback"
+        elif trend_strength > 0.8:
+            market_context = "breakout"
+        elif trend_strength < 0.4 and pullback_quality < 0.4:
+            market_context = "range"
+        
+        # Create features dict for compute_trader_score
+        features = {
+            "trend_strength": trend_strength,
+            "pullback_quality": pullback_quality,
+            "support_reaction_strength": support_reaction,
+            "volume_behavior_score": signals.get('volume_behavior_score', 0.5),
+            "psych_score": psych_score,
+            "htf_supportive_score": htf_supportive_score,
+            "liquidity_pattern_score": liquidity_pattern_score,
+            "market_context": market_context,
+            "time_boost": 0.1,  # Default time boost
+            "orderbook_alignment": 0.5,  # Default orderbook alignment
+            "bounce_confirmation_strength": 0.5  # Default bounce confirmation
+        }
+        
+        # Call compute_trader_score with GPT and CLIP information for pattern alignment boost
+        trader_score_result = compute_trader_score(features, symbol, gpt_info, clip_info)
+        
+        # Apply pattern alignment boost if available
+        pattern_boost = 0.0
+        if trader_score_result and "final_score" in trader_score_result:
+            pattern_boost_score = trader_score_result["final_score"]
+            original_enhanced_score = enhanced_score
+            
+            # If trader score has significant boost, apply it
+            if pattern_boost_score > enhanced_score + 0.05:
+                pattern_boost = pattern_boost_score - enhanced_score
+                enhanced_score = pattern_boost_score
+                context_modifiers.append(f"GPT+CLIP Pattern Alignment: +{pattern_boost:.3f} boost")
+                print(f"[PATTERN ALIGNMENT] {symbol}: GPT+CLIP boost {original_enhanced_score:.3f} → {enhanced_score:.3f}")
         
         # === ETAP 9: FINAL RESULT ASSEMBLY WITH ALL ENHANCEMENTS ===
         

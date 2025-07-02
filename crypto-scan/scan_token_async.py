@@ -420,11 +420,57 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 try:
                     from unified_tjde_engine import analyze_symbol_with_unified_tjde
                     
-                    # Prepare signals for unified engine
+                    # === GPT+CLIP DATA COLLECTION FOR PATTERN ALIGNMENT BOOSTER ===
+                    def collect_gpt_clip_data(symbol: str):
+                        """Collect GPT and CLIP information for Pattern Alignment Booster"""
+                        import glob
+                        import json
+                        
+                        gpt_label = "unknown"
+                        clip_confidence = 0.0
+                        
+                        try:
+                            # Search for GPT analysis files 
+                            gpt_pattern = f"training_data/charts/{symbol}_*_metadata.json"
+                            gpt_files = glob.glob(gpt_pattern)
+                            
+                            if gpt_files:
+                                # Use most recent file
+                                gpt_files.sort(key=os.path.getmtime, reverse=True)
+                                with open(gpt_files[0], 'r') as f:
+                                    gpt_data = json.load(f)
+                                    gpt_label = gpt_data.get('gpt_label', 'unknown')
+                                    if gpt_label != 'unknown':
+                                        print(f"[GPT COLLECTION] {symbol}: Found label '{gpt_label}' from {gpt_files[0]}")
+                        except Exception as e:
+                            print(f"[GPT COLLECTION] {symbol}: Error loading GPT data: {e}")
+                        
+                        try:
+                            # Search for CLIP prediction files
+                            clip_pattern = f"data/clip_predictions/{symbol}_*.json"
+                            clip_files = glob.glob(clip_pattern)
+                            
+                            if clip_files:
+                                # Use most recent file
+                                clip_files.sort(key=os.path.getmtime, reverse=True)
+                                with open(clip_files[0], 'r') as f:
+                                    clip_data = json.load(f)
+                                    clip_confidence = clip_data.get('confidence', 0.0)
+                                    if clip_confidence > 0.0:
+                                        print(f"[CLIP COLLECTION] {symbol}: Found confidence {clip_confidence:.3f} from {clip_files[0]}")
+                        except Exception as e:
+                            print(f"[CLIP COLLECTION] {symbol}: Error loading CLIP data: {e}")
+                        
+                        return gpt_label, clip_confidence
+                    
+                    # Collect real GPT and CLIP data
+                    gpt_label, clip_confidence = collect_gpt_clip_data(symbol)
+                    
+                    # Prepare signals for unified engine with real GPT+CLIP data
                     signals = {
                         "trend_strength": trend_features.get("trend_strength", 0.5),
-                        "clip_confidence": 0.0,
-                        "gpt_label": "unknown",
+                        "clip_confidence": clip_confidence,  # Real CLIP confidence
+                        "gpt_label": gpt_label,             # Real GPT label
                         "liquidity_behavior": 0.5,
                         "volume_behavior_score": trend_features.get("volume_behavior_score", 0.5),
                         "pullback_quality": trend_features.get("pullback_quality", 0.5),
