@@ -97,32 +97,41 @@ class UnifiedTJDEEngine:
             str: "pre-pump", "trend-following", "consolidation", "breakout"
         """
         try:
+            print(f"[PHASE DEBUG] {symbol}: Starting phase detection with {len(candles_15m) if candles_15m else 0} candles")
+            
             if not candles_15m or len(candles_15m) < 10:
+                print(f"[PHASE DEBUG] {symbol}: Insufficient candles, returning 'unknown'")
                 return "unknown"
             
             # Calculate key metrics for phase detection
             recent_candles = candles_15m[-10:]  # Last 10 candles for analysis
+            print(f"[PHASE DEBUG] {symbol}: Using {len(recent_candles)} recent candles")
             
             # Price metrics
             prices = [float(c[4]) for c in recent_candles if len(c) > 4]  # Close prices
             if not prices:
+                print(f"[PHASE DEBUG] {symbol}: No valid prices found, returning 'unknown'")
                 return "unknown"
                 
             current_price = prices[-1]
             price_range = max(prices) - min(prices)
             avg_price = sum(prices) / len(prices)
+            print(f"[PHASE DEBUG] {symbol}: current_price={current_price:.4f}, range={price_range:.4f}, avg={avg_price:.4f}")
             
             # Volume metrics
             volumes = [float(c[5]) for c in recent_candles if len(c) > 5]
             if not volumes:
                 volumes = [1000] * len(prices)  # Fallback
+                print(f"[PHASE DEBUG] {symbol}: Using volume fallback")
                 
             avg_volume = sum(volumes) / len(volumes)
             recent_volume = volumes[-3:] if len(volumes) >= 3 else volumes
             volume_trend = sum(recent_volume) / len(recent_volume) / avg_volume if avg_volume > 0 else 1.0
+            print(f"[PHASE DEBUG] {symbol}: avg_volume={avg_volume:.0f}, volume_trend={volume_trend:.3f}")
             
             # Volatility and compression
             volatility = price_range / avg_price if avg_price > 0 else 0.01
+            print(f"[PHASE DEBUG] {symbol}: volatility={volatility:.4f}")
             
             # Phase detection logic
             
@@ -154,6 +163,15 @@ class UnifiedTJDEEngine:
             
         except Exception as e:
             print(f"[PHASE DETECTION ERROR] {symbol}: {e}")
+            print(f"[PHASE FALLBACK] Using default: trend-following (error={e})")
+            # Add debug information about input data
+            try:
+                candles_count = len(candles_15m) if candles_15m else 0
+                print(f"[PHASE FALLBACK DEBUG] {symbol}: Input candles_15m length = {candles_count}")
+                if candles_15m and len(candles_15m) > 0:
+                    print(f"[PHASE FALLBACK DEBUG] {symbol}: First candle structure = {type(candles_15m[0])}")
+            except Exception as debug_e:
+                print(f"[PHASE FALLBACK DEBUG ERROR] {symbol}: {debug_e}")
             return "trend-following"
     
     def calculate_unified_score(self, symbol: str, market_data: Dict, signals: Dict, 
