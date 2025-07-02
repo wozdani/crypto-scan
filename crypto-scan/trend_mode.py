@@ -261,6 +261,22 @@ def simulate_trader_decision_advanced(ctx: Dict) -> Dict:
         else:
             print(f"[VISUAL STATUS] {ctx.get('symbol', 'UNKNOWN')}: CLIP '{clip_label}', GPT '{setup_label}', conf={clip_confidence:.2f} - insufficient for confirmation")
         
+        # === SAFETY CAP FOR INVALID SETUPS ===
+        # Zabezpieczenie przed wysokimi score gdy brak prawdziwej analizy
+        if setup_label in ["setup_analysis", "unknown", "no_clear_pattern"]:
+            original_score = score
+            score = min(score, 0.25)
+            ctx["final_score"] = score
+            if original_score > score:
+                safety_cap_applied = original_score - score
+                reasons.append(f"Safety Cap: No valid setup detected → score capped at 0.25 (was {original_score:.3f})")
+                print(f"[SAFETY CAP] {ctx.get('symbol', 'UNKNOWN')}: setup_label='{setup_label}' → score {original_score:.3f} → {score:.3f}")
+                # Aktualizuj decyzję na podstawie nowego score
+                if score <= 0.25:
+                    ctx["decision"] = "avoid"
+                    ctx["confidence"] = max(0.1, 1.0 - score)
+                    print(f"[SAFETY CAP] {ctx.get('symbol', 'UNKNOWN')}: Decision updated to 'avoid' due to invalid setup")
+        
         ctx["decision_reasons"] = reasons
         
         # Add score_components for feedback logging

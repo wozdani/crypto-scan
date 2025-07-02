@@ -1748,6 +1748,20 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                 context_modifiers.append(f"GPT+CLIP Pattern Alignment: +{pattern_boost:.3f} boost")
                 print(f"[PATTERN ALIGNMENT] {symbol}: GPT+CLIP boost {original_enhanced_score:.3f} → {enhanced_score:.3f}")
         
+        # === ETAP 8.9: SAFETY CAP FOR INVALID SETUPS ===
+        # Zabezpieczenie przed wysokimi score gdy brak prawdziwej analizy
+        if setup_label in ["setup_analysis", "unknown", "no_clear_pattern"]:
+            original_score = enhanced_score
+            enhanced_score = min(enhanced_score, 0.25)
+            if original_score > enhanced_score:
+                safety_cap_applied = original_score - enhanced_score
+                context_modifiers.append(f"Safety Cap: No valid setup detected → score capped at 0.25 (was {original_score:.3f})")
+                print(f"[SAFETY CAP] {symbol}: setup_label='{setup_label}' → score {original_score:.3f} → {enhanced_score:.3f}")
+                # Aktualizuj decyzję na podstawie nowego score
+                if enhanced_score <= 0.25:
+                    decision = "avoid"
+                    print(f"[SAFETY CAP] {symbol}: Decision updated to 'avoid' due to invalid setup")
+        
         # === ETAP 9: FINAL RESULT ASSEMBLY WITH ALL ENHANCEMENTS ===
         
         # Store enhanced CLIP info in signals for debug output (use original values)
@@ -1863,6 +1877,7 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
         fakeout_penalty = 0.0
         
         # Sprawdź czy po breakout nie ma kontynuacji (fakeout detection)
+        candles = signals.get('candles', [])
         if len(candles) >= 5:
             try:
                 recent_candles = candles[-5:]  # 5 ostatnich świec
