@@ -210,6 +210,8 @@ def compute_volume_behavior_score(candles, symbol=None):
 def compute_psych_score(candles, symbol=None):
     """Enhanced psychological score calculation"""
     if not candles or len(candles) < 8:
+        if symbol:
+            print(f"[DEBUG] {symbol}: psych_score fallback - insufficient candles ({len(candles) if candles else 0})")
         return 0.4
     try:
         recent_candles = candles[-8:]
@@ -217,6 +219,10 @@ def compute_psych_score(candles, symbol=None):
         opens = [float(c[1]) for c in recent_candles]
         highs = [float(c[2]) for c in recent_candles]
         lows = [float(c[3]) for c in recent_candles]
+        
+        if symbol:
+            print(f"[DEBUG] {symbol}: Computing psych_score with {len(recent_candles)} candles")
+            print(f"[DEBUG] {symbol}: closes[-3:] = {closes[-3:]}, opens[-3:] = {opens[-3:]}")
         
         # 1. Bullish candle pattern
         green_candles = sum(1 for i in range(len(closes)) if closes[i] > opens[i])
@@ -245,7 +251,10 @@ def compute_psych_score(candles, symbol=None):
                       strength_factor * 0.2)
         psych_score = min(max(psych_score, 0.1), 1.0)
         
+        print(f"[DEBUG] psych_score computed: {psych_score:.3f}")
         if symbol:
+            print(f"[DEBUG] {symbol}: green_ratio = {green_ratio:.3f}, trend_structure = {trend_structure:.3f}")
+            print(f"[DEBUG] {symbol}: momentum_consistency = {momentum_consistency:.3f}, strength_factor = {strength_factor:.3f}")
             print(f"[TJDE CALC] {symbol}: psych_score = {psych_score:.3f} (green: {green_ratio:.2f}, structure: {trend_structure:.2f}, momentum: {momentum_consistency:.2f})")
         return psych_score
     except Exception as e:
@@ -742,6 +751,11 @@ def compute_trader_score(features: Dict, symbol: str = None) -> Dict:
         support_reaction = compute_support_reaction(candles_15m, symbol)
         volume_behavior_score = compute_volume_behavior_score(candles_15m, symbol)
         psych_score = compute_psych_score(candles_15m, symbol)
+        
+        # Add fallback for psych_score
+        if psych_score is None:
+            psych_score = 0.0
+            print(f"[DEBUG FALLBACK] {symbol}: psych_score was None, using 0.0")
         
         # Update features with calculated values
         signals['trend_strength'] = trend_strength
