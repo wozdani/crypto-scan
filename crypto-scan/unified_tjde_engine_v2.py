@@ -84,6 +84,87 @@ class UnifiedTJDEEngineV2:
         
         return base_profile
 
+def unified_tjde_decision_engine_with_signals(token_data: Dict, market_phase: str, clip_result: Dict, 
+                               gpt_label: str, volume_info: Dict, liquidity_info: Dict, signals: Dict = None) -> Tuple[str, float, Dict]:
+    """
+    Enhanced TJDE decision engine that uses pre-calculated signals for accurate momentum_follow scoring
+    """
+    try:
+        engine = UnifiedTJDEEngineV2()
+        
+        # Get profile
+        if market_phase == "pre-pump":
+            profile = engine.scoring_profiles.get("pre-pump", engine.scoring_profiles["trend-following"])
+        else:
+            profile = engine.scoring_profiles.get(market_phase, engine.scoring_profiles["trend-following"])
+        
+        # Use signals if available, otherwise fallback to calculated components
+        if signals:
+            score_components = {
+                "trend_strength": signals.get("trend_strength", 0.5),
+                "pullback_quality": signals.get("pullback_quality", 0.5), 
+                "support_reaction": signals.get("support_reaction_strength", 0.5),
+                "volume_behavior_score": signals.get("volume_behavior_score", 0.5),
+                "psych_score": signals.get("psych_score", 0.5),
+                "htf_supportive_score": signals.get("htf_supportive_score", 0.5),
+                "liquidity_pattern_score": signals.get("liquidity_behavior", 0.5),
+                "clip_confidence": clip_result.get("confidence", 0.0) if clip_result else 0.0,
+                "gpt_label_match": match_gpt_label(gpt_label, market_phase),
+                "market_phase_modifier": get_phase_modifier(market_phase, token_data)
+            }
+            print(f"[TJDE v2 SIGNALS] {token_data.get('symbol', 'UNKNOWN')}: Using pre-calculated signals for enhanced scoring")
+        else:
+            # Fallback to original calculation method
+            score_components = {
+                "volume_structure": evaluate_volume_structure(volume_info),
+                "clip_confidence": clip_result.get("confidence", 0.0) if clip_result else 0.0,
+                "gpt_label_match": match_gpt_label(gpt_label, market_phase),
+                "liquidity_behavior": analyze_liquidity_v2(liquidity_info),
+                "heatmap_window": analyze_heatmap_exhaustion(token_data),
+                "pre_breakout_structure": analyze_price_structure_v2(token_data),
+                "market_phase_modifier": get_phase_modifier(market_phase, token_data)
+            }
+        
+        # Calculate final score using profile weights
+        final_score = 0.0
+        for component, value in score_components.items():
+            weight = profile.get(component, 0.1)
+            final_score += value * weight
+        
+        # Normalize score
+        final_score = max(0.0, min(1.0, final_score))
+        
+        # === GPT+CLIP PATTERN ALIGNMENT BOOSTER v2 ===
+        original_score = final_score
+        clip_confidence = clip_result.get("confidence", 0.0) if clip_result else 0.0
+        
+        # Trusted patterns that get score boost
+        trusted_patterns = ["momentum_follow", "breakout-continuation", "trend-following", "trend_continuation"]
+        
+        # Apply pattern boost for trusted patterns  
+        if gpt_label in trusted_patterns:
+            final_score += 0.15
+            print(f"[GPT PATTERN BOOST v2] {token_data.get('symbol', 'UNKNOWN')}: '{gpt_label}' → Score {original_score:.3f} + 0.15 = {final_score:.3f}")
+            
+            # Additional boost for high CLIP confidence
+            if clip_confidence > 0.6:
+                final_score += 0.05
+                print(f"[CLIP CONFIDENCE BOOST v2] {token_data.get('symbol', 'UNKNOWN')}: CLIP {clip_confidence:.2f} → Score {final_score-0.05:.3f} + 0.05 = {final_score:.3f}")
+        
+        # Ensure boosted score is still bounded [0.0, 1.0]
+        final_score = max(0.0, min(1.0, final_score))
+        
+        # Generate decision
+        decision = make_advanced_decision(final_score, market_phase, score_components, clip_result, gpt_label)
+        
+        print(f"[TJDE v2] {token_data.get('symbol', 'UNKNOWN')}: phase={market_phase}, score={final_score:.3f}, decision={decision}")
+        
+        return decision, final_score, score_components
+        
+    except Exception as e:
+        print(f"[UNIFIED TJDE v2 ERROR] {e}")
+        return "avoid", 0.0, {"error": str(e)}
+
 def unified_tjde_decision_engine(token_data: Dict, market_phase: str, clip_result: Dict, 
                                gpt_label: str, volume_info: Dict, liquidity_info: Dict) -> Tuple[str, float, Dict]:
     """
@@ -569,14 +650,15 @@ def analyze_symbol_with_unified_tjde_v2(symbol: str, market_data: Dict, candles_
             "trend": "stable"
         }
         
-        # Run unified decision engine v2
-        decision, final_score, score_components = unified_tjde_decision_engine(
+        # Run unified decision engine v2 with signals
+        decision, final_score, score_components = unified_tjde_decision_engine_with_signals(
             token_data=token_data,
             market_phase=market_phase,
             clip_result=clip_result,
             gpt_label=gpt_label,
             volume_info=volume_info,
-            liquidity_info=liquidity_info
+            liquidity_info=liquidity_info,
+            signals=signals
         )
         
         # Calculate quality grade using v1 engine
