@@ -1662,6 +1662,7 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
         # === ETAP 8.5: GPT+CLIP PATTERN ALIGNMENT BOOSTER ===
         # Prepare gpt_info and clip_info for compute_trader_score function
         gpt_info = {}
+        setup_label = "unknown"
         if gpt_commentary:
             # Extract setup label from GPT commentary
             try:
@@ -1675,11 +1676,35 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                 'commentary': gpt_commentary
             }
         
+        clip_label = original_clip_info.get("predicted_phase", "unknown") if original_clip_info else "unknown"
+        if clip_label == "unknown":
+            clip_label = original_clip_info.get("pattern", "unknown") if original_clip_info else "unknown"
+        
         clip_info = {
             'confidence': original_clip_confidence,
-            'pattern': original_clip_info.get("pattern", "unknown") if original_clip_info else "unknown",
+            'pattern': clip_label,
             'prediction_source': original_clip_info.get("prediction_source", "unavailable") if original_clip_info else "unavailable"
         }
+        
+        # === CLIP VISUAL CONFIRMATION BOOST ===
+        # Jeśli CLIP zgadza się z setup_label od GPT, traktuj to jako wizualne potwierdzenie
+        clip_visual_boost = 0.0
+        if clip_label == setup_label and original_clip_confidence >= 0.6:
+            if original_clip_confidence >= 0.75:
+                clip_visual_boost = 0.10  # Większy boost przy silnym zaufaniu
+                context_modifiers.append(f"CLIP Visual Confirmation: '{clip_label}' confirmed by GPT (conf={original_clip_confidence:.2f}) → +0.10")
+                print(f"[CLIP VISUAL CONFIRM STRONG] {symbol}: CLIP '{clip_label}' == GPT '{setup_label}' (conf={original_clip_confidence:.2f}) → +0.10")
+            else:
+                clip_visual_boost = 0.07  # Standardowy boost
+                context_modifiers.append(f"CLIP Visual Confirmation: '{clip_label}' confirmed by GPT (conf={original_clip_confidence:.2f}) → +0.07")
+                print(f"[CLIP VISUAL CONFIRM] {symbol}: CLIP '{clip_label}' == GPT '{setup_label}' (conf={original_clip_confidence:.2f}) → +0.07")
+            
+            enhanced_score += clip_visual_boost
+            print(f"[VISUAL CONFIRMATION] {symbol}: Score boosted {enhanced_score-clip_visual_boost:.3f} → {enhanced_score:.3f}")
+        elif clip_label != "unknown" and setup_label != "unknown" and clip_label != setup_label:
+            print(f"[VISUAL MISMATCH] {symbol}: CLIP '{clip_label}' != GPT '{setup_label}' - no confirmation boost")
+        else:
+            print(f"[VISUAL STATUS] {symbol}: CLIP '{clip_label}', GPT '{setup_label}', conf={original_clip_confidence:.2f} - insufficient for confirmation")
         
         # Derive market context from analysis
         market_context = "neutral"  # Default market context

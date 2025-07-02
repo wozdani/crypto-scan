@@ -224,6 +224,43 @@ def simulate_trader_decision_advanced(ctx: Dict) -> Dict:
         if htf_score < 0.03:
             reasons.append("⚠️ Higher timeframe not supportive")
         
+        # === CLIP VISUAL CONFIRMATION BOOST ===
+        # Sprawdź czy CLIP zgadza się z GPT setup_label
+        clip_visual_boost = 0.0
+        clip_label = ctx.get("clip_pattern", "unknown")  
+        setup_label = ctx.get("gpt_setup_label", "unknown")
+        clip_confidence = ctx.get("clip_confidence", 0.0)
+        
+        if clip_label == setup_label and clip_confidence >= 0.6:
+            if clip_confidence >= 0.75:
+                clip_visual_boost = 0.10  # Większy boost przy silnym zaufaniu
+                reasons.append(f"CLIP Visual Confirmation: '{clip_label}' confirmed by GPT (conf={clip_confidence:.2f}) → +0.10")
+                print(f"[CLIP VISUAL CONFIRM STRONG] {ctx.get('symbol', 'UNKNOWN')}: CLIP '{clip_label}' == GPT '{setup_label}' (conf={clip_confidence:.2f}) → +0.10")
+            else:
+                clip_visual_boost = 0.07  # Standardowy boost
+                reasons.append(f"CLIP Visual Confirmation: '{clip_label}' confirmed by GPT (conf={clip_confidence:.2f}) → +0.07")
+                print(f"[CLIP VISUAL CONFIRM] {ctx.get('symbol', 'UNKNOWN')}: CLIP '{clip_label}' == GPT '{setup_label}' (conf={clip_confidence:.2f}) → +0.07")
+            
+            # Aktualizuj score i decision
+            score += clip_visual_boost
+            ctx["final_score"] = score
+            
+            # Może zmienić decyzję jeśli score wzrósł znacząco
+            if score >= 0.7 and ctx["decision"] != "join":
+                ctx["decision"] = "join"
+                ctx["confidence"] = min(0.95, score + 0.15)
+                print(f"[VISUAL CONFIRMATION] Decision upgraded to JOIN due to CLIP confirmation")
+            elif score >= 0.45 and ctx["decision"] == "avoid":
+                ctx["decision"] = "consider"
+                ctx["confidence"] = score * 0.8
+                print(f"[VISUAL CONFIRMATION] Decision upgraded to CONSIDER due to CLIP confirmation")
+                
+            print(f"[VISUAL CONFIRMATION] {ctx.get('symbol', 'UNKNOWN')}: Score boosted {score-clip_visual_boost:.3f} → {score:.3f}")
+        elif clip_label != "unknown" and setup_label != "unknown" and clip_label != setup_label:
+            print(f"[VISUAL MISMATCH] {ctx.get('symbol', 'UNKNOWN')}: CLIP '{clip_label}' != GPT '{setup_label}' - no confirmation boost")
+        else:
+            print(f"[VISUAL STATUS] {ctx.get('symbol', 'UNKNOWN')}: CLIP '{clip_label}', GPT '{setup_label}', conf={clip_confidence:.2f} - insufficient for confirmation")
+        
         ctx["decision_reasons"] = reasons
         
         # Add score_components for feedback logging
