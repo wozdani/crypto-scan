@@ -985,34 +985,50 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
         htf_supportive_score = float(htf_supportive_score)
         market_phase_modifier = float(market_phase_modifier)
         
+        # CRITICAL FIX: New scoring logic with enhanced trend_strength and pullback_quality dominance
         score = (
-            trend_strength * float(weights["trend_strength"]) +
-            pullback_quality * float(weights["pullback_quality"]) +
-            support_reaction * float(weights["support_reaction"]) +
-            clip_confidence * float(weights.get("clip_confidence_score", 0.12)) +  # CLIP integration
-            liquidity_pattern_score * float(weights["liquidity_pattern_score"]) +
-            psych_score * float(weights["psych_score"]) +
-            htf_supportive_score * float(weights["htf_supportive_score"]) +
-            market_phase_modifier * float(weights["market_phase_modifier"])
+            trend_strength * 0.35 +
+            pullback_quality * 0.30 +
+            liquidity_pattern_score * 0.10 +  # volume_behavior_score equivalent
+            support_reaction * 0.10 +
+            psych_score * 0.05 +
+            market_phase_modifier
         )
+        
+        # CRITICAL FIX: Strong trend guarantee - never undervalue excellent setups
+        if trend_strength > 0.9 and pullback_quality > 0.9:
+            score = max(score, 0.65)
+            print(f"[STRONG TREND GUARANTEE] Excellent setup detected: trend={trend_strength:.3f}, pullback={pullback_quality:.3f} → minimum score 0.65")
         
         # Show CLIP contribution in scoring
         clip_contribution = clip_confidence * float(weights.get("clip_confidence_score", 0.12))
         if clip_contribution > 0:
             print(f"[CLIP INTEGRATION] Confidence: {clip_confidence:.3f} × Weight: {weights.get('clip_confidence_score', 0.12):.3f} = {clip_contribution:.3f}")
         
-        print(f"[TRADER SCORE] Base score (with CLIP): {score:.3f}")
+        print(f"[TRADER SCORE] NEW scoring system: {score:.3f}")
         
-        # Add score breakdown for debugging
-        print(f"[SCORE BREAKDOWN] Trend: {trend_strength:.3f}×{weights['trend_strength']:.3f}={trend_strength*float(weights['trend_strength']):.3f}")
-        print(f"[SCORE BREAKDOWN] Pullback: {pullback_quality:.3f}×{weights['pullback_quality']:.3f}={pullback_quality*float(weights['pullback_quality']):.3f}")
-        print(f"[SCORE BREAKDOWN] Support: {support_reaction:.3f}×{weights['support_reaction']:.3f}={support_reaction*float(weights['support_reaction']):.3f}")
-        print(f"[SCORE BREAKDOWN] CLIP: {clip_confidence:.3f}×{weights.get('clip_confidence_score', 0.12):.3f}={clip_contribution:.3f}")
-        print(f"[SCORE BREAKDOWN] Liquidity: {liquidity_pattern_score:.3f}×{weights['liquidity_pattern_score']:.3f}={liquidity_pattern_score*float(weights['liquidity_pattern_score']):.3f}")
-        print(f"[SCORE BREAKDOWN] Psychology: {psych_score:.3f}×{weights['psych_score']:.3f}={psych_score*float(weights['psych_score']):.3f}")
-        print(f"[SCORE BREAKDOWN] HTF Support: {htf_supportive_score:.3f}×{weights['htf_supportive_score']:.3f}={htf_supportive_score*float(weights['htf_supportive_score']):.3f}")
-        print(f"[SCORE BREAKDOWN] Phase Modifier: {market_phase_modifier:.3f}×{weights['market_phase_modifier']:.3f}={market_phase_modifier*float(weights['market_phase_modifier']):.3f}")
-        print(f"[SCORE BREAKDOWN] Total: {score:.3f}")
+        # Add score breakdown for debugging with NEW WEIGHTS
+        print(f"[NEW SCORE BREAKDOWN] Trend: {trend_strength:.3f}×0.35={trend_strength*0.35:.3f}")
+        print(f"[NEW SCORE BREAKDOWN] Pullback: {pullback_quality:.3f}×0.30={pullback_quality*0.30:.3f}")
+        print(f"[NEW SCORE BREAKDOWN] Liquidity: {liquidity_pattern_score:.3f}×0.10={liquidity_pattern_score*0.10:.3f}")
+        print(f"[NEW SCORE BREAKDOWN] Support: {support_reaction:.3f}×0.10={support_reaction*0.10:.3f}")
+        print(f"[NEW SCORE BREAKDOWN] Psychology: {psych_score:.3f}×0.05={psych_score*0.05:.3f}")
+        print(f"[NEW SCORE BREAKDOWN] Phase Modifier: {market_phase_modifier:.3f}×1.00={market_phase_modifier:.3f}")
+        print(f"[NEW SCORE BREAKDOWN] Total: {score:.3f}")
+        
+        # Show comparison with old system if CLIP was involved
+        if clip_confidence > 0:
+            old_score = (
+                trend_strength * float(weights["trend_strength"]) +
+                pullback_quality * float(weights["pullback_quality"]) +
+                support_reaction * float(weights["support_reaction"]) +
+                clip_confidence * float(weights.get("clip_confidence_score", 0.12)) +
+                liquidity_pattern_score * float(weights["liquidity_pattern_score"]) +
+                psych_score * float(weights["psych_score"]) +
+                htf_supportive_score * float(weights["htf_supportive_score"]) +
+                market_phase_modifier * float(weights["market_phase_modifier"])
+            )
+            print(f"[SCORING COMPARISON] OLD system: {old_score:.3f} → NEW system: {score:.3f} (delta: {score-old_score:+.3f})")
         
         # Initialize phase_modifier variable
         phase_modifier = 0.0
