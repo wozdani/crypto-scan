@@ -329,7 +329,12 @@ class UnifiedTJDEEngine:
         
         # Use existing trend analysis
         components["trend_strength"] = signals.get("trend_strength", 0.0)
+        components["pullback_quality"] = signals.get("pullback_quality", 0.0)
+        components["support_reaction"] = signals.get("support_reaction_strength", 0.0)
         components["clip_confidence"] = signals.get("clip_confidence", 0.0)
+        components["liquidity_pattern_score"] = signals.get("liquidity_behavior", 0.5)
+        components["psych_score"] = signals.get("psych_score", 0.0)
+        components["htf_supportive_score"] = signals.get("htf_supportive_score", 0.5)
         
         # GPT label match for trend patterns
         gpt_label = signals.get("gpt_label", "unknown")
@@ -337,10 +342,15 @@ class UnifiedTJDEEngine:
         label_match = 1.0 if any(keyword in gpt_label.lower() for keyword in trend_keywords) else 0.3
         components["gpt_label_match"] = label_match
         
-        components["liquidity_behavior"] = signals.get("liquidity_behavior", 0.5)
-        components["momentum_persistence"] = signals.get("momentum_persistence", signals.get("trend_strength", 0.0))
-        components["volume_confirmation"] = signals.get("volume_confirmation", 0.5)
         components["market_phase_modifier"] = 1.0
+        
+        print(f"[UNIFIED TJDE] {symbol}: Component scores:")
+        print(f"  trend_strength: {components['trend_strength']:.3f}")
+        print(f"  pullback_quality: {components['pullback_quality']:.3f}")
+        print(f"  support_reaction: {components['support_reaction']:.3f}")
+        print(f"  psych_score: {components['psych_score']:.3f}")
+        print(f"  clip_confidence: {components['clip_confidence']:.3f}")
+        print(f"  liquidity_pattern_score: {components['liquidity_pattern_score']:.3f}")
         
         return components
     
