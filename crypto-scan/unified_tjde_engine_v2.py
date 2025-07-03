@@ -146,9 +146,75 @@ def unified_tjde_decision_engine_with_signals(token_data: Dict, market_phase: st
             print(f"[TJDE v2 DYNAMIC] {token_data.get('symbol', 'UNKNOWN')}: Using dynamic scoring formula")
             print(f"[WEIGHTED FORMULA] trend:{trend_strength:.3f} pullback:{pullback_quality:.3f} volume:{volume_behavior_score:.3f} psych:{psych_score:.3f} support:{support_reaction:.3f} → {weighted_score:.3f}")
         else:
-            # NO FALLBACK CALCULATION - Skip tokens without signals
-            print(f"[TJDE v2 NO SIGNALS] {token_data.get('symbol', 'UNKNOWN')}: No signals available - blocking token")
-            return "skip", 0.0, {"error": "no_signals"}
+            # GENERATE BASIC SIGNALS - TJDE v2 should not block tokens without signals
+            print(f"[TJDE v2 BASIC SIGNALS] {token_data.get('symbol', 'UNKNOWN')}: No pre-calculated signals - generating basic signals")
+            
+            # Generate basic signals from available data
+            candles_15m = token_data.get("candles_15m", [])
+            candles_5m = token_data.get("candles_5m", [])
+            
+            if candles_15m and len(candles_15m) >= 10:
+                # Basic trend strength from price movement
+                recent_prices = [c[4] if isinstance(c, list) else c.get("close", 0) for c in candles_15m[-10:]]
+                if recent_prices and all(p > 0 for p in recent_prices):
+                    price_change = (recent_prices[-1] - recent_prices[0]) / recent_prices[0]
+                    trend_strength = min(1.0, max(0.0, 0.5 + price_change * 10))  # Scale to 0-1
+                else:
+                    trend_strength = 0.5
+                
+                # Basic pullback quality from volatility
+                if len(recent_prices) > 1:
+                    price_range = max(recent_prices) - min(recent_prices)
+                    avg_price = sum(recent_prices) / len(recent_prices)
+                    volatility = price_range / avg_price if avg_price > 0 else 0
+                    pullback_quality = min(1.0, max(0.0, 0.5 + volatility * 5))
+                else:
+                    pullback_quality = 0.5
+                
+                # Basic volume behavior
+                recent_volumes = [c[5] if isinstance(c, list) else c.get("volume", 0) for c in candles_15m[-5:]]
+                if recent_volumes and all(v >= 0 for v in recent_volumes):
+                    avg_volume = sum(recent_volumes) / len(recent_volumes)
+                    volume_behavior_score = 0.6 if avg_volume > 0 else 0.4
+                else:
+                    volume_behavior_score = 0.5
+                
+                # Basic values for other components
+                psych_score = 0.5
+                support_reaction = 0.5
+                
+            else:
+                # Minimal fallback values
+                trend_strength = 0.4
+                pullback_quality = 0.4  
+                volume_behavior_score = 0.4
+                psych_score = 0.4
+                support_reaction = 0.4
+            
+            # Apply same dynamic scoring formula
+            weighted_score = (
+                0.35 * trend_strength +
+                0.25 * pullback_quality +
+                0.20 * volume_behavior_score +
+                0.10 * psych_score +
+                0.10 * support_reaction
+            )
+            
+            score_components = {
+                "trend_strength": trend_strength,
+                "pullback_quality": pullback_quality, 
+                "support_reaction": support_reaction,
+                "volume_behavior_score": volume_behavior_score,
+                "psych_score": psych_score,
+                "htf_supportive_score": 0.5,
+                "liquidity_pattern_score": 0.5,
+                "clip_confidence": clip_result.get("confidence", 0.0) if clip_result else 0.0,
+                "gpt_label_match": match_gpt_label(gpt_label, market_phase),
+                "market_phase_modifier": get_phase_modifier(market_phase, token_data),
+                "weighted_base_score": weighted_score
+            }
+            print(f"[TJDE v2 BASIC] {token_data.get('symbol', 'UNKNOWN')}: Generated basic signals")
+            print(f"[BASIC FORMULA] trend:{trend_strength:.3f} pullback:{pullback_quality:.3f} volume:{volume_behavior_score:.3f} psych:{psych_score:.3f} support:{support_reaction:.3f} → {weighted_score:.3f}")
         
         # Use dynamic weighted score as base instead of profile weights
         if "weighted_base_score" in score_components:
@@ -669,8 +735,13 @@ def analyze_symbol_with_unified_tjde_v2(symbol: str, market_data: Dict, candles_
             
         print(f"[TJDE v2 STAGE 1] {symbol}: ✅ Market data validation passed - 15M={len(candles_15m)}, 5M={len(candles_5m)}, Volume=${volume_24h:,.0f}")
         
-        # Use v2 market phase detection directly
+        # ETAP 2 - DETEKCJA FAZY RYNKU
         market_phase = detect_market_phase_v2(symbol, market_data, candles_15m, candles_5m)
+        
+        # Blokowanie tokenów z nieznaną fazą (zgodnie ze specyfikacją)
+        if market_phase == "unknown":
+            print(f"[TJDE BLOCK] Market phase undetectable for {symbol} – skipping scoring")
+            return {"final_score": 0.0, "decision": "skip", "error": "Market phase undetectable", "market_phase": "unknown"}
         
         # Prepare enhanced token data
         token_data = {
@@ -753,15 +824,97 @@ def analyze_symbol_with_unified_tjde_v2(symbol: str, market_data: Dict, candles_
 # Market phase analysis function from v1 for standalone usage
 def detect_market_phase_v2(symbol: str, market_data: Dict, candles_15m: List, candles_5m: List) -> str:
     """
-    Enhanced market phase detection for TJDE v2
+    ETAP 2 - Enhanced Market Phase Detection for TJDE v2
     
-    Returns: "pre-pump", "trend-following", "consolidation", "breakout"
+    Obsługiwane fazy:
+    - "trend-following" – silny kierunkowy trend
+    - "consolidation" – boczny ruch z zawężającym się zakresem  
+    - "breakout" – świeży impuls wybicia po kompresji
+    - "pre-pump" – akumulacja przed potencjalnym wybiciem
+    - "unknown" – brak jednoznacznego rozpoznania (NO FALLBACK!)
+    
+    Returns: Detected market phase or "unknown"
     """
     try:
-        from unified_tjde_engine import UnifiedTJDEEngine
-        engine = UnifiedTJDEEngine()
-        return engine.detect_market_phase(symbol, market_data, candles_15m, candles_5m)
-    except Exception:
+        print(f"[TJDE v2 STAGE 2] {symbol}: Starting market phase detection")
+        
+        if not candles_15m or len(candles_15m) < 10:
+            print(f"[PHASE DETECTION] {symbol}: Insufficient 15M candles ({len(candles_15m) if candles_15m else 0}) - returning unknown")
+            return "unknown"
+        
+        # Zbieranie ostatnich 10 świec z candles_15m do detekcji struktury
+        recent_candles = candles_15m[-10:]
+        print(f"[PHASE DETECTION] {symbol}: Analyzing {len(recent_candles)} recent candles")
+        
+        # Extract data from candles (support both dict and list formats)
+        prices = []
+        highs = []
+        lows = []
+        volumes = []
+        
+        for candle in recent_candles:
+            if isinstance(candle, dict):
+                prices.append(candle.get("close", 0))
+                highs.append(candle.get("high", 0))
+                lows.append(candle.get("low", 0))
+                volumes.append(candle.get("volume", 0))
+            elif isinstance(candle, list) and len(candle) >= 6:
+                prices.append(candle[4])  # close
+                highs.append(candle[2])   # high
+                lows.append(candle[3])    # low
+                volumes.append(candle[5]) # volume
+            else:
+                print(f"[PHASE DETECTION ERROR] {symbol}: Invalid candle format")
+                return "unknown"
+        
+        # Validacja danych
+        if not prices or not highs or not lows or not volumes:
+            print(f"[PHASE DETECTION ERROR] {symbol}: Empty price/volume data")
+            return "unknown"
+            
+        if any(p <= 0 for p in prices):
+            print(f"[PHASE DETECTION ERROR] {symbol}: Invalid price data (zero/negative)")
+            return "unknown"
+        
+        # Obliczanie kluczowych metryk
+        price_range = max(highs) - min(lows)
+        price_slope = (prices[-1] - prices[0]) / len(prices) if len(prices) > 0 else 0
+        volatility_ratio = price_range / prices[0] if prices[0] != 0 else 0
+        volume_range = max(volumes) - min(volumes) if volumes else 0
+        max_volume = max(volumes) if volumes else 1
+        
+        print(f"[PHASE METRICS] {symbol}: price_slope={price_slope:.6f}, volatility_ratio={volatility_ratio:.6f}")
+        print(f"[PHASE METRICS] {symbol}: price_range={price_range:.2f}, volume_range={volume_range:.0f}, max_volume={max_volume:.0f}")
+        
+        # Detekcja fazy zgodnie ze specyfikacją
+        if price_slope > 0.002 and volatility_ratio > 0.01:
+            phase = "trend-following"
+            print(f"[PHASE DETECTED] {symbol}: {phase} (strong directional trend)")
+            return phase
+            
+        elif price_slope < 0.001 and volatility_ratio < 0.008:
+            phase = "consolidation"
+            print(f"[PHASE DETECTED] {symbol}: {phase} (sideways movement)")
+            return phase
+            
+        elif volatility_ratio > 0.015 and volume_range > 0.4 * max_volume:
+            phase = "breakout"
+            print(f"[PHASE DETECTED] {symbol}: {phase} (fresh breakout impulse)")
+            return phase
+            
+        elif max_volume > 0 and volume_range < 0.1 * max_volume:
+            phase = "pre-pump"
+            print(f"[PHASE DETECTED] {symbol}: {phase} (accumulation phase)")
+            return phase
+            
+        else:
+            # Brak jednoznacznego rozpoznania - NIE MA FALLBACK!
+            print(f"[PHASE UNDETECTED] {symbol}: No clear phase pattern - returning unknown")
+            print(f"[PHASE DEBUG] {symbol}: Criteria not met - price_slope={price_slope:.6f}, volatility={volatility_ratio:.6f}, vol_ratio={volume_range/max_volume if max_volume > 0 else 0:.3f}")
+            return "unknown"
+            
+    except Exception as e:
+        print(f"[PHASE DETECTION ERROR] {symbol}: {e}")
         return "unknown"
 
 if __name__ == "__main__":
