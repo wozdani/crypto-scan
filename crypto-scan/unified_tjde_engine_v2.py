@@ -640,6 +640,35 @@ def analyze_symbol_with_unified_tjde_v2(symbol: str, market_data: Dict, candles_
         dict: Complete TJDE v2 analysis result with enhanced decisions
     """
     try:
+        # ETAP 1 - SANITY CHECK DANYCH RYNKOWYCH
+        print(f"[TJDE v2 STAGE 1] {symbol}: Starting market data validation")
+        
+        # Wymagane dane
+        ticker_data = market_data.get("ticker_data")
+        orderbook = market_data.get("orderbook")
+        volume_24h = market_data.get("volume_24h", 0.0)
+        
+        # Sanity check – brak świec = brak scoringu
+        if not candles_15m or not candles_5m or not orderbook or not ticker_data:
+            missing_data = []
+            if not candles_15m: missing_data.append("candles_15m")
+            if not candles_5m: missing_data.append("candles_5m") 
+            if not orderbook: missing_data.append("orderbook")
+            if not ticker_data: missing_data.append("ticker_data")
+            
+            print(f"[TJDE BLOCK] Missing market data for {symbol}: {', '.join(missing_data)} – skipping scoring.")
+            return {"final_score": 0.0, "decision": "skip", "error": f"Missing data: {', '.join(missing_data)}"}
+
+        if len(candles_15m) < 30 or len(candles_5m) < 30:
+            print(f"[TJDE BLOCK] Insufficient candle history for {symbol}: 15M={len(candles_15m)}, 5M={len(candles_5m)} (need 30+ each)")
+            return {"final_score": 0.0, "decision": "skip", "error": f"Insufficient candles: 15M={len(candles_15m)}, 5M={len(candles_5m)}"}
+
+        if volume_24h == 0.0:
+            print(f"[TJDE BLOCK] No volume data for {symbol}: volume_24h={volume_24h}")
+            return {"final_score": 0.0, "decision": "skip", "error": "Zero volume data"}
+            
+        print(f"[TJDE v2 STAGE 1] {symbol}: ✅ Market data validation passed - 15M={len(candles_15m)}, 5M={len(candles_5m)}, Volume=${volume_24h:,.0f}")
+        
         # Use v2 market phase detection directly
         market_phase = detect_market_phase_v2(symbol, market_data, candles_15m, candles_5m)
         
