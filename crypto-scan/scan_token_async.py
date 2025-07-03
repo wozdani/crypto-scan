@@ -314,8 +314,8 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 print(f"[DEBUG] {symbol} → price: {price} ({type(price)})")
                 print(f"[DEBUG] {symbol} → volume_24h: {volume_24h} ({type(volume_24h)})")
                 
-                # ENHANCED: Import advanced feature extraction instead of using primitive fallback
-                from utils.feature_extractor import extract_all_features_for_token
+                # ENHANCED: Advanced feature extraction is now handled in TJDE v2 Stage 4
+                # Features are extracted directly in unified_tjde_engine_v2.py
                 
                 def extract_trend_features(candles_15m, candles_5m, price, volume_24h):
                     """Advanced feature extraction using professional technical analysis"""

@@ -1,318 +1,522 @@
 #!/usr/bin/env python3
 """
-Feature Extractor for New Adaptive Trader Decision Engine
+TJDE v2 Stage 4 - Feature Extraction Engine
+Extracts trading features from market data like a professional trader
 
-Zbiera wszystkie cechy potrzebne dla simulate_trader_decision_advanced()
-zastępując stary compute_trader_score() system.
+Features extracted:
+- trend_strength: Price slope/EMA, directional stability
+- pullback_quality: Depth and regularity of pullbacks in trend
+- volume_behavior_score: Whether volume supports price direction
+- psych_score: Hidden pressure interpretation (wicks, false signals)
+- support_reaction: Price reaction at local support/resistance levels
 """
 
 import numpy as np
-from typing import List, Dict, Any
+from typing import Dict, List, Optional
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
-def extract_all_features_for_token(symbol: str, candles: List[List] = None, market_data: Dict = None) -> Dict[str, Any]:
+def extract_features(market_data: Dict) -> Optional[Dict]:
     """
-    Centralny ekstractor cech dla nowego systemu decyzyjnego
+    Extract trading features from market data
     
     Args:
-        symbol: Trading symbol
-        candles: Lista OHLCV candles
-        market_data: Optional market data
+        market_data: Dictionary containing candles_15m, orderbook, price_usd, volume_24h
         
     Returns:
-        dict: Wszystkie cechy potrzebne dla simulate_trader_decision_advanced()
+        Dictionary with extracted features or None if extraction fails
     """
     try:
-        from trader_ai_engine import analyze_market_structure, analyze_candle_behavior, interpret_orderbook
-        
-        # === BASIC MARKET ANALYSIS ===
-        if candles and len(candles) >= 10:
-            market_context = analyze_market_structure(candles, symbol)
-            candle_behavior = analyze_candle_behavior(candles, symbol)
-            orderbook_info = interpret_orderbook(symbol, market_data)
-        else:
-            # Fallback for insufficient data
-            market_context = "unknown"
-            candle_behavior = {"shows_buy_pressure": False, "pattern": "neutral"}
-            orderbook_info = {"bids_layered": False, "imbalance": 0.0}
-        
-        # === FEATURE EXTRACTION ===
-        features = {
-            # Core Features
-            "trend_strength": _calculate_trend_strength(candles) if candles else 0.0,
-            "pullback_quality": _analyze_pullback_quality(candles, market_context) if candles else 0.0,
-            "support_reaction": _measure_support_reaction(candles, orderbook_info) if candles else 0.0,
-            "liquidity_pattern_score": _score_liquidity_patterns(candles, market_data) if candles else 0.0,
-            "psych_score": _detect_market_psychology(candles, candle_behavior) if candles else 0.5,
-            "htf_supportive_score": _evaluate_htf_support(candles, symbol) if candles else 0.0,
-            "market_phase_modifier": _get_phase_modifier(candles, market_context) if candles else 0.0,
+        # Validate required data
+        if not market_data or "candles_15m" not in market_data:
+            logger.warning("[FEATURE ERROR] Missing candles_15m in market data")
+            return None
             
-            # Context Features
-            "market_phase": _detect_market_phase(candles, market_context) if candles else "unknown",
-            "price_action_pattern": _identify_price_action_pattern(candles, candle_behavior) if candles else "none",
-            "volume_behavior": _analyze_volume_behavior(candles) if candles else "neutral",
-            "htf_trend_match": _check_htf_trend_match(candles, market_context) if candles else False,
+        candles = market_data["candles_15m"]
+        if len(candles) < 20:
+            logger.warning(f"[FEATURE ERROR] Insufficient candles: {len(candles)} < 20")
+            return None
             
-            # Meta
-            "symbol": symbol,
-            "candle_count": len(candles) if candles else 0,
-            "data_quality": "good" if candles and len(candles) >= 20 else "limited"
-        }
+        # Extract basic price data from last 20 candles
+        recent_candles = candles[-20:]
         
-        print(f"[FEATURE EXTRACTOR] {symbol}: Extracted {len(features)} features, phase={features['market_phase']}")
+        highs = []
+        lows = []
+        closes = []
+        volumes = []
         
+        for candle in recent_candles:
+            if isinstance(candle, dict):
+                highs.append(float(candle.get("high", 0)))
+                lows.append(float(candle.get("low", 0)))
+                closes.append(float(candle.get("close", 0)))
+                volumes.append(float(candle.get("volume", 0)))
+            elif isinstance(candle, (list, tuple)) and len(candle) >= 6:
+                # [timestamp, open, high, low, close, volume]
+                highs.append(float(candle[2]))
+                lows.append(float(candle[3]))
+                closes.append(float(candle[4]))
+                volumes.append(float(candle[5]))
+            else:
+                logger.warning(f"[FEATURE ERROR] Invalid candle format: {candle}")
+                return None
+        
+        # Validate extracted data
+        if len(closes) < 20 or sum(volumes) == 0:
+            logger.warning("[FEATURE ERROR] Invalid extracted data")
+            return None
+            
+        # Extract features
+        features = {}
+        
+        # 1. Trend Strength - Price slope and directional stability
+        features["trend_strength"] = calculate_trend_strength(closes)
+        
+        # 2. Pullback Quality - Depth and regularity of corrections
+        features["pullback_quality"] = calculate_pullback_quality(closes, highs, lows)
+        
+        # 3. Volume Behavior - Volume supporting price direction
+        features["volume_behavior_score"] = calculate_volume_behavior(closes, volumes)
+        
+        # 4. Psychology Score - Hidden pressure from wicks and false signals
+        features["psych_score"] = calculate_psych_score(recent_candles)
+        
+        # 5. Support Reaction - Price reaction at key levels
+        features["support_reaction"] = calculate_support_reaction(closes, volumes, highs, lows)
+        
+        # Add additional features for comprehensive analysis
+        features["liquidity_pattern_score"] = calculate_liquidity_pattern(market_data)
+        features["htf_supportive_score"] = calculate_htf_support(closes)
+        
+        logger.info(f"[FEATURE EXTRACT] Successfully extracted {len(features)} features")
         return features
         
     except Exception as e:
-        print(f"❌ [FEATURE EXTRACTOR ERROR] {symbol}: {e}")
-        return _get_fallback_features(symbol)
+        logger.error(f"[FEATURE ERROR] Feature extraction failed: {e}")
+        return None
 
 
-def _calculate_trend_strength(candles: List[List]) -> float:
-    """Oblicz siłę trendu z BOOSTED parameters dla alert generation"""
-    if not candles or len(candles) < 10:
-        return 0.0
+def calculate_trend_strength(closes: List[float]) -> float:
+    """
+    Calculate trend strength based on price slope and EMA alignment
     
+    Args:
+        closes: List of closing prices
+        
+    Returns:
+        Trend strength score (0.0 - 1.0)
+    """
     try:
-        closes = [float(c[4]) for c in candles[-20:]]
-        volumes = [float(c[5]) for c in candles[-20:]] if len(candles[0]) > 5 else [1.0] * len(closes)
+        if len(closes) < 10:
+            return 0.0
+            
+        # Calculate price slope (linear regression)
+        x = np.arange(len(closes))
+        coefficients = np.polyfit(x, closes, 1)
+        slope = coefficients[0]
         
-        # Calculate enhanced metrics for boosted scoring
-        price_change = abs(closes[-1] - closes[0]) / closes[0] if closes[0] > 0 else 0
-        volatility = (max(closes) - min(closes)) / min(closes) if min(closes) > 0 else 0
+        # Normalize slope by price range
+        price_range = max(closes) - min(closes)
+        if price_range == 0:
+            return 0.0
+            
+        normalized_slope = abs(slope) / (price_range / len(closes))
         
-        # BOOSTED CALCULATION - matching enhanced fallback parameters
-        boosted_strength = min(0.98, max(0.0, 0.4 + price_change * 35 + volatility * 0.8))
-        return boosted_strength
+        # Calculate EMA alignment (short vs long EMA)
+        ema_short = calculate_ema(closes, 5)
+        ema_long = calculate_ema(closes, 10)
         
-    except Exception:
-        return 0.0
-
-
-def _analyze_pullback_quality(candles: List[List], market_context: str) -> float:
-    """Analizuj jakość korekty z BOOSTED parameters"""
-    if not candles or len(candles) < 10:
-        return 0.0
-    
-    try:
-        closes = [float(c[4]) for c in candles[-20:]]
-        
-        # Calculate enhanced metrics for boosted scoring
-        price_change = abs(closes[-1] - closes[0]) / closes[0] if closes[0] > 0 else 0
-        volatility = (max(closes) - min(closes)) / min(closes) if min(closes) > 0 else 0
-        
-        # BOOSTED CALCULATION - matching enhanced fallback parameters
-        boosted_quality = min(0.95, max(0.0, 0.3 + price_change * 25 + volatility * 0.5))
-        return boosted_quality
-        
-    except Exception:
-        return 0.0
-
-
-def _measure_support_reaction(candles: List[List], orderbook_info: Dict) -> float:
-    """Zmierz siłę reakcji na poziomie wsparcia z BOOSTED parameters"""
-    if not candles or len(candles) < 5:
-        return 0.0
-    
-    try:
-        closes = [float(c[4]) for c in candles[-20:]]
-        volumes = [float(c[5]) for c in candles[-20:]] if len(candles[0]) > 5 else [1.0] * len(closes)
-        
-        # Calculate volume metrics for boosted scoring  
-        avg_volume = sum(volumes) / len(volumes) if volumes else 1
-        volume_ratio = volumes[-1] / avg_volume if avg_volume > 0 else 1.0
-        volatility = (max(closes) - min(closes)) / min(closes) if min(closes) > 0 else 0
-        
-        # BOOSTED CALCULATION - matching enhanced fallback parameters
-        boosted_reaction = min(0.90, max(0.0, 0.2 + volume_ratio * 0.8 + volatility * 0.3))
-        return boosted_reaction
-        
-    except Exception:
-        return 0.0
-
-
-def _score_liquidity_patterns(candles: List[List], market_data: Dict) -> float:
-    """Ocena wzorców płynności z BOOSTED parameters"""
-    if not candles:
-        return 0.0
-    
-    try:
-        closes = [float(c[4]) for c in candles[-20:]]
-        volumes = [float(c[5]) for c in candles[-20:]] if len(candles[0]) > 5 else [1.0] * len(closes)
-        
-        # Calculate enhanced metrics for boosted scoring
-        price_change = abs(closes[-1] - closes[0]) / closes[0] if closes[0] > 0 else 0
-        avg_volume = sum(volumes) / len(volumes) if volumes else 1
-        volume_ratio = volumes[-1] / avg_volume if avg_volume > 0 else 1.0
-        
-        # BOOSTED CALCULATION - matching enhanced fallback parameters
-        boosted_liquidity = min(0.85, max(0.0, 0.1 + volume_ratio * 0.7 + price_change * 12))
-        return boosted_liquidity
-        
-    except Exception:
-        return 0.0
-
-
-def _detect_market_psychology(candles: List[List], candle_behavior: Dict) -> float:
-    """Wykryj psychologię rynku z BOOSTED parameters"""
-    if not candles:
-        return 0.5
-    
-    try:
-        closes = [float(c[4]) for c in candles[-20:]]
-        
-        # Calculate enhanced metrics for boosted scoring
-        price_change = abs(closes[-1] - closes[0]) / closes[0] if closes[0] > 0 else 0
-        volatility = (max(closes) - min(closes)) / min(closes) if min(closes) > 0 else 0
-        
-        # BOOSTED CALCULATION - matching enhanced fallback parameters
-        boosted_psych = min(0.98, max(0.0, 0.4 + price_change * 18 + volatility * 0.4))
-        return boosted_psych
-        
-    except Exception:
-        return 0.5
-
-
-def _evaluate_htf_support(candles: List[List], symbol: str) -> float:
-    """Oceń wsparcie z wyższych timeframe'ów z BOOSTED parameters"""
-    if not candles:
-        return 0.0
-    
-    try:
-        closes = [float(c[4]) for c in candles[-20:]]
-        
-        # Calculate enhanced metrics for boosted scoring
-        price_change = abs(closes[-1] - closes[0]) / closes[0] if closes[0] > 0 else 0
-        volatility = (max(closes) - min(closes)) / min(closes) if min(closes) > 0 else 0
-        
-        # BOOSTED CALCULATION - matching enhanced fallback parameters
-        boosted_htf = min(0.95, max(0.0, 0.2 + price_change * 30 + volatility * 0.6))
-        return boosted_htf
-        
-    except Exception:
-        return 0.0
-
-
-def _get_phase_modifier(candles: List[List], market_context: str) -> float:
-    """Oblicz modyfikator fazy rynku"""
-    if not candles:
-        return 0.0
-    
-    # Simple phase scoring based on market context
-    phase_scores = {
-        "impulse": 0.8,
-        "pullback": 0.6,
-        "range": 0.3,
-        "breakout": 0.9,
-        "distribution": 0.1,
-        "unknown": 0.5
-    }
-    
-    return phase_scores.get(market_context, 0.5)
-
-
-def _detect_market_phase(candles: List[List], market_context: str) -> str:
-    """Wykryj fazę rynku"""
-    if not candles or len(candles) < 10:
-        return "unknown"
-    
-    # Map market context to phases
-    context_to_phase = {
-        "impulse": "breakout-continuation",
-        "pullback": "range-accumulation", 
-        "range": "range-accumulation",
-        "breakout": "breakout-continuation",
-        "distribution": "exhaustion-pullback"
-    }
-    
-    return context_to_phase.get(market_context, "unknown")
-
-
-def _identify_price_action_pattern(candles: List[List], candle_behavior: Dict) -> str:
-    """Identyfikuj wzorzec price action"""
-    if not candles:
-        return "none"
-    
-    # Simple pattern detection
-    if candle_behavior.get("shows_buy_pressure", False):
-        if candle_behavior.get("pattern") == "bullish":
-            return "impulse"
+        if ema_long == 0:
+            ema_alignment = 0.0
         else:
-            return "continuation"
-    
-    return "none"
+            ema_alignment = abs(ema_short - ema_long) / ema_long
+        
+        # Combine slope and EMA alignment
+        trend_strength = min(1.0, (normalized_slope * 0.6 + ema_alignment * 0.4) * 2)
+        
+        return round(trend_strength, 3)
+        
+    except Exception as e:
+        logger.warning(f"[TREND CALC ERROR] {e}")
+        return 0.0
 
 
-def _analyze_volume_behavior(candles: List[List]) -> str:
-    """Analizuj zachowanie wolumenu"""
-    if not candles or len(candles) < 5:
-        return "neutral"
+def calculate_pullback_quality(closes: List[float], highs: List[float], lows: List[float]) -> float:
+    """
+    Calculate pullback quality - depth and regularity of corrections in trend
     
+    Args:
+        closes: List of closing prices
+        highs: List of high prices
+        lows: List of low prices
+        
+    Returns:
+        Pullback quality score (0.0 - 1.0)
+    """
     try:
-        volumes = [float(c[5]) for c in candles[-5:] if len(c) > 5]
-        if len(volumes) < 2:
-            return "neutral"
+        if len(closes) < 10:
+            return 0.0
+            
+        # Identify trend direction
+        trend_up = closes[-1] > closes[0]
         
-        # Compare recent vs average
-        recent_vol = volumes[-1]
-        avg_vol = sum(volumes[:-1]) / len(volumes[:-1])
+        if trend_up:
+            # For uptrend, measure pullbacks from highs
+            peak_price = max(highs)
+            current_price = closes[-1]
+            pullback_depth = (peak_price - current_price) / peak_price if peak_price > 0 else 0
+        else:
+            # For downtrend, measure bounces from lows
+            trough_price = min(lows)
+            current_price = closes[-1]
+            pullback_depth = (current_price - trough_price) / current_price if current_price > 0 else 0
         
-        if recent_vol > avg_vol * 1.5:
-            return "supporting"
-        elif recent_vol < avg_vol * 0.7:
-            return "declining"
+        # Healthy pullback is 30-70% of recent move
+        if 0.3 <= pullback_depth <= 0.7:
+            quality_score = 1.0 - abs(pullback_depth - 0.5) * 2  # Peak quality at 50% pullback
+        elif pullback_depth < 0.3:
+            quality_score = pullback_depth / 0.3  # Shallow pullback
+        else:
+            quality_score = max(0.0, 1.0 - (pullback_depth - 0.7) / 0.3)  # Deep pullback
         
-        return "neutral"
+        return round(quality_score, 3)
         
-    except Exception:
-        return "neutral"
+    except Exception as e:
+        logger.warning(f"[PULLBACK CALC ERROR] {e}")
+        return 0.0
 
 
-def _check_htf_trend_match(candles: List[List], market_context: str) -> bool:
-    """Sprawdź zgodność z trendem HTF"""
-    if not candles:
-        return False
+def calculate_volume_behavior(closes: List[float], volumes: List[float]) -> float:
+    """
+    Calculate volume behavior - whether volume supports price direction
     
-    # Simple HTF check - if context suggests uptrend
-    uptrend_contexts = ["impulse", "breakout", "pullback"]
-    return market_context in uptrend_contexts
+    Args:
+        closes: List of closing prices
+        volumes: List of volumes
+        
+    Returns:
+        Volume behavior score (0.0 - 1.0)
+    """
+    try:
+        if len(closes) < 5 or len(volumes) < 5:
+            return 0.0
+            
+        # Calculate recent price change
+        price_change = closes[-1] - closes[-5]
+        
+        # Calculate volume trend
+        recent_volume = np.mean(volumes[-3:])
+        older_volume = np.mean(volumes[-10:-3]) if len(volumes) >= 10 else np.mean(volumes[:-3])
+        
+        if older_volume == 0:
+            return 0.5
+            
+        volume_ratio = recent_volume / older_volume
+        
+        # Volume should increase with strong price moves
+        if abs(price_change) > 0:
+            # Strong price move with volume increase = good
+            if volume_ratio > 1.2:
+                volume_score = min(1.0, volume_ratio / 2.0)
+            # Weak volume on price move = concerning
+            elif volume_ratio < 0.8:
+                volume_score = max(0.3, volume_ratio)
+            else:
+                volume_score = 0.6
+        else:
+            # Sideways price with high volume = accumulation/distribution
+            volume_score = min(0.8, volume_ratio / 1.5)
+        
+        return round(volume_score, 3)
+        
+    except Exception as e:
+        logger.warning(f"[VOLUME CALC ERROR] {e}")
+        return 0.5
 
 
-def _get_fallback_features(symbol: str) -> Dict[str, Any]:
-    """Fallback features when extraction fails"""
+def calculate_psych_score(candles: List) -> float:
+    """
+    Calculate psychology score - hidden pressure from wicks and false signals
+    
+    Args:
+        candles: List of candle data
+        
+    Returns:
+        Psychology score (0.0 - 1.0)
+    """
+    try:
+        if len(candles) < 5:
+            return 0.0
+            
+        psych_signals = []
+        
+        for candle in candles[-5:]:
+            if isinstance(candle, dict):
+                high = float(candle.get("high", 0))
+                low = float(candle.get("low", 0))
+                open_price = float(candle.get("open", 0))
+                close = float(candle.get("close", 0))
+            elif isinstance(candle, (list, tuple)) and len(candle) >= 6:
+                high = float(candle[2])
+                low = float(candle[3])
+                open_price = float(candle[1])
+                close = float(candle[4])
+            else:
+                continue
+                
+            if high == low:  # Avoid division by zero
+                continue
+                
+            # Calculate wick sizes
+            body_size = abs(close - open_price)
+            upper_wick = high - max(close, open_price)
+            lower_wick = min(close, open_price) - low
+            total_range = high - low
+            
+            # Psychology indicators
+            wick_dominance = (upper_wick + lower_wick) / total_range
+            
+            # Doji or hammer patterns (small body, large wicks)
+            if body_size / total_range < 0.3 and wick_dominance > 0.5:
+                psych_signals.append(0.8)  # Indecision/reversal signal
+            # Strong directional move with small wicks
+            elif body_size / total_range > 0.7 and wick_dominance < 0.2:
+                psych_signals.append(0.9)  # Strong conviction
+            # Normal price action
+            else:
+                psych_signals.append(0.5)
+        
+        if not psych_signals:
+            return 0.0
+            
+        psych_score = np.mean(psych_signals)
+        return round(psych_score, 3)
+        
+    except Exception as e:
+        logger.warning(f"[PSYCH CALC ERROR] {e}")
+        return 0.0
+
+
+def calculate_support_reaction(closes: List[float], volumes: List[float], 
+                             highs: List[float], lows: List[float]) -> float:
+    """
+    Calculate support reaction - price reaction at key levels
+    
+    Args:
+        closes: List of closing prices
+        volumes: List of volumes
+        highs: List of high prices
+        lows: List of low prices
+        
+    Returns:
+        Support reaction score (0.0 - 1.0)
+    """
+    try:
+        if len(closes) < 10:
+            return 0.0
+            
+        # Identify recent support/resistance levels
+        recent_lows = sorted(lows[-10:])
+        recent_highs = sorted(highs[-10:], reverse=True)
+        
+        current_price = closes[-1]
+        prev_price = closes[-2] if len(closes) >= 2 else current_price
+        recent_volume = volumes[-1] if volumes else 0
+        avg_volume = np.mean(volumes[-5:]) if len(volumes) >= 5 else recent_volume
+        
+        reaction_score = 0.0
+        
+        # Check reaction from support levels
+        for support_level in recent_lows[:3]:  # Check top 3 support levels
+            if support_level > 0:
+                distance_to_support = abs(current_price - support_level) / support_level
+                
+                # Price near support (within 2%)
+                if distance_to_support < 0.02:
+                    # Strong bounce with volume
+                    if current_price > prev_price and recent_volume > avg_volume * 1.2:
+                        reaction_score = max(reaction_score, 0.9)
+                    # Weak bounce
+                    elif current_price > prev_price:
+                        reaction_score = max(reaction_score, 0.6)
+                    # Breaking support
+                    elif current_price < support_level:
+                        reaction_score = max(reaction_score, 0.2)
+        
+        # Check reaction from resistance levels
+        for resistance_level in recent_highs[:3]:  # Check top 3 resistance levels
+            if resistance_level > 0:
+                distance_to_resistance = abs(current_price - resistance_level) / resistance_level
+                
+                # Price near resistance (within 2%)
+                if distance_to_resistance < 0.02:
+                    # Strong breakout with volume
+                    if current_price > resistance_level and recent_volume > avg_volume * 1.2:
+                        reaction_score = max(reaction_score, 0.95)
+                    # Rejection at resistance
+                    elif current_price < prev_price:
+                        reaction_score = max(reaction_score, 0.4)
+        
+        return round(reaction_score, 3)
+        
+    except Exception as e:
+        logger.warning(f"[SUPPORT CALC ERROR] {e}")
+        return 0.0
+
+
+def calculate_liquidity_pattern(market_data: Dict) -> float:
+    """
+    Calculate liquidity pattern score from orderbook and volume
+    
+    Args:
+        market_data: Market data including orderbook
+        
+    Returns:
+        Liquidity pattern score (0.0 - 1.0)
+    """
+    try:
+        # Basic liquidity analysis from volume
+        if "volume_24h" in market_data:
+            volume_24h = float(market_data["volume_24h"])
+            # Higher volume generally indicates better liquidity
+            # Normalize to 0-1 range (assuming 1M+ is good liquidity)
+            liquidity_score = min(1.0, volume_24h / 1000000)
+            return round(liquidity_score, 3)
+        
+        return 0.5  # Default moderate liquidity
+        
+    except Exception as e:
+        logger.warning(f"[LIQUIDITY CALC ERROR] {e}")
+        return 0.5
+
+
+def calculate_htf_support(closes: List[float]) -> float:
+    """
+    Calculate higher timeframe support score
+    
+    Args:
+        closes: List of closing prices
+        
+    Returns:
+        HTF support score (0.0 - 1.0)
+    """
+    try:
+        if len(closes) < 20:
+            return 0.0
+            
+        # Calculate longer-term trend (20-period)
+        long_term_slope = (closes[-1] - closes[0]) / len(closes)
+        short_term_slope = (closes[-1] - closes[-5]) / 5 if len(closes) >= 5 else long_term_slope
+        
+        # HTF support when short-term aligns with long-term trend
+        if long_term_slope != 0:
+            alignment = 1.0 - abs(short_term_slope - long_term_slope) / abs(long_term_slope)
+            htf_score = max(0.0, min(1.0, alignment))
+        else:
+            htf_score = 0.5
+            
+        return round(htf_score, 3)
+        
+    except Exception as e:
+        logger.warning(f"[HTF CALC ERROR] {e}")
+        return 0.0
+
+
+def calculate_ema(prices: List[float], period: int) -> float:
+    """
+    Calculate Exponential Moving Average
+    
+    Args:
+        prices: List of prices
+        period: EMA period
+        
+    Returns:
+        EMA value
+    """
+    try:
+        if len(prices) < period:
+            return np.mean(prices) if prices else 0.0
+            
+        multiplier = 2.0 / (period + 1)
+        ema = prices[0]
+        
+        for price in prices[1:]:
+            ema = (price * multiplier) + (ema * (1 - multiplier))
+            
+        return ema
+        
+    except Exception as e:
+        logger.warning(f"[EMA CALC ERROR] {e}")
+        return 0.0
+
+
+def validate_features(features: Dict) -> bool:
+    """
+    Validate extracted features
+    
+    Args:
+        features: Dictionary of features
+        
+    Returns:
+        True if features are valid
+    """
+    required_features = [
+        "trend_strength", "pullback_quality", "volume_behavior_score",
+        "psych_score", "support_reaction", "liquidity_pattern_score", "htf_supportive_score"
+    ]
+    
+    for feature in required_features:
+        if feature not in features:
+            logger.warning(f"[FEATURE VALIDATION] Missing feature: {feature}")
+            return False
+            
+        value = features[feature]
+        if not isinstance(value, (int, float)) or value < 0 or value > 1:
+            logger.warning(f"[FEATURE VALIDATION] Invalid feature value {feature}: {value}")
+            return False
+    
+    return True
+
+
+def get_feature_descriptions() -> Dict[str, str]:
+    """
+    Get descriptions of all extracted features
+    
+    Returns:
+        Dictionary mapping feature names to descriptions
+    """
     return {
-        "trend_strength": 0.0,
-        "pullback_quality": 0.0,
-        "support_reaction": 0.0,
-        "liquidity_pattern_score": 0.0,
-        "psych_score": 0.5,
-        "htf_supportive_score": 0.0,
-        "market_phase_modifier": 0.0,
-        "market_phase": "unknown",
-        "price_action_pattern": "none",
-        "volume_behavior": "neutral",
-        "htf_trend_match": False,
-        "symbol": symbol,
-        "candle_count": 0,
-        "data_quality": "error"
+        "trend_strength": "Price slope and EMA alignment indicating directional momentum",
+        "pullback_quality": "Depth and regularity of corrections within the trend",
+        "volume_behavior_score": "Whether volume pattern supports price direction",
+        "psych_score": "Hidden market pressure from wicks and false signals",
+        "support_reaction": "Price reaction quality at key support/resistance levels",
+        "liquidity_pattern_score": "Orderbook depth and liquidity availability",
+        "htf_supportive_score": "Higher timeframe trend alignment and support"
     }
 
 
 if __name__ == "__main__":
     # Test feature extraction
-    print("🧪 Testing Feature Extractor...")
+    test_data = {
+        "candles_15m": [
+            [1625097600000, 1.0, 1.1, 0.9, 1.05, 1000],
+            [1625098500000, 1.05, 1.15, 1.0, 1.1, 1200],
+            [1625099400000, 1.1, 1.2, 1.05, 1.15, 1100],
+            # Add more test candles...
+        ] + [[1625097600000 + i*900000, 1.0+i*0.01, 1.1+i*0.01, 0.9+i*0.01, 1.05+i*0.01, 1000+i*10] for i in range(3, 25)],
+        "volume_24h": 5000000,
+        "price_usd": 1.25
+    }
     
-    # Mock test data
-    test_candles = [
-        [1640995200, 100.0, 102.0, 99.0, 101.0, 1000],
-        [1640995260, 101.0, 103.0, 100.0, 102.0, 1200],
-        [1640995320, 102.0, 104.0, 101.0, 103.0, 1100]
-    ]
-    
-    features = extract_all_features_for_token("TESTUSDT", test_candles)
-    
-    print(f"📊 Extracted features:")
-    for key, value in features.items():
-        print(f"  {key}: {value}")
-    
-    print(f"✅ Feature extraction test complete")
+    features = extract_features(test_data)
+    if features:
+        print("✅ Feature extraction test successful:")
+        for feature, value in features.items():
+            print(f"  {feature}: {value}")
+    else:
+        print("❌ Feature extraction test failed")

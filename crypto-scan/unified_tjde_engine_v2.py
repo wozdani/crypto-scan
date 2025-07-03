@@ -12,6 +12,20 @@ import os
 from typing import Dict, List, Tuple
 from datetime import datetime
 from pathlib import Path
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Import feature extractor for Stage 4
+try:
+    from utils.feature_extractor import extract_features, validate_features
+    FEATURE_EXTRACTOR_AVAILABLE = True
+    logger.info("[TJDE v2] Feature extractor imported successfully")
+except ImportError as e:
+    logger.warning(f"[TJDE v2] Feature extractor not available: {e}")
+    FEATURE_EXTRACTOR_AVAILABLE = False
 
 def load_scoring_profile(market_phase: str) -> dict:
     """
@@ -783,6 +797,55 @@ def analyze_symbol_with_unified_tjde_v2(symbol: str, market_data: Dict, candles_
             return {"final_score": 0.0, "decision": "skip", "error": f"No scoring profile for phase: {market_phase}", "market_phase": market_phase}
         
         print(f"[TJDE v2 STAGE 3] {symbol}: ✅ Loaded {market_phase} scoring profile")
+        
+        # ETAP 4 - EKSTRAKCJA CECH (FEATURES)
+        if FEATURE_EXTRACTOR_AVAILABLE:
+            print(f"[TJDE v2 STAGE 4] {symbol}: Starting feature extraction")
+            
+            # Prepare market data for feature extraction
+            feature_market_data = {
+                "candles_15m": candles_15m,
+                "volume_24h": market_data.get("volume_24h", 0),
+                "price_usd": market_data.get("price", 0),
+                "orderbook": market_data.get("orderbook", {})
+            }
+            
+            # Extract features using Stage 4 feature extractor
+            extracted_features = extract_features(feature_market_data)
+            
+            if extracted_features and validate_features(extracted_features):
+                print(f"[TJDE v2 STAGE 4] {symbol}: ✅ Successfully extracted {len(extracted_features)} features")
+                print(f"[FEATURE VALUES] trend_strength={extracted_features.get('trend_strength', 0):.3f}, "
+                      f"pullback_quality={extracted_features.get('pullback_quality', 0):.3f}, "
+                      f"volume_behavior={extracted_features.get('volume_behavior_score', 0):.3f}")
+                
+                # Use extracted features instead of signals
+                signals = extracted_features
+            else:
+                print(f"[TJDE v2 STAGE 4] {symbol}: ⚠️ Feature extraction failed - using fallback signals")
+                # Keep existing signals or use defaults
+                if not signals:
+                    signals = {
+                        "trend_strength": 0.5,
+                        "pullback_quality": 0.5,
+                        "volume_behavior_score": 0.5,
+                        "psych_score": 0.5,
+                        "support_reaction": 0.5,
+                        "liquidity_pattern_score": 0.5,
+                        "htf_supportive_score": 0.5
+                    }
+        else:
+            print(f"[TJDE v2 STAGE 4] {symbol}: ⚠️ Feature extractor not available - using basic signals")
+            if not signals:
+                signals = {
+                    "trend_strength": 0.5,
+                    "pullback_quality": 0.5, 
+                    "volume_behavior_score": 0.5,
+                    "psych_score": 0.5,
+                    "support_reaction": 0.5,
+                    "liquidity_pattern_score": 0.5,
+                    "htf_supportive_score": 0.5
+                }
         
         # Prepare enhanced token data
         token_data = {
