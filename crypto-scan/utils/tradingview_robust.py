@@ -5,6 +5,7 @@ Enhanced reliability with timeout management and fallback strategies
 """
 
 import asyncio
+import json
 import os
 from datetime import datetime
 from typing import Optional, Dict, Any
@@ -195,6 +196,53 @@ class RobustTradingViewGenerator:
                     path=file_path,
                     full_page=False
                 )
+                
+                # 🔒 CRITICAL VALIDATION: Check for invalid symbol after screenshot
+                if os.path.exists(file_path):
+                    # Read page content to verify chart validity
+                    try:
+                        page_content = await self.page.content()
+                        if ("Invalid symbol" in page_content or 
+                            "Symbol not found" in page_content or
+                            "no data available" in page_content.lower() or
+                            "chart not available" in page_content.lower()):
+                            
+                            print(f"[CHART ERROR] Invalid symbol detected: {symbol} → {tv_symbol}")
+                            print(f"[CHART ERROR] Removing invalid chart and blocking further processing")
+                            
+                            # Remove invalid screenshot
+                            if os.path.exists(file_path):
+                                os.remove(file_path)
+                            
+                            # Save invalid symbol metadata for tracking
+                            invalid_metadata = {
+                                "symbol": symbol,
+                                "tv_symbol": tv_symbol,
+                                "exchange": exchange,
+                                "status": "invalid_symbol",
+                                "label": "invalid_symbol",
+                                "tjde_score": 0.0,
+                                "decision": "avoid",
+                                "error": "TradingView Invalid symbol error",
+                                "timestamp": datetime.now().isoformat(),
+                                "authentic_data": False,
+                                "blocked_from_training": True
+                            }
+                            
+                            # Save metadata to failed charts directory
+                            failed_dir = "training_data/failed_charts"
+                            os.makedirs(failed_dir, exist_ok=True)
+                            metadata_path = os.path.join(failed_dir, f"{symbol}_invalid_symbol_{datetime.now().strftime('%Y%m%d_%H%M')}.json")
+                            
+                            with open(metadata_path, 'w') as f:
+                                json.dump(invalid_metadata, f, indent=2)
+                            
+                            print(f"[INVALID SYMBOL] {symbol}: Blocked from TOP5 and CLIP training")
+                            return "INVALID_SYMBOL"  # Special return code for invalid symbols
+                            
+                    except Exception as content_check_error:
+                        print(f"[ROBUST TV WARNING] Content validation failed: {content_check_error}")
+                        # Continue with normal validation if content check fails
                 
                 # Verify screenshot quality
                 if os.path.exists(file_path):

@@ -98,6 +98,18 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### July 3, 2025 - INVALID SYMBOL CHART VALIDATION COMPLETE - Enhanced TradingView Error Detection ✅
+Successfully implemented comprehensive invalid symbol detection system preventing empty TradingView charts from contaminating Vision-AI training pipeline:
+- **Chart Content Validation**: Added intelligent TradingView page validation in `utils/tradingview_robust.py` checking for "Invalid symbol", "Symbol not found", "no data available", and "chart not available" messages before screenshot processing
+- **INVALID_SYMBOL Return Code**: System returns special "INVALID_SYMBOL" code instead of generating empty charts, enabling downstream blocking logic to prevent further processing
+- **Failed Charts Directory**: Invalid symbol metadata automatically saved to `training_data/failed_charts` with comprehensive tracking information (status: "invalid_symbol", blocked_from_training: true)
+- **TOP5 Blocking Integration**: Enhanced `scan_all_tokens_async.py` to detect INVALID_SYMBOL return code and immediately block tokens from TOP5 processing with proper marking (invalid_symbol: true, tjde_score: 0.0, decision: "avoid")
+- **TOP5 Selector Protection**: Updated `utils/top5_selector.py` filtering logic to exclude any tokens marked with invalid_symbol flag preventing contamination of training data selection
+- **Comprehensive Test Suite**: Created `test_invalid_symbol_blocking.py` achieving 4/4 test success validating invalid symbol detection, TOP5 filtering, metadata creation, and Safety Cap integration
+- **Production Problem Resolution**: Fixed critical issue where tokens like 10000WENUSDT and 1000000BABYDOGEUSDT were generating empty "Invalid symbol" charts that reached CLIP training pipeline
+- **Double Protection Layer**: System now provides both invalid symbol blocking (chart level) and Safety Cap protection (scoring level) ensuring comprehensive protection against false signals
+System completely eliminates invalid symbol charts from Vision-AI training pipeline while maintaining authentic TradingView chart generation for legitimate trading opportunities.
+
 ### July 2, 2025 - SAFETY CAP SYSTEM DEPLOYED - Invalid Setup Protection Complete ✅
 Successfully implemented critical Safety Cap mechanism preventing false high scores from tokens without authentic trading analysis:
 - **Invalid Setup Detection**: Added comprehensive detection for setup_label values ["setup_analysis", "unknown", "no_clear_pattern"] indicating lack of genuine trading opportunities

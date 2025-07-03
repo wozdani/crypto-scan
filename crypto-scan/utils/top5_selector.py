@@ -27,8 +27,12 @@ class TOP5TokenSelector:
         Returns:
             Top 5 results sorted by TJDE score
         """
-        # Filter valid results with TJDE scores
-        valid_results = [r for r in tjde_results if r.get('tjde_score', 0) > 0]
+        # Filter valid results with TJDE scores and exclude invalid symbols
+        valid_results = [
+            r for r in tjde_results 
+            if r.get('tjde_score', 0) > 0 
+            and not r.get('invalid_symbol', False)  # 🔒 CRITICAL: Block invalid symbols from TOP5
+        ]
         
         if not valid_results:
             print("[TOP5 SELECTOR] No valid TJDE results for training data")
