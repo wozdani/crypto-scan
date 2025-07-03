@@ -11,6 +11,8 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 from playwright.async_api import async_playwright, Browser, Page
 from .multi_exchange_resolver import get_multi_exchange_resolver
+from PIL import Image
+import pytesseract
 
 class RobustTradingViewGenerator:
     """Enhanced TradingView screenshot generator with robust error handling"""
@@ -19,6 +21,82 @@ class RobustTradingViewGenerator:
         self.playwright = None
         self.browser = None
         self.page = None
+    
+    def is_chart_valid(self, image_path: str) -> bool:
+        """
+        Validate chart using OCR to detect invalid symbols and error messages
+        
+        Args:
+            image_path: Path to the chart image
+            
+        Returns:
+            bool: True if chart is valid, False if contains error messages
+        """
+        try:
+            # Load and process image with OCR
+            image = Image.open(image_path)
+            extracted_text = pytesseract.image_to_string(image).lower()
+            
+            # Enhanced invalid symbol detection with OCR error tolerance
+            invalid_indicators = [
+                # Exact patterns
+                'invalid symbol',
+                'symbol not found',
+                'no data available',
+                'chart not available',
+                'symbol is invalid',
+                'data not available',
+                'no chart data',
+                'symbol does not exist',
+                
+                # OCR error tolerant patterns (common misreadings)
+                'invalid',  # Catches "imalidsymbol", "invalld" etc
+                'imalid',   # Common OCR error for "invalid"
+                'invaiid',
+                'invalld',
+                'symbol not',  # Partial "symbol not found"
+                'not found',
+                'symhol',   # OCR error for "symbol"
+                'symboi',
+                'symeol',
+                'no data',
+                'error loading',
+                'loading error'
+            ]
+            
+            # Count pattern matches for confidence scoring
+            pattern_count = 0
+            detected_patterns = []
+            
+            for indicator in invalid_indicators:
+                if indicator in extracted_text:
+                    pattern_count += 1
+                    detected_patterns.append(indicator)
+            
+            # High confidence detection: multiple patterns
+            if pattern_count >= 2:
+                print(f"[CHART FILTER] ❌ Invalid chart detected: {pattern_count} error patterns found: {detected_patterns}")
+                return False
+            
+            # Medium confidence: single strong indicator
+            strong_indicators = ['invalid', 'not found', 'no data', 'error']
+            for indicator in strong_indicators:
+                if indicator in extracted_text:
+                    print(f"[CHART FILTER] ❌ Invalid chart detected: Strong error indicator '{indicator}' found")
+                    return False
+            
+            # Additional check for very short text (likely error pages)
+            if len(extracted_text.strip()) < 10:
+                print(f"[CHART FILTER] ⚠️ Suspicious chart (too little text): {image_path}")
+                return False
+                
+            print(f"[CHART FILTER] ✅ Chart validation passed: {image_path}")
+            return True
+            
+        except Exception as e:
+            print(f"[CHART FILTER ERROR] Failed to validate chart {image_path}: {e}")
+            # If OCR fails, assume chart is valid to avoid false positives
+            return True
         
     async def __aenter__(self):
         """Initialize browser with enhanced reliability"""
@@ -197,9 +275,93 @@ class RobustTradingViewGenerator:
                     full_page=False
                 )
                 
-                # 🔒 CRITICAL VALIDATION: Check for invalid symbol after screenshot
+                # 🔒 ENHANCED VALIDATION: Multi-layer chart validation
                 if os.path.exists(file_path):
-                    # Read page content to verify chart validity
+                    # Step 1: Check file size (invalid symbols often create small/empty files)
+                    file_size = os.path.getsize(file_path)
+                    if file_size < 5000:  # Less than 5KB suggests error page
+                        print(f"[CHART ERROR] ❌ Suspicious file size detected: {file_size} bytes (expected >5KB)")
+                        print(f"[CHART ERROR] Small file likely indicates TradingView error page")
+                        
+                        # Remove the suspicious chart file
+                        try:
+                            os.remove(file_path)
+                        except Exception as remove_error:
+                            print(f"[CHART ERROR] Failed to remove small file: {remove_error}")
+                        
+                        # Save metadata for failed chart tracking
+                        failed_metadata = {
+                            "symbol": symbol,
+                            "exchange": exchange,
+                            "tv_symbol": tv_symbol,
+                            "timestamp": datetime.now().isoformat(),
+                            "status": "invalid_symbol_filesize",
+                            "error_type": "small_file_detected",
+                            "file_size_bytes": file_size,
+                            "blocked_from_training": True,
+                            "tjde_score": tjde_score,
+                            "decision": decision,
+                            "validation_method": "FILE_SIZE"
+                        }
+                        
+                        # Save to failed_charts directory
+                        os.makedirs("training_data/failed_charts", exist_ok=True)
+                        failed_path = f"training_data/failed_charts/{filename.replace('.png', '_metadata.json')}"
+                        
+                        try:
+                            with open(failed_path, 'w') as f:
+                                json.dump(failed_metadata, f, indent=2)
+                            print(f"[CHART ERROR] Failed chart metadata saved: {failed_path}")
+                        except Exception as metadata_error:
+                            print(f"[CHART ERROR] Failed to save metadata: {metadata_error}")
+                        
+                        # Return special code to signal invalid symbol
+                        return "INVALID_SYMBOL_OCR"
+                    
+                    # Step 2: OCR validation (if available)
+                    try:
+                        if not self.is_chart_valid(file_path):
+                            print(f"[CHART ERROR] ❌ Invalid chart detected via OCR: {symbol} → {tv_symbol}")
+                            print(f"[CHART ERROR] Removing corrupted chart file...")
+                            
+                            # Remove the invalid chart file
+                            try:
+                                os.remove(file_path)
+                            except Exception as remove_error:
+                                print(f"[CHART ERROR] Failed to remove invalid chart: {remove_error}")
+                            
+                            # Save metadata for failed chart tracking
+                            failed_metadata = {
+                                "symbol": symbol,
+                                "exchange": exchange,
+                                "tv_symbol": tv_symbol,
+                                "timestamp": datetime.now().isoformat(),
+                                "status": "invalid_symbol_ocr",
+                                "error_type": "invalid_symbol_detected",
+                                "blocked_from_training": True,
+                                "tjde_score": tjde_score,
+                                "decision": decision,
+                                "validation_method": "OCR"
+                            }
+                            
+                            # Save to failed_charts directory
+                            os.makedirs("training_data/failed_charts", exist_ok=True)
+                            failed_path = f"training_data/failed_charts/{filename.replace('.png', '_metadata.json')}"
+                            
+                            try:
+                                with open(failed_path, 'w') as f:
+                                    json.dump(failed_metadata, f, indent=2)
+                                print(f"[CHART ERROR] Failed chart metadata saved: {failed_path}")
+                            except Exception as metadata_error:
+                                print(f"[CHART ERROR] Failed to save metadata: {metadata_error}")
+                            
+                            # Return special code to signal invalid symbol
+                            return "INVALID_SYMBOL_OCR"
+                    except Exception as ocr_error:
+                        print(f"[CHART ERROR] ⚠️ OCR validation failed: {ocr_error} - proceeding without OCR check")
+                        # Don't fail if OCR has issues - file size check is primary protection
+                        
+                    # Additional page content validation as backup
                     try:
                         page_content = await self.page.content()
                         if ("Invalid symbol" in page_content or 
@@ -207,7 +369,7 @@ class RobustTradingViewGenerator:
                             "no data available" in page_content.lower() or
                             "chart not available" in page_content.lower()):
                             
-                            print(f"[CHART ERROR] Invalid symbol detected: {symbol} → {tv_symbol}")
+                            print(f"[CHART ERROR] Invalid symbol detected via page content: {symbol} → {tv_symbol}")
                             print(f"[CHART ERROR] Removing invalid chart and blocking further processing")
                             
                             # Remove invalid screenshot

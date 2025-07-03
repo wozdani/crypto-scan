@@ -392,9 +392,10 @@ async def generate_top_tjde_charts(results: List[Dict]):
                         decision=entry.get('decision', 'unknown')
                     )
                 
-                # 🔒 CRITICAL VALIDATION: Handle invalid symbol detection
-                if chart_path == "INVALID_SYMBOL":
-                    print(f"   🚨 [CHART ERROR] Invalid symbol detected: {symbol}")
+                # 🔒 CRITICAL VALIDATION: Handle invalid symbol detection (both pre and post OCR)
+                if chart_path in ["INVALID_SYMBOL", "INVALID_SYMBOL_OCR"]:
+                    validation_method = "page content" if chart_path == "INVALID_SYMBOL" else "OCR analysis"
+                    print(f"   🚨 [CHART ERROR] Invalid symbol detected via {validation_method}: {symbol}")
                     print(f"   🚫 [INVALID SYMBOL] {symbol}: BLOCKED from TOP5 and CLIP training")
                     print(f"   🔒 [SAFETY CAP] Removing {symbol} from TOP5 processing to prevent contamination")
                     
@@ -402,7 +403,8 @@ async def generate_top_tjde_charts(results: List[Dict]):
                     entry['invalid_symbol'] = True
                     entry['tjde_score'] = 0.0
                     entry['tjde_decision'] = 'avoid'
-                    entry['blocked_reason'] = 'TradingView Invalid symbol error'
+                    entry['blocked_reason'] = f'TradingView Invalid symbol detected via {validation_method}'
+                    entry['validation_method'] = validation_method
                     
                     # Do NOT try alternative exchanges for invalid symbols
                     # Invalid symbols should be completely blocked from TOP5 processing
