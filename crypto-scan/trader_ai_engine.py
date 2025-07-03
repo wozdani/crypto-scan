@@ -797,6 +797,33 @@ def compute_trader_score(features: Dict, symbol: str = None, gpt_info: Dict = No
                 reasoning.append(f"High CLIP confidence ({clip_confidence:.2f}) + trusted pattern → +0.05 extra boost")
                 print(f"[CLIP CONFIDENCE BOOST] {symbol}: CLIP {clip_confidence:.2f} → Score {original_score_with_gpt:.3f} + 0.05 = {final_score:.3f}")
         
+        # === MINIMUM SCORE GUARANTEE FOR STRONG TRENDS ===
+        # Prevent strong trends from being undervalued due to missing components
+        trend_strength_value = features.get('trend_strength', 0.0)
+        pullback_quality_value = features.get('pullback_quality', 0.0)
+        
+        # Extract price_slope from market data for trend validation
+        try:
+            candles = features.get('candles_15m', [])
+            if candles and len(candles) >= 10:
+                recent_closes = [float(c[4]) for c in candles[-10:]]
+                price_slope = abs((recent_closes[-1] - recent_closes[0]) / recent_closes[0])
+            else:
+                price_slope = 0.0
+        except:
+            price_slope = 0.0
+        
+        # Apply minimum score for strong trends (as per your analysis)
+        if (price_slope > 0.03 and trend_strength_value > 0.03) or (trend_strength_value > 0.9 and pullback_quality_value > 0.9):
+            minimum_score = 0.15
+            if final_score < minimum_score:
+                old_score = final_score
+                final_score = minimum_score
+                reasoning.append(f"Strong trend guarantee: price_slope={price_slope:.4f}, trend_strength={trend_strength_value:.3f} → minimum score {minimum_score}")
+                print(f"[STRONG TREND GUARANTEE] {symbol}: Strong trend detected → score {old_score:.3f} → {minimum_score} (minimum)")
+                if symbol:
+                    print(f"[TREND PROTECTION] {symbol}: price_slope={price_slope:.4f}, trend_strength={trend_strength_value:.3f}, pullback_quality={pullback_quality_value:.3f}")
+        
         # Cap final score at 1.0
         final_score = min(1.0, final_score)
         
