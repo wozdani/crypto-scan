@@ -135,11 +135,20 @@ class AsyncTokenScanner:
         return results
 
 async def async_scan_cycle():
-    """Main async scan cycle - replaces sequential scan_cycle()"""
+    """Main async scan cycle with unified scoring deduplication"""
     print(f"Starting async scan cycle at {datetime.now().strftime('%H:%M:%S')}")
     
     # Initialize error reporting for this scan session
     initialize_scan_session()
+    
+    # 🔒 DEDUPLICATION: Start new unified scoring cycle
+    try:
+        from utils.score_unification import start_unified_scan_cycle
+        cycle_id = start_unified_scan_cycle()
+        print(f"[SCORE UNIFY] Started unified scoring cycle: {cycle_id}")
+    except Exception as e:
+        print(f"[SCORE UNIFY ERROR] Failed to start unified cycle: {e}")
+        cycle_id = None
     
     # Prepare symbols and cache
     try:
@@ -293,14 +302,23 @@ async def generate_top_tjde_charts(results: List[Dict]):
         
         print(f"🎯 [TOP5 FILTER] Selected {len(top5_tokens)} tokens for training data generation")
         
-        # 🔥 CRITICAL FIX: UNIFIED CHART GENERATION - Only ONE chart per token
+        # 🔥 CRITICAL FIX: UNIFIED CHART GENERATION WITH DEDUPLICATION
         # Track which tokens already have charts to prevent duplication
         generated_charts = {}
+        already_processed = set()  # 🔒 DEDUPLICATION: Track processed symbols per cycle
         
         print(f"\n📊 UNIFIED CHART GENERATION FOR TOP 5 TJDE TOKENS:")
         
         for i, entry in enumerate(top5_tokens, 1):
             symbol = entry.get('symbol', 'UNKNOWN')
+            
+            # 🔒 DEDUPLICATION CHECK: Skip if symbol already processed this cycle
+            if symbol in already_processed:
+                print(f"{i}. {symbol}: ⚠️ SKIPPED - Already processed this cycle (preventing duplication)")
+                continue
+            
+            # Mark symbol as being processed
+            already_processed.add(symbol)
             tjde_score = entry.get('tjde_score', 0)
             tjde_decision = entry.get('tjde_decision', 'unknown')
             market_phase = entry.get('market_phase', 'unknown')

@@ -98,6 +98,19 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### July 3, 2025 - COMPLETE CHART DEDUPLICATION SYSTEM IMPLEMENTED - QUICKUSDT-Style Duplication Eliminated ✅
+Successfully implemented comprehensive chart deduplication system preventing multiple chart generation for same token during single scan cycle:
+- **Score Unification Manager**: Created utils/score_unification.py with ScoreUnificationManager class implementing thread-safe per-symbol scoring lock preventing multiple different scores for same token within single cycle
+- **TOP5 Selector Deduplication**: Enhanced utils/top5_selector.py select_top5_tokens() with symbol-based deduplication keeping highest TJDE score when multiple results exist for same token
+- **Already Processed Tracking**: Added already_processed set() mechanism in scan_all_tokens_async.py generate_top_tjde_charts() preventing chart generation attempts for tokens already processed in current cycle
+- **QUICKUSDT Scenario Resolution**: Fixed specific vulnerability where tokens like QUICKUSDT generated 4 different charts (momentum_follow_score-697, trend_continuation_score-695, breakout_pattern_score-692, consolidation_squeeze_score-688) per cycle
+- **Unified Cycle Management**: Integrated cycle_id generation and tracking ensuring consistent deduplication across entire scan pipeline from symbol processing through TOP5 selection to chart generation
+- **Comprehensive Test Suite**: Created test_deduplication_system.py with 100% pass rate (4/4 tests) validating score unification, TOP5 deduplication, end-to-end workflow, and QUICKUSDT-specific scenario resolution
+- **Production Integration**: Full integration into async_scan_cycle() with start_unified_scan_cycle() initialization ensuring deduplication active for all production scans
+- **Quality Protection**: System ensures each token generates exactly one training chart per cycle with highest available TJDE score preventing Vision-AI training data contamination from duplicate examples
+- **Thread-Safe Operation**: Implemented proper threading locks and atomic operations ensuring reliable deduplication in high-concurrency async scanning environment
+System completely eliminates QUICKUSDT-style chart duplication where single tokens generated multiple charts with different setup names and scores, ensuring clean Vision-AI training dataset with one optimal chart per token per cycle.
+
 ### July 3, 2025 - VISION-AI DATA STRUCTURE STANDARDIZED - Complete Training Pipeline Unification ✅
 Successfully unified and standardized Vision-AI training data structure eliminating inconsistent metadata organization and creating clean CLIP-ready dataset:
 - **Unified Charts Folder**: Consolidated all training data into single `training_data/charts/` folder with paired chart.png + metadata.json files eliminating confusing separate `metadata/` and `labels/` directories

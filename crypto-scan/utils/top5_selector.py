@@ -48,8 +48,25 @@ class TOP5TokenSelector:
                 incomplete_count = len(valid_results) - len(complete_data_results)
                 print(f"[TOP5 SELECTOR] ⚠️ Including {incomplete_count} tokens with partial data (insufficient complete tokens)")
         
-        # Sort by TJDE score descending and take TOP 5
-        top5 = sorted(valid_results, key=lambda x: x.get('tjde_score', 0), reverse=True)[:5]
+        # 🔒 DEDUPLICATION: Remove duplicate symbols before TOP 5 selection
+        unique_results = {}
+        for result in valid_results:
+            symbol = result.get('symbol')
+            if symbol not in unique_results:
+                unique_results[symbol] = result
+            else:
+                # Keep the result with higher TJDE score
+                existing_score = unique_results[symbol].get('tjde_score', 0)
+                current_score = result.get('tjde_score', 0)
+                if current_score > existing_score:
+                    print(f"[TOP5 DEDUPE] {symbol}: Replacing score {existing_score:.3f} with {current_score:.3f}")
+                    unique_results[symbol] = result
+                else:
+                    print(f"[TOP5 DEDUPE] {symbol}: Keeping score {existing_score:.3f}, discarding {current_score:.3f}")
+        
+        # Convert back to list and sort by TJDE score descending
+        unique_results_list = list(unique_results.values())
+        top5 = sorted(unique_results_list, key=lambda x: x.get('tjde_score', 0), reverse=True)[:5]
         
         # Update current selection
         self._current_top5 = {result['symbol'] for result in top5}
