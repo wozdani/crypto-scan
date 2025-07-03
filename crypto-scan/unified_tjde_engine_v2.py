@@ -13,6 +13,39 @@ from typing import Dict, List, Tuple
 from datetime import datetime
 from pathlib import Path
 
+def load_scoring_profile(market_phase: str) -> dict:
+    """
+    ETAP 3 - Ładowanie profilu scoringowego dla wykrytej fazy rynku
+    
+    Args:
+        market_phase: Detected market phase (trend-following, consolidation, breakout, pre-pump)
+        
+    Returns:
+        dict: Scoring profile with component weights or None if not found
+    """
+    profile_map = {
+        "trend-following": "tjde_trend_following_profile.json",
+        "consolidation": "tjde_consolidation_profile.json", 
+        "breakout": "tjde_breakout_profile.json",
+        "pre-pump": "tjde_pre_pump_profile.json"
+    }
+    
+    profile_file = profile_map.get(market_phase)
+    if not profile_file:
+        print(f"[PROFILE LOAD] No profile defined for phase: {market_phase}")
+        return None
+    
+    profile_path = os.path.join("data", "weights", profile_file)
+    try:
+        with open(profile_path, "r") as f:
+            profile = json.load(f)
+            print(f"[PROFILE LOAD] Loaded {market_phase} profile from {profile_file}")
+            return profile
+    except Exception as e:
+        print(f"[PROFILE ERROR] Failed to load profile {profile_file}: {e}")
+        return None
+
+
 class UnifiedTJDEEngineV2:
     """
     Enhanced Unified TJDE Engine v2
@@ -742,6 +775,14 @@ def analyze_symbol_with_unified_tjde_v2(symbol: str, market_data: Dict, candles_
         if market_phase == "unknown":
             print(f"[TJDE BLOCK] Market phase undetectable for {symbol} – skipping scoring")
             return {"final_score": 0.0, "decision": "skip", "error": "Market phase undetectable", "market_phase": "unknown"}
+        
+        # ETAP 3 - ŁADOWANIE PROFILU SCORINGOWEGO
+        scoring_profile = load_scoring_profile(market_phase)
+        if scoring_profile is None:
+            print(f"[TJDE BLOCK] Failed to load scoring profile for phase '{market_phase}' – skipping {symbol}")
+            return {"final_score": 0.0, "decision": "skip", "error": f"No scoring profile for phase: {market_phase}", "market_phase": market_phase}
+        
+        print(f"[TJDE v2 STAGE 3] {symbol}: ✅ Loaded {market_phase} scoring profile")
         
         # Prepare enhanced token data
         token_data = {
