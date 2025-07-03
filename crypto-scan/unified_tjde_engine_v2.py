@@ -824,8 +824,22 @@ def analyze_symbol_with_unified_tjde_v2(symbol: str, market_data: Dict, candles_
                 
                 # ETAP 5 - OBLICZENIE KOŃCOWEGO SCORINGU
                 print(f"[TJDE v2 STAGE 5] {symbol}: Computing weighted final score")
-                final_score = compute_final_score(scoring_profile, extracted_features)
-                print(f"[TJDE SCORE] Final computed score for {symbol}: {final_score}")
+                base_score = compute_final_score(scoring_profile, extracted_features)
+                print(f"[TJDE BASE SCORE] {symbol}: {base_score}")
+                
+                # ETAP 6 - MARKET PHASE MODIFIER (makro kontekst)
+                print(f"[TJDE v2 STAGE 6] {symbol}: Applying market phase modifier")
+                try:
+                    from utils.market_phase_modifier import analyze_market_context, apply_market_phase_modifier
+                    
+                    market_context = analyze_market_context(market_data, candles_15m, candles_5m)
+                    final_score, modifier = apply_market_phase_modifier(base_score, market_context)
+                    
+                    print(f"[TJDE MODIFIER] {symbol}: Market context modifier applied: {modifier:+.3f}")
+                except Exception as e:
+                    print(f"[TJDE MODIFIER ERROR] {symbol}: {e} - using base score")
+                    final_score = base_score
+                    modifier = 0.0
                 
                 # Enhanced decision making based on final score
                 decision = make_final_decision(final_score, market_phase, extracted_features)
@@ -837,7 +851,9 @@ def analyze_symbol_with_unified_tjde_v2(symbol: str, market_data: Dict, candles_
                     "market_phase": market_phase,
                     "features": extracted_features,
                     "scoring_profile": scoring_profile,
-                    "stage_completed": 5
+                    "base_score": base_score,
+                    "market_modifier": modifier,
+                    "stage_completed": 6
                 }
             else:
                 print(f"[TJDE v2 STAGE 4] {symbol}: ⚠️ Feature extraction failed - using fallback signals")
@@ -855,8 +871,22 @@ def analyze_symbol_with_unified_tjde_v2(symbol: str, market_data: Dict, candles_
                 
                 # ETAP 5 - OBLICZENIE KOŃCOWEGO SCORINGU z fallback signals
                 print(f"[TJDE v2 STAGE 5] {symbol}: Computing weighted final score (fallback mode)")
-                final_score = compute_final_score(scoring_profile, signals)
-                print(f"[TJDE SCORE] Final computed score for {symbol}: {final_score}")
+                base_score = compute_final_score(scoring_profile, signals)
+                print(f"[TJDE BASE SCORE] {symbol}: {base_score} (fallback)")
+                
+                # ETAP 6 - MARKET PHASE MODIFIER (makro kontekst)
+                print(f"[TJDE v2 STAGE 6] {symbol}: Applying market phase modifier (fallback)")
+                try:
+                    from utils.market_phase_modifier import analyze_market_context, apply_market_phase_modifier
+                    
+                    market_context = analyze_market_context(market_data, candles_15m, candles_5m)
+                    final_score, modifier = apply_market_phase_modifier(base_score, market_context)
+                    
+                    print(f"[TJDE MODIFIER] {symbol}: Market context modifier applied: {modifier:+.3f} (fallback)")
+                except Exception as e:
+                    print(f"[TJDE MODIFIER ERROR] {symbol}: {e} - using base score (fallback)")
+                    final_score = base_score
+                    modifier = 0.0
                 
                 # Enhanced decision making based on final score
                 decision = make_final_decision(final_score, market_phase, signals)
@@ -868,7 +898,9 @@ def analyze_symbol_with_unified_tjde_v2(symbol: str, market_data: Dict, candles_
                     "market_phase": market_phase,
                     "features": signals,
                     "scoring_profile": scoring_profile,
-                    "stage_completed": 5,
+                    "base_score": base_score,
+                    "market_modifier": modifier,
+                    "stage_completed": 6,
                     "fallback_mode": True
                 }
         else:
@@ -886,8 +918,22 @@ def analyze_symbol_with_unified_tjde_v2(symbol: str, market_data: Dict, candles_
             
             # ETAP 5 - OBLICZENIE KOŃCOWEGO SCORINGU z basic signals
             print(f"[TJDE v2 STAGE 5] {symbol}: Computing weighted final score (basic mode)")
-            final_score = compute_final_score(scoring_profile, signals)
-            print(f"[TJDE SCORE] Final computed score for {symbol}: {final_score}")
+            base_score = compute_final_score(scoring_profile, signals)
+            print(f"[TJDE BASE SCORE] {symbol}: {base_score} (basic)")
+            
+            # ETAP 6 - MARKET PHASE MODIFIER (makro kontekst)
+            print(f"[TJDE v2 STAGE 6] {symbol}: Applying market phase modifier (basic)")
+            try:
+                from utils.market_phase_modifier import analyze_market_context, apply_market_phase_modifier
+                
+                market_context = analyze_market_context(market_data, candles_15m, candles_5m)
+                final_score, modifier = apply_market_phase_modifier(base_score, market_context)
+                
+                print(f"[TJDE MODIFIER] {symbol}: Market context modifier applied: {modifier:+.3f} (basic)")
+            except Exception as e:
+                print(f"[TJDE MODIFIER ERROR] {symbol}: {e} - using base score (basic)")
+                final_score = base_score
+                modifier = 0.0
             
             # Enhanced decision making based on final score
             decision = make_final_decision(final_score, market_phase, signals)
@@ -899,7 +945,9 @@ def analyze_symbol_with_unified_tjde_v2(symbol: str, market_data: Dict, candles_
                 "market_phase": market_phase,
                 "features": signals,
                 "scoring_profile": scoring_profile,
-                "stage_completed": 5,
+                "base_score": base_score,
+                "market_modifier": modifier,
+                "stage_completed": 6,
                 "basic_mode": True
             }
         
