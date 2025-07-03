@@ -821,6 +821,24 @@ def analyze_symbol_with_unified_tjde_v2(symbol: str, market_data: Dict, candles_
                 
                 # Use extracted features instead of signals
                 signals = extracted_features
+                
+                # ETAP 5 - OBLICZENIE KOŃCOWEGO SCORINGU
+                print(f"[TJDE v2 STAGE 5] {symbol}: Computing weighted final score")
+                final_score = compute_final_score(scoring_profile, extracted_features)
+                print(f"[TJDE SCORE] Final computed score for {symbol}: {final_score}")
+                
+                # Enhanced decision making based on final score
+                decision = make_final_decision(final_score, market_phase, extracted_features)
+                print(f"[TJDE DECISION] {symbol}: {decision} (score: {final_score})")
+                
+                return {
+                    "final_score": final_score,
+                    "decision": decision,
+                    "market_phase": market_phase,
+                    "features": extracted_features,
+                    "scoring_profile": scoring_profile,
+                    "stage_completed": 5
+                }
             else:
                 print(f"[TJDE v2 STAGE 4] {symbol}: ⚠️ Feature extraction failed - using fallback signals")
                 # Keep existing signals or use defaults
@@ -834,6 +852,25 @@ def analyze_symbol_with_unified_tjde_v2(symbol: str, market_data: Dict, candles_
                         "liquidity_pattern_score": 0.5,
                         "htf_supportive_score": 0.5
                     }
+                
+                # ETAP 5 - OBLICZENIE KOŃCOWEGO SCORINGU z fallback signals
+                print(f"[TJDE v2 STAGE 5] {symbol}: Computing weighted final score (fallback mode)")
+                final_score = compute_final_score(scoring_profile, signals)
+                print(f"[TJDE SCORE] Final computed score for {symbol}: {final_score}")
+                
+                # Enhanced decision making based on final score
+                decision = make_final_decision(final_score, market_phase, signals)
+                print(f"[TJDE DECISION] {symbol}: {decision} (score: {final_score})")
+                
+                return {
+                    "final_score": final_score,
+                    "decision": decision,
+                    "market_phase": market_phase,
+                    "features": signals,
+                    "scoring_profile": scoring_profile,
+                    "stage_completed": 5,
+                    "fallback_mode": True
+                }
         else:
             print(f"[TJDE v2 STAGE 4] {symbol}: ⚠️ Feature extractor not available - using basic signals")
             if not signals:
@@ -846,6 +883,25 @@ def analyze_symbol_with_unified_tjde_v2(symbol: str, market_data: Dict, candles_
                     "liquidity_pattern_score": 0.5,
                     "htf_supportive_score": 0.5
                 }
+            
+            # ETAP 5 - OBLICZENIE KOŃCOWEGO SCORINGU z basic signals
+            print(f"[TJDE v2 STAGE 5] {symbol}: Computing weighted final score (basic mode)")
+            final_score = compute_final_score(scoring_profile, signals)
+            print(f"[TJDE SCORE] Final computed score for {symbol}: {final_score}")
+            
+            # Enhanced decision making based on final score
+            decision = make_final_decision(final_score, market_phase, signals)
+            print(f"[TJDE DECISION] {symbol}: {decision} (score: {final_score})")
+            
+            return {
+                "final_score": final_score,
+                "decision": decision,
+                "market_phase": market_phase,
+                "features": signals,
+                "scoring_profile": scoring_profile,
+                "stage_completed": 5,
+                "basic_mode": True
+            }
         
         # Prepare enhanced token data
         token_data = {
@@ -1046,3 +1102,112 @@ if __name__ == "__main__":
     print(f"   Decision: {result.get('decision', 'unknown')}")
     print(f"   Market Phase: {result.get('market_phase', 'unknown')}")
     print(f"   Engine: {result.get('engine_version', 'unknown')}")
+
+
+def compute_final_score(profile: dict, features: dict) -> float:
+    """
+    ETAP 5 - Obliczenie końcowego scoringu na podstawie profilu i cech
+    
+    Args:
+        profile: Załadowany profil scoringowy dla fazy rynku
+        features: Wyekstrahowane cechy z Stage 4
+        
+    Returns:
+        float: Końcowy score jako suma przewważonych komponentów
+    """
+    try:
+        score = 0.0
+        score_components = {}
+        
+        # Lista kluczowych komponentów
+        key_components = [
+            "trend_strength", "pullback_quality", "volume_behavior_score",
+            "psych_score", "support_reaction", "liquidity_pattern_score", 
+            "htf_supportive_score"
+        ]
+        
+        # Oblicz score dla każdego komponentu
+        for component in key_components:
+            weight = profile.get(component, 0.0)
+            value = features.get(component, 0.0)
+            component_score = weight * value
+            score += component_score
+            score_components[component] = component_score
+        
+        # Dodaj market_phase_modifier jeśli istnieje
+        if "market_phase_modifier" in profile:
+            modifier = profile["market_phase_modifier"]
+            score *= (1.0 + modifier)
+            
+        # Upewnij się, że score jest w zakresie 0.0-1.0
+        score = max(0.0, min(1.0, score))
+        
+        # Debug information
+        print(f"[SCORING DEBUG] Component breakdown:")
+        for component, component_score in score_components.items():
+            weight = profile.get(component, 0.0)
+            value = features.get(component, 0.0)
+            print(f"   {component}: {weight:.3f} * {value:.3f} = {component_score:.3f}")
+        
+        return round(score, 3)
+        
+    except Exception as e:
+        print(f"[SCORING ERROR] {e}")
+        return 0.0
+
+
+def make_final_decision(final_score: float, market_phase: str, features: dict) -> str:
+    """
+    Podejmij końcową decyzję na podstawie scoringu i kontekstu
+    
+    Args:
+        final_score: Końcowy score z compute_final_score
+        market_phase: Wykryta faza rynku
+        features: Ekstraktowane cechy
+        
+    Returns:
+        str: Decyzja - "enter", "avoid", "scalp_entry", "wait"
+    """
+    try:
+        # Thresholdy dla różnych faz rynku
+        phase_thresholds = {
+            "trend-following": {"enter": 0.7, "scalp": 0.5, "avoid": 0.3},
+            "consolidation": {"enter": 0.8, "scalp": 0.6, "avoid": 0.4},
+            "breakout": {"enter": 0.75, "scalp": 0.55, "avoid": 0.35},
+            "pre-pump": {"enter": 0.65, "scalp": 0.45, "avoid": 0.25}
+        }
+        
+        thresholds = phase_thresholds.get(market_phase, phase_thresholds["trend-following"])
+        
+        # Podstawowa logika decyzyjna
+        if final_score >= thresholds["enter"]:
+            decision = "enter"
+        elif final_score >= thresholds["scalp"]:
+            # Dodatkowe sprawdzenia dla scalp_entry
+            trend_strength = features.get("trend_strength", 0.0)
+            volume_behavior = features.get("volume_behavior_score", 0.0)
+            
+            if trend_strength > 0.6 and volume_behavior > 0.5:
+                decision = "scalp_entry"
+            else:
+                decision = "wait"
+        elif final_score >= thresholds["avoid"]:
+            decision = "wait"
+        else:
+            decision = "avoid"
+        
+        # Dodatkowe sprawdzenia bezpieczeństwa
+        if features.get("support_reaction", 0.0) < 0.3 and decision in ["enter", "scalp_entry"]:
+            print(f"[DECISION OVERRIDE] Weak support_reaction ({features.get('support_reaction', 0.0):.3f}) - downgrading to wait")
+            decision = "wait"
+        
+        print(f"[DECISION LOGIC] Score: {final_score}, Phase: {market_phase}, Decision: {decision}")
+        return decision
+        
+    except Exception as e:
+        print(f"[DECISION ERROR] {e}")
+        return "avoid"
+
+
+if __name__ == "__main__":
+    test_unified_tjde_v2()
