@@ -27,6 +27,24 @@ except ImportError as e:
     logger.warning(f"[TJDE v2] Feature extractor not available: {e}")
     FEATURE_EXTRACTOR_AVAILABLE = False
 
+# Import Stage 6 Market Phase Modifier
+try:
+    from utils.market_phase_modifier import apply_market_phase_modifier, analyze_market_context
+    MARKET_MODIFIER_AVAILABLE = True
+    logger.info("[TJDE v2] Market phase modifier imported successfully")
+except ImportError as e:
+    logger.warning(f"[TJDE v2] Market phase modifier not available: {e}")
+    MARKET_MODIFIER_AVAILABLE = False
+
+# Import Stage 7 Final Decision Classifier
+try:
+    from utils.final_decision_classifier import classify_final_decision, log_decision_classification
+    DECISION_CLASSIFIER_AVAILABLE = True
+    logger.info("[TJDE v2] Final decision classifier imported successfully")
+except ImportError as e:
+    logger.warning(f"[TJDE v2] Final decision classifier not available: {e}")
+    DECISION_CLASSIFIER_AVAILABLE = False
+
 def load_scoring_profile(market_phase: str) -> dict:
     """
     ETAP 3 - Ładowanie profilu scoringowego dla wykrytej fazy rynku
@@ -841,20 +859,52 @@ def analyze_symbol_with_unified_tjde_v2(symbol: str, market_data: Dict, candles_
                     final_score = base_score
                     modifier = 0.0
                 
-                # Enhanced decision making based on final score
-                decision = make_final_decision(final_score, market_phase, extracted_features)
-                print(f"[TJDE DECISION] {symbol}: {decision} (score: {final_score})")
+                # ETAP 7 - FINAL DECISION CLASSIFICATION (LONG/WAIT/AVOID)
+                print(f"[TJDE v2 STAGE 7] {symbol}: Classifying final decision")
                 
-                return {
-                    "final_score": final_score,
-                    "decision": decision,
-                    "market_phase": market_phase,
-                    "features": extracted_features,
-                    "scoring_profile": scoring_profile,
-                    "base_score": base_score,
-                    "market_modifier": modifier,
-                    "stage_completed": 6
-                }
+                if DECISION_CLASSIFIER_AVAILABLE:
+                    clip_confidence = extracted_features.get("clip_confidence", None)
+                    support_reaction = extracted_features.get("support_reaction", None)
+                    
+                    final_decision, classification_info = classify_final_decision(
+                        adjusted_score=final_score,
+                        clip_confidence=clip_confidence,
+                        market_phase=market_phase,
+                        support_reaction=support_reaction
+                    )
+                    
+                    log_decision_classification(symbol, final_decision, classification_info)
+                    
+                    # Legacy decision for compatibility
+                    legacy_decision = make_final_decision(final_score, market_phase, extracted_features)
+                    
+                    return {
+                        "final_score": final_score,
+                        "decision": legacy_decision,  # Legacy format
+                        "final_decision": final_decision,  # New Stage 7 format (LONG/WAIT/AVOID)
+                        "classification_info": classification_info,
+                        "market_phase": market_phase,
+                        "features": extracted_features,
+                        "scoring_profile": scoring_profile,
+                        "base_score": base_score,
+                        "market_modifier": modifier,
+                        "stage_completed": 7
+                    }
+                else:
+                    # Fallback without Stage 7
+                    decision = make_final_decision(final_score, market_phase, extracted_features)
+                    print(f"[TJDE DECISION] {symbol}: {decision} (score: {final_score})")
+                    
+                    return {
+                        "final_score": final_score,
+                        "decision": decision,
+                        "market_phase": market_phase,
+                        "features": extracted_features,
+                        "scoring_profile": scoring_profile,
+                        "base_score": base_score,
+                        "market_modifier": modifier,
+                        "stage_completed": 6
+                    }
             else:
                 print(f"[TJDE v2 STAGE 4] {symbol}: ⚠️ Feature extraction failed - using fallback signals")
                 # Keep existing signals or use defaults
@@ -888,21 +938,54 @@ def analyze_symbol_with_unified_tjde_v2(symbol: str, market_data: Dict, candles_
                     final_score = base_score
                     modifier = 0.0
                 
-                # Enhanced decision making based on final score
-                decision = make_final_decision(final_score, market_phase, signals)
-                print(f"[TJDE DECISION] {symbol}: {decision} (score: {final_score})")
+                # ETAP 7 - FINAL DECISION CLASSIFICATION (FALLBACK MODE)
+                print(f"[TJDE v2 STAGE 7] {symbol}: Classifying final decision (fallback)")
                 
-                return {
-                    "final_score": final_score,
-                    "decision": decision,
-                    "market_phase": market_phase,
-                    "features": signals,
-                    "scoring_profile": scoring_profile,
-                    "base_score": base_score,
-                    "market_modifier": modifier,
-                    "stage_completed": 6,
-                    "fallback_mode": True
-                }
+                if DECISION_CLASSIFIER_AVAILABLE:
+                    clip_confidence = signals.get("clip_confidence", None)
+                    support_reaction = signals.get("support_reaction", None)
+                    
+                    final_decision, classification_info = classify_final_decision(
+                        adjusted_score=final_score,
+                        clip_confidence=clip_confidence,
+                        market_phase=market_phase,
+                        support_reaction=support_reaction
+                    )
+                    
+                    log_decision_classification(symbol, final_decision, classification_info)
+                    
+                    # Legacy decision for compatibility
+                    legacy_decision = make_final_decision(final_score, market_phase, signals)
+                    
+                    return {
+                        "final_score": final_score,
+                        "decision": legacy_decision,  # Legacy format
+                        "final_decision": final_decision,  # New Stage 7 format (LONG/WAIT/AVOID)
+                        "classification_info": classification_info,
+                        "market_phase": market_phase,
+                        "features": signals,
+                        "scoring_profile": scoring_profile,
+                        "base_score": base_score,
+                        "market_modifier": modifier,
+                        "stage_completed": 7,
+                        "fallback_mode": True
+                    }
+                else:
+                    # Fallback without Stage 7
+                    decision = make_final_decision(final_score, market_phase, signals)
+                    print(f"[TJDE DECISION] {symbol}: {decision} (score: {final_score})")
+                    
+                    return {
+                        "final_score": final_score,
+                        "decision": decision,
+                        "market_phase": market_phase,
+                        "features": signals,
+                        "scoring_profile": scoring_profile,
+                        "base_score": base_score,
+                        "market_modifier": modifier,
+                        "stage_completed": 6,
+                        "fallback_mode": True
+                    }
         else:
             print(f"[TJDE v2 STAGE 4] {symbol}: ⚠️ Feature extractor not available - using basic signals")
             if not signals:
@@ -935,21 +1018,54 @@ def analyze_symbol_with_unified_tjde_v2(symbol: str, market_data: Dict, candles_
                 final_score = base_score
                 modifier = 0.0
             
-            # Enhanced decision making based on final score
-            decision = make_final_decision(final_score, market_phase, signals)
-            print(f"[TJDE DECISION] {symbol}: {decision} (score: {final_score})")
+            # ETAP 7 - FINAL DECISION CLASSIFICATION (BASIC MODE)
+            print(f"[TJDE v2 STAGE 7] {symbol}: Classifying final decision (basic)")
             
-            return {
-                "final_score": final_score,
-                "decision": decision,
-                "market_phase": market_phase,
-                "features": signals,
-                "scoring_profile": scoring_profile,
-                "base_score": base_score,
-                "market_modifier": modifier,
-                "stage_completed": 6,
-                "basic_mode": True
-            }
+            if DECISION_CLASSIFIER_AVAILABLE:
+                clip_confidence = signals.get("clip_confidence", None)
+                support_reaction = signals.get("support_reaction", None)
+                
+                final_decision, classification_info = classify_final_decision(
+                    adjusted_score=final_score,
+                    clip_confidence=clip_confidence,
+                    market_phase=market_phase,
+                    support_reaction=support_reaction
+                )
+                
+                log_decision_classification(symbol, final_decision, classification_info)
+                
+                # Legacy decision for compatibility
+                legacy_decision = make_final_decision(final_score, market_phase, signals)
+                
+                return {
+                    "final_score": final_score,
+                    "decision": legacy_decision,  # Legacy format
+                    "final_decision": final_decision,  # New Stage 7 format (LONG/WAIT/AVOID)
+                    "classification_info": classification_info,
+                    "market_phase": market_phase,
+                    "features": signals,
+                    "scoring_profile": scoring_profile,
+                    "base_score": base_score,
+                    "market_modifier": modifier,
+                    "stage_completed": 7,
+                    "basic_mode": True
+                }
+            else:
+                # Basic mode without Stage 7
+                decision = make_final_decision(final_score, market_phase, signals)
+                print(f"[TJDE DECISION] {symbol}: {decision} (score: {final_score})")
+                
+                return {
+                    "final_score": final_score,
+                    "decision": decision,
+                    "market_phase": market_phase,
+                    "features": signals,
+                    "scoring_profile": scoring_profile,
+                    "base_score": base_score,
+                    "market_modifier": modifier,
+                    "stage_completed": 6,
+                    "basic_mode": True
+                }
         
         # Prepare enhanced token data
         token_data = {
