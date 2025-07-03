@@ -1,0 +1,10 @@
+TRADINGVIEW SCREENSHOT FAILED
+Symbol: UNIUSDT
+Phase: unknown
+Setup: unknown_setup  
+Score: 0.663
+Error: sync_wrapper_failed
+Timestamp: 2025-07-03T13:45:39.735923
+
+Note: This is a placeholder file created because TradingView screenshot generation failed.
+No matplotlib fallback was used to maintain dataset quality.

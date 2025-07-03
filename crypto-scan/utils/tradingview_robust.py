@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 from playwright.async_api import async_playwright, Browser, Page
 from .multi_exchange_resolver import get_multi_exchange_resolver
+from .chart_validator import validate_and_cleanup_chart
 from PIL import Image
 import pytesseract
 
@@ -275,141 +276,62 @@ class RobustTradingViewGenerator:
                     full_page=False
                 )
                 
-                # 🔒 ENHANCED VALIDATION: Multi-layer chart validation
-                if os.path.exists(file_path):
-                    # Step 1: Check file size (invalid symbols often create small/empty files)
-                    file_size = os.path.getsize(file_path)
-                    if file_size < 5000:  # Less than 5KB suggests error page
-                        print(f"[CHART ERROR] ❌ Suspicious file size detected: {file_size} bytes (expected >5KB)")
-                        print(f"[CHART ERROR] Small file likely indicates TradingView error page")
+                # Additional page content validation as backup
+                try:
+                    page_content = await self.page.content()
+                    if ("Invalid symbol" in page_content or 
+                        "Symbol not found" in page_content or
+                        "no data available" in page_content.lower() or
+                        "chart not available" in page_content.lower()):
+                            
+                        print(f"[CHART ERROR] Invalid symbol detected via page content: {symbol} → {tv_symbol}")
+                        print(f"[CHART ERROR] Removing invalid chart and blocking further processing")
                         
-                        # Remove the suspicious chart file
-                        try:
+                        # Remove invalid screenshot
+                        if os.path.exists(file_path):
                             os.remove(file_path)
-                        except Exception as remove_error:
-                            print(f"[CHART ERROR] Failed to remove small file: {remove_error}")
                         
-                        # Save metadata for failed chart tracking
-                        failed_metadata = {
+                        # Save invalid symbol metadata for tracking
+                        invalid_metadata = {
                             "symbol": symbol,
-                            "exchange": exchange,
                             "tv_symbol": tv_symbol,
+                            "exchange": exchange,
+                            "status": "invalid_symbol",
+                            "label": "invalid_symbol",
+                            "tjde_score": 0.0,
+                            "decision": "avoid",
+                            "error": "TradingView Invalid symbol error",
                             "timestamp": datetime.now().isoformat(),
-                            "status": "invalid_symbol_filesize",
-                            "error_type": "small_file_detected",
-                            "file_size_bytes": file_size,
-                            "blocked_from_training": True,
-                            "tjde_score": tjde_score,
-                            "decision": decision,
-                            "validation_method": "FILE_SIZE"
+                            "authentic_data": False,
+                            "blocked_from_training": True
                         }
                         
-                        # Save to failed_charts directory
-                        os.makedirs("training_data/failed_charts", exist_ok=True)
-                        failed_path = f"training_data/failed_charts/{filename.replace('.png', '_metadata.json')}"
+                        # Save metadata to failed charts directory
+                        failed_dir = "training_data/failed_charts"
+                        os.makedirs(failed_dir, exist_ok=True)
+                        metadata_path = os.path.join(failed_dir, f"{symbol}_invalid_symbol_{datetime.now().strftime('%Y%m%d_%H%M')}.json")
                         
-                        try:
-                            with open(failed_path, 'w') as f:
-                                json.dump(failed_metadata, f, indent=2)
-                            print(f"[CHART ERROR] Failed chart metadata saved: {failed_path}")
-                        except Exception as metadata_error:
-                            print(f"[CHART ERROR] Failed to save metadata: {metadata_error}")
+                        with open(metadata_path, 'w') as f:
+                            json.dump(invalid_metadata, f, indent=2)
                         
-                        # Return special code to signal invalid symbol
-                        return "INVALID_SYMBOL_OCR"
+                        print(f"[INVALID SYMBOL] {symbol}: Blocked from TOP5 and CLIP training")
+                        return "INVALID_SYMBOL"  # Special return code for invalid symbols
+                        
+                except Exception as content_check_error:
+                    print(f"[ROBUST TV WARNING] Content validation failed: {content_check_error}")
+                    # Continue with normal validation if content check fails
                     
-                    # Step 2: OCR validation (if available)
-                    try:
-                        if not self.is_chart_valid(file_path):
-                            print(f"[CHART ERROR] ❌ Invalid chart detected via OCR: {symbol} → {tv_symbol}")
-                            print(f"[CHART ERROR] Removing corrupted chart file...")
-                            
-                            # Remove the invalid chart file
-                            try:
-                                os.remove(file_path)
-                            except Exception as remove_error:
-                                print(f"[CHART ERROR] Failed to remove invalid chart: {remove_error}")
-                            
-                            # Save metadata for failed chart tracking
-                            failed_metadata = {
-                                "symbol": symbol,
-                                "exchange": exchange,
-                                "tv_symbol": tv_symbol,
-                                "timestamp": datetime.now().isoformat(),
-                                "status": "invalid_symbol_ocr",
-                                "error_type": "invalid_symbol_detected",
-                                "blocked_from_training": True,
-                                "tjde_score": tjde_score,
-                                "decision": decision,
-                                "validation_method": "OCR"
-                            }
-                            
-                            # Save to failed_charts directory
-                            os.makedirs("training_data/failed_charts", exist_ok=True)
-                            failed_path = f"training_data/failed_charts/{filename.replace('.png', '_metadata.json')}"
-                            
-                            try:
-                                with open(failed_path, 'w') as f:
-                                    json.dump(failed_metadata, f, indent=2)
-                                print(f"[CHART ERROR] Failed chart metadata saved: {failed_path}")
-                            except Exception as metadata_error:
-                                print(f"[CHART ERROR] Failed to save metadata: {metadata_error}")
-                            
-                            # Return special code to signal invalid symbol
-                            return "INVALID_SYMBOL_OCR"
-                    except Exception as ocr_error:
-                        print(f"[CHART ERROR] ⚠️ OCR validation failed: {ocr_error} - proceeding without OCR check")
-                        # Don't fail if OCR has issues - file size check is primary protection
-                        
-                    # Additional page content validation as backup
-                    try:
-                        page_content = await self.page.content()
-                        if ("Invalid symbol" in page_content or 
-                            "Symbol not found" in page_content or
-                            "no data available" in page_content.lower() or
-                            "chart not available" in page_content.lower()):
-                            
-                            print(f"[CHART ERROR] Invalid symbol detected via page content: {symbol} → {tv_symbol}")
-                            print(f"[CHART ERROR] Removing invalid chart and blocking further processing")
-                            
-                            # Remove invalid screenshot
-                            if os.path.exists(file_path):
-                                os.remove(file_path)
-                            
-                            # Save invalid symbol metadata for tracking
-                            invalid_metadata = {
-                                "symbol": symbol,
-                                "tv_symbol": tv_symbol,
-                                "exchange": exchange,
-                                "status": "invalid_symbol",
-                                "label": "invalid_symbol",
-                                "tjde_score": 0.0,
-                                "decision": "avoid",
-                                "error": "TradingView Invalid symbol error",
-                                "timestamp": datetime.now().isoformat(),
-                                "authentic_data": False,
-                                "blocked_from_training": True
-                            }
-                            
-                            # Save metadata to failed charts directory
-                            failed_dir = "training_data/failed_charts"
-                            os.makedirs(failed_dir, exist_ok=True)
-                            metadata_path = os.path.join(failed_dir, f"{symbol}_invalid_symbol_{datetime.now().strftime('%Y%m%d_%H%M')}.json")
-                            
-                            with open(metadata_path, 'w') as f:
-                                json.dump(invalid_metadata, f, indent=2)
-                            
-                            print(f"[INVALID SYMBOL] {symbol}: Blocked from TOP5 and CLIP training")
-                            return "INVALID_SYMBOL"  # Special return code for invalid symbols
-                            
-                    except Exception as content_check_error:
-                        print(f"[ROBUST TV WARNING] Content validation failed: {content_check_error}")
-                        # Continue with normal validation if content check fails
+            except Exception as screenshot_error:
+                print(f"[ROBUST TV ERROR] Screenshot failed: {screenshot_error}")
+                return None
                 
-                # Verify screenshot quality
+                # 🔒 ENHANCED CHART VALIDATION with OCR
                 if os.path.exists(file_path):
-                    file_size = os.path.getsize(file_path)
-                    if file_size > 10000:  # Minimum 10KB
+                    # Validate chart with comprehensive OCR and file size checks
+                    validated_path = validate_and_cleanup_chart(file_path)
+                    
+                    if validated_path:
+                        file_size = os.path.getsize(file_path)
                         print(f"[ROBUST TV SUCCESS] Screenshot saved: {filename} ({file_size} bytes)")
                         
                         # Save metadata
@@ -417,9 +339,9 @@ class RobustTradingViewGenerator:
                         
                         return file_path
                     else:
-                        print(f"[ROBUST TV ERROR] Screenshot too small: {file_size} bytes")
-                        os.remove(file_path)
-                        return None
+                        # Chart validation failed - already cleaned up by validator
+                        print(f"[ROBUST TV ERROR] Chart validation failed for {symbol}")
+                        return "INVALID_SYMBOL_OCR"
                 else:
                     print("[ROBUST TV ERROR] Screenshot file not created")
                     return None

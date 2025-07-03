@@ -1,0 +1,10 @@
+TRADINGVIEW SCREENSHOT FAILED
+Symbol: AAVEUSDT
+Phase: unknown
+Setup: unknown_setup  
+Score: 0.335
+Error: sync_wrapper_failed
+Timestamp: 2025-07-03T13:49:16.964683
+
+Note: This is a placeholder file created because TradingView screenshot generation failed.
+No matplotlib fallback was used to maintain dataset quality.
