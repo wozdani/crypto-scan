@@ -460,33 +460,12 @@ async def generate_top_tjde_charts(results: List[Dict]):
             except Exception as tv_e:
                 print(f"   ⚠️ TradingView error: {tv_e} - trying fallback...")
             
-            # METHOD 2: Use fallback eliminator instead of matplotlib fallback
+            # SKIP TOKEN WITHOUT CHART: No placeholder creation - token is skipped
             if not chart_generated:
-                try:
-                    print(f"   🔄 Creating TradingView FAILED placeholder...")
-                    
-                    # Use the fallback eliminator for proper placeholder creation
-                    from utils.tradingview_fallback_eliminator import handle_tradingview_failure_safe
-                    
-                    placeholder_path = handle_tradingview_failure_safe(
-                        symbol=symbol,
-                        error_reason="sync_wrapper_failed",
-                        phase=market_phase or 'unknown',
-                        setup=entry.get('setup_type', 'unknown_setup'),
-                        score=tjde_score
-                    )
-                    
-                    if placeholder_path:
-                        print(f"   ⚠️ TradingView FAILED - Created placeholder: {os.path.basename(placeholder_path)}")
-                        print(f"   🚫 NO MATPLOTLIB FALLBACK - TradingView-only system enforced")
-                    else:
-                        print(f"   ❌ Placeholder creation also failed")
-                    
-                except Exception as placeholder_e:
-                    print(f"   ❌ Placeholder creation failed: {placeholder_e}")
-            
-            if not chart_generated:
-                print(f"   ❌ All chart generation methods failed for {symbol}")
+                print(f"   🚫 TradingView failed - SKIPPING {symbol} (no chart = no training data)")
+                print(f"   ✅ NO PLACEHOLDER - TradingView-only system enforced")
+                # Token is completely skipped - no chart, no training data, no placeholder
+                continue
         
         # 🎯 FINAL REPORT: Show unified results
         print(f"\n📊 UNIFIED GENERATION COMPLETE:")

@@ -180,6 +180,19 @@ def simulate_trader_decision_advanced(ctx: Dict) -> Dict:
         dict: Context z decision i reasons
     """
     try:
+        # 🚫 CRITICAL: Block scoring for tokens without TradingView charts
+        chart_path = ctx.get('chart_path')
+        if not chart_path or chart_path == "None" or "TRADINGVIEW_FAILED" in str(chart_path):
+            print(f"[CHART BLOCK] {ctx.get('symbol', 'UNKNOWN')}: No valid chart - returning skip decision")
+            return {
+                'decision': 'skip',
+                'confidence': 0.0,
+                'final_score': 0.0,
+                'grade': 'F',
+                'reasoning': 'No TradingView chart available - token skipped',
+                'market_phase': 'no_chart'
+            }
+        
         ctx = compute_trader_score(ctx)
         
         score = ctx["final_score"]

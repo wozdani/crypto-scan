@@ -320,10 +320,6 @@ class RobustTradingViewGenerator:
                 except Exception as content_check_error:
                     print(f"[ROBUST TV WARNING] Content validation failed: {content_check_error}")
                     # Continue with normal validation if content check fails
-                    
-            except Exception as screenshot_error:
-                print(f"[ROBUST TV ERROR] Screenshot failed: {screenshot_error}")
-                return None
                 
                 # 🔒 ENHANCED CHART VALIDATION with OCR
                 if os.path.exists(file_path):
@@ -341,7 +337,7 @@ class RobustTradingViewGenerator:
                     else:
                         # Chart validation failed - already cleaned up by validator
                         print(f"[ROBUST TV ERROR] Chart validation failed for {symbol}")
-                        return "INVALID_SYMBOL_OCR"
+                        return None
                 else:
                     print("[ROBUST TV ERROR] Screenshot file not created")
                     return None

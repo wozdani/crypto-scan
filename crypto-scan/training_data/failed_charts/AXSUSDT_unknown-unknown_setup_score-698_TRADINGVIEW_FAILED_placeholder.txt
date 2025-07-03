@@ -1,0 +1,10 @@
+TRADINGVIEW SCREENSHOT FAILED
+Symbol: AXSUSDT
+Phase: unknown
+Setup: unknown_setup  
+Score: 0.699
+Error: sync_wrapper_failed
+Timestamp: 2025-07-03T14:15:44.360236
+
+Note: This is a placeholder file created because TradingView screenshot generation failed.
+No matplotlib fallback was used to maintain dataset quality.

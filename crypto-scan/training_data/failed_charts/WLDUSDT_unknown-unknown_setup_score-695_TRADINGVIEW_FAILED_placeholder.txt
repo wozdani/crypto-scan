@@ -1,0 +1,10 @@
+TRADINGVIEW SCREENSHOT FAILED
+Symbol: WLDUSDT
+Phase: unknown
+Setup: unknown_setup  
+Score: 0.696
+Error: sync_wrapper_failed
+Timestamp: 2025-07-03T15:16:02.096900
+
+Note: This is a placeholder file created because TradingView screenshot generation failed.
+No matplotlib fallback was used to maintain dataset quality.

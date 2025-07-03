@@ -875,6 +875,20 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
     """
     
     try:
+        # 🚫 CRITICAL: Block scoring for tokens without TradingView charts
+        chart_path = signals.get('chart_path')
+        if not chart_path or chart_path == "None" or "TRADINGVIEW_FAILED" in str(chart_path):
+            print(f"[CHART BLOCK] {symbol}: No valid chart - returning minimal score")
+            return {
+                'decision': 'skip',
+                'confidence': 0.0,
+                'tjde_score': 0.0,
+                'base_score': 0.0,
+                'market_phase': 'no_chart',
+                'setup_type': 'no_chart_skip',
+                'reasoning': 'No TradingView chart available - token skipped'
+            }
+        
         # Extract features from signals dictionary
         market_phase = signals.get('market_phase', 'trend-following')
         trend_strength = signals.get('trend_strength', 0.5)

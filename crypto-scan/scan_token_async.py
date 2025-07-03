@@ -539,10 +539,16 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     tjde_result = simulate_trader_decision_advanced(symbol, market_data, features)
                 
                 if tjde_result and isinstance(tjde_result, dict):
-                    final_score = tjde_result.get("final_score", 0.4)
-                    decision = tjde_result.get("decision", "neutral")
+                    # 🚫 NO FALLBACK VALUES - use authentic scoring only
+                    final_score = tjde_result.get("final_score", 0.0)
+                    decision = tjde_result.get("decision", "skip")
                     debug_info = tjde_result.get("debug_info", {})
                     market_phase = tjde_result.get("market_phase", "unknown")
+                    
+                    # Block tokens without authentic analysis
+                    if final_score == 0.0 or decision == "skip":
+                        print(f"[NO AUTHENTIC ANALYSIS] {symbol}: Blocking token with score {final_score}, decision {decision}")
+                        return None
                     
                     # Detailed TJDE scoring breakdown
                     if debug_info:
@@ -602,25 +608,16 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         print(f"[ALERT TRIGGER] {symbol} → TJDE={final_score:.2f} → HIGH SCORE DETECTED")
                         
                 else:
-                    print(f"[TJDE FALLBACK] {symbol}: simulate_trader_decision_advanced returned invalid result")
-                    tjde_score = 0.4
-                    tjde_decision = "neutral"
+                    print(f"[TJDE INVALID] {symbol}: No valid TJDE result - skipping token")
+                    return None
                 
             except Exception as e:
-                print(f"[TJDE FALLBACK] {symbol}: {type(e).__name__}: {e}")
-                print(f"[TJDE FALLBACK] {symbol} → Input validation:")
-                print(f"  candles_15m: {type(candles_15m)} len={len(candles_15m) if candles_15m and hasattr(candles_15m, '__len__') else 'N/A'}")
-                print(f"  candles_5m: {type(candles_5m)} len={len(candles_5m) if candles_5m and hasattr(candles_5m, '__len__') else 'N/A'}")
-                print(f"  orderbook: {type(orderbook)}")
-                print(f"  price: {price} ({type(price)})")
-                print(f"  volume_24h: {volume_24h} ({type(volume_24h)})")
-                
-                tjde_score = 0.4  # Default TJDE score for fallback
-                tjde_decision = "monitor" if tjde_score > 0.5 else "avoid"
+                print(f"[TJDE ERROR] {symbol}: {type(e).__name__}: {e}")
+                print(f"[TJDE SKIP] {symbol}: Analysis failed - skipping token")
+                return None
         else:
-            print(f"[TJDE NOT AVAILABLE] {symbol} → Using fallback scoring (import failed)")
-            tjde_score = 0.4  # Default TJDE score for fallback
-            tjde_decision = "monitor" if tjde_score > 0.5 else "avoid"
+            print(f"[TJDE NOT AVAILABLE] {symbol} → TJDE engine not imported - skipping token")
+            return None
         
         # Generate training charts for meaningful setups - RESTRICTED TO TOP 5 ONLY
         training_chart_saved = False

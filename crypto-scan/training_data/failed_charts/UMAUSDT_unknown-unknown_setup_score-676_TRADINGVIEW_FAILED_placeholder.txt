@@ -1,0 +1,10 @@
+TRADINGVIEW SCREENSHOT FAILED
+Symbol: UMAUSDT
+Phase: unknown
+Setup: unknown_setup  
+Score: 0.677
+Error: sync_wrapper_failed
+Timestamp: 2025-07-03T15:01:18.386404
+
+Note: This is a placeholder file created because TradingView screenshot generation failed.
+No matplotlib fallback was used to maintain dataset quality.

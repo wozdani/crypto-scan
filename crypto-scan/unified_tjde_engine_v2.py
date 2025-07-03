@@ -98,38 +98,68 @@ def unified_tjde_decision_engine_with_signals(token_data: Dict, market_phase: st
         else:
             profile = engine.scoring_profiles.get(market_phase, engine.scoring_profiles["trend-following"])
         
-        # Use signals if available, otherwise fallback to calculated components
+        # Use signals if available, otherwise SKIP token (no fallback)
         if signals:
+            # Extract authentic signals - NO FALLBACKS
+            trend_strength = signals.get("trend_strength")
+            pullback_quality = signals.get("pullback_quality")
+            support_reaction = signals.get("support_reaction_strength")
+            volume_behavior_score = signals.get("volume_behavior_score")
+            psych_score = signals.get("psych_score")
+            
+            # Block tokens without complete authentic data (check None only, 0.0 is valid)
+            if any(x is None for x in [trend_strength, pullback_quality, volume_behavior_score, psych_score, support_reaction]):
+                print(f"[TJDE v2 INCOMPLETE] {token_data.get('symbol', 'UNKNOWN')}: Missing authentic signals - blocking token")
+                print(f"  trend_strength={trend_strength}, pullback_quality={pullback_quality}, volume_behavior_score={volume_behavior_score}")
+                print(f"  psych_score={psych_score}, support_reaction={support_reaction}")
+                return "skip", 0.0, {"error": "incomplete_signals"}
+            
+            # Convert to float with safe defaults for None values
+            trend_strength = float(trend_strength) if trend_strength is not None else 0.0
+            pullback_quality = float(pullback_quality) if pullback_quality is not None else 0.0
+            volume_behavior_score = float(volume_behavior_score) if volume_behavior_score is not None else 0.0
+            psych_score = float(psych_score) if psych_score is not None else 0.0
+            support_reaction = float(support_reaction) if support_reaction is not None else 0.0
+            
+            # Apply dynamic scoring formula: final_score = (0.35 * trend_strength + 0.25 * pullback_quality + 0.2 * volume_behavior_score + 0.1 * psych_score + 0.1 * support_reaction)
+            weighted_score = (
+                0.35 * trend_strength +
+                0.25 * pullback_quality +
+                0.20 * volume_behavior_score +
+                0.10 * psych_score +
+                0.10 * support_reaction
+            )
+            
             score_components = {
-                "trend_strength": signals.get("trend_strength", 0.5),
-                "pullback_quality": signals.get("pullback_quality", 0.5), 
-                "support_reaction": signals.get("support_reaction_strength", 0.5),
-                "volume_behavior_score": signals.get("volume_behavior_score", 0.5),
-                "psych_score": signals.get("psych_score", 0.5),
-                "htf_supportive_score": signals.get("htf_supportive_score", 0.5),
-                "liquidity_pattern_score": signals.get("liquidity_behavior", 0.5),
+                "trend_strength": trend_strength,
+                "pullback_quality": pullback_quality, 
+                "support_reaction": support_reaction,
+                "volume_behavior_score": volume_behavior_score,
+                "psych_score": psych_score,
+                "htf_supportive_score": signals.get("htf_supportive_score", 0.0),
+                "liquidity_pattern_score": signals.get("liquidity_behavior", 0.0),
                 "clip_confidence": clip_result.get("confidence", 0.0) if clip_result else 0.0,
                 "gpt_label_match": match_gpt_label(gpt_label, market_phase),
-                "market_phase_modifier": get_phase_modifier(market_phase, token_data)
+                "market_phase_modifier": get_phase_modifier(market_phase, token_data),
+                "weighted_base_score": weighted_score
             }
-            print(f"[TJDE v2 SIGNALS] {token_data.get('symbol', 'UNKNOWN')}: Using pre-calculated signals for enhanced scoring")
+            print(f"[TJDE v2 DYNAMIC] {token_data.get('symbol', 'UNKNOWN')}: Using dynamic scoring formula")
+            print(f"[WEIGHTED FORMULA] trend:{trend_strength:.3f} pullback:{pullback_quality:.3f} volume:{volume_behavior_score:.3f} psych:{psych_score:.3f} support:{support_reaction:.3f} → {weighted_score:.3f}")
         else:
-            # Fallback to original calculation method
-            score_components = {
-                "volume_structure": evaluate_volume_structure(volume_info),
-                "clip_confidence": clip_result.get("confidence", 0.0) if clip_result else 0.0,
-                "gpt_label_match": match_gpt_label(gpt_label, market_phase),
-                "liquidity_behavior": analyze_liquidity_v2(liquidity_info),
-                "heatmap_window": analyze_heatmap_exhaustion(token_data),
-                "pre_breakout_structure": analyze_price_structure_v2(token_data),
-                "market_phase_modifier": get_phase_modifier(market_phase, token_data)
-            }
+            # NO FALLBACK CALCULATION - Skip tokens without signals
+            print(f"[TJDE v2 NO SIGNALS] {token_data.get('symbol', 'UNKNOWN')}: No signals available - blocking token")
+            return "skip", 0.0, {"error": "no_signals"}
         
-        # Calculate final score using profile weights
-        final_score = 0.0
-        for component, value in score_components.items():
-            weight = profile.get(component, 0.1)
-            final_score += value * weight
+        # Use dynamic weighted score as base instead of profile weights
+        if "weighted_base_score" in score_components:
+            final_score = score_components["weighted_base_score"]
+            print(f"[DYNAMIC SCORING] {token_data.get('symbol', 'UNKNOWN')}: Using weighted formula base score: {final_score:.3f}")
+        else:
+            # Calculate final score using profile weights (legacy fallback)
+            final_score = 0.0
+            for component, value in score_components.items():
+                weight = profile.get(component, 0.1)
+                final_score += value * weight
         
         # Normalize score
         final_score = max(0.0, min(1.0, final_score))
