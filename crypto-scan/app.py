@@ -2,6 +2,14 @@ from flask import Flask, render_template, jsonify, request
 import os
 import json
 from datetime import datetime, timedelta, timezone
+
+# Sanity-check for required dependencies
+try:
+    import pytesseract
+    print("✅ pytesseract dependency check passed")
+except ImportError:
+    raise RuntimeError("🚨 pytesseract is required for TradingView chart validation – please install it.")
+
 from utils.scoring import get_top_performers, get_symbol_stats
 from utils.reports import get_latest_reports
 from utils.gpt_feedback import get_recent_gpt_analyses

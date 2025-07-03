@@ -11,6 +11,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Sanity-check for required dependencies
+try:
+    import pytesseract
+    print("✅ pytesseract dependency check passed")
+except ImportError:
+    raise RuntimeError("🚨 pytesseract is required for TradingView chart validation – please install it.")
+
 # Global scan warnings system
 SCAN_WARNINGS = []
 
