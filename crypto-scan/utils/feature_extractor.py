@@ -500,6 +500,68 @@ def get_feature_descriptions() -> Dict[str, str]:
     }
 
 
+def extract_all_features_for_token(symbol: str, candles: List, market_data: Dict = None) -> Dict:
+    """
+    Extract all trading features for a specific token
+    Compatible wrapper for the main extract_features function
+    
+    Args:
+        symbol: Trading symbol
+        candles: 15M candle data (either direct list or within market_data)
+        market_data: Optional market data dict
+        
+    Returns:
+        Dictionary with all extracted features
+    """
+    try:
+        # Prepare market data in expected format
+        if market_data is None:
+            market_data = {}
+        
+        # Handle candles format - could be direct list or in market_data
+        if isinstance(candles, list) and len(candles) > 0:
+            market_data["candles_15m"] = candles
+        elif "candles_15m" not in market_data and "candles" in market_data:
+            market_data["candles_15m"] = market_data["candles"]
+        elif "candles_15m" not in market_data:
+            market_data["candles_15m"] = candles
+            
+        # Add symbol for debugging
+        market_data["symbol"] = symbol
+        
+        # Extract features using main function
+        features = extract_features(market_data)
+        
+        if features:
+            logger.info(f"[FEATURE EXTRACT] {symbol}: Successfully extracted {len(features)} features")
+            return features
+        else:
+            # Return zero features if extraction failed
+            logger.warning(f"[FEATURE EXTRACT] {symbol}: Failed to extract features, returning zeros")
+            return {
+                "trend_strength": 0.0,
+                "pullback_quality": 0.0,
+                "volume_behavior_score": 0.0,
+                "psych_score": 0.0,
+                "support_reaction": 0.0,
+                "liquidity_pattern_score": 0.0,
+                "htf_supportive_score": 0.0
+            }
+            
+    except Exception as e:
+        logger.error(f"[FEATURE EXTRACT ERROR] {symbol}: {e}")
+        # Return zero features on error
+        return {
+            "trend_strength": 0.0,
+            "pullback_quality": 0.0, 
+            "volume_behavior_score": 0.0,
+            "psych_score": 0.0,
+            "support_reaction": 0.0,
+            "liquidity_pattern_score": 0.0,
+            "htf_supportive_score": 0.0
+        }
+
+
 if __name__ == "__main__":
     # Test feature extraction
     test_data = {

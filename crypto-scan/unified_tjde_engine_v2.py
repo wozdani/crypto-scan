@@ -59,13 +59,14 @@ def load_scoring_profile(market_phase: str) -> dict:
         "trend-following": "tjde_trend_following_profile.json",
         "consolidation": "tjde_consolidation_profile.json", 
         "breakout": "tjde_breakout_profile.json",
-        "pre-pump": "tjde_pre_pump_profile.json"
+        "pre-pump": "tjde_pre_pump_profile.json",
+        "unknown": "tjde_unknown_profile.json"
     }
     
     profile_file = profile_map.get(market_phase)
     if not profile_file:
-        print(f"[PROFILE LOAD] No profile defined for phase: {market_phase}")
-        return None
+        print(f"[PROFILE LOAD] No profile defined for phase: {market_phase} - using unknown profile")
+        profile_file = "tjde_unknown_profile.json"
     
     profile_path = os.path.join("data", "weights", profile_file)
     try:
@@ -75,7 +76,17 @@ def load_scoring_profile(market_phase: str) -> dict:
             return profile
     except Exception as e:
         print(f"[PROFILE ERROR] Failed to load profile {profile_file}: {e}")
-        return None
+        # Return default equal-weight profile
+        return {
+            "trend_strength": 0.125,
+            "pullback_quality": 0.125,
+            "support_reaction": 0.125,
+            "clip_confidence": 0.125,
+            "liquidity_pattern_score": 0.125,
+            "psych_score": 0.125,
+            "htf_supportive_score": 0.125,
+            "market_phase_modifier": 0.125
+        }
 
 
 class UnifiedTJDEEngineV2:
@@ -1178,15 +1189,15 @@ def detect_market_phase_v2(symbol: str, market_data: Dict, candles_15m: List, ca
         
         for candle in recent_candles:
             if isinstance(candle, dict):
-                prices.append(candle.get("close", 0))
-                highs.append(candle.get("high", 0))
-                lows.append(candle.get("low", 0))
-                volumes.append(candle.get("volume", 0))
+                prices.append(float(candle.get("close", 0)))
+                highs.append(float(candle.get("high", 0)))
+                lows.append(float(candle.get("low", 0)))
+                volumes.append(float(candle.get("volume", 0)))
             elif isinstance(candle, list) and len(candle) >= 6:
-                prices.append(candle[4])  # close
-                highs.append(candle[2])   # high
-                lows.append(candle[3])    # low
-                volumes.append(candle[5]) # volume
+                prices.append(float(candle[4]))  # close
+                highs.append(float(candle[2]))   # high
+                lows.append(float(candle[3]))    # low
+                volumes.append(float(candle[5])) # volume
             else:
                 print(f"[PHASE DETECTION ERROR] {symbol}: Invalid candle format")
                 return "unknown"

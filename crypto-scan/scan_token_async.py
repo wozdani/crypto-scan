@@ -40,6 +40,7 @@ except ImportError as e:
 try:
     from utils.alerts import send_alert
     from utils.whale_priority import check_whale_priority
+    from utils.feature_extractor import extract_all_features_for_token
     print("[IMPORT SUCCESS] Additional modules imported")
 except ImportError as e:
     print(f"[IMPORT WARNING] Additional modules: {e}")
