@@ -640,12 +640,8 @@ def analyze_symbol_with_unified_tjde_v2(symbol: str, market_data: Dict, candles_
         dict: Complete TJDE v2 analysis result with enhanced decisions
     """
     try:
-        # Import market phase detection from v1
-        from unified_tjde_engine import UnifiedTJDEEngine
-        engine_v1 = UnifiedTJDEEngine()
-        
-        # Detect market phase using v1 engine
-        market_phase = engine_v1.detect_market_phase(symbol, market_data, candles_15m, candles_5m)
+        # Use v2 market phase detection directly
+        market_phase = detect_market_phase_v2(symbol, market_data, candles_15m, candles_5m)
         
         # Prepare enhanced token data
         token_data = {
@@ -691,8 +687,17 @@ def analyze_symbol_with_unified_tjde_v2(symbol: str, market_data: Dict, candles_
             signals=signals
         )
         
-        # Calculate quality grade using v1 engine
-        quality_grade = engine_v1._calculate_quality_grade(final_score, score_components)
+        # Calculate quality grade directly
+        if final_score >= 0.8:
+            quality_grade = "excellent"
+        elif final_score >= 0.65:
+            quality_grade = "good"
+        elif final_score >= 0.5:
+            quality_grade = "moderate"
+        elif final_score >= 0.3:
+            quality_grade = "low"
+        else:
+            quality_grade = "poor"
         
         return {
             "final_score": final_score,
