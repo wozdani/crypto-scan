@@ -1471,7 +1471,41 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
         except Exception as e:
             print(f"[FUTURE MAPPING ERROR] Future mapping integration failed for {symbol}: {e}")
 
-        # === ETAP 6: ADVANCED CLIP INTEGRATION WITH CONTEXTUAL BOOSTS ===
+        # === ETAP 6: FEEDBACK LOOP - Module 5 Prediction Logging ===
+        feedback_logged = False
+        
+        try:
+            # Log prediction for feedback loop if significant signal
+            if ai_vision_summary and score > 0.0:  # Only log when there's meaningful analysis
+                from feedback_loop.feedback_integration import log_prediction_for_feedback
+                
+                ai_label_for_feedback = {
+                    'label': ai_vision_summary.get('pattern', setup_label),
+                    'confidence': ai_vision_summary.get('confidence', gpt_confidence),
+                    'phase': ai_vision_summary.get('phase', market_phase)
+                }
+                
+                feedback_logged = log_prediction_for_feedback(
+                    symbol=symbol,
+                    ai_label=ai_label_for_feedback,
+                    current_price=current_price,
+                    tjde_score=score,
+                    decision=decision,
+                    market_phase=market_phase
+                )
+                
+                if feedback_logged:
+                    print(f"[FEEDBACK LOOP] {symbol}: Prediction logged for learning "
+                          f"(label: {ai_label_for_feedback['label']}, score: {score:.3f})")
+                else:
+                    print(f"[FEEDBACK LOOP] {symbol}: Prediction not logged (low confidence/score)")
+                    
+        except ImportError:
+            print(f"[FEEDBACK LOOP] Module 5 not available for {symbol}")
+        except Exception as e:
+            print(f"[FEEDBACK LOOP ERROR] Failed to log prediction for {symbol}: {e}")
+
+        # === ETAP 7: ADVANCED CLIP INTEGRATION WITH CONTEXTUAL BOOSTS ===
         clip_modifier = 0.0
         clip_predicted_phase = ""
         # Note: We preserve original clip_info and create a new one for additional processing

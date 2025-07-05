@@ -8,12 +8,13 @@ from typing import Dict, Optional
 
 logger = logging.getLogger(__name__)
 
-def score_from_ai_label(ai_label: Dict) -> float:
+def score_from_ai_label(ai_label: Dict, market_phase: str = None) -> float:
     """
-    Calculate scoring adjustment from AI vision analysis
+    Calculate scoring adjustment from AI vision analysis with dynamic feedback loop weights
     
     Args:
         ai_label: Dictionary containing label, phase, confidence from AI analysis
+        market_phase: Current market phase for context-aware scoring
         
     Returns:
         Score adjustment (-0.20 to +0.20 range)
@@ -27,84 +28,94 @@ def score_from_ai_label(ai_label: Dict) -> float:
         phase = ai_label.get("phase", "").lower()
         confidence = float(ai_label.get("confidence", 0.0))
         
-        # Base score adjustment
-        score_adjustment = 0.0
-        
-        # === BULLISH PATTERNS ===
-        bullish_patterns = {
-            "pullback": 0.08,      # Strong bullish - correction in uptrend
-            "breakout": 0.12,      # Very strong - momentum breakout
-            "early_trend": 0.10,   # Strong - early trend formation
-            "accumulation": 0.06,  # Moderate - building position
-            "retest": 0.05         # Moderate - support confirmation
-        }
-        
-        # === BEARISH PATTERNS ===
-        bearish_patterns = {
-            "exhaustion": -0.12,   # Very bearish - trend exhaustion
-            "chaos": -0.08,        # Bearish - unclear direction
-            "range": -0.04         # Slightly bearish - sideways movement
-        }
-        
-        # Get base pattern score
-        if label in bullish_patterns:
-            score_adjustment = bullish_patterns[label]
-            logger.info(f"[VISION SCORE] 📈 Bullish pattern detected: {label} (+{score_adjustment})")
-            
-        elif label in bearish_patterns:
-            score_adjustment = bearish_patterns[label]
-            logger.info(f"[VISION SCORE] 📉 Bearish pattern detected: {label} ({score_adjustment})")
-            
-        else:
-            logger.info(f"[VISION SCORE] ➡️ Neutral pattern: {label} (0.0)")
+        # Validate confidence
+        if confidence <= 0.0 or confidence > 1.0:
             return 0.0
-            
-        # === CONFIDENCE MODULATION ===
-        # Only apply adjustment if confidence is sufficient
-        confidence_threshold = 0.60  # Minimum confidence to apply adjustment
         
-        if confidence < confidence_threshold:
-            # Reduce adjustment for low confidence
-            confidence_factor = confidence / confidence_threshold
-            score_adjustment *= confidence_factor
-            logger.info(f"[VISION SCORE] ⚠️ Low confidence {confidence:.2f} - reduced to {score_adjustment:.3f}")
+        # Base scoring for different patterns
+        base_adjustments = {
+            # Bullish patterns
+            "pullback": 0.12,
+            "pullback_continuation": 0.15,
+            "breakout": 0.18,
+            "breakout_pattern": 0.16,
+            "momentum_follow": 0.14,
+            "trend_continuation": 0.13,
+            "support_bounce": 0.11,
+            "pullback_in_trend": 0.12,
+            "early_trend": 0.10,
+            "accumulation": 0.06,
+            "retest": 0.05,
             
-        elif confidence >= 0.80:
-            # Boost for high confidence
-            high_confidence_boost = 1.2
-            score_adjustment *= high_confidence_boost
-            logger.info(f"[VISION SCORE] 🎯 High confidence {confidence:.2f} - boosted to {score_adjustment:.3f}")
+            # Bearish/Caution patterns  
+            "reversal": -0.15,
+            "reversal_pattern": -0.17,
+            "exhaustion": -0.12,
+            "resistance_rejection": -0.13,
+            "bear_trap": -0.10,
             
-        # === PHASE CONTEXT MODULATION ===
-        phase_modifiers = {
-            "trend": 1.1,          # Amplify in trending markets
-            "accumulation": 1.05,  # Slight boost in accumulation
-            "reversal": 0.9,       # Reduce in reversal (uncertainty)
-            "distribution": 0.8,   # Reduce in distribution phase
-            "consolidation": 0.85  # Reduce in consolidation
+            # Neutral/Range patterns
+            "range": -0.05,
+            "consolidation": -0.03,
+            "consolidation_squeeze": 0.02,
+            "sideways": -0.04,
+            
+            # Uncertain patterns
+            "chaos": -0.08,
+            "unknown": -0.10,
+            "no_clear_pattern": -0.12,
+            "setup_analysis": -0.15
         }
         
-        if phase in phase_modifiers:
-            phase_factor = phase_modifiers[phase]
-            original_adjustment = score_adjustment
-            score_adjustment *= phase_factor
+        base_adjustment = base_adjustments.get(label, 0.0)
+        
+        # Apply dynamic weight from feedback loop
+        try:
+            from feedback_loop.weight_adjuster import get_effective_score_adjustment
+            effective_adjustment = get_effective_score_adjustment(label, base_adjustment, confidence)
             
-            logger.info(f"[VISION SCORE] 🔄 Phase '{phase}' modifier: {original_adjustment:.3f} → {score_adjustment:.3f}")
+            logger.info(f"[VISION SCORE DYNAMIC] {label}: base {base_adjustment:.3f} → effective {effective_adjustment:.3f} "
+                       f"(conf: {confidence:.2f})")
             
-        # === FINAL BOUNDS CHECKING ===
-        # Clamp to reasonable range
-        max_adjustment = 0.20
-        min_adjustment = -0.20
+        except ImportError:
+            # Fallback to static scoring if feedback loop not available
+            effective_adjustment = base_adjustment * confidence
+            logger.info(f"[VISION SCORE STATIC] {label}: {base_adjustment:.3f} × {confidence:.2f} = {effective_adjustment:.3f}")
         
-        score_adjustment = max(min_adjustment, min(max_adjustment, score_adjustment))
+        # Market phase context adjustments
+        phase_modifier = 0.0
+        phase_source = market_phase or phase  # Use market_phase if provided, otherwise AI phase
         
-        logger.info(f"[VISION SCORE] ✅ Final AI adjustment: {score_adjustment:.3f} "
-                   f"(pattern: {label}, confidence: {confidence:.2f}, phase: {phase})")
+        if phase_source:
+            phase_lower = phase_source.lower()
+            
+            # Enhance bullish patterns in uptrending phases
+            if base_adjustment > 0 and phase_lower in ["trend-following", "uptrend", "breakout", "trend"]:
+                phase_modifier = 0.02
+                logger.info(f"[VISION SCORE] Bull pattern enhanced in {phase_lower} phase (+0.02)")
+            
+            # Enhance bearish patterns in downtrending phases  
+            elif base_adjustment < 0 and phase_lower in ["downtrend", "bearish", "distribution"]:
+                phase_modifier = -0.02
+                logger.info(f"[VISION SCORE] Bear pattern enhanced in {phase_lower} phase (-0.02)")
+            
+            # Reduce pattern strength in consolidation
+            elif phase_lower in ["consolidation", "range"]:
+                phase_modifier = effective_adjustment * -0.1  # 10% reduction
+                logger.info(f"[VISION SCORE] Pattern reduced in {phase_lower} phase ({phase_modifier:.3f})")
         
-        return round(score_adjustment, 3)
+        final_adjustment = effective_adjustment + phase_modifier
+        
+        # Bounds checking
+        final_adjustment = max(-0.20, min(0.20, final_adjustment))
+        
+        logger.info(f"[VISION SCORE] Final adjustment: {final_adjustment:.3f} "
+                   f"(pattern: {label}, confidence: {confidence:.2f}, phase: {phase_source})")
+        
+        return round(final_adjustment, 4)
         
     except Exception as e:
-        logger.error(f"[VISION SCORE] ❌ Scoring failed: {e}")
+        logger.error(f"[VISION SCORE ERROR] Scoring failed: {e}")
         return 0.0
 
 def analyze_vision_confidence(ai_label: Dict) -> str:
