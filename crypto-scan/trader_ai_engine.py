@@ -1272,6 +1272,131 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
         except Exception as e:
             print(f"[AI-EYE ERROR] Vision integration failed for {symbol}: {e}")
 
+        # === ETAP 5.7: HTF OVERLAY INTEGRATION - Macrostructure Awareness ===
+        htf_overlay_adjustment = 0.0
+        htf_overlay_summary = {}
+        
+        try:
+            # Check if HTF data is available
+            htf_candles = market_data.get('htf_candles', market_data.get('candles_1h', []))
+            current_price = signals.get('current_price', market_data.get('price', 0))
+            
+            if htf_candles and len(htf_candles) >= 20 and current_price > 0:
+                print(f"[HTF OVERLAY] Starting macrostructure analysis for {symbol}")
+                
+                # Import HTF Overlay modules
+                try:
+                    from htf_overlay.phase_detector import detect_htf_phase
+                    from htf_overlay.overlay_score import score_from_htf_overlay, create_htf_overlay_summary
+                    
+                    # Run HTF phase detection
+                    htf_phase = detect_htf_phase(htf_candles, timeframe="1H")
+                    
+                    # Get AI-EYE label for HTF overlay scoring
+                    ai_label_for_htf = {
+                        'label': ai_vision_summary.get('pattern', 'unknown'),
+                        'confidence': ai_vision_summary.get('confidence', 0.0),
+                        'phase': market_phase
+                    }
+                    
+                    # Calculate HTF overlay scoring adjustment
+                    htf_overlay_result = score_from_htf_overlay(htf_phase, ai_label_for_htf)
+                    htf_overlay_adjustment = htf_overlay_result.get('adjustment', 0.0)
+                    htf_overlay_summary = htf_overlay_result
+                    
+                    # Apply HTF adjustment to score
+                    original_score_pre_htf = score
+                    score += htf_overlay_adjustment
+                    
+                    print(f"[HTF OVERLAY] {symbol}: HTF {htf_phase.get('phase', 'unknown')} "
+                          f"({htf_phase.get('direction', 'neutral')}, strength: {htf_phase.get('strength', 0):.2f})")
+                    print(f"[HTF OVERLAY] {symbol}: Adjustment {htf_overlay_adjustment:+.3f} "
+                          f"({original_score_pre_htf:.3f} → {score:.3f})")
+                    print(f"[HTF OVERLAY] {symbol}: {htf_overlay_result.get('alignment', 'neutral')} alignment - "
+                          f"{htf_overlay_result.get('reasoning', 'No specific reasoning')}")
+                    
+                    # Add to context modifiers
+                    if abs(htf_overlay_adjustment) > 0.02:
+                        context_modifiers.append(f"htf_{htf_phase.get('phase', 'unknown')}_{htf_overlay_result.get('alignment', 'neutral')}")
+                    
+                except ImportError as e:
+                    print(f"[HTF OVERLAY] HTF modules not available: {e}")
+                except Exception as e:
+                    print(f"[HTF OVERLAY ERROR] HTF analysis failed for {symbol}: {e}")
+                    
+            elif not htf_candles or len(htf_candles) < 20:
+                print(f"[HTF OVERLAY] Insufficient HTF data for {symbol}: {len(htf_candles) if htf_candles else 0} candles")
+            else:
+                print(f"[HTF OVERLAY] Missing price data for {symbol}: price={current_price}")
+                
+        except Exception as e:
+            print(f"[HTF OVERLAY ERROR] HTF integration failed for {symbol}: {e}")
+
+        # === ETAP 5.8: TRAP DETECTOR INTEGRATION - Risk Pattern Detection ===
+        trap_detector_adjustment = 0.0
+        trap_detector_summary = {}
+        
+        try:
+            # Check if candle data is available for trap detection
+            candles_for_trap_analysis = signals.get('candles', market_data.get('candles_15m', []))
+            
+            if candles_for_trap_analysis and len(candles_for_trap_analysis) >= 5:
+                print(f"[TRAP DETECTOR] Starting risk pattern analysis for {symbol}")
+                
+                # Import Trap Detector modules
+                try:
+                    from trap_detector.trap_scorer import score_from_trap_detector, create_trap_detector_summary
+                    
+                    # Prepare AI label for trap analysis
+                    ai_label_for_trap = {
+                        'label': ai_vision_summary.get('pattern', setup_label),
+                        'confidence': ai_vision_summary.get('confidence', gpt_confidence),
+                        'phase': market_phase
+                    }
+                    
+                    # Run trap detector analysis
+                    trap_detector_result = score_from_trap_detector(
+                        candles_for_trap_analysis, 
+                        ai_label_for_trap, 
+                        market_phase
+                    )
+                    
+                    trap_detector_adjustment = trap_detector_result.get('adjustment', 0.0)
+                    trap_detector_summary = trap_detector_result
+                    
+                    # Apply trap detector adjustment to score
+                    original_score_pre_trap = score
+                    score += trap_detector_adjustment
+                    
+                    # Logging trap detector results
+                    if trap_detector_result.get('trap_detected', False):
+                        trap_types = ', '.join(trap_detector_result.get('trap_types', []))
+                        print(f"[TRAP DETECTOR] {symbol}: {trap_types} detected "
+                              f"(confidence: {trap_detector_result.get('confidence', 0):.2f})")
+                        print(f"[TRAP DETECTOR] {symbol}: Penalty {trap_detector_adjustment:+.3f} "
+                              f"({original_score_pre_trap:.3f} → {score:.3f})")
+                        print(f"[TRAP DETECTOR] {symbol}: {trap_detector_result.get('reasoning', 'No specific reasoning')}")
+                    else:
+                        print(f"[TRAP DETECTOR] {symbol}: No trap patterns detected - setup appears clean")
+                    
+                    # Add to context modifiers for significant penalties
+                    if abs(trap_detector_adjustment) > 0.05:
+                        trap_severity = "high" if abs(trap_detector_adjustment) > 0.10 else "medium"
+                        context_modifiers.append(f"trap_risk_{trap_severity}")
+                    
+                except ImportError as e:
+                    print(f"[TRAP DETECTOR] Trap modules not available: {e}")
+                except Exception as e:
+                    print(f"[TRAP DETECTOR ERROR] Trap analysis failed for {symbol}: {e}")
+                    
+            elif not candles_for_trap_analysis or len(candles_for_trap_analysis) < 5:
+                print(f"[TRAP DETECTOR] Insufficient candle data for {symbol}: {len(candles_for_trap_analysis) if candles_for_trap_analysis else 0} candles")
+            else:
+                print(f"[TRAP DETECTOR] No candle data available for trap analysis: {symbol}")
+                
+        except Exception as e:
+            print(f"[TRAP DETECTOR ERROR] Trap detector integration failed for {symbol}: {e}")
+
         # === ETAP 6: ADVANCED CLIP INTEGRATION WITH CONTEXTUAL BOOSTS ===
         clip_modifier = 0.0
         clip_predicted_phase = ""
@@ -1972,6 +2097,21 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                 "adjustment": round(ai_vision_adjustment, 3),
                 "summary": ai_vision_summary,
                 "analysis_completed": abs(ai_vision_adjustment) > 0
+            },
+            "htf_overlay_info": {
+                "adjustment": round(htf_overlay_adjustment, 3),
+                "summary": htf_overlay_summary,
+                "analysis_completed": abs(htf_overlay_adjustment) > 0,
+                "phase": htf_overlay_summary.get('htf_context', 'unknown'),
+                "alignment": htf_overlay_summary.get('alignment', 'neutral')
+            },
+            "trap_detector_info": {
+                "adjustment": round(trap_detector_adjustment, 3),
+                "summary": trap_detector_summary,
+                "analysis_completed": abs(trap_detector_adjustment) > 0,
+                "trap_detected": trap_detector_summary.get('trap_detected', False),
+                "trap_types": trap_detector_summary.get('trap_types', []),
+                "risk_level": "high" if abs(trap_detector_adjustment) > 0.10 else "medium" if abs(trap_detector_adjustment) > 0.05 else "low"
             },
             "debug_info": debug_info
         }
