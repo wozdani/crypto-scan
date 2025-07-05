@@ -245,13 +245,24 @@ class HybridEmbeddingSystem:
             return None
     
     def save_embedding(self, embedding_record: Dict):
-        """Save embedding record to file"""
+        """Save embedding record to file with corrupted JSON recovery"""
         try:
-            # Load existing embeddings
+            # Load existing embeddings with corruption protection
             embeddings = {}
             if os.path.exists(self.embeddings_file):
-                with open(self.embeddings_file, 'r') as f:
-                    embeddings = json.load(f)
+                try:
+                    with open(self.embeddings_file, 'r') as f:
+                        embeddings = json.load(f)
+                except json.JSONDecodeError as e:
+                    print(f"[CRITICAL] embeddings.json corrupted: {e}")
+                    # Create backup of corrupted file
+                    from datetime import datetime
+                    backup_path = f"{self.embeddings_file.replace('.json', '')}_corrupted_backup_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+                    os.rename(self.embeddings_file, backup_path)
+                    print(f"[RECOVERY] Created backup: {backup_path}")
+                    # Start with empty embeddings
+                    embeddings = {}
+                    print(f"[RECOVERY] Starting fresh embeddings.json after corruption recovery")
             
             symbol = embedding_record["symbol"]
             if symbol not in embeddings:
@@ -264,14 +275,22 @@ class HybridEmbeddingSystem:
             if len(embeddings[symbol]) > 100:
                 embeddings[symbol] = embeddings[symbol][-100:]
             
-            # Save updated embeddings
-            with open(self.embeddings_file, 'w') as f:
+            # Save updated embeddings with safe write
+            temp_file = f"{self.embeddings_file}.tmp"
+            with open(temp_file, 'w') as f:
                 json.dump(embeddings, f, indent=2)
+            
+            # Atomic move to prevent corruption during write
+            os.rename(temp_file, self.embeddings_file)
             
             print(f"[EMBEDDING SAVE] Saved embedding for {symbol} ({len(embeddings[symbol])} total)")
             
         except Exception as e:
             print(f"[EMBEDDING SAVE ERROR] {e}")
+            # Ensure temp file is cleaned up on any error
+            temp_file = f"{self.embeddings_file}.tmp"
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
     
     def find_similar_cases(
         self, 
@@ -280,13 +299,19 @@ class HybridEmbeddingSystem:
         top_k: int = 5,
         similarity_threshold: float = 0.7
     ) -> List[Dict]:
-        """Find similar historical cases using cosine similarity"""
+        """Find similar historical cases using cosine similarity with corruption protection"""
         try:
             if not os.path.exists(self.embeddings_file):
                 return []
             
-            with open(self.embeddings_file, 'r') as f:
-                embeddings = json.load(f)
+            # Safe load with corruption protection
+            try:
+                with open(self.embeddings_file, 'r') as f:
+                    embeddings = json.load(f)
+            except json.JSONDecodeError as e:
+                print(f"[WARNING] embeddings.json corrupted during similarity search: {e}")
+                print(f"[WARNING] Cannot find similar cases - file needs repair")
+                return []
             
             candidates = []
             
