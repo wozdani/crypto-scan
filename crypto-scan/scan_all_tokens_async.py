@@ -489,6 +489,44 @@ async def generate_top_tjde_charts(results: List[Dict]):
         for symbol, path in generated_charts.items():
             print(f"   • {symbol}: {os.path.basename(path)}")
         
+        # 📊 MARKET HEALTH MONITORING: Record scan health and check for alerts
+        try:
+            from utils.market_health_monitor import log_scan_health
+            
+            print(f"[MARKET MONITOR] Recording health stats for {len(results)} scan results")
+            health_stats = log_scan_health(results)
+            
+            # Display market health summary
+            condition = health_stats.get("market_condition", "unknown")
+            max_score = health_stats.get("score_stats", {}).get("max", 0.0)
+            chart_eligible = health_stats.get("chart_generation_eligible", 0)
+            
+            print(f"[MARKET HEALTH] Condition: {condition} | Max Score: {max_score:.3f} | Chart Eligible: {chart_eligible}")
+            
+            # Save score histogram for dynamic threshold training
+            if "score_histogram" in health_stats:
+                histogram_file = "data/score_histogram.json"
+                os.makedirs(os.path.dirname(histogram_file), exist_ok=True)
+                
+                with open(histogram_file, 'w') as f:
+                    json.dump({
+                        "timestamp": health_stats["timestamp"], 
+                        "histogram": health_stats["score_histogram"],
+                        "stats": health_stats["score_stats"],
+                        "condition": condition
+                    }, f, indent=2)
+                
+                print(f"[SCORE HISTOGRAM] Saved to {histogram_file}")
+            
+            # Display alert if present
+            if "alert" in health_stats:
+                alert = health_stats["alert"]
+                print(f"🚨 [MARKET ALERT] {alert['type']}: {alert['message']}")
+                print(f"   💡 Recommendation: {alert['recommendation']}")
+            
+        except Exception as monitor_e:
+            print(f"[MARKET MONITOR ERROR] {monitor_e}")
+
         # Generate Vision-AI metadata ONLY (NO additional chart generation)
         try:
             print("[VISION-AI] 🎯 Generating metadata for TOP 5 tokens (no duplicate charts)")

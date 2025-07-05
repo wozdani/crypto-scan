@@ -376,6 +376,37 @@ def get_whale_priority_api():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/market-health')
+def get_market_health_api():
+    """Get market health and condition monitoring"""
+    try:
+        from utils.market_health_monitor import check_market_condition
+        
+        # Get recent market condition summary
+        market_summary = check_market_condition()
+        
+        # Get latest health file for current condition
+        health_dir = "data/market_health"
+        latest_health = None
+        
+        if os.path.exists(health_dir):
+            health_files = [f for f in os.listdir(health_dir) if f.startswith("health_") and f.endswith(".json")]
+            if health_files:
+                latest_file = sorted(health_files)[-1]
+                with open(os.path.join(health_dir, latest_file), 'r') as f:
+                    latest_health = json.load(f)
+        
+        response = {
+            "market_summary": market_summary,
+            "current_health": latest_health,
+            "status": "ok"
+        }
+        
+        return jsonify(response)
+        
+    except Exception as e:
+        return jsonify({"error": str(e), "status": "error"})
+
 if __name__ == '__main__':
     # Ensure data directories exist
     os.makedirs("data/cache", exist_ok=True)
