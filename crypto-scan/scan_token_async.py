@@ -21,21 +21,33 @@ from utils.training_data_manager import TrainingDataManager
 # PPWCS SYSTEM REMOVED - Using TJDE v2 only
 print("[SYSTEM] PPWCS system completely removed - using TJDE v2 exclusively")
 
+# CRITICAL FIX: Import unified scoring engine instead of old trader_ai_engine
 try:
-    from trader_ai_engine import simulate_trader_decision_advanced, CANDIDATE_PHASES
+    # Import unified scoring engine for comprehensive module integration
+    from unified_scoring_engine import simulate_trader_decision_advanced, prepare_unified_data
+    from trader_ai_engine import CANDIDATE_PHASES  # Only import constants
     TJDE_AVAILABLE = True
-    print("[IMPORT SUCCESS] simulate_trader_decision_advanced and CANDIDATE_PHASES imported successfully")
+    UNIFIED_ENGINE = True
+    print("[UNIFIED ENGINE] Using new unified scoring engine with all 5 modules")
+    print("[IMPORT SUCCESS] simulate_trader_decision_advanced from unified_scoring_engine imported")
     
-    # TJDE function available - skip sync test in async environment
-    print("[TJDE READY] simulate_trader_decision_advanced available for async scanning")
-        
 except ImportError as e:
-    print(f"[IMPORT ERROR] trader_ai_engine import failed: {e}")
-    TJDE_AVAILABLE = False
-    CANDIDATE_PHASES = [
-        "breakout-continuation", "pullback-in-trend", "range-accumulation", 
-        "trend-reversal", "consolidation", "fake-breakout"
-    ]
+    # Fallback to old engine if unified not available
+    print(f"[UNIFIED ENGINE ERROR] Failed to import unified engine: {e}")
+    try:
+        from trader_ai_engine import simulate_trader_decision_advanced, CANDIDATE_PHASES
+        TJDE_AVAILABLE = True
+        UNIFIED_ENGINE = False
+        print("[FALLBACK] Using legacy trader_ai_engine with debugging enabled")
+        
+    except ImportError as e2:
+        print(f"[IMPORT ERROR] Both unified and legacy engines failed: {e2}")
+        TJDE_AVAILABLE = False
+        UNIFIED_ENGINE = False
+        CANDIDATE_PHASES = [
+            "breakout-continuation", "pullback-in-trend", "range-accumulation", 
+            "trend-reversal", "consolidation", "fake-breakout"
+        ]
 
 try:
     from utils.alerts import send_alert
@@ -532,12 +544,23 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         }
                         print(f"[UNIFIED TJDE] {symbol}: phase={unified_result.get('market_phase')}, score={unified_result.get('final_score'):.3f}, decision={unified_result.get('decision')}")
                     else:
-                        print(f"[UNIFIED TJDE FALLBACK] {symbol}: Using legacy TJDE")
-                        tjde_result = simulate_trader_decision_advanced(symbol, market_data, features)
+                        print(f"[UNIFIED TJDE FALLBACK] {symbol}: Using unified scoring engine directly")
+                        # Use unified engine directly with proper data preparation
+                        if UNIFIED_ENGINE:
+                            unified_data = prepare_unified_data(symbol, market_data, signals)
+                            unified_data["debug"] = True  # Enable debugging
+                            tjde_result = simulate_trader_decision_advanced(unified_data)
+                        else:
+                            tjde_result = simulate_trader_decision_advanced(symbol, market_data, features)
                         
                 except ImportError:
                     print(f"[TJDE LEGACY] {symbol}: Unified engine not available, using legacy")
-                    tjde_result = simulate_trader_decision_advanced(symbol, market_data, features)
+                    if UNIFIED_ENGINE:
+                        unified_data = prepare_unified_data(symbol, market_data, signals)
+                        unified_data["debug"] = True  # Enable debugging
+                        tjde_result = simulate_trader_decision_advanced(unified_data)
+                    else:
+                        tjde_result = simulate_trader_decision_advanced(symbol, market_data, features)
                 
                 if tjde_result and isinstance(tjde_result, dict):
                     # 🚫 NO FALLBACK VALUES - use authentic scoring only

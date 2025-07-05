@@ -901,6 +901,14 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
         dict: Enhanced decision with CLIP + GPT integration
     """
     
+    # 🔍 CRITICAL DEBUG: Add comprehensive debugging to identify fallback score issue
+    print(f"[TJDE DEBUG] Starting scoring for {symbol}")
+    print(f"[TJDE DEBUG] AI Label: {signals.get('ai_label', 'None')}")
+    print(f"[TJDE DEBUG] EMA50: {signals.get('ema50', 'None')}")
+    print(f"[TJDE DEBUG] Candles: {len(market_data.get('candles', []))}")
+    print(f"[TJDE DEBUG] HTF Candles: {len(signals.get('htf_candles', []))}")
+    print(f"[TJDE DEBUG] Market Phase: {signals.get('market_phase', 'None')}")
+    
     try:
         # 🚫 CRITICAL: Block scoring for tokens without TradingView charts
         chart_path = signals.get('chart_path')
@@ -1047,6 +1055,16 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
             psych_score * 0.05 +
             market_phase_modifier
         )
+        
+        # 🔍 DEBUG: Identify fallback score source
+        print(f"[TJDE MODULE DEBUG] Raw scoring components:")
+        print(f"  - trend_strength: {trend_strength:.4f}")
+        print(f"  - pullback_quality: {pullback_quality:.4f}")
+        print(f"  - liquidity_pattern_score: {liquidity_pattern_score:.4f}")
+        print(f"  - support_reaction: {support_reaction:.4f}")
+        print(f"  - psych_score: {psych_score:.4f}")
+        print(f"  - market_phase_modifier: {market_phase_modifier:.4f}")
+        print(f"  - BASE SCORE: {score:.4f}")
         
         # CRITICAL FIX: Strong trend guarantee - never undervalue excellent setups
         if trend_strength > 0.9 and pullback_quality > 0.9:
