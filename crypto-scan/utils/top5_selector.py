@@ -28,6 +28,13 @@ class TOP5TokenSelector:
             Top 5 results sorted by TJDE score
         """
         # Filter valid results with TJDE scores and exclude invalid symbols
+        try:
+            from utils.invalid_symbol_filter import filter_valid_symbols
+            tjde_results = filter_valid_symbols(tjde_results)
+        except Exception as e:
+            print(f"[TOP5 SELECTOR] Invalid symbol filter error: {e}")
+        
+        # Continue with standard invalid symbol exclusion
         valid_results = [
             r for r in tjde_results 
             if r.get('tjde_score', 0) > 0 

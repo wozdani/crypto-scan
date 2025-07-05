@@ -33,6 +33,24 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
     ai_label = data.get("ai_label", {})
     market_phase = data.get("market_phase", "unknown")
     
+    # CRITICAL: Invalid Symbol Filter - Skip analysis for problematic symbols
+    try:
+        from utils.invalid_symbol_filter import should_skip_symbol_analysis
+        
+        if should_skip_symbol_analysis(symbol):
+            logger.info(f"[UNIFIED SCORING] {symbol}: SKIPPED - Invalid symbol detected")
+            return {
+                "final_score": 0.0,
+                "decision": "skip",
+                "confidence": 0.0,
+                "score_breakdown": {},
+                "reasoning": f"Symbol {symbol} marked as invalid - skipped analysis",
+                "symbol": symbol,
+                "invalid_symbol": True
+            }
+    except Exception as e:
+        logger.warning(f"[UNIFIED SCORING] Invalid symbol filter error for {symbol}: {e}")
+    
     if debug:
         logger.info(f"[UNIFIED SCORING] Starting comprehensive analysis for {symbol}")
     
