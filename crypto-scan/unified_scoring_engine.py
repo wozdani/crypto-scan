@@ -60,18 +60,25 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
     if not htf_candles or len(htf_candles) < 30:
         print(f"[WARNING] Missing or insufficient HTF candles for {symbol} (available: {len(htf_candles)})")
     
-    # 🛡️ CORE DATA PROTECTION - Block scoring if both AI-EYE and HTF are missing
-    if not ai_label and (not htf_candles or len(htf_candles) < 30):
-        print(f"[UNIFIED SKIP] Skipping scoring for {symbol} due to missing AI-EYE and HTF Overlay.")
+    # 🛡️ ENHANCED DATA PROTECTION - Allow basic scoring even without AI-EYE/HTF for initial selection
+    # Only skip if we have absolutely no usable data (no candles at all)
+    if not candles or len(candles) < 20:
+        print(f"[UNIFIED SKIP] Skipping scoring for {symbol} due to insufficient candles ({len(candles) if candles else 0}).")
         return {
             "final_score": 0.0,
             "decision": "skip",
             "confidence": 0.0,
-            "score_breakdown": {"reason": "insufficient_ai_htf_data"},
-            "reasoning": f"Both AI-EYE and HTF Overlay data missing for {symbol}",
+            "score_breakdown": {"reason": "insufficient_candle_data"},
+            "reasoning": f"Insufficient candle data for {symbol}",
             "symbol": symbol,
             "data_insufficient": True
         }
+    
+    # Allow scoring to proceed even without AI-EYE/HTF for initial token selection
+    # This enables the system to find TOP tokens that can then get AI-EYE analysis
+    if not ai_label and (not htf_candles or len(htf_candles) < 30):
+        print(f"[UNIFIED BASIC] {symbol}: Proceeding with basic scoring (no AI-EYE/HTF for initial selection)")
+        print(f"[UNIFIED BASIC] {symbol}: This token may qualify for AI-EYE analysis if it reaches TOP 5")
     
     # 🔍 COMPREHENSIVE DEBUG LOGGING - Show exact scoring breakdown
     print(f"[UNIFIED SCORING DEBUG] Starting analysis for {symbol}")
@@ -297,14 +304,16 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
         if debug:
             logger.error(f"[MODULE 5 ERROR] Feedback logging failed: {e}")
     
-    # 🧠 ENHANCED LEGACY SCORING - Only if AI-EYE or HTF succeeded
+    # 🧠 ENHANCED LEGACY SCORING - Always enabled for initial token selection
     score_ai = score_breakdown.get("ai_eye_score", 0.0)
     score_htf = score_breakdown.get("htf_overlay_score", 0.0)
-    legacy_enabled = (score_ai > 0 or score_htf > 0)
+    
+    # Enable legacy scoring always to allow basic token ranking and TOP 5 selection
+    legacy_enabled = True  # Changed from conditional to always enabled
     
     print(f"[TJDE DEBUG] AI-EYE Score: {score_ai:.4f}")
     print(f"[TJDE DEBUG] HTF Overlay Score: {score_htf:.4f}")
-    print(f"[TJDE DEBUG] Legacy Scoring Enabled: {legacy_enabled}")
+    print(f"[TJDE DEBUG] Legacy Scoring Enabled: {legacy_enabled} (always enabled for token selection)")
     
     if legacy_enabled:
         print(f"[TJDE DEBUG] Executing legacy scoring components...")
@@ -364,9 +373,6 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
                 
         except Exception as e:
             logger.error(f"[LEGACY ERROR] Psychology scoring failed: {e}")
-            
-    else:
-        print(f"[TJDE DEBUG] Skipping legacy scoring for {symbol} due to lack of AI-EYE + HTF success")
     
     # === ENHANCED DEBUG LOGGING: INDIVIDUAL MODULE SCORES ===
     print(f"[TJDE DEBUG] Trap Detector Score: {score_breakdown['trap_detector_score']:.4f}")
