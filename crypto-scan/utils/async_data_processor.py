@@ -54,15 +54,17 @@ def process_async_data_enhanced_with_5m(symbol: str, ticker_data: Optional[Dict]
             price_usd = float(ticker.get("lastPrice", 0)) if ticker.get("lastPrice") else 0.0
             volume_24h = float(ticker.get("volume24h", 0)) if ticker.get("volume24h") else 0.0
             
-            # FIX: Validate ticker data quality - reject if price or volume is 0
+            # FIX: Validate ticker data quality - mark as partial if price or volume is 0
             if price_usd <= 0.0 or volume_24h <= 0.0:
                 print(f"[TICKER INVALID] {symbol}: Price ${price_usd}, Volume {volume_24h} - rejecting invalid ticker")
                 has_price = False
                 has_ticker = False
+                ticker_invalid = True  # Flag for partial marking
             else:
                 print(f"[TICKER SUCCESS] {symbol}: Price ${price_usd}, Volume {volume_24h}")
                 has_ticker = True
                 has_price = True
+                ticker_invalid = False
     
     # PRIORITY 2: Process 15M candles (should always be available from async scanner)
     if candles_data and candles_data.get("result", {}).get("list"):
@@ -160,9 +162,18 @@ def process_async_data_enhanced_with_5m(symbol: str, ticker_data: Optional[Dict]
         return None
     
     # Determine data completeness - CRITICAL for TOP5 filtering
-    # Token is considered partial if it lacks 5M candles (common with retCode 10001)
-    is_partial_data = not has_5m_candles  # Missing 5M candles indicates partial data
-    data_quality = "COMPLETE" if has_5m_candles else "PARTIAL_15M_ONLY"
+    # Token is considered partial if it lacks 5M candles OR has invalid ticker
+    ticker_invalid = locals().get('ticker_invalid', False)
+    is_partial_data = not has_5m_candles or ticker_invalid  # Missing 5M or invalid ticker indicates partial data
+    
+    if ticker_invalid and has_5m_candles:
+        data_quality = "PARTIAL_TICKER_INVALID"  
+    elif not has_5m_candles and not ticker_invalid:
+        data_quality = "PARTIAL_15M_ONLY"
+    elif not has_5m_candles and ticker_invalid:
+        data_quality = "PARTIAL_TICKER_AND_5M"
+    else:
+        data_quality = "COMPLETE"
     
     if is_partial_data:
         print(f"[DATA QUALITY] {symbol}: ⚠️ PARTIAL - 15M only (missing 5M candles)")

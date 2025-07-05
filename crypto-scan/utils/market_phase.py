@@ -392,7 +392,7 @@ def _calculate_ema(prices: List[float], period: int) -> List[float]:
     return ema
 
 
-def market_phase_modifier(market_phase: str) -> float:
+def market_phase_modifier(market_phase: str, trend_strength: float = None) -> float:
     """
     Zwraca modyfikator score w zależności od rozpoznanej fazy rynku.
     
@@ -441,10 +441,32 @@ def market_phase_modifier(market_phase: str) -> float:
         "undefined": 0.00,
         "unknown": 0.00,
         "error": 0.00,
-        "insufficient_data": 0.00
+        "insufficient_data": 0.00,
+        "basic_screening": 0.00  # Should be enhanced with trend_strength
     }
 
     modifier = modifiers.get(phase, 0.00)
+    
+    # ENHANCED FALLBACK: For basic_screening, use trend_strength to detect phase
+    if phase == "basic_screening" and trend_strength is not None:
+        print(f"[PHASE ENHANCEMENT] basic_screening detected - analyzing trend_strength {trend_strength:.3f} for better phase detection")
+        
+        # Use trend_strength to determine appropriate phase modifier
+        if trend_strength >= 0.8:
+            modifier = 0.12  # Strong trend like breakout
+            print(f"[PHASE ENHANCEMENT] Strong trend_strength {trend_strength:.3f} → using breakout modifier +0.12")
+        elif trend_strength >= 0.6:
+            modifier = 0.08  # Good momentum like pre-breakout
+            print(f"[PHASE ENHANCEMENT] Good trend_strength {trend_strength:.3f} → using pre-breakout modifier +0.08")
+        elif trend_strength >= 0.4:
+            modifier = 0.05  # Moderate trend like trending-up
+            print(f"[PHASE ENHANCEMENT] Moderate trend_strength {trend_strength:.3f} → using trending-up modifier +0.05")
+        elif trend_strength >= 0.2:
+            modifier = 0.02  # Weak trend like range-accumulation
+            print(f"[PHASE ENHANCEMENT] Weak trend_strength {trend_strength:.3f} → using range-accumulation modifier +0.02")
+        else:
+            modifier = 0.00  # Very weak or negative trend
+            print(f"[PHASE ENHANCEMENT] Very weak trend_strength {trend_strength:.3f} → using neutral modifier 0.00")
 
     print(f"[PHASE DEBUG] Market phase: {phase}")
     print(f"[PHASE DEBUG] Computed modifier: {modifier:+.3f}")

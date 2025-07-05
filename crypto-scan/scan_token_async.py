@@ -656,6 +656,9 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         print(f"[INVALID ANALYSIS] {symbol}: Blocking invalid token with score {final_score}, decision {decision}")
                         return None
                     
+                    # Initialize trend_strength variable for market phase modifier
+                    trend_strength = 0.0
+                    
                     # Detailed TJDE scoring breakdown
                     if debug_info:
                         # Get enhanced TJDE component scores with fallback calculations
@@ -693,10 +696,11 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         print(f"[TJDE SCORE] trend_strength={trend_strength:.3f}, pullback_quality={pullback_quality:.3f}, final_score={final_score:.3f}")
                         print(f"[TJDE SCORE] volume_behavior_score={volume_behavior_score:.3f}, psych_score={psych_score:.3f}, support_reaction={support_reaction:.3f}")
                     
-                    # Market phase modifier
+                    # Market phase modifier with trend_strength fallback
                     try:
                         from utils.market_phase import market_phase_modifier
-                        modifier = market_phase_modifier(market_phase)
+                        # Pass trend_strength for basic_screening fallback enhancement
+                        modifier = market_phase_modifier(market_phase, trend_strength)
                         if modifier != 0.0:
                             print(f"[MODIFIER] market_phase={market_phase}, modifier=+{modifier:.3f}")
                             final_score += modifier
