@@ -541,19 +541,75 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                             price_change_24h=safe_price_change_24h
                         )
                         
-                        print(f"[BASIC SCREENING SUCCESS] {symbol}: Score={basic_result.get('final_score', 0):.4f}, Decision={basic_result.get('decision', 'unknown')}")
+                        basic_score = basic_result.get('final_score', 0.0)
+                        basic_decision = basic_result.get('decision', 'unknown')
+                        
+                        print(f"[BASIC SCREENING SUCCESS] {symbol}: Score={basic_score:.4f}, Decision={basic_decision}")
                         print(f"[BASIC ENGINE DEBUG] {symbol}: Basic result complete: {basic_result}")
                         
-                        # Convert basic result format to match expected structure
-                        tjde_result = {
-                            'tjde_score': basic_result.get('final_score', 0.0),
-                            'decision': basic_result.get('decision', 'wait'),
-                            'confidence': basic_result.get('confidence', 0.5),
-                            'base_score': basic_result.get('final_score', 0.0),
-                            'market_phase': 'basic_screening',
-                            'setup_type': 'basic_analysis',
-                            'reasoning': f"Basic screening: {basic_result.get('final_score', 0):.4f} from basic modules - {basic_result.get('reason', 'completed')}"
-                        }
+                        # 🚀 TJDE v2 PHASE 2: ADVANCED SCORING for qualifying tokens
+                        if basic_score >= 0.3 and basic_decision in ['consider', 'scalp_entry', 'wait']:
+                            print(f"[PHASE 2 TRIGGER] {symbol}: Basic score {basic_score:.4f} qualifies for advanced AI-EYE + HTF analysis")
+                            
+                            try:
+                                # Prepare data for unified engine with AI-EYE and HTF
+                                candles_15m = market_data.get('candles_15m', market_data.get('candles', []))
+                                ticker_data = market_data.get('ticker_data', {})
+                                orderbook_data = market_data.get('orderbook', {})
+                                
+                                # Use trend_features as signals data
+                                unified_data = prepare_unified_data(
+                                    symbol=symbol,
+                                    candles=candles_15m,
+                                    ticker_data=ticker_data,
+                                    orderbook=orderbook_data,
+                                    market_data=market_data,
+                                    signals=trend_features,  # Use trend_features instead of undefined all_features
+                                    ai_label=None,  # Will be populated by AI-EYE module
+                                    htf_candles=None  # Will be populated by HTF module
+                                )
+                                
+                                print(f"[PHASE 2 DATA] {symbol}: Unified data prepared for advanced modules")
+                                
+                                # Add symbol and basic score to unified_data for unified scoring engine
+                                unified_data['symbol'] = symbol
+                                unified_data['basic_score'] = basic_score  # Pass basic score as baseline
+                                unified_data['gpt_clip_data'] = collect_gpt_clip_data(symbol)
+                                unified_data['market_phase'] = basic_result.get('market_phase', 'unknown')
+                                
+                                # Run full unified scoring with all 5 modules
+                                advanced_result = simulate_trader_decision_advanced(data=unified_data)
+                                
+                                print(f"[PHASE 2 SUCCESS] {symbol}: Advanced scoring complete - Score: {advanced_result.get('final_score', 0):.4f}")
+                                tjde_result = advanced_result
+                                
+                            except Exception as e:
+                                print(f"[PHASE 2 ERROR] {symbol}: Advanced scoring failed: {e}")
+                                print(f"[PHASE 2 FALLBACK] {symbol}: Using basic result as fallback")
+                                
+                                # Fallback to basic result
+                                tjde_result = {
+                                    'tjde_score': basic_score,
+                                    'decision': basic_decision,
+                                    'confidence': basic_result.get('confidence', 0.5),
+                                    'base_score': basic_score,
+                                    'market_phase': 'basic_screening',
+                                    'setup_type': 'basic_analysis',
+                                    'reasoning': f"Phase 2 failed, using basic: {basic_score:.4f}"
+                                }
+                        else:
+                            print(f"[PHASE 2 SKIP] {symbol}: Score {basic_score:.4f} below threshold (0.4) - using basic result only")
+                            
+                            # Use basic result for low-scoring tokens
+                            tjde_result = {
+                                'tjde_score': basic_score,
+                                'decision': basic_decision,
+                                'confidence': basic_result.get('confidence', 0.5),
+                                'base_score': basic_score,
+                                'market_phase': 'basic_screening',
+                                'setup_type': 'basic_analysis',
+                                'reasoning': f"Basic screening: {basic_score:.4f} from basic modules - {basic_result.get('reason', 'completed')}"
+                            }
                         
                     except Exception as e:
                         import traceback

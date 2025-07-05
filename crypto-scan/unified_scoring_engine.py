@@ -99,8 +99,11 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
         "legacy_psychology_score": 0.0
     }
     
-    total_score = 0.0
-    print(f"[UNIFIED SCORING DEBUG] Initial total_score: {total_score}")
+    # 🚀 START WITH BASIC SCORE AS BASE - Unified engine enhances basic engine instead of replacing it
+    basic_score = data.get("basic_score", 0.0)
+    total_score = basic_score  # Start with basic score, then add/subtract adjustments
+    print(f"[UNIFIED SCORING DEBUG] Starting with basic_score: {basic_score:.4f} as base")
+    print(f"[UNIFIED SCORING DEBUG] Total score will be enhanced from this baseline")
     
     # === MODULE 1: AI-EYE VISION (CLIP + GPT with Dynamic Weights) ===
     try:
