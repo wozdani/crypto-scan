@@ -30,7 +30,10 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
     
     symbol = data.get("symbol", "UNKNOWN")
     debug = data.get("debug", False)
+    candles = data.get("candles", [])
+    htf_candles = data.get("htf_candles", [])
     ai_label = data.get("ai_label", {})
+    orderbook = data.get("orderbook", {})
     market_phase = data.get("market_phase", "unknown")
     
     # CRITICAL: Invalid Symbol Filter - Skip analysis for problematic symbols
@@ -51,10 +54,30 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
     except Exception as e:
         logger.warning(f"[UNIFIED SCORING] Invalid symbol filter error for {symbol}: {e}")
     
+    # 🚨 ENHANCED DATA REQUIREMENTS CHECK - Early warnings
+    if not ai_label:
+        print(f"[WARNING] Missing AI Label for {symbol}")
+    if not htf_candles or len(htf_candles) < 30:
+        print(f"[WARNING] Missing or insufficient HTF candles for {symbol} (available: {len(htf_candles)})")
+    
+    # 🛡️ CORE DATA PROTECTION - Block scoring if both AI-EYE and HTF are missing
+    if not ai_label and (not htf_candles or len(htf_candles) < 30):
+        print(f"[UNIFIED SKIP] Skipping scoring for {symbol} due to missing AI-EYE and HTF Overlay.")
+        return {
+            "final_score": 0.0,
+            "decision": "skip",
+            "confidence": 0.0,
+            "score_breakdown": {"reason": "insufficient_ai_htf_data"},
+            "reasoning": f"Both AI-EYE and HTF Overlay data missing for {symbol}",
+            "symbol": symbol,
+            "data_insufficient": True
+        }
+    
     # 🔍 COMPREHENSIVE DEBUG LOGGING - Show exact scoring breakdown
     print(f"[UNIFIED SCORING DEBUG] Starting analysis for {symbol}")
     print(f"[UNIFIED SCORING DEBUG] Input data keys: {list(data.keys())}")
     print(f"[UNIFIED SCORING DEBUG] AI Label available: {bool(ai_label)}")
+    print(f"[UNIFIED SCORING DEBUG] HTF Candles available: {len(htf_candles)}")
     print(f"[UNIFIED SCORING DEBUG] Market Phase: {market_phase}")
     
     # Initialize scoring components
@@ -274,66 +297,84 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
         if debug:
             logger.error(f"[MODULE 5 ERROR] Feedback logging failed: {e}")
     
-    # === LEGACY SCORING COMPONENTS ===
+    # 🧠 ENHANCED LEGACY SCORING - Only if AI-EYE or HTF succeeded
+    score_ai = score_breakdown.get("ai_eye_score", 0.0)
+    score_htf = score_breakdown.get("htf_overlay_score", 0.0)
+    legacy_enabled = (score_ai > 0 or score_htf > 0)
     
-    # Legacy Volume Slope Analysis
-    try:
-        candles = data.get("candles", [])
-        if candles and len(candles) >= 10:
-            volume_score = score_from_volume_slope(candles)
-            score_breakdown["legacy_volume_score"] = volume_score
-            total_score += volume_score
-            
-            if debug:
-                logger.info(f"[LEGACY] Volume Slope: {volume_score:+.4f}")
-                
-    except Exception as e:
-        logger.error(f"[LEGACY ERROR] Volume scoring failed: {e}")
+    print(f"[TJDE DEBUG] AI-EYE Score: {score_ai:.4f}")
+    print(f"[TJDE DEBUG] HTF Overlay Score: {score_htf:.4f}")
+    print(f"[TJDE DEBUG] Legacy Scoring Enabled: {legacy_enabled}")
     
-    # Legacy Orderbook Pressure Analysis
-    try:
-        orderbook = data.get("orderbook", {})
-        if orderbook:
-            orderbook_score = score_from_orderbook_pressure(orderbook)
-            score_breakdown["legacy_orderbook_score"] = orderbook_score
-            total_score += orderbook_score
-            
-            if debug:
-                logger.info(f"[LEGACY] Orderbook: {orderbook_score:+.4f}")
+    if legacy_enabled:
+        print(f"[TJDE DEBUG] Executing legacy scoring components...")
+        
+        # Legacy Volume Slope Analysis
+        try:
+            candles = data.get("candles", [])
+            if candles and len(candles) >= 10:
+                volume_score = score_from_volume_slope(candles)
+                score_breakdown["legacy_volume_score"] = volume_score
+                total_score += volume_score
+                print(f"[TJDE DEBUG] Legacy Volume Score: {volume_score:.4f}")
+            else:
+                print(f"[TJDE DEBUG] Legacy Volume Score: 0.0000 (insufficient candles)")
                 
-    except Exception as e:
-        logger.error(f"[LEGACY ERROR] Orderbook scoring failed: {e}")
+        except Exception as e:
+            logger.error(f"[LEGACY ERROR] Volume scoring failed: {e}")
+        
+        # Legacy Orderbook Pressure Analysis
+        try:
+            orderbook = data.get("orderbook", {})
+            if orderbook:
+                orderbook_score = score_from_orderbook_pressure(orderbook)
+                score_breakdown["legacy_orderbook_score"] = orderbook_score
+                total_score += orderbook_score
+                print(f"[TJDE DEBUG] Legacy Orderbook Score: {orderbook_score:.4f}")
+            else:
+                print(f"[TJDE DEBUG] Legacy Orderbook Score: 0.0000 (no orderbook data)")
+                
+        except Exception as e:
+            logger.error(f"[LEGACY ERROR] Orderbook scoring failed: {e}")
+        
+        # Legacy Cluster Analysis
+        try:
+            cluster_features = data.get("cluster_features", {})
+            if cluster_features:
+                cluster_score = score_from_cluster(cluster_features)
+                score_breakdown["legacy_cluster_score"] = cluster_score
+                total_score += cluster_score
+                print(f"[TJDE DEBUG] Legacy Cluster Score: {cluster_score:.4f}")
+            else:
+                print(f"[TJDE DEBUG] Legacy Cluster Score: 0.0000 (no cluster features)")
+                
+        except Exception as e:
+            logger.error(f"[LEGACY ERROR] Cluster scoring failed: {e}")
+        
+        # Legacy Psychology Analysis
+        try:
+            candles = data.get("candles", [])
+            if candles and len(candles) >= 20:
+                psychology_score = score_from_psychology(candles)
+                score_breakdown["legacy_psychology_score"] = psychology_score
+                total_score += psychology_score
+                print(f"[TJDE DEBUG] Legacy Psychology Score: {psychology_score:.4f}")
+            else:
+                print(f"[TJDE DEBUG] Legacy Psychology Score: 0.0000 (insufficient candles)")
+                
+        except Exception as e:
+            logger.error(f"[LEGACY ERROR] Psychology scoring failed: {e}")
+            
+    else:
+        print(f"[TJDE DEBUG] Skipping legacy scoring for {symbol} due to lack of AI-EYE + HTF success")
     
-    # Legacy Cluster Analysis
-    try:
-        cluster_features = data.get("cluster_features", {})
-        if cluster_features:
-            cluster_score = score_from_cluster(cluster_features)
-            score_breakdown["legacy_cluster_score"] = cluster_score
-            total_score += cluster_score
-            
-            if debug:
-                logger.info(f"[LEGACY] Cluster: {cluster_score:+.4f}")
-                
-    except Exception as e:
-        logger.error(f"[LEGACY ERROR] Cluster scoring failed: {e}")
-    
-    # Legacy Psychology Analysis
-    try:
-        candles = data.get("candles", [])
-        if candles and len(candles) >= 20:
-            psychology_score = score_from_psychology(candles)
-            score_breakdown["legacy_psychology_score"] = psychology_score
-            total_score += psychology_score
-            
-            if debug:
-                logger.info(f"[LEGACY] Psychology: {psychology_score:+.4f}")
-                
-    except Exception as e:
-        logger.error(f"[LEGACY ERROR] Psychology scoring failed: {e}")
+    # === ENHANCED DEBUG LOGGING: INDIVIDUAL MODULE SCORES ===
+    print(f"[TJDE DEBUG] Trap Detector Score: {score_breakdown['trap_detector_score']:.4f}")
+    print(f"[TJDE DEBUG] Future Mapping Score: {score_breakdown['future_mapping_score']:.4f}")
     
     # === FINAL DECISION LOGIC ===
     final_score = round(total_score, 4)
+    print(f"[TJDE DEBUG] Final TJDE Score for {symbol}: {final_score:.4f}")
     
     # Enhanced decision thresholds based on comprehensive scoring
     if final_score >= 0.20:
