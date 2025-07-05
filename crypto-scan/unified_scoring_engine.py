@@ -376,6 +376,20 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
     final_score = round(total_score, 4)
     print(f"[TJDE DEBUG] Final TJDE Score for {symbol}: {final_score:.4f}")
     
+    # 🚀 TOP PERFORMER BOOST MECHANISM - Enhanced scoring for quality setups
+    original_score = final_score
+    if final_score > 0.05 and final_score < 0.15:  # Only boost moderate range tokens
+        # Check for strong individual module performance
+        has_strong_ai_eye = score_breakdown["ai_eye_score"] > 0.08
+        has_strong_htf = score_breakdown["htf_overlay_score"] > 0.03
+        has_multiple_modules = sum(1 for score in score_breakdown.values() if score > 0.02) >= 3
+        
+        if has_strong_ai_eye or has_strong_htf or has_multiple_modules:
+            print(f"[TJDE BOOST] {symbol} qualifies for boost (AI-EYE: {has_strong_ai_eye}, HTF: {has_strong_htf}, Multi-module: {has_multiple_modules})")
+            final_score += 0.10
+            final_score = round(final_score, 4)
+            print(f"[TJDE BOOST] Score boosted from {original_score:.4f} to {final_score:.4f}")
+    
     # Enhanced decision thresholds based on comprehensive scoring
     if final_score >= 0.20:
         decision = "enter"

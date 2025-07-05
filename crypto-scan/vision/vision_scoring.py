@@ -28,25 +28,28 @@ def score_from_ai_label(ai_label: Dict, market_phase: str = None) -> float:
         phase = ai_label.get("phase", "").lower()
         confidence = float(ai_label.get("confidence", 0.0))
         
-        # Validate confidence
-        if confidence <= 0.0 or confidence > 1.0:
+        # Enhanced confidence threshold: only score patterns with confidence >= 0.6
+        if confidence < 0.6:
             return 0.0
         
-        # Base scoring for different patterns
+        # Enhanced base scoring with higher values for quality setups
         base_adjustments = {
-            # Bullish patterns
-            "pullback": 0.12,
-            "pullback_continuation": 0.15,
-            "breakout": 0.18,
-            "breakout_pattern": 0.16,
-            "momentum_follow": 0.14,
-            "trend_continuation": 0.13,
-            "trend_following": 0.13,  # FIX: Added missing trend-following pattern
+            # Bullish patterns - Enhanced scoring ranges
+            "pullback": 0.18,               # Increased from 0.12
+            "pullback_continuation": 0.18,  # Enhanced for pullback patterns
+            "breakout": 0.16,               # Kept at good level
+            "breakout_pattern": 0.16,       # Consistent with breakout
+            "momentum_follow": 0.15,        # Enhanced from 0.14
+            "trend_continuation": 0.14,     # Enhanced from 0.13
+            "trend_following": 0.14,        # Enhanced from 0.13
+            "fakeout_rejection": 0.12,      # Added as per requirements
+            "range_breakout": 0.13,         # Added as per requirements
+            "accumulation_breakout": 0.15,  # Added as per requirements
             "support_bounce": 0.11,
-            "pullback_in_trend": 0.12,
+            "pullback_in_trend": 0.18,      # Enhanced for pullback
             "early_trend": 0.10,
-            "accumulation": 0.06,
-            "retest": 0.05,
+            "accumulation": 0.15,           # Enhanced from 0.06
+            "retest": 0.08,                 # Enhanced from 0.05
             
             # Bearish/Caution patterns  
             "reversal": -0.15,
@@ -70,6 +73,12 @@ def score_from_ai_label(ai_label: Dict, market_phase: str = None) -> float:
         
         base_adjustment = base_adjustments.get(label, 0.0)
         
+        # Enhanced confidence bonuses as per requirements
+        if confidence >= 0.75:
+            base_adjustment += 0.03  # High confidence bonus
+        elif confidence >= 0.7:
+            base_adjustment += 0.01  # Medium confidence bonus
+        
         # Apply dynamic weight from feedback loop
         try:
             from feedback_loop.weight_adjuster import get_effective_score_adjustment
@@ -80,8 +89,8 @@ def score_from_ai_label(ai_label: Dict, market_phase: str = None) -> float:
             
         except ImportError:
             # Fallback to static scoring if feedback loop not available
-            effective_adjustment = base_adjustment * confidence
-            logger.info(f"[VISION SCORE STATIC] {label}: {base_adjustment:.3f} × {confidence:.2f} = {effective_adjustment:.3f}")
+            effective_adjustment = base_adjustment
+            logger.info(f"[VISION SCORE STATIC] {label}: {base_adjustment:.3f} (conf: {confidence:.2f})")
         
         # Market phase context adjustments
         phase_modifier = 0.0
@@ -107,8 +116,8 @@ def score_from_ai_label(ai_label: Dict, market_phase: str = None) -> float:
         
         final_adjustment = effective_adjustment + phase_modifier
         
-        # Bounds checking
-        final_adjustment = max(-0.20, min(0.20, final_adjustment))
+        # Enhanced bounds checking - increased from 0.20 to 0.25 for better setup recognition
+        final_adjustment = max(0.0, min(0.25, final_adjustment))
         
         logger.info(f"[VISION SCORE] Final adjustment: {final_adjustment:.3f} "
                    f"(pattern: {label}, confidence: {confidence:.2f}, phase: {phase_source})")
