@@ -24,7 +24,7 @@ def score_from_ai_label(ai_label: Dict, market_phase: str = None) -> float:
             return 0.0
             
         # Extract AI analysis components
-        label = ai_label.get("label", "").lower()
+        label = ai_label.get("label", "").lower().replace("-", "_")  # Normalize hyphens to underscores
         phase = ai_label.get("phase", "").lower()
         confidence = float(ai_label.get("confidence", 0.0))
         
@@ -41,6 +41,7 @@ def score_from_ai_label(ai_label: Dict, market_phase: str = None) -> float:
             "breakout_pattern": 0.16,
             "momentum_follow": 0.14,
             "trend_continuation": 0.13,
+            "trend_following": 0.13,  # FIX: Added missing trend-following pattern
             "support_bounce": 0.11,
             "pullback_in_trend": 0.12,
             "early_trend": 0.10,
