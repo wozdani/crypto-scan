@@ -1194,6 +1194,84 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
             print(f"[CONTEXT MODIFIERS] Applied: {', '.join(context_modifiers)}")
             logging.debug(f"[TJDE DEBUG] Context modifiers for {symbol}: {context_modifiers}")
         
+        # === ETAP 5.5: AI-EYE VISION INTEGRATION ===
+        ai_vision_adjustment = 0.0
+        ai_vision_summary = {}
+        
+        try:
+            # Check if Vision AI is available and we have chart data
+            chart_path = signals.get('chart_path')
+            if chart_path and chart_path != "None" and "TRADINGVIEW_FAILED" not in str(chart_path):
+                print(f"[AI-EYE] Starting vision analysis for {symbol}")
+                
+                # Import Vision AI modules
+                try:
+                    from vision.ai_label_pipeline import prepare_ai_label
+                    from vision.vision_scoring import score_from_ai_label, create_vision_summary
+                    
+                    # Prepare candles data for AI analysis
+                    candles_15m = market_data.get('candles', [])
+                    if not candles_15m:
+                        candles_15m = market_data.get('candles_15m', [])
+                    
+                    # Convert candle format if needed
+                    formatted_candles = []
+                    for candle in candles_15m[-10:]:  # Use last 10 candles for context
+                        if isinstance(candle, list) and len(candle) >= 6:
+                            formatted_candles.append({
+                                'open': candle[1],
+                                'high': candle[2], 
+                                'low': candle[3],
+                                'close': candle[4],
+                                'volume': candle[5]
+                            })
+                        elif isinstance(candle, dict):
+                            formatted_candles.append(candle)
+                    
+                    # Get orderbook data
+                    orderbook = market_data.get('orderbook', {})
+                    
+                    # Build HTF context description
+                    htf_context = f"Market phase: {market_phase}, Trend strength: {trend_strength:.2f}"
+                    
+                    # Run AI-EYE pipeline
+                    ai_label = prepare_ai_label(
+                        symbol=symbol,
+                        chart_path=chart_path,
+                        heatmap_path=None,  # Will be generated if needed
+                        candles=formatted_candles,
+                        orderbook=orderbook,
+                        htf_context=htf_context
+                    )
+                    
+                    # Get vision-based scoring adjustment
+                    ai_vision_adjustment = score_from_ai_label(ai_label)
+                    ai_vision_summary = create_vision_summary(ai_label)
+                    
+                    # Apply vision adjustment to score
+                    original_score = score
+                    score += ai_vision_adjustment
+                    
+                    print(f"[AI-EYE COMPLETE] {symbol}: Vision adjustment {ai_vision_adjustment:+.3f} "
+                          f"({original_score:.3f} → {score:.3f})")
+                    print(f"[AI-EYE PATTERN] {symbol}: {ai_label.get('label', 'unknown')} "
+                          f"(confidence: {ai_label.get('confidence', 0):.2f})")
+                    
+                    # Add to context modifiers
+                    if abs(ai_vision_adjustment) > 0.02:
+                        context_modifiers.append(f"ai_vision_{ai_label.get('label', 'pattern')}")
+                    
+                except ImportError as e:
+                    print(f"[AI-EYE] Vision modules not available: {e}")
+                except Exception as e:
+                    print(f"[AI-EYE ERROR] Vision analysis failed for {symbol}: {e}")
+                    
+            else:
+                print(f"[AI-EYE] No chart available for vision analysis: {chart_path}")
+                
+        except Exception as e:
+            print(f"[AI-EYE ERROR] Vision integration failed for {symbol}: {e}")
+
         # === ETAP 6: ADVANCED CLIP INTEGRATION WITH CONTEXTUAL BOOSTS ===
         clip_modifier = 0.0
         clip_predicted_phase = ""
@@ -1890,6 +1968,11 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
             "clip_info": original_clip_info,
             "clip_modifier": clip_modifier,
             "base_score_before_clip": score,
+            "ai_vision_info": {
+                "adjustment": round(ai_vision_adjustment, 3),
+                "summary": ai_vision_summary,
+                "analysis_completed": abs(ai_vision_adjustment) > 0
+            },
             "debug_info": debug_info
         }
 
