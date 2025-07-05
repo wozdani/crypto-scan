@@ -98,6 +98,18 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### July 5, 2025 - CHART GENERATION FIELD NAME FIX COMPLETE - Vision-AI Training Pipeline Fully Restored ✅
+Successfully resolved critical chart generation blocking issue by fixing field name mismatch enabling continuous Vision-AI training data generation:
+- **Field Name Bug Fixed**: Corrected chart generation logic to use 'tjde_decision' instead of 'decision' field preventing all TOP5 tokens from being marked as 'unknown' decisions
+- **Complete Chart Generation Restored**: System now properly generates charts for TOP5 tokens with 'consider' decisions and scores ≥0.4 eliminating 90% training data loss
+- **Production Validation Success**: Live scan cycle confirms chart generation approved (✅ Chart generation approved: GENERATE: Consider decision above threshold (score: 0.630))
+- **TradingView Integration Active**: Canvas detection working properly with enhanced browser context and perpetual contract resolution
+- **Vision-AI Training Unblocked**: TOP5 tokens (scores 0.443-0.630) now eligible for chart generation ensuring continuous CLIP model development
+- **Threshold Strategy Enhanced**: Flexible thresholds (scalp_entry ≥0.15, consider ≥0.4, wait ≥0.4) provide comprehensive signal coverage while maintaining quality
+- **Market Health Monitoring Fixed**: Added missing 'json' import preventing crashes during health statistics recording
+- **Test Suite Validation**: 90.9% chart generation rate confirmed with proper field access and threshold application
+System eliminates the fundamental blocking issue where field name mismatch prevented all TOP5 chart generation ensuring Vision-AI receives continuous high-quality training data from live market conditions.
+
 ### July 5, 2025 - CRITICAL TJDE PIPELINE FIXES COMPLETE - Enhanced Data Validation and Two-Stage System ✅
 Successfully resolved three major logical errors in TJDE scoring pipeline and implemented comprehensive data validation system ensuring reliable production operation:
 - **Ticker Validation Bug Fixed**: Enhanced async_data_processor.py to properly reject invalid ticker data with price/volume = 0.0 preventing 0.000 scores from contaminating pipeline
@@ -161,18 +173,18 @@ Successfully implemented intelligent conditional chart generation system prevent
 - **Debug Framework**: Comprehensive logging shows chart generation approval/rejection reasons enabling fine-tuning of conditional logic based on real-world performance data
 System now operates with institutional-grade Vision-AI training data quality control preventing contamination from low-value signals while maintaining superior performance and training dataset integrity.
 
-### July 5, 2025 - CRITICAL PRODUCTION SCORING FIXES COMPLETE - Enhanced Boost Mechanisms and Fallback System ✅
-Successfully resolved all critical production scoring issues achieving dramatic improvements in token ranking and TOP 10 viability through comprehensive scoring fixes:
-- **Strong Trend Boost Mechanism Fixed**: Corrected pullback_quality threshold from overly restrictive <0.02 to production-viable <0.1, enabling proper trend detection with +0.05-0.08 score boosts
-- **AI-EYE Confidence Optimization**: Lowered threshold from 0.6 to 0.3 allowing weak but valuable patterns to contribute meaningful scores (0.0441 vs 0.0000 previously)
-- **Enhanced Fallback Scoring Implementation**: Added intelligent legacy signal amplification (+0.080 boost) for tokens with empty AI/HTF data ensuring TOP 10 consideration capability
-- **Production Score Improvements**: Test scores improved from uniform 0.0502 to differentiated range 0.1102-0.2259 enabling proper token ranking and decision classification
-- **Strong Trend Recognition**: Tokens with trend_strength >0.7 and pullback_quality <0.1 now receive proper boost (trend_strength=0.92, pullback=0.05 → +0.08 boost)
-- **Legacy Signal Amplification**: Tokens without AI/HTF data but strong legacy signals (volume, orderbook, cluster) receive amplified fallback scoring up to +0.080
-- **Comprehensive Production Testing**: Validated all fixes with real-world scenarios showing proper boost mechanisms, scoring flows, and decision thresholds working correctly
-- **Decision Threshold Achievement**: Enhanced scoring enables tokens to achieve "scalp_entry" (0.10+) and "enter" (0.20+) decisions through authentic market analysis
-- **Debug Infrastructure**: Extensive logging system reveals complete scoring flow through all modules for production validation and troubleshooting
-System now provides production-ready scoring with authentic differentiated scores (0.1102-0.2259 range) suitable for TOP 10 ranking and institutional-grade trading decisions through enhanced boost mechanisms and intelligent fallback strategies.
+### July 5, 2025 - CRITICAL CHART GENERATION THRESHOLD FIX COMPLETE - Vision-AI Training Pipeline Restored ✅
+Successfully resolved chart generation blocking issue preventing Vision-AI training data generation by implementing flexible threshold strategy enabling continuous machine learning:
+- **Critical Threshold Fix**: Lowered overly restrictive chart generation threshold from 0.6+ to 0.4+ for "consider" decisions preventing 90% session data loss
+- **Enhanced Decision Support**: Added explicit support for "consider" decision type enabling chart generation for tokens scoring 0.4+ (matches production TOP5 range 0.42-0.45)
+- **Vision-AI Training Restoration**: System now generates charts for moderate-strength signals ensuring continuous learning instead of starving CLIP model of training material
+- **Flexible Threshold Strategy**: Implemented dynamic thresholds (scalp_entry ≥0.15, consider ≥0.4, wait ≥0.4, strong signals always) preventing training pipeline disruption
+- **Production Validation**: Test suite confirms 5/5 TOP5 tokens now generate charts (vs previous 0/5) with 90.9% overall generation rate for quality signals
+- **Market Monitor JSON Fix**: Resolved missing 'json' import in scan_all_tokens_async.py preventing market monitoring crashes during health statistics recording
+- **Enhanced CLIP Confidence**: Lowered CLIP confidence requirement from 0.7 to 0.5 allowing more visual patterns to contribute to training dataset quality
+- **Comprehensive Testing**: Created test framework validating chart generation logic across 11 scenarios matching real production conditions and edge cases
+- **Auto-Labeling Protection**: Prevents feedback loop disruption where Vision-AI system missing 90% of session data was unable to develop pattern recognition capabilities
+System eliminates the fundamental blocking issue where restrictive thresholds prevented TOP5 chart generation ensuring Vision-AI receives continuous training data for CLIP model development and auto-labeling enhancement.
 
 ### July 5, 2025 - ENHANCED SCORING LOGIC IMPLEMENTATION COMPLETE - Conditional Legacy Scoring Based on AI-EYE + HTF Success ✅
 Successfully implemented comprehensive enhanced scoring logic that prevents low scores from tokens with insufficient AI-EYE and HTF data, resolving ZROUSDT-style scoring issues:

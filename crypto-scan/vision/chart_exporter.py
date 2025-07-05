@@ -29,12 +29,16 @@ def should_generate_chart(symbol: str, decision: str, final_score: float, clip_c
     if decision == "scalp_entry" and final_score >= 0.15:
         return True
         
-    # Generate for wait decisions with high potential (quality setups)
-    if decision == "wait" and final_score >= 0.6:
+    # Generate for consider decisions with moderate scores (production fix)
+    if decision == "consider" and final_score >= 0.4:
+        return True
+        
+    # Generate for wait decisions with moderate potential (lowered threshold)
+    if decision == "wait" and final_score >= 0.4:
         return True
     
-    # Generate for moderate wait signals with high CLIP confidence (visual patterns)
-    if decision == "wait" and final_score >= 0.4 and clip_confidence >= 0.7:
+    # Generate for moderate wait signals with CLIP confidence (visual patterns)
+    if decision == "wait" and final_score >= 0.3 and clip_confidence >= 0.5:
         return True
     
     # Optional: Generate some avoid/wait cases for false-positive learning
@@ -64,9 +68,11 @@ def get_chart_generation_reason(symbol: str, decision: str, final_score: float, 
     if not should_generate_chart(symbol, decision, final_score, clip_confidence):
         if decision in ["avoid", "skip"]:
             return f"SKIP: {decision} decision with score {final_score:.3f}"
+        elif decision == "consider" and final_score < 0.4:
+            return f"SKIP: Consider decision below threshold (score: {final_score:.3f})"
         elif final_score < 0.4:
             return f"SKIP: Low score {final_score:.3f}"
-        elif decision == "wait" and final_score < 0.6 and clip_confidence < 0.7:
+        elif decision == "wait" and final_score < 0.4 and clip_confidence < 0.5:
             return f"SKIP: Weak wait signal (score: {final_score:.3f}, clip: {clip_confidence:.3f})"
         else:
             return f"SKIP: Unqualified signal"
@@ -74,12 +80,14 @@ def get_chart_generation_reason(symbol: str, decision: str, final_score: float, 
     # Chart will be generated - provide reason
     if decision in ["long", "short", "enter"]:
         return f"GENERATE: Strong signal ({decision}, score: {final_score:.3f})"
+    elif decision == "consider" and final_score >= 0.4:
+        return f"GENERATE: Consider decision above threshold (score: {final_score:.3f})"
     elif decision == "scalp_entry":
         return f"GENERATE: Scalp entry (score: {final_score:.3f})"
-    elif decision == "wait" and final_score >= 0.6:
-        return f"GENERATE: High potential wait (score: {final_score:.3f})"
-    elif clip_confidence >= 0.7:
-        return f"GENERATE: High CLIP confidence (clip: {clip_confidence:.3f})"
+    elif decision == "wait" and final_score >= 0.4:
+        return f"GENERATE: Wait signal above threshold (score: {final_score:.3f})"
+    elif clip_confidence >= 0.5:
+        return f"GENERATE: CLIP confidence (clip: {clip_confidence:.3f})"
     else:
         return f"GENERATE: False-positive learning case"
 

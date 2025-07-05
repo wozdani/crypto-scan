@@ -7,6 +7,7 @@ Target: <15 seconds for 500+ tokens
 
 import asyncio
 import aiohttp
+import json
 import time
 import sys
 import os
@@ -395,7 +396,7 @@ async def generate_top_tjde_charts(results: List[Dict]):
             # 🎯 CONDITIONAL CHART GENERATION: Check if this token deserves a chart
             from vision.chart_exporter import should_generate_chart, get_chart_generation_reason
             
-            decision = entry.get('decision', 'unknown')
+            decision = entry.get('tjde_decision', 'unknown')  # FIX: Use correct field name
             clip_confidence = entry.get('clip_confidence', 0.0)
             
             should_generate = should_generate_chart(symbol, decision, tjde_score, clip_confidence)
