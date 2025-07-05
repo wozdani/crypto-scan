@@ -114,46 +114,91 @@ class TwoStageTJDESystem:
                 # Generate contextual data for advanced analysis
                 contextual_data = await self._generate_contextual_data(symbol, token_data)
                 
-                if not contextual_data:
-                    print(f"[STAGE 2 SKIP] {symbol}: Failed to generate contextual data")
-                    continue
+                # Initialize variables
+                final_score = 0.0
+                final_decision = 'wait'
+                advanced_result = None
+                basic_result = None
                 
-                # Prepare unified data with all contextual information
-                unified_data = prepare_unified_data(
-                    symbol=symbol,
-                    candles=token_data.get('candles_15m', []),
-                    ticker_data=token_data.get('ticker_data', {}),
-                    orderbook=token_data.get('orderbook', {}),
-                    market_data=token_data,
-                    signals=contextual_data['signals'],
-                    ai_label=contextual_data.get('ai_label', {}),
-                    htf_candles=contextual_data.get('htf_candles', [])
-                )
+                # FIX: Enhanced validation - check for meaningful contextual data
+                has_ai_data = contextual_data and contextual_data.get('ai_label') and contextual_data.get('ai_label') != {}
+                has_htf_data = contextual_data and contextual_data.get('htf_candles') and len(contextual_data.get('htf_candles', [])) > 20
                 
-                # Advanced TJDE analysis with complete contextual data
-                advanced_result = simulate_trader_decision_advanced(unified_data)
+                if not contextual_data or (not has_ai_data and not has_htf_data):
+                    print(f"[STAGE 2 SKIP] {symbol}: Insufficient contextual data (AI: {has_ai_data}, HTF: {has_htf_data}) - using basic engine")
+                    
+                    # FIX: Fallback to basic engine when advanced modules unavailable
+                    basic_result = simulate_trader_decision_basic(
+                        symbol=symbol,
+                        candles_15m=token_data.get('candles_15m', []),
+                        candles_5m=token_data.get('candles_5m', []),
+                        orderbook=token_data.get('orderbook_data', {}),
+                        volume_24h=token_data.get('volume_24h', 0.0),
+                        price_change_24h=token_data.get('price_change_24h', 0.0),
+                        current_price=token_data.get('price_usd', 0.0)
+                    )
+                    
+                    final_score = basic_result.get('score', 0.0)
+                    final_decision = basic_result.get('decision', 'wait')
+                    
+                    print(f"[STAGE 2 BASIC] {symbol}: Score={final_score:.4f}, Decision={final_decision}")
+                    
+                else:
+                    print(f"[STAGE 2 ADVANCED] {symbol}: Sufficient contextual data - proceeding with advanced analysis")
+                    
+                    # Prepare unified data with all contextual information
+                    unified_data = prepare_unified_data(
+                        symbol=symbol,
+                        candles=token_data.get('candles_15m', []),
+                        ticker_data=token_data.get('ticker_data', {}),
+                        orderbook=token_data.get('orderbook', {}),
+                        market_data=token_data,
+                        signals=contextual_data['signals'],
+                        ai_label=contextual_data.get('ai_label', {}),
+                        htf_candles=contextual_data.get('htf_candles', [])
+                    )
+                    
+                    # Advanced TJDE analysis with complete contextual data
+                    advanced_result = simulate_trader_decision_advanced(unified_data)
+                    
+                    final_score = advanced_result.get('final_score', 0.0)
+                    final_decision = advanced_result.get('decision', 'wait')
                 
-                final_score = advanced_result.get('final_score', 0.0)
-                final_decision = advanced_result.get('decision', 'wait')
+                print(f"[STAGE 2] {symbol}: Score={final_score:.4f}, Decision={final_decision}")
                 
-                print(f"[STAGE 2] {symbol}: Advanced Score={final_score:.4f}, Decision={final_decision}")
-                
-                # Compile complete result
-                complete_result = {
-                    'symbol': symbol,
-                    'basic_score': candidate['basic_score'],
-                    'advanced_score': final_score,
-                    'final_decision': final_decision,
-                    'confidence': advanced_result.get('confidence', 0.5),
-                    'score_breakdown': advanced_result.get('score_breakdown', {}),
-                    'active_modules': advanced_result.get('active_modules', 0),
-                    'strongest_component': advanced_result.get('strongest_component', 'unknown'),
-                    'market_phase': advanced_result.get('market_phase', 'unknown'),
-                    'ai_label': contextual_data.get('ai_label', {}),
-                    'htf_analysis': contextual_data.get('htf_analysis', {}),
-                    'stage2_timestamp': datetime.now().isoformat(),
-                    'full_result': advanced_result
-                }
+                # Compile complete result with proper fallback handling
+                if 'advanced_result' in locals():
+                    # Advanced scoring was used
+                    complete_result = {
+                        'symbol': symbol,
+                        'basic_score': candidate['basic_score'],
+                        'advanced_score': final_score,
+                        'final_decision': final_decision,
+                        'confidence': advanced_result.get('confidence', 0.5),
+                        'score_breakdown': advanced_result.get('score_breakdown', {}),
+                        'active_modules': advanced_result.get('active_modules', 0),
+                        'strongest_component': advanced_result.get('strongest_component', 'unknown'),
+                        'market_phase': advanced_result.get('market_phase', 'unknown'),
+                        'ai_label': contextual_data.get('ai_label', {}) if contextual_data else {},
+                        'chart_path': contextual_data.get('chart_path') if contextual_data else None
+                    }
+                else:
+                    # Basic scoring was used
+                    complete_result = {
+                        'symbol': symbol,
+                        'basic_score': candidate['basic_score'],
+                        'advanced_score': final_score,
+                        'final_decision': final_decision,
+                        'confidence': basic_result.get('confidence', 0.5),
+                        'score_breakdown': {'basic_engine': basic_result.get('components', {})},
+                        'active_modules': 1,  # Only basic engine
+                        'strongest_component': 'basic_engine',
+                        'market_phase': 'basic_engine',
+                        'ai_label': {},
+                        'htf_analysis': {},
+                        'stage2_timestamp': datetime.now().isoformat(),
+                        'full_result': basic_result
+                    }
                 
                 stage2_results.append(complete_result)
                 print(f"[STAGE 2 SUCCESS] {symbol}: Complete analysis finished")

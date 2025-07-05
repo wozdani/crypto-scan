@@ -53,7 +53,16 @@ def process_async_data_enhanced_with_5m(symbol: str, ticker_data: Optional[Dict]
             ticker = ticker_list[0]
             price_usd = float(ticker.get("lastPrice", 0)) if ticker.get("lastPrice") else 0.0
             volume_24h = float(ticker.get("volume24h", 0)) if ticker.get("volume24h") else 0.0
-            print(f"[TICKER SUCCESS] {symbol}: Price ${price_usd}, Volume {volume_24h}")
+            
+            # FIX: Validate ticker data quality - reject if price or volume is 0
+            if price_usd <= 0.0 or volume_24h <= 0.0:
+                print(f"[TICKER INVALID] {symbol}: Price ${price_usd}, Volume {volume_24h} - rejecting invalid ticker")
+                has_price = False
+                has_ticker = False
+            else:
+                print(f"[TICKER SUCCESS] {symbol}: Price ${price_usd}, Volume {volume_24h}")
+                has_ticker = True
+                has_price = True
     
     # PRIORITY 2: Process 15M candles (should always be available from async scanner)
     if candles_data and candles_data.get("result", {}).get("list"):
@@ -229,7 +238,12 @@ def process_async_data_enhanced(symbol: str, ticker_data: Optional[Dict], candle
             ticker = ticker_list[0]
             price_usd = float(ticker.get("lastPrice", 0)) if ticker.get("lastPrice") else 0.0
             volume_24h = float(ticker.get("volume24h", 0)) if ticker.get("volume24h") else 0.0
-            print(f"[TICKER SUCCESS] {symbol}: Price ${price_usd}, Volume {volume_24h}")
+            
+            # FIX: Validate ticker data quality - reject if price or volume is 0
+            if price_usd <= 0.0 or volume_24h <= 0.0:
+                print(f"[TICKER INVALID] {symbol}: Price ${price_usd}, Volume {volume_24h} - rejecting invalid ticker")
+            else:
+                print(f"[TICKER SUCCESS] {symbol}: Price ${price_usd}, Volume {volume_24h}")
     
     # PRIORITY 2: Process candles (should always be available from async scanner)
     if candles_data and candles_data.get("result", {}).get("list"):
