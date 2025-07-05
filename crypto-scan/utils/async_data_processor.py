@@ -253,18 +253,22 @@ def process_async_data_enhanced(symbol: str, ticker_data: Optional[Dict], candle
     asks = []
     
     # PRIORITY 1: Extract from ticker data if available
+    ticker_success = False
     if ticker_data and ticker_data.get("result", {}).get("list"):
         ticker_list = ticker_data["result"]["list"]
         if ticker_list:
             ticker = ticker_list[0]
-            price_usd = float(ticker.get("lastPrice", 0)) if ticker.get("lastPrice") else 0.0
-            volume_24h = float(ticker.get("volume24h", 0)) if ticker.get("volume24h") else 0.0
+            ticker_price = float(ticker.get("lastPrice", 0)) if ticker.get("lastPrice") else 0.0
+            ticker_volume = float(ticker.get("volume24h", 0)) if ticker.get("volume24h") else 0.0
             
-            # FIX: Validate ticker data quality - reject if price or volume is 0
-            if price_usd <= 0.0 or volume_24h <= 0.0:
-                print(f"[TICKER INVALID] {symbol}: Price ${price_usd}, Volume {volume_24h} - rejecting invalid ticker")
-            else:
+            # Validate ticker data quality
+            if ticker_price > 0.0 and ticker_volume > 0.0:
+                price_usd = ticker_price
+                volume_24h = ticker_volume
+                ticker_success = True
                 print(f"[TICKER SUCCESS] {symbol}: Price ${price_usd}, Volume {volume_24h}")
+            else:
+                print(f"[TICKER PARTIAL] {symbol}: Price ${ticker_price}, Volume {ticker_volume} - will try candle fallback")
     
     # PRIORITY 2: Process candles (should always be available from async scanner)
     if candles_data and candles_data.get("result", {}).get("list"):
@@ -283,7 +287,7 @@ def process_async_data_enhanced(symbol: str, ticker_data: Optional[Dict], candle
                 continue
         
         # FALLBACK: Extract price from latest candle if ticker failed
-        if price_usd <= 0 and candles:
+        if not ticker_success and candles:
             price_usd = candles[-1]["close"]  # Use most recent candle close price
             # Calculate 24h volume from available candles
             if len(candles) >= 96:  # Full day of 15m candles
@@ -291,7 +295,8 @@ def process_async_data_enhanced(symbol: str, ticker_data: Optional[Dict], candle
             else:
                 # Estimate based on available candles
                 volume_24h = sum(c["volume"] for c in candles) * (96 / len(candles))
-            print(f"[CANDLE FALLBACK] {symbol}: Price ${price_usd} from {len(candles)} candles")
+            print(f"[CANDLE FALLBACK SUCCESS] {symbol}: Price ${price_usd} from {len(candles)} candles")
+            ticker_success = True  # Mark as success since fallback worked
     
     # PRIORITY 3: Process orderbook if available
     if orderbook_data and orderbook_data.get("result"):
@@ -346,8 +351,14 @@ def process_async_data_enhanced(symbol: str, ticker_data: Optional[Dict], candle
     if candles: components.append(f"candles({len(candles)})")
     if has_orderbook: components.append("orderbook" if orderbook_data else "synthetic_orderbook")
     
-    partial_status = " (PARTIAL)" if not (ticker_data and has_orderbook and orderbook_data) else ""
-    print(f"[ASYNC SUCCESS{partial_status}] {symbol}: {', '.join(components)} - Price ${price_usd}")
+    # Determine if this is a partial success or full success
+    partial_status = " (PARTIAL)" if not ticker_success or not has_orderbook else ""
+    status_message = f"[ASYNC SUCCESS{partial_status}] {symbol}: {', '.join(components)} - Price ${price_usd}"
+    
+    if not ticker_success and price_usd > 0:
+        status_message += " (candle fallback)"
+    
+    print(status_message)
     
     return {
         "symbol": symbol,
@@ -365,8 +376,8 @@ def process_async_data_enhanced(symbol: str, ticker_data: Optional[Dict], candle
         "recent_volumes": [c["volume"] for c in candles[-7:]] if candles else [],
         "ticker_data": ticker_data,
         "orderbook_data": orderbook_data,
-        "partial_data": not (ticker_data and has_orderbook and orderbook_data),
-        "is_partial": not (ticker_data and has_orderbook and orderbook_data),
+        "partial_data": not (ticker_success and has_orderbook and orderbook_data),
+        "is_partial": not (ticker_success and has_orderbook and orderbook_data),
         "data_sources": components,
         "price_change_24h": 0.0  # Cannot calculate without historical data
     }
