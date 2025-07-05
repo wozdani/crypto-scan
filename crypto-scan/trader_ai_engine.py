@@ -1397,6 +1397,80 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
         except Exception as e:
             print(f"[TRAP DETECTOR ERROR] Trap detector integration failed for {symbol}: {e}")
 
+        # === ETAP 5.9: FUTURE SCENARIO MAPPING - Predictive Analysis ===
+        future_mapping_adjustment = 0.0
+        future_mapping_summary = {}
+        
+        try:
+            # Check if candle data is available for future scenario mapping
+            candles_for_future_analysis = signals.get('candles', market_data.get('candles_15m', []))
+            
+            if candles_for_future_analysis and len(candles_for_future_analysis) >= 3:
+                print(f"[FUTURE MAPPING] Starting predictive scenario analysis for {symbol}")
+                
+                # Import Future Mapping modules
+                try:
+                    from future_mapping.future_scorer import score_from_future_mapping, calculate_ema
+                    
+                    # Calculate EMA50 for reference
+                    ema50 = calculate_ema(candles_for_future_analysis, period=50)
+                    if not ema50 and len(candles_for_future_analysis) >= 20:
+                        # Fallback to EMA20 if insufficient data for EMA50
+                        ema50 = calculate_ema(candles_for_future_analysis, period=20)
+                    
+                    # Prepare AI label for future mapping context
+                    ai_label_for_future = {
+                        'label': ai_vision_summary.get('pattern', setup_label),
+                        'confidence': ai_vision_summary.get('confidence', gpt_confidence)
+                    }
+                    
+                    # Run future scenario mapping analysis
+                    future_mapping_result = score_from_future_mapping(
+                        candles_for_future_analysis,
+                        ema=ema50,
+                        current_price=current_price,
+                        ai_label=ai_label_for_future,
+                        market_phase=market_phase
+                    )
+                    
+                    future_mapping_adjustment = future_mapping_result.get('adjustment', 0.0)
+                    future_mapping_summary = future_mapping_result
+                    
+                    # Apply future mapping adjustment to score
+                    original_score_pre_future = score
+                    score += future_mapping_adjustment
+                    
+                    # Logging future mapping results
+                    scenario = future_mapping_result.get('scenario', 'neutral')
+                    confidence = future_mapping_result.get('confidence', 0.0)
+                    
+                    if abs(future_mapping_adjustment) > 0.01:
+                        print(f"[FUTURE MAPPING] {symbol}: {scenario} scenario detected "
+                              f"(confidence: {confidence:.2f})")
+                        print(f"[FUTURE MAPPING] {symbol}: Adjustment {future_mapping_adjustment:+.3f} "
+                              f"({original_score_pre_future:.3f} → {score:.3f})")
+                        print(f"[FUTURE MAPPING] {symbol}: {future_mapping_result.get('reasoning', 'No specific reasoning')}")
+                    else:
+                        print(f"[FUTURE MAPPING] {symbol}: {scenario} scenario - minimal impact ({future_mapping_adjustment:+.3f})")
+                    
+                    # Add to context modifiers for significant adjustments
+                    if abs(future_mapping_adjustment) > 0.04:
+                        scenario_strength = "strong" if abs(future_mapping_adjustment) > 0.06 else "moderate"
+                        context_modifiers.append(f"future_{scenario}_{scenario_strength}")
+                    
+                except ImportError as e:
+                    print(f"[FUTURE MAPPING] Future mapping modules not available: {e}")
+                except Exception as e:
+                    print(f"[FUTURE MAPPING ERROR] Future mapping analysis failed for {symbol}: {e}")
+                    
+            elif not candles_for_future_analysis or len(candles_for_future_analysis) < 3:
+                print(f"[FUTURE MAPPING] Insufficient candle data for {symbol}: {len(candles_for_future_analysis) if candles_for_future_analysis else 0} candles")
+            else:
+                print(f"[FUTURE MAPPING] No candle data available for future mapping: {symbol}")
+                
+        except Exception as e:
+            print(f"[FUTURE MAPPING ERROR] Future mapping integration failed for {symbol}: {e}")
+
         # === ETAP 6: ADVANCED CLIP INTEGRATION WITH CONTEXTUAL BOOSTS ===
         clip_modifier = 0.0
         clip_predicted_phase = ""
@@ -2112,6 +2186,14 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
                 "trap_detected": trap_detector_summary.get('trap_detected', False),
                 "trap_types": trap_detector_summary.get('trap_types', []),
                 "risk_level": "high" if abs(trap_detector_adjustment) > 0.10 else "medium" if abs(trap_detector_adjustment) > 0.05 else "low"
+            },
+            "future_mapping_info": {
+                "adjustment": round(future_mapping_adjustment, 3),
+                "summary": future_mapping_summary,
+                "analysis_completed": abs(future_mapping_adjustment) > 0,
+                "scenario": future_mapping_summary.get('scenario', 'neutral'),
+                "confidence": future_mapping_summary.get('confidence', 0.0),
+                "prediction_strength": "strong" if abs(future_mapping_adjustment) > 0.06 else "moderate" if abs(future_mapping_adjustment) > 0.03 else "weak"
             },
             "debug_info": debug_info
         }
