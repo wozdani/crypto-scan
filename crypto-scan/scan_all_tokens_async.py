@@ -392,6 +392,22 @@ async def generate_top_tjde_charts(results: List[Dict]):
             if cleaned_count > 0:
                 print(f"   🧹 Cleaned {cleaned_count} old charts for {symbol} to ensure fresh generation")
             
+            # 🎯 CONDITIONAL CHART GENERATION: Check if this token deserves a chart
+            from vision.chart_exporter import should_generate_chart, get_chart_generation_reason
+            
+            decision = entry.get('decision', 'unknown')
+            clip_confidence = entry.get('clip_confidence', 0.0)
+            
+            should_generate = should_generate_chart(symbol, decision, tjde_score, clip_confidence)
+            generation_reason = get_chart_generation_reason(symbol, decision, tjde_score, clip_confidence)
+            
+            if not should_generate:
+                print(f"   🚫 Chart generation skipped: {generation_reason}")
+                print(f"   📊 Vision-AI optimization: Avoiding low-value signal for training")
+                continue  # Skip this token - no chart generation needed
+            
+            print(f"   ✅ Chart generation approved: {generation_reason}")
+            
             # 🎯 SINGLE CHART GENERATION: Try TradingView first, then fallback to custom
             chart_generated = False
             
