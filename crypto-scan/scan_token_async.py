@@ -185,6 +185,7 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
     Replaces blocking scan_token() function
     """
     print(f"[SCAN START] {symbol} → Beginning async scan")
+    print(f"[TRACE] {symbol} → scan_token_async called with session type: {type(session)}")
     
     try:
         # Parallel data fetching
@@ -497,104 +498,91 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         "volume_confirmation": 0.5
                     }
                     
-                    # ⭐ FORCE USE OF UNIFIED SCORING ENGINE - No more fallbacks
-                    print(f"[FORCE UNIFIED] {symbol}: Using unified_scoring_engine directly")
+                    # 🚀 TJDE v2 PHASE 1: BASIC FILTERING (No ai_label or htf_candles required)
+                    print(f"[BASIC SCREENING] {symbol}: Using basic TJDE for initial filtering")
                     
-                    # Initialize unified_result to prevent undefined variable errors
-                    unified_result = None
+                    # Initialize basic_result to prevent undefined variable errors
+                    basic_result = None
                     
                     try:
-                        # Ensure proper data formats for unified scoring engine
-                        clean_candles = candles_15m if isinstance(candles_15m, list) else []
-                        clean_ticker = market_data.get('ticker_data', {}) if market_data.get('ticker_data') else {}
-                        clean_orderbook = market_data.get('orderbook', {}) if market_data.get('orderbook') else {}
-                        clean_ai_label = signals.get('ai_label', {}) if signals.get('ai_label') else {}  # Empty dict instead of None
-                        clean_htf_candles = signals.get('htf_candles', []) if signals.get('htf_candles') else []  # Empty list instead of None
+                        print(f"[BASIC ENGINE DEBUG] {symbol}: Attempting to import and call basic engine...")
+                        from trader_ai_engine_basic import simulate_trader_decision_basic
                         
-                        print(f"[UNIFIED PREP] {symbol}: candles={len(clean_candles)}, ticker={bool(clean_ticker)}, orderbook={bool(clean_orderbook)}")
+                        print(f"[BASIC ENGINE DEBUG] {symbol}: Basic engine imported successfully")
                         
-                        # Prepare data for unified scoring engine with error handling
-                        try:
-                            print(f"[PREP DEBUG] {symbol}: Calling prepare_unified_data()")
-                            print(f"[PREP PARAMS] symbol={symbol}, candles={len(clean_candles)}, ticker={bool(clean_ticker)}")
-                            unified_data = prepare_unified_data(
-                                symbol,                      # symbol: str
-                                clean_candles,              # candles: List
-                                clean_ticker,               # ticker_data: Dict
-                                clean_orderbook,            # orderbook: Dict
-                                market_data,                # market_data: Dict
-                                signals,                    # signals: Dict
-                                clean_ai_label,             # ai_label: Dict = None
-                                clean_htf_candles           # htf_candles: List = None
-                            )
-                            print(f"[PREP SUCCESS] {symbol}: Data preparation successful")
-                        except Exception as prep_error:
-                            print(f"[PREP ERROR] {symbol}: prepare_unified_data failed: {prep_error}")
-                            raise prep_error
-                        unified_data["debug"] = True  # Enable comprehensive debugging
+                        # Validate parameters before calling basic engine
+                        if not isinstance(candles_15m, list) or len(candles_15m) < 10:
+                            raise ValueError(f"Invalid candles_15m: {type(candles_15m)} with {len(candles_15m) if isinstance(candles_15m, list) else 'unknown'} elements")
                         
-                        # Call unified scoring engine with enhanced error handling
-                        print(f"[UNIFIED CALL] {symbol}: Calling simulate_trader_decision_advanced()")
-                        print(f"[UNIFIED DATA KEYS] {symbol}: {list(unified_data.keys())}")
-                        unified_result = simulate_trader_decision_advanced(unified_data)
-                        print(f"[UNIFIED SUCCESS] {symbol}: Score={unified_result.get('final_score', 0):.4f}, Decision={unified_result.get('decision', 'unknown')}")
+                        if price is None or price <= 0:
+                            raise ValueError(f"Invalid price: {price}")
+                            
+                        # Ensure candles_5m is a list or None
+                        if candles_5m is not None and not isinstance(candles_5m, list):
+                            candles_5m = None
+                            
+                        # Extract price change from market data
+                        price_change_24h = market_data.get('price_change_24h')
                         
-                        # Convert result format to match expected structure
+                        # Ensure numeric values are proper floats
+                        safe_volume_24h = float(volume_24h) if volume_24h is not None else None
+                        safe_price_change_24h = float(price_change_24h) if price_change_24h is not None else None
+                        
+                        print(f"[BASIC ENGINE DEBUG] {symbol}: Data validated - Price: {price}, Vol24h: {safe_volume_24h}, Candles15M: {len(candles_15m)}")
+                        
+                        # Basic screening only needs core market data - NO ai_label or htf_candles
+                        basic_result = simulate_trader_decision_basic(
+                            symbol=symbol,
+                            current_price=price,
+                            candles_15m=candles_15m,
+                            candles_5m=candles_5m,
+                            orderbook_data=market_data.get('orderbook', {}),
+                            volume_24h=safe_volume_24h,
+                            price_change_24h=safe_price_change_24h
+                        )
+                        
+                        print(f"[BASIC SCREENING SUCCESS] {symbol}: Score={basic_result.get('final_score', 0):.4f}, Decision={basic_result.get('decision', 'unknown')}")
+                        print(f"[BASIC ENGINE DEBUG] {symbol}: Basic result complete: {basic_result}")
+                        
+                        # Convert basic result format to match expected structure
                         tjde_result = {
-                            'tjde_score': unified_result.get('final_score', 0.0),
-                            'decision': unified_result.get('decision', 'wait'),
-                            'confidence': unified_result.get('confidence', 0.5),
-                            'base_score': unified_result.get('final_score', 0.0),
-                            'market_phase': unified_result.get('market_phase', 'unknown'),
-                            'setup_type': unified_result.get('strongest_component', 'unknown'),
-                            'reasoning': f"Unified scoring: {unified_result.get('final_score', 0):.4f} from {unified_result.get('active_modules', 0)}/8 modules"
+                            'tjde_score': basic_result.get('final_score', 0.0),
+                            'decision': basic_result.get('decision', 'wait'),
+                            'confidence': basic_result.get('confidence', 0.5),
+                            'base_score': basic_result.get('final_score', 0.0),
+                            'market_phase': 'basic_screening',
+                            'setup_type': 'basic_analysis',
+                            'reasoning': f"Basic screening: {basic_result.get('final_score', 0):.4f} from basic modules - {basic_result.get('reason', 'completed')}"
                         }
                         
                     except Exception as e:
-                        print(f"[UNIFIED ERROR] {symbol}: Failed to use unified engine: {e}")
-                        print(f"[UNIFIED FALLBACK] {symbol}: Using legacy trader_ai_engine as emergency fallback")
+                        import traceback
+                        print(f"[BASIC ERROR] {symbol}: Failed to use basic engine: {e}")
+                        print(f"[BASIC ERROR TRACEBACK] {symbol}: {traceback.format_exc()}")
+                        print(f"[BASIC FALLBACK] {symbol}: Creating minimal fallback result")
                         
-                        # Emergency fallback to legacy system to prevent total failure
-                        try:
-                            from trader_ai_engine import simulate_trader_decision_advanced as legacy_decision
-                            tjde_result = legacy_decision(symbol, market_data, features)
-                            print(f"[LEGACY SUCCESS] {symbol}: Emergency fallback successful")
-                        except Exception as fallback_error:
-                            print(f"[TOTAL FAILURE] {symbol}: Both unified and legacy engines failed: {fallback_error}")
-                            # Create minimal fallback result to prevent crash
-                            tjde_result = {
-                                'tjde_score': 0.001,  # Very low score but not zero
-                                'decision': 'avoid',
-                                'confidence': 0.1,
-                                'base_score': 0.001,
-                                'market_phase': 'unknown',
-                                'setup_type': 'error_fallback',
-                                'reasoning': f"System error: {str(e)[:100]}"
-                            }
-                    
-                    # Convert unified result to expected TJDE format (only if unified_result was successfully created)
-                    if unified_result:
+                        # Create minimal fallback result to prevent crash
                         tjde_result = {
-                            'tjde_score': unified_result.get('final_score', 0.0),
-                            'decision': unified_result.get('decision', 'wait'),
-                            'confidence': unified_result.get('confidence', 0.5),
-                            'base_score': unified_result.get('final_score', 0.0),
-                            'market_phase': unified_result.get('market_phase', 'unknown'),
-                            'setup_type': unified_result.get('strongest_component', 'unknown'),
-                            'reasoning': f"Unified scoring: {unified_result.get('final_score', 0):.4f} from {unified_result.get('active_modules', 0)}/8 modules"
+                            'tjde_score': 0.001,  # Very low score but not zero
+                            'decision': 'avoid',
+                            'confidence': 0.1,
+                            'base_score': 0.001,
+                            'market_phase': 'basic_screening',
+                            'setup_type': 'error_fallback',
+                            'reasoning': f"Basic screening error: {str(e)[:100]}"
                         }
                 
-                except Exception as unified_error:
-                    print(f"[UNIFIED ENGINE ERROR] {symbol}: {unified_error}")
+                except Exception as basic_error:
+                    print(f"[BASIC ENGINE ERROR] {symbol}: {basic_error}")
                     # Emergency fallback result
                     tjde_result = {
                         'tjde_score': 0.001,
                         'decision': 'avoid',
                         'confidence': 0.1,
                         'base_score': 0.001,
-                        'market_phase': 'unknown',
+                        'market_phase': 'basic_screening',
                         'setup_type': 'error_fallback',
-                        'reasoning': f"Unified engine error: {str(unified_error)[:100]}"
+                        'reasoning': f"Basic engine error: {str(basic_error)[:100]}"
                     }
                 
                 # Process TJDE result
