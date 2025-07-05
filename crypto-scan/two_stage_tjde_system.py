@@ -174,11 +174,11 @@ class TwoStageTJDESystem:
                         'basic_score': candidate['basic_score'],
                         'advanced_score': final_score,
                         'final_decision': final_decision,
-                        'confidence': advanced_result.get('confidence', 0.5),
-                        'score_breakdown': advanced_result.get('score_breakdown', {}),
-                        'active_modules': advanced_result.get('active_modules', 0),
-                        'strongest_component': advanced_result.get('strongest_component', 'unknown'),
-                        'market_phase': advanced_result.get('market_phase', 'unknown'),
+                        'confidence': advanced_result.get('confidence', 0.5) if advanced_result else 0.5,
+                        'score_breakdown': advanced_result.get('score_breakdown', {}) if advanced_result else {},
+                        'active_modules': advanced_result.get('active_modules', 0) if advanced_result else 0,
+                        'strongest_component': advanced_result.get('strongest_component', 'unknown') if advanced_result else 'unknown',
+                        'market_phase': advanced_result.get('market_phase', 'unknown') if advanced_result else 'unknown',
                         'ai_label': contextual_data.get('ai_label', {}) if contextual_data else {},
                         'chart_path': contextual_data.get('chart_path') if contextual_data else None
                     }

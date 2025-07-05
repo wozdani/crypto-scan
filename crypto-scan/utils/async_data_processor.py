@@ -5,6 +5,7 @@ Handles ticker None scenarios while preserving authentic candle data
 
 from typing import Dict, List, Optional, Any
 import json
+import os
 
 def process_async_data_enhanced_with_5m(symbol: str, ticker_data: Optional[Dict], candles_data: Optional[Dict], candles_5m_data: Optional[Dict], orderbook_data: Optional[Dict]) -> Optional[Dict]:
     """
@@ -180,6 +181,12 @@ def process_async_data_enhanced_with_5m(symbol: str, ticker_data: Optional[Dict]
     else:
         print(f"[DATA QUALITY] {symbol}: ✅ COMPLETE - 15M + 5M candles available")
     
+    # FIX 1: Load AI-EYE label from Vision-AI labeling system
+    ai_label_data = load_ai_label_for_symbol(symbol)
+    
+    # FIX 2: Generate HTF candles from 15M candles if not available separately
+    htf_candles = generate_htf_candles_from_15m(candles_15m)
+    
     # Return enhanced market data with both timeframes
     market_data = {
         "symbol": symbol,
@@ -188,6 +195,9 @@ def process_async_data_enhanced_with_5m(symbol: str, ticker_data: Optional[Dict]
         "candles": candles_15m,  # Legacy compatibility
         "candles_15m": candles_15m,
         "candles_5m": candles_5m,
+        "htf_candles": htf_candles,  # FIX 2: HTF candles for HTF Overlay module
+        "ai_label": ai_label_data.get("label", "unknown") if ai_label_data else "unknown",  # FIX 1: AI label
+        "ai_confidence": ai_label_data.get("confidence", 0.0) if ai_label_data else 0.0,
         "orderbook": {"bids": bids, "asks": asks},
         "bids": bids,
         "asks": asks,
@@ -416,3 +426,73 @@ def get_processing_stats(results: List[Dict]) -> Dict:
             "orderbook": f"{orderbook_success}/{total}"
         }
     }
+
+def load_ai_label_for_symbol(symbol: str) -> Optional[Dict]:
+    """
+    FIX 1: Load AI-EYE label from Vision-AI labeling system
+    Checks for existing AI labels in training data metadata
+    """
+    try:
+        # Check training_data/charts for recent labeled charts
+        charts_dir = "training_data/charts"
+        if os.path.exists(charts_dir):
+            # Look for recent metadata files for this symbol
+            for filename in os.listdir(charts_dir):
+                if filename.startswith(f"{symbol}_") and filename.endswith("_metadata.json"):
+                    metadata_path = os.path.join(charts_dir, filename)
+                    with open(metadata_path, 'r') as f:
+                        metadata = json.load(f)
+                        if metadata.get("gpt_analysis", {}).get("setup"):
+                            return {
+                                "label": metadata["gpt_analysis"]["setup"],
+                                "confidence": metadata.get("ai_confidence", 0.8),
+                                "source": "vision_ai_metadata"
+                            }
+        
+        # Check for cached AI labels
+        ai_cache_path = "data/ai_labels_cache.json"
+        if os.path.exists(ai_cache_path):
+            with open(ai_cache_path, 'r') as f:
+                cache = json.load(f)
+                if symbol in cache:
+                    return cache[symbol]
+        
+        print(f"[AI LABEL] {symbol}: No existing AI label found")
+        return None
+        
+    except Exception as e:
+        print(f"[AI LABEL ERROR] {symbol}: {e}")
+        return None
+
+def generate_htf_candles_from_15m(candles_15m: List[Dict]) -> List[Dict]:
+    """
+    FIX 2: Generate HTF (1H) candles from 15M candles if not available separately
+    Creates higher timeframe data for HTF Overlay module
+    """
+    try:
+        if not candles_15m or len(candles_15m) < 4:
+            print(f"[HTF GEN] Insufficient 15M candles for HTF generation: {len(candles_15m) if candles_15m else 0}")
+            return []
+        
+        htf_candles = []
+        # Group 15M candles into 1H periods (4 candles per hour)
+        for i in range(0, len(candles_15m) - 3, 4):
+            candle_group = candles_15m[i:i+4]
+            
+            # Create 1H candle from 4x15M candles
+            htf_candle = {
+                "timestamp": candle_group[0]["timestamp"],
+                "open": candle_group[0]["open"],
+                "high": max(c["high"] for c in candle_group),
+                "low": min(c["low"] for c in candle_group),
+                "close": candle_group[-1]["close"],
+                "volume": sum(c["volume"] for c in candle_group)
+            }
+            htf_candles.append(htf_candle)
+        
+        print(f"[HTF GEN] Generated {len(htf_candles)} HTF candles from {len(candles_15m)} 15M candles")
+        return htf_candles
+        
+    except Exception as e:
+        print(f"[HTF GEN ERROR] Failed to generate HTF candles: {e}")
+        return []

@@ -535,10 +535,10 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                             symbol=symbol,
                             current_price=price,
                             candles_15m=candles_15m,
-                            candles_5m=candles_5m,
+                            candles_5m=candles_5m or [],
                             orderbook_data=market_data.get('orderbook', {}),
-                            volume_24h=safe_volume_24h,
-                            price_change_24h=safe_price_change_24h
+                            volume_24h=safe_volume_24h or 0.0,
+                            price_change_24h=safe_price_change_24h or 0.0
                         )
                         
                         basic_score = basic_result.get('final_score', 0.0)
