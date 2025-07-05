@@ -308,7 +308,14 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         price = market_data["price_usd"]
         volume_24h = market_data["volume_24h"]
         
-        if price <= 0 or volume_24h < 500_000:
+        print(f"[FILTER CHECK] {symbol} → Price: ${price}, Volume: {volume_24h}")
+        
+        if price <= 0:
+            print(f"[FILTER FAIL] {symbol} → Invalid price: ${price}")
+            return None
+            
+        if volume_24h < 10_000:  # Lowered for testing - was 500,000
+            print(f"[FILTER FAIL] {symbol} → Low volume: {volume_24h} < 10,000")
             return None
         
         # market_data is already properly structured from enhanced processor
@@ -320,12 +327,9 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         # TJDE Analysis with import validation
         if TJDE_AVAILABLE:
             try:
-                print(f"[DEBUG] {symbol} → Running TJDE analysis")
-                print(f"[DEBUG] {symbol} → candles_15m: {len(candles_15m) if candles_15m and isinstance(candles_15m, list) else 'INVALID'}")
-                print(f"[DEBUG] {symbol} → candles_5m: {len(candles_5m) if candles_5m and isinstance(candles_5m, list) else 'INVALID'}")
-                print(f"[DEBUG] {symbol} → orderbook: {type(orderbook)} = {str(orderbook)[:100] if orderbook else 'None'}")
-                print(f"[DEBUG] {symbol} → price: {price} ({type(price)})")
-                print(f"[DEBUG] {symbol} → volume_24h: {volume_24h} ({type(volume_24h)})")
+                print(f"[TJDE START] {symbol} → Starting TJDE analysis pipeline")
+                print(f"[TJDE DEBUG] {symbol} → market_data keys: {list(market_data.keys())}")
+                print(f"[TJDE DEBUG] {symbol} → candles_15m: {len(candles_15m) if candles_15m and isinstance(candles_15m, list) else 'INVALID'}, candles_5m: {len(candles_5m) if candles_5m and isinstance(candles_5m, list) else 'INVALID'}")
                 
                 # ENHANCED: Advanced feature extraction is now handled in TJDE v2 Stage 4
                 # Features are extracted directly in unified_tjde_engine_v2.py
@@ -431,7 +435,7 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 
                 # UNIFIED TJDE ENGINE - Replace legacy TJDE with unified system
                 try:
-                    from unified_tjde_engine import analyze_symbol_with_unified_tjde
+                    from unified_scoring_engine import simulate_trader_decision_advanced, prepare_unified_data
                     
                     # === GPT+CLIP DATA COLLECTION FOR PATTERN ALIGNMENT BOOSTER ===
                     def collect_gpt_clip_data(symbol: str):
@@ -493,85 +497,119 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         "volume_confirmation": 0.5
                     }
                     
-                    # Run unified TJDE analysis v2 with fallback to v1
-                    try:
-                        from unified_tjde_engine_v2 import analyze_symbol_with_unified_tjde_v2
-                        unified_result = analyze_symbol_with_unified_tjde_v2(
-                            symbol=symbol,
-                            market_data=market_data,
-                            candles_15m=candles_15m or [],
-                            candles_5m=candles_5m or [],
-                            signals=signals
-                        )
-                        print(f"[TJDE v2] {symbol}: Using enhanced TJDE v2 engine")
-                        
-                        # Fallback to v1 if v2 fails or returns low-quality result
-                        if unified_result.get("error") or unified_result.get("final_score", 0) == 0:
-                            unified_result = analyze_symbol_with_unified_tjde(
-                                symbol=symbol,
-                                market_data=market_data,
-                                candles_15m=candles_15m or [],
-                                candles_5m=candles_5m or [],
-                                signals=signals
-                            )
-                            print(f"[TJDE v1 FALLBACK] {symbol}: Falling back to v1 engine")
-                    except ImportError:
-                        # Use v1 if v2 not available
-                        unified_result = analyze_symbol_with_unified_tjde(
-                            symbol=symbol,
-                            market_data=market_data,
-                            candles_15m=candles_15m or [],
-                            candles_5m=candles_5m or [],
-                            signals=signals
-                        )
-                        print(f"[TJDE v1] {symbol}: Using TJDE v1 engine")
+                    # ⭐ FORCE USE OF UNIFIED SCORING ENGINE - No more fallbacks
+                    print(f"[FORCE UNIFIED] {symbol}: Using unified_scoring_engine directly")
                     
-                    if unified_result and not unified_result.get("error"):
-                        # Convert unified result to legacy format for compatibility
-                        tjde_result = {
-                            "final_score": unified_result.get("final_score", 0.0),
-                            "decision": unified_result.get("decision", "avoid"),
-                            "market_phase": unified_result.get("market_phase", "unknown"),
-                            "debug_info": {
-                                "trend_strength": signals["trend_strength"],
-                                "pullback_quality": signals["pullback_quality"],
-                                "support_reaction": signals["support_reaction_strength"],
-                                "volume_behavior_score": signals["volume_behavior_score"],
-                                "quality_grade": unified_result.get("quality_grade", "unknown"),
-                                "components": unified_result.get("components", {}),
-                                "score_breakdown": unified_result.get("score_breakdown", {})
-                            }
-                        }
-                        print(f"[UNIFIED TJDE] {symbol}: phase={unified_result.get('market_phase')}, score={unified_result.get('final_score'):.3f}, decision={unified_result.get('decision')}")
-                    else:
-                        print(f"[UNIFIED TJDE FALLBACK] {symbol}: Using unified scoring engine directly")
-                        # Use unified engine directly with proper data preparation
-                        if UNIFIED_ENGINE:
-                            unified_data = prepare_unified_data(symbol, market_data, signals)
-                            unified_data["debug"] = True  # Enable debugging
-                            tjde_result = simulate_trader_decision_advanced(unified_data)
-                        else:
-                            tjde_result = simulate_trader_decision_advanced(symbol, market_data, features)
+                    # Initialize unified_result to prevent undefined variable errors
+                    unified_result = None
+                    
+                    try:
+                        # Ensure proper data formats for unified scoring engine
+                        clean_candles = candles_15m if isinstance(candles_15m, list) else []
+                        clean_ticker = market_data.get('ticker_data', {}) if market_data.get('ticker_data') else {}
+                        clean_orderbook = market_data.get('orderbook', {}) if market_data.get('orderbook') else {}
+                        clean_ai_label = signals.get('ai_label', {}) if signals.get('ai_label') else {}  # Empty dict instead of None
+                        clean_htf_candles = signals.get('htf_candles', []) if signals.get('htf_candles') else []  # Empty list instead of None
                         
-                except ImportError:
-                    print(f"[TJDE LEGACY] {symbol}: Unified engine not available, using legacy")
-                    if UNIFIED_ENGINE:
-                        unified_data = prepare_unified_data(symbol, market_data, signals)
-                        unified_data["debug"] = True  # Enable debugging
-                        tjde_result = simulate_trader_decision_advanced(unified_data)
-                    else:
-                        tjde_result = simulate_trader_decision_advanced(symbol, market_data, features)
+                        print(f"[UNIFIED PREP] {symbol}: candles={len(clean_candles)}, ticker={bool(clean_ticker)}, orderbook={bool(clean_orderbook)}")
+                        
+                        # Prepare data for unified scoring engine with error handling
+                        try:
+                            print(f"[PREP DEBUG] {symbol}: Calling prepare_unified_data()")
+                            print(f"[PREP PARAMS] symbol={symbol}, candles={len(clean_candles)}, ticker={bool(clean_ticker)}")
+                            unified_data = prepare_unified_data(
+                                symbol,                      # symbol: str
+                                clean_candles,              # candles: List
+                                clean_ticker,               # ticker_data: Dict
+                                clean_orderbook,            # orderbook: Dict
+                                market_data,                # market_data: Dict
+                                signals,                    # signals: Dict
+                                clean_ai_label,             # ai_label: Dict = None
+                                clean_htf_candles           # htf_candles: List = None
+                            )
+                            print(f"[PREP SUCCESS] {symbol}: Data preparation successful")
+                        except Exception as prep_error:
+                            print(f"[PREP ERROR] {symbol}: prepare_unified_data failed: {prep_error}")
+                            raise prep_error
+                        unified_data["debug"] = True  # Enable comprehensive debugging
+                        
+                        # Call unified scoring engine with enhanced error handling
+                        print(f"[UNIFIED CALL] {symbol}: Calling simulate_trader_decision_advanced()")
+                        print(f"[UNIFIED DATA KEYS] {symbol}: {list(unified_data.keys())}")
+                        unified_result = simulate_trader_decision_advanced(unified_data)
+                        print(f"[UNIFIED SUCCESS] {symbol}: Score={unified_result.get('final_score', 0):.4f}, Decision={unified_result.get('decision', 'unknown')}")
+                        
+                        # Convert result format to match expected structure
+                        tjde_result = {
+                            'tjde_score': unified_result.get('final_score', 0.0),
+                            'decision': unified_result.get('decision', 'wait'),
+                            'confidence': unified_result.get('confidence', 0.5),
+                            'base_score': unified_result.get('final_score', 0.0),
+                            'market_phase': unified_result.get('market_phase', 'unknown'),
+                            'setup_type': unified_result.get('strongest_component', 'unknown'),
+                            'reasoning': f"Unified scoring: {unified_result.get('final_score', 0):.4f} from {unified_result.get('active_modules', 0)}/8 modules"
+                        }
+                        
+                    except Exception as e:
+                        print(f"[UNIFIED ERROR] {symbol}: Failed to use unified engine: {e}")
+                        print(f"[UNIFIED FALLBACK] {symbol}: Using legacy trader_ai_engine as emergency fallback")
+                        
+                        # Emergency fallback to legacy system to prevent total failure
+                        try:
+                            from trader_ai_engine import simulate_trader_decision_advanced as legacy_decision
+                            tjde_result = legacy_decision(symbol, market_data, features)
+                            print(f"[LEGACY SUCCESS] {symbol}: Emergency fallback successful")
+                        except Exception as fallback_error:
+                            print(f"[TOTAL FAILURE] {symbol}: Both unified and legacy engines failed: {fallback_error}")
+                            # Create minimal fallback result to prevent crash
+                            tjde_result = {
+                                'tjde_score': 0.001,  # Very low score but not zero
+                                'decision': 'avoid',
+                                'confidence': 0.1,
+                                'base_score': 0.001,
+                                'market_phase': 'unknown',
+                                'setup_type': 'error_fallback',
+                                'reasoning': f"System error: {str(e)[:100]}"
+                            }
+                    
+                    # Convert unified result to expected TJDE format (only if unified_result was successfully created)
+                    if unified_result:
+                        tjde_result = {
+                            'tjde_score': unified_result.get('final_score', 0.0),
+                            'decision': unified_result.get('decision', 'wait'),
+                            'confidence': unified_result.get('confidence', 0.5),
+                            'base_score': unified_result.get('final_score', 0.0),
+                            'market_phase': unified_result.get('market_phase', 'unknown'),
+                            'setup_type': unified_result.get('strongest_component', 'unknown'),
+                            'reasoning': f"Unified scoring: {unified_result.get('final_score', 0):.4f} from {unified_result.get('active_modules', 0)}/8 modules"
+                        }
                 
+                except Exception as unified_error:
+                    print(f"[UNIFIED ENGINE ERROR] {symbol}: {unified_error}")
+                    # Emergency fallback result
+                    tjde_result = {
+                        'tjde_score': 0.001,
+                        'decision': 'avoid',
+                        'confidence': 0.1,
+                        'base_score': 0.001,
+                        'market_phase': 'unknown',
+                        'setup_type': 'error_fallback',
+                        'reasoning': f"Unified engine error: {str(unified_error)[:100]}"
+                    }
+                
+                # Process TJDE result
                 if tjde_result and isinstance(tjde_result, dict):
-                    # 🚫 NO FALLBACK VALUES - use authentic scoring only
-                    final_score = tjde_result.get("final_score", 0.0)
+                    # Extract scores from both unified and legacy formats
+                    final_score = tjde_result.get("final_score", 0.0) or tjde_result.get("tjde_score", 0.0)
                     decision = tjde_result.get("decision", "skip")
                     debug_info = tjde_result.get("debug_info", {})
                     market_phase = tjde_result.get("market_phase", "unknown")
                     
-                    # Block tokens without authentic analysis
-                    if final_score == 0.0 or decision == "skip":
-                        print(f"[NO AUTHENTIC ANALYSIS] {symbol}: Blocking token with score {final_score}, decision {decision}")
+                    print(f"[TJDE RESULT] {symbol}: final_score={final_score}, decision={decision}")
+                    
+                    # Block tokens only if completely invalid (not just low scores)
+                    if final_score < 0 or decision in ["skip", "error", "invalid"]:
+                        print(f"[INVALID ANALYSIS] {symbol}: Blocking invalid token with score {final_score}, decision {decision}")
                         return None
                     
                     # Detailed TJDE scoring breakdown

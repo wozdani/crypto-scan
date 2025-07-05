@@ -51,8 +51,11 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
     except Exception as e:
         logger.warning(f"[UNIFIED SCORING] Invalid symbol filter error for {symbol}: {e}")
     
-    if debug:
-        logger.info(f"[UNIFIED SCORING] Starting comprehensive analysis for {symbol}")
+    # 🔍 COMPREHENSIVE DEBUG LOGGING - Show exact scoring breakdown
+    print(f"[UNIFIED SCORING DEBUG] Starting analysis for {symbol}")
+    print(f"[UNIFIED SCORING DEBUG] Input data keys: {list(data.keys())}")
+    print(f"[UNIFIED SCORING DEBUG] AI Label available: {bool(ai_label)}")
+    print(f"[UNIFIED SCORING DEBUG] Market Phase: {market_phase}")
     
     # Initialize scoring components
     score_breakdown = {
@@ -67,6 +70,7 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
     }
     
     total_score = 0.0
+    print(f"[UNIFIED SCORING DEBUG] Initial total_score: {total_score}")
     
     # === MODULE 1: AI-EYE VISION (CLIP + GPT with Dynamic Weights) ===
     try:
@@ -74,29 +78,39 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
         ai_label = data.get("ai_label", {})
         market_phase = data.get("market_phase", None)
         
+        print(f"[MODULE 1 DEBUG] AI-EYE starting for {symbol}")
+        print(f"[MODULE 1 DEBUG] AI Label data: {ai_label}")
+        print(f"[MODULE 1 DEBUG] Market Phase: {market_phase}")
+        
         if ai_label:
             ai_eye_score = score_from_ai_label(ai_label, market_phase)
             score_breakdown["ai_eye_score"] = ai_eye_score
             total_score += ai_eye_score
             
-            if debug:
-                logger.info(f"[MODULE 1] AI-EYE: {ai_eye_score:+.4f} "
-                           f"(label: {ai_label.get('label', 'unknown')}, "
-                           f"conf: {ai_label.get('confidence', 0.0):.2f})")
+            print(f"[MODULE 1 DEBUG] AI-EYE Score: {ai_eye_score:+.4f}")
+            print(f"[MODULE 1 DEBUG] Running total after AI-EYE: {total_score:.4f}")
+            
         else:
-            if debug:
-                logger.info(f"[MODULE 1] AI-EYE: No AI label data available")
+            print(f"[MODULE 1 DEBUG] AI-EYE: No AI label data available")
                 
     except Exception as e:
-        logger.error(f"[MODULE 1 ERROR] AI-EYE scoring failed: {e}")
+        print(f"[MODULE 1 ERROR] AI-EYE scoring failed: {e}")
     
     # === MODULE 2: HTF OVERLAY (Macrostructure Awareness) ===
     try:
         htf_candles = data.get("htf_candles", [])
         
+        print(f"[MODULE 2 DEBUG] HTF Overlay starting for {symbol}")
+        print(f"[MODULE 2 DEBUG] HTF candles available: {len(htf_candles) if htf_candles else 0}")
+        
         if htf_candles and len(htf_candles) >= 20:
             # Simplified HTF scoring - calculate basic trend
-            closes = [float(candle[4]) for candle in htf_candles[-20:] if len(candle) > 4]
+            closes = []
+            for candle in htf_candles[-20:]:
+                if isinstance(candle, dict):
+                    closes.append(float(candle['close']))
+                elif isinstance(candle, (list, tuple)) and len(candle) > 4:
+                    closes.append(float(candle[4]))
             if len(closes) >= 10:
                 trend_strength = (closes[-1] - closes[0]) / closes[0] if closes[0] != 0 else 0
                 
@@ -111,16 +125,12 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
                 score_breakdown["htf_overlay_score"] = htf_score
                 total_score += htf_score
                 
-                if debug:
-                    logger.info(f"[MODULE 2] HTF Overlay: {htf_score:+.4f} "
-                               f"(trend: {trend_strength:+.3f})")
+                print(f"[MODULE 2 DEBUG] HTF Overlay Score: {htf_score:+.4f}")
+                print(f"[MODULE 2 DEBUG] Running total after HTF: {total_score:.4f}")
             else:
-                if debug:
-                    logger.info(f"[MODULE 2] HTF Overlay: Invalid candle data")
+                print(f"[MODULE 2 DEBUG] HTF Overlay: Invalid candle data")
         else:
-            if debug:
-                logger.info(f"[MODULE 2] HTF Overlay: Insufficient HTF data "
-                           f"({len(htf_candles) if htf_candles else 0} candles)")
+            print(f"[MODULE 2 DEBUG] HTF Overlay: Insufficient HTF data ({len(htf_candles) if htf_candles else 0} candles)")
                 
     except Exception as e:
         logger.error(f"[MODULE 2 ERROR] HTF Overlay scoring failed: {e}")
@@ -136,10 +146,18 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
             
             for candle in recent_candles:
                 if len(candle) >= 5:
-                    open_price = float(candle[1])
-                    high_price = float(candle[2])
-                    low_price = float(candle[3])
-                    close_price = float(candle[4])
+                    if isinstance(candle, dict):
+                        open_price = float(candle['open'])
+                        high_price = float(candle['high'])
+                        low_price = float(candle['low'])
+                        close_price = float(candle['close'])
+                    elif isinstance(candle, (list, tuple)):
+                        open_price = float(candle[1])
+                        high_price = float(candle[2])
+                        low_price = float(candle[3])
+                        close_price = float(candle[4])
+                    else:
+                        continue
                     
                     # Check for long upper wicks (potential trap)
                     body_size = abs(close_price - open_price)
@@ -171,13 +189,26 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
         ema50 = data.get("ema50", None)
         
         if candles and len(candles) >= 50 and ema50 is not None:
-            # Simplified future scenario analysis
-            current_price = float(candles[-1][4])  # Last close
+            # Simplified future scenario analysis with dual format support
+            last_candle = candles[-1]
+            if isinstance(last_candle, dict):
+                current_price = float(last_candle['close'])
+            elif isinstance(last_candle, (list, tuple)):
+                current_price = float(last_candle[4])  # Last close
+            else:
+                current_price = 0.0
             price_vs_ema = (current_price - ema50) / ema50 if ema50 != 0 else 0
             
             # Recent volatility assessment
-            recent_highs = [float(candle[2]) for candle in candles[-5:]]
-            recent_lows = [float(candle[3]) for candle in candles[-5:]]
+            recent_highs = []
+            recent_lows = []
+            for candle in candles[-5:]:
+                if isinstance(candle, dict):
+                    recent_highs.append(float(candle['high']))
+                    recent_lows.append(float(candle['low']))
+                elif isinstance(candle, (list, tuple)):
+                    recent_highs.append(float(candle[2]))
+                    recent_lows.append(float(candle[3]))
             volatility = (max(recent_highs) - min(recent_lows)) / current_price if current_price != 0 else 0
             
             # Future scenario scoring
@@ -329,6 +360,21 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
     if score_values and any(score != 0.0 for score in score_values):
         strongest_component = max(score_breakdown.items(), key=lambda x: abs(x[1]))[0]
     
+    # 🔍 COMPREHENSIVE FINAL DEBUG LOGGING
+    print(f"[UNIFIED FINAL DEBUG] ===== SCORING SUMMARY FOR {symbol} =====")
+    print(f"[UNIFIED FINAL DEBUG] AI-EYE Score: {score_breakdown['ai_eye_score']:+.4f}")
+    print(f"[UNIFIED FINAL DEBUG] HTF Overlay Score: {score_breakdown['htf_overlay_score']:+.4f}")
+    print(f"[UNIFIED FINAL DEBUG] Trap Detector Score: {score_breakdown['trap_detector_score']:+.4f}")
+    print(f"[UNIFIED FINAL DEBUG] Future Mapping Score: {score_breakdown['future_mapping_score']:+.4f}")
+    print(f"[UNIFIED FINAL DEBUG] Legacy Volume Score: {score_breakdown['legacy_volume_score']:+.4f}")
+    print(f"[UNIFIED FINAL DEBUG] Legacy Orderbook Score: {score_breakdown['legacy_orderbook_score']:+.4f}")
+    print(f"[UNIFIED FINAL DEBUG] Legacy Cluster Score: {score_breakdown['legacy_cluster_score']:+.4f}")
+    print(f"[UNIFIED FINAL DEBUG] Legacy Psychology Score: {score_breakdown['legacy_psychology_score']:+.4f}")
+    print(f"[UNIFIED FINAL DEBUG] ===== TOTAL SCORE: {final_score:.4f} =====")
+    print(f"[UNIFIED FINAL DEBUG] Decision: {decision}")
+    print(f"[UNIFIED FINAL DEBUG] Active Modules: {active_modules}/8")
+    print(f"[UNIFIED FINAL DEBUG] ================================")
+    
     result = {
         "symbol": symbol,
         "final_score": final_score,
@@ -344,11 +390,6 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
         }
     }
     
-    if debug:
-        logger.info(f"[UNIFIED RESULT] {symbol}: {final_score:.4f} → {decision} "
-                   f"(confidence: {confidence:.3f}, modules: {active_modules}/8)")
-        logger.info(f"[BREAKDOWN] {score_breakdown}")
-    
     return result
 
 # === LEGACY SCORING FUNCTIONS ===
@@ -360,7 +401,12 @@ def score_from_volume_slope(candles: List) -> float:
             return 0.0
         
         # Extract volume data from last 10 candles
-        volumes = [float(candle[5]) for candle in candles[-10:] if len(candle) > 5]
+        volumes = []
+        for candle in candles[-10:]:
+            if isinstance(candle, dict):
+                volumes.append(float(candle['volume']))
+            elif isinstance(candle, (list, tuple)) and len(candle) > 5:
+                volumes.append(float(candle[5]))
         
         if len(volumes) < 5:
             return 0.0
@@ -453,10 +499,18 @@ def score_from_psychology(candles: List) -> float:
             if len(candle) < 5:
                 continue
                 
-            open_price = float(candle[1])
-            high_price = float(candle[2])
-            low_price = float(candle[3])
-            close_price = float(candle[4])
+            if isinstance(candle, dict):
+                open_price = float(candle['open'])
+                high_price = float(candle['high'])
+                low_price = float(candle['low'])
+                close_price = float(candle['close'])
+            elif isinstance(candle, (list, tuple)):
+                open_price = float(candle[1])
+                high_price = float(candle[2])
+                low_price = float(candle[3])
+                close_price = float(candle[4])
+            else:
+                continue
             
             # Wick analysis
             body_size = abs(close_price - open_price)
@@ -502,11 +556,31 @@ def prepare_unified_data(symbol: str, candles: List, ticker_data: Dict,
         Unified data dictionary
     """
     
-    # Calculate EMA50 if needed
+    # Calculate EMA50 if needed with support for both dict and list formats
     ema50 = None
     if candles and len(candles) >= 50:
-        closes = [float(candle[4]) for candle in candles[-50:]]
-        ema50 = calculate_ema(closes, 50)[-1] if closes else None
+        try:
+            # Handle both dictionary and list candle formats
+            closes = []
+            for candle in candles[-50:]:
+                if isinstance(candle, dict):
+                    # Dictionary format: {'close': value}
+                    closes.append(float(candle['close']))
+                elif isinstance(candle, (list, tuple)):
+                    # List format: [timestamp, open, high, low, close, volume]
+                    closes.append(float(candle[4]))
+                else:
+                    print(f"[EMA WARNING] Unknown candle format: {type(candle)}")
+                    
+            if closes:
+                ema50 = calculate_ema(closes, 50)[-1]
+                print(f"[EMA SUCCESS] Calculated EMA50: {ema50:.2f}")
+            else:
+                print(f"[EMA WARNING] No valid closes found")
+                ema50 = None
+        except Exception as ema_error:
+            print(f"[EMA ERROR] Failed to calculate EMA50: {ema_error}")
+            ema50 = None
     
     # Extract cluster features from signals
     cluster_features = {
@@ -515,12 +589,17 @@ def prepare_unified_data(symbol: str, candles: List, ticker_data: Dict,
         "volume_ratio": signals.get("cluster_volume_ratio", 1.0)
     }
     
-    # Current price
+    # Current price with dual format support
     current_price = 0.0
     if ticker_data and "lastPrice" in ticker_data:
         current_price = float(ticker_data["lastPrice"])
     elif candles:
-        current_price = float(candles[-1][4])  # Last close
+        # Handle both dictionary and list candle formats
+        last_candle = candles[-1]
+        if isinstance(last_candle, dict):
+            current_price = float(last_candle['close'])
+        elif isinstance(last_candle, (list, tuple)):
+            current_price = float(last_candle[4])  # Last close
     
     # Market phase detection
     market_phase = signals.get("market_phase", "unknown")
