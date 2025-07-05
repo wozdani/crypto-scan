@@ -28,9 +28,13 @@ def score_from_ai_label(ai_label: Dict, market_phase: str = None) -> float:
         phase = ai_label.get("phase", "").lower()
         confidence = float(ai_label.get("confidence", 0.0))
         
-        # Enhanced confidence threshold: only score patterns with confidence >= 0.6
-        if confidence < 0.6:
+        # Enhanced confidence threshold: lowered for better production coverage
+        if confidence < 0.3:  # Lowered from 0.6 to include more patterns
             return 0.0
+        
+        # Minimum scoring for low confidence patterns (0.3-0.5 range)
+        if confidence < 0.5:
+            min_score = 0.02  # Provide minimal score for low confidence patterns
         
         # Enhanced base scoring with higher values for quality setups
         base_adjustments = {

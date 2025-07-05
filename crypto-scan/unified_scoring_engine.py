@@ -382,6 +382,36 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
     final_score = round(total_score, 4)
     print(f"[TJDE DEBUG] Final TJDE Score for {symbol}: {final_score:.4f}")
     
+    # ✅ A. BOOST FOR STRONG TREND - Critical fix from issue report
+    signals = data.get("signals", {})
+    trend_strength = signals.get("trend_strength", 0.0)
+    pullback_quality = signals.get("pullback_quality", 1.0)
+    
+    # Enhanced strong trend detection with more realistic thresholds
+    if trend_strength > 0.7 and pullback_quality < 0.1:  # More realistic thresholds
+        boost_amount = 0.08 if trend_strength > 0.9 else 0.05
+        print(f"[STRONG TREND BOOST] {symbol} has strong trend (strength={trend_strength:.3f}, pullback={pullback_quality:.3f})")
+        final_score += boost_amount
+        print(f"[STRONG TREND BOOST] Score boosted by +{boost_amount:.2f} for strong trend")
+    
+    # ✅ B. ENHANCED FALLBACK SCORING FOR EMPTY AI/HTF - Critical fix from issue report
+    if score_breakdown["ai_eye_score"] == 0.0 and score_breakdown["htf_overlay_score"] == 0.0:
+        # Enhanced fallback scoring based on legacy components
+        legacy_total = (score_breakdown["legacy_volume_score"] + 
+                       score_breakdown["legacy_orderbook_score"] + 
+                       score_breakdown["legacy_cluster_score"] + 
+                       max(0, score_breakdown["legacy_psychology_score"]))  # Only positive psychology
+        
+        if legacy_total > 0.04:  # If legacy components show potential
+            fallback_boost = min(0.08, legacy_total * 2.0)  # Amplify legacy signals
+            print(f"[FALLBACK SCORING] {symbol} has strong legacy signals ({legacy_total:.4f}), applying amplified boost")
+            final_score += fallback_boost
+            print(f"[FALLBACK SCORING] Added +{fallback_boost:.3f} for legacy signal amplification")
+        else:
+            print(f"[FALLBACK SCORING] {symbol} has empty AI-EYE and HTF, applying minimal context score")
+            final_score += 0.03  # Increased from 0.02 for better baseline
+            print(f"[FALLBACK SCORING] Added +0.03 for minimal context support")
+    
     # 🚀 TOP PERFORMER BOOST MECHANISM - Enhanced scoring for quality setups
     original_score = final_score
     if final_score > 0.05 and final_score < 0.15:  # Only boost moderate range tokens
@@ -458,18 +488,28 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
 def score_from_volume_slope(candles: List) -> float:
     """Legacy volume slope analysis"""
     try:
+        print(f"[LEGACY VOL DEBUG] Candles input: {len(candles) if candles else 0}")
+        
         if not candles or len(candles) < 10:
+            print(f"[LEGACY VOL DEBUG] Insufficient candles: {len(candles) if candles else 0}")
             return 0.0
         
         # Extract volume data from last 10 candles
         volumes = []
-        for candle in candles[-10:]:
+        for i, candle in enumerate(candles[-10:]):
             if isinstance(candle, dict):
-                volumes.append(float(candle['volume']))
+                vol = float(candle['volume'])
+                volumes.append(vol)
+                print(f"[LEGACY VOL DEBUG] Candle {i} (dict): volume={vol}")
             elif isinstance(candle, (list, tuple)) and len(candle) > 5:
-                volumes.append(float(candle[5]))
+                vol = float(candle[5])
+                volumes.append(vol)
+                print(f"[LEGACY VOL DEBUG] Candle {i} (list): volume={vol}")
+        
+        print(f"[LEGACY VOL DEBUG] Extracted {len(volumes)} volumes: {volumes[:3]}...")
         
         if len(volumes) < 5:
+            print(f"[LEGACY VOL DEBUG] Too few volumes: {len(volumes)}")
             return 0.0
         
         # Calculate volume trend
@@ -478,6 +518,7 @@ def score_from_volume_slope(candles: List) -> float:
         
         # Normalize slope to score range
         volume_avg = np.mean(volumes)
+        print(f"[LEGACY VOL DEBUG] Slope: {slope}, Avg volume: {volume_avg}")
         if volume_avg == 0:
             return 0.0
         
@@ -494,18 +535,26 @@ def score_from_volume_slope(candles: List) -> float:
 def score_from_orderbook_pressure(orderbook: Dict) -> float:
     """Legacy orderbook pressure analysis"""
     try:
+        print(f"[LEGACY OB DEBUG] Orderbook input: {bool(orderbook)}")
+        
         if not orderbook:
+            print(f"[LEGACY OB DEBUG] No orderbook data")
             return 0.0
         
         bids = orderbook.get("bids", [])
         asks = orderbook.get("asks", [])
         
+        print(f"[LEGACY OB DEBUG] Bids: {len(bids)}, Asks: {len(asks)}")
+        
         if not bids or not asks:
+            print(f"[LEGACY OB DEBUG] Missing bids or asks")
             return 0.0
         
         # Calculate top 5 levels pressure
         bid_volume = sum(float(bid[1]) for bid in bids[:5])
         ask_volume = sum(float(ask[1]) for ask in asks[:5])
+        
+        print(f"[LEGACY OB DEBUG] Bid volume: {bid_volume}, Ask volume: {ask_volume}")
         
         total_volume = bid_volume + ask_volume
         if total_volume == 0:
@@ -672,7 +721,7 @@ def prepare_unified_data(symbol: str, candles: List, ticker_data: Dict,
         "orderbook": orderbook,
         "cluster_features": cluster_features,
         "htf_candles": htf_candles or [],
-        "ai_label": ai_label or {},
+        "ai_label": ai_label or {"label": "unknown", "confidence": 0.0, "method": "fallback"},
         "current_price": current_price,
         "market_phase": market_phase,
         "ticker_data": ticker_data,
