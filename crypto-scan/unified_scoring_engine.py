@@ -208,6 +208,14 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
         print(f"[MODULE 2 DEBUG] HTF Overlay starting for {symbol}")
         print(f"[MODULE 2 DEBUG] HTF candles available: {len(htf_candles) if htf_candles else 0}")
         
+        # CRITICAL DEBUG: Log HTF candles structure
+        if htf_candles:
+            print(f"[HTF DEBUG] First candle type: {type(htf_candles[0])}")
+            print(f"[HTF DEBUG] First candle content: {htf_candles[0] if len(htf_candles) > 0 else 'None'}")
+            print(f"[HTF DEBUG] HTF candles format check: {htf_candles[:2] if len(htf_candles) >= 2 else htf_candles}")
+        else:
+            print(f"[HTF DEBUG] HTF candles is empty or None")
+        
         if htf_candles and len(htf_candles) >= 20:
             # Get current price for S/R analysis
             current_price = None
