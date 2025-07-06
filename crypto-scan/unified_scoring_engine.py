@@ -381,9 +381,47 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
     print(f"[TJDE DEBUG] Trap Detector Score: {score_breakdown['trap_detector_score']:.4f}")
     print(f"[TJDE DEBUG] Future Mapping Score: {score_breakdown['future_mapping_score']:.4f}")
     
-    # === FINAL DECISION LOGIC ===
-    final_score = round(total_score, 4)
-    print(f"[TJDE DEBUG] Final TJDE Score for {symbol}: {final_score:.4f}")
+    # === SCORE ENHANCEMENT SYSTEM - Break Through 0.66 Ceiling ===
+    base_score = round(total_score, 4)
+    print(f"[TJDE DEBUG] Base TJDE Score for {symbol}: {base_score:.4f}")
+    
+    # Apply TJDE Score Enhancement for exceptional signals
+    try:
+        from utils.tjde_score_enhancer import TJDEScoreEnhancer
+        
+        enhancer = TJDEScoreEnhancer()
+        
+        # Prepare signal data for enhancement
+        signal_data = {
+            "ai_eye_score": score_breakdown.get("ai_eye_score", 0.0),
+            "htf_overlay_score": score_breakdown.get("htf_overlay_score", 0.0),
+            "volume_behavior_score": score_breakdown.get("legacy_volume_score", 0.0),
+            "trend_strength": signals.get("trend_strength", 0.0),
+            "ai_confidence": ai_label.get("confidence", 0.0) if ai_label else 0.0
+        }
+        
+        # Check if enhancement should be applied
+        if enhancer.should_apply_enhancement(base_score, signal_data):
+            enhancement_result = enhancer.enhance_tjde_score(base_score, signal_data)
+            
+            final_score = enhancement_result["enhanced_score"]
+            boost = enhancement_result["boost"]
+            boost_reason = enhancement_result["boost_reason"]
+            
+            print(f"🚀 [SCORE ENHANCEMENT] {symbol}: {base_score:.4f} → {final_score:.4f} (+{boost:.3f})")
+            print(f"🚀 [ENHANCEMENT REASON] {boost_reason}")
+            
+            # Add enhancement info to score breakdown
+            score_breakdown["enhancement_boost"] = boost
+            score_breakdown["enhancement_reason"] = boost_reason
+        else:
+            final_score = base_score
+            print(f"[SCORE ENHANCEMENT] {symbol}: No enhancement applied (score: {base_score:.4f})")
+    
+    except Exception as e:
+        final_score = base_score
+        print(f"[SCORE ENHANCEMENT ERROR] {e}")
+        logger.error(f"Score enhancement failed for {symbol}: {e}")
     
     # ✅ A. BOOST FOR STRONG TREND - Critical fix from issue report
     signals = data.get("signals", {})
