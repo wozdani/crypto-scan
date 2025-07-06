@@ -751,6 +751,36 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
     print(f"[UNIFIED FINAL DEBUG] Active Modules: {active_modules}/8")
     print(f"[UNIFIED FINAL DEBUG] ================================")
     
+    # 🧠 MODULE 5: FEEDBACK LOOP INTEGRATION - Log predictions for self-learning system
+    try:
+        from feedback_loop.feedback_integration import log_prediction_for_feedback
+        
+        # Extract AI setup label and confidence for feedback logging
+        setup_label = ai_label.get('label', 'unknown') if ai_label else 'unknown'
+        ai_confidence = ai_label.get('confidence', 0.0) if ai_label else 0.0
+        current_price = data.get('current_price', 0.0)
+        
+        # Map TJDE decisions to feedback system decisions
+        feedback_decision = decision
+        if decision in ['consider', 'scalp_entry']:
+            feedback_decision = 'enter'
+        elif decision in ['wait', 'skip', 'avoid']:
+            feedback_decision = 'avoid'
+        
+        # Log prediction for feedback analysis if significant
+        if current_price > 0 and setup_label != 'unknown':
+            log_prediction_for_feedback(
+                symbol=symbol,
+                tjde_score=final_score,
+                decision=feedback_decision,
+                setup_label=setup_label,
+                confidence=ai_confidence,
+                price=current_price
+            )
+        
+    except Exception as e:
+        print(f"[FEEDBACK INTEGRATION ERROR] {symbol}: Failed to log prediction - {e}")
+    
     result = {
         "symbol": symbol,
         "final_score": final_score,

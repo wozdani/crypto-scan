@@ -14,7 +14,7 @@ CACHE_PATH = "feedback_loop/history.json"
 WEIGHTS_PATH = "feedback_loop/label_weights.json"
 
 def save_prediction(symbol: str, timestamp: str, ai_label: Dict, current_price: float, 
-                   tjde_score: float, decision: str, market_phase: str = None) -> bool:
+                   tjde_score: float, decision: str, market_phase: str = "basic_screening") -> bool:
     """
     Zapisuje predykcję do cache dla późniejszej ewaluacji
     

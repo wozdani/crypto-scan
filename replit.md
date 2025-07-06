@@ -98,7 +98,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
-### July 6, 2025 - MODULE 5 FEEDBACK LOOP ENHANCEMENT COMPLETE - Advanced Self-Learning System Operational ✅
+### July 6, 2025 - MODULE 5 FEEDBACK INTEGRATION ENHANCEMENT COMPLETE - Advanced Self-Learning System with Improved Selection Logic ✅
+Successfully enhanced Module 5 Feedback Loop with comprehensive improvements enabling real-time prediction evaluation, dynamic label weight adjustment, and intelligent prediction selection:
+- **Enhanced Selection Logic**: Implemented improved should_log_prediction() with realistic thresholds (strong signals: score ≥0.65+confidence ≥0.5, medium signals: score 0.5-0.65+confidence ≥0.6, reversal patterns: score ≥0.55)
+- **Diagnostic Logging**: Added comprehensive feedback logging with skip reasons showing exact criteria why predictions aren't logged for transparency and optimization
+- **Production Integration**: Integrated log_prediction_for_feedback() into unified_scoring_engine.py automatically logging significant TJDE predictions with AI setup labels and confidence scores
+- **Decision Mapping**: Intelligent decision mapping (consider/scalp_entry → enter, wait/skip/avoid → avoid) ensuring feedback system receives actionable trading decisions
+- **Quality Filtering**: Enhanced filtering logic excluding unknown/undefined/error setups, low confidence (<0.4), and non-actionable decisions preventing noise contamination
+- **Automatic Evaluation Scheduling**: Main crypto scanner service now runs feedback evaluation every 4 cycles (~1 hour) when >5 predictions pending for continuous learning
+- **Historical Price Integration**: Real Bybit API kline data fetching for authentic 2h/6h post-prediction price evaluation replacing proxy pricing
+- **Dynamic Weight Updates**: Smooth label weight adjustment system (new_weight = 0.5 + success_rate, 70% new + 30% old) preventing dramatic changes while enabling learning
+- **Performance Analytics**: Comprehensive label performance categorization (excellent ≥60% success, poor <40% success) with automatic recommendations
 Successfully enhanced Module 5 Feedback Loop with comprehensive improvements enabling real-time prediction evaluation and dynamic label weight adjustment:
 - **Real Historical Price Fetching**: Implemented fetch_price_at() function using Bybit API kline data for authentic 2h/6h post-prediction price retrieval instead of current price proxy
 - **Enhanced Evaluation Engine**: Fixed evaluate_predictions_batch() to return actual price_after_2h and price_after_6h values with proper error handling and fallback mechanisms

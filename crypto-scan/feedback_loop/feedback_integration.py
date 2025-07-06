@@ -11,79 +11,61 @@ from .feedback_cache import save_prediction, get_pending_evaluations, mark_as_ev
 from .feedback_evaluator import evaluate_predictions_batch, calculate_label_performance
 from .weight_adjuster import adjust_weights_batch, get_weight_statistics
 
-def log_prediction_for_feedback(symbol: str, ai_label: Dict, current_price: float, 
-                               tjde_score: float, decision: str, market_phase: Optional[str] = None) -> bool:
+def log_prediction_for_feedback(symbol: str, tjde_score: float, decision: str, setup_label: str, confidence: float, price: float):
     """
-    Rejestruje predykcję dla systemu feedback loop
+    Rejestruje predykcję dla systemu feedback loop z diagnostyką
     
     Args:
         symbol: Symbol trading
-        ai_label: AI label z confidence
-        current_price: Aktualna cena
         tjde_score: Final TJDE score
         decision: Decyzja systemu
-        market_phase: Faza rynku
-        
-    Returns:
-        True jeśli zapisano pomyślnie
+        setup_label: Label setupu z AI
+        confidence: Confidence AI
+        price: Aktualna cena
     """
     try:
-        # Zapisz predykcję tylko dla znaczących sygnałów
-        if should_log_prediction(ai_label, tjde_score, decision):
-            timestamp = datetime.now().isoformat()
-            success = save_prediction(symbol, timestamp, ai_label, current_price, 
-                                    tjde_score, decision, market_phase)
-            
-            if success:
-                logging.info(f"[FEEDBACK INTEGRATION] Logged prediction for {symbol}: "
-                           f"{ai_label.get('label')} (score: {tjde_score:.3f}, decision: {decision})")
-            return success
+        # Sprawdź czy powinna być logowana z diagnostyką
+        if not should_log_prediction(tjde_score, decision, setup_label, confidence):
+            print(f"[FEEDBACK SKIP] {symbol}: Skipped logging – Score: {tjde_score}, Decision: {decision}, Setup: {setup_label}, Confidence: {confidence}")
+            return
+        
+        # Przygotuj dane AI label dla kompatybilności
+        ai_label = {
+            'label': setup_label,
+            'confidence': confidence
+        }
+        
+        # Zapisz predykcję
+        timestamp = datetime.now().isoformat()
+        market_phase = "basic_screening"  # Default phase
+        success = save_prediction(symbol, timestamp, ai_label, price, 
+                                tjde_score, decision, market_phase)
+        
+        if success:
+            print(f"[FEEDBACK LOG] {symbol}: Logged prediction – Score: {tjde_score}, Decision: {decision}, Setup: {setup_label}, Confidence: {confidence}")
         else:
-            # Nie loguj słabych sygnałów
-            return True
+            print(f"[FEEDBACK ERROR] {symbol}: Failed to save prediction")
             
     except Exception as e:
-        logging.error(f"[FEEDBACK INTEGRATION ERROR] Failed to log prediction for {symbol}: {e}")
-        return False
+        print(f"[FEEDBACK INTEGRATION ERROR] {symbol}: Failed to log prediction - {e}")
 
-def should_log_prediction(ai_label: Dict, tjde_score: float, decision: str) -> bool:
+def should_log_prediction(tjde_score: float, decision: str, setup_label: str, confidence: float) -> bool:
     """
-    Określa czy predykcja powinna być logowana dla feedback
-    
-    Args:
-        ai_label: AI label z confidence
-        tjde_score: TJDE score
-        decision: Decyzja systemu
-        
-    Returns:
-        True jeśli powinna być logowana
+    Określa, czy predykcja powinna zostać zapisana do feedbacku na podstawie jej siły i jakości.
     """
-    # Loguj tylko znaczące sygnały
-    confidence = ai_label.get('confidence', 0.0)
-    label = ai_label.get('label', '')
-    
-    # Criteria for logging:
-    # 1. High confidence AI labels (>= 0.6)
-    # 2. Strong TJDE scores (>= 0.65 or <= 0.35) 
-    # 3. Clear decisions (enter, scalp_entry, avoid)
-    # 4. Avoid noise patterns
-    
-    if confidence >= 0.6 and tjde_score >= 0.65:
-        return True
-    
-    if decision in ['enter', 'scalp_entry'] and tjde_score >= 0.60:
-        return True
-        
-    if decision == 'avoid' and tjde_score <= 0.40:
-        return True
-    
-    # Nie loguj słabych lub niejasnych sygnałów
-    if label in ['unknown', 'no_clear_pattern', 'setup_analysis', 'chaos']:
+    # Ignoruj nieistotne lub słabe dane
+    if setup_label in ["unknown", "undefined", "error"]:
         return False
-        
-    if confidence < 0.5 or (0.45 <= tjde_score <= 0.55):
+    if confidence < 0.4:
         return False
-    
+    if decision not in ["enter", "avoid"]:
+        return False
+    if tjde_score >= 0.65 and confidence >= 0.5:
+        return True
+    if 0.50 <= tjde_score < 0.65 and confidence >= 0.6:
+        return True
+    if "reversal" in setup_label and tjde_score >= 0.55:
+        return True
     return False
 
 async def run_feedback_evaluation_cycle() -> Dict:
