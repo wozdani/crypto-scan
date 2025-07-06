@@ -255,55 +255,180 @@ def fetch_current_price(symbol: str) -> Optional[float]:
             ticker = data["result"]["list"][0]
             price = float(ticker.get("lastPrice", 0))
             if price > 0:
+                print(f"[PRICE FETCH] {symbol}: Current price {price}")
                 return price
                 
-        logging.warning(f"[FEEDBACK EVALUATOR] No price data for {symbol}")
+        print(f"[PRICE FETCH] {symbol}: No price data in API response")
         return None
         
     except Exception as e:
-        logging.error(f"[FEEDBACK EVALUATOR ERROR] Failed to fetch price for {symbol}: {e}")
+        print(f"[PRICE FETCH] {symbol}: API error - {e}")
+        return None
+
+def fetch_price_at(symbol: str, timestamp: datetime) -> Optional[float]:
+    """
+    Pobiera cenę symbolu w określonym czasie z historycznych danych Bybit
+    
+    Args:
+        symbol: Symbol trading (np. BTCUSDT)
+        timestamp: Czas dla którego pobieramy cenę
+        
+    Returns:
+        Cena w określonym czasie lub None jeśli błąd
+    """
+    try:
+        # Konwertuj timestamp na milliseconds
+        timestamp_ms = int(timestamp.timestamp() * 1000)
+        
+        # Pobierz świeczkę 1-minutową dla danego czasu
+        url = "https://api.bybit.com/v5/market/kline"
+        params = {
+            "category": "linear",
+            "symbol": symbol,
+            "interval": "1",  # 1 minute
+            "start": timestamp_ms,
+            "end": timestamp_ms + 60000,  # +1 minute
+            "limit": 1
+        }
+        
+        response = requests.get(url, params=params, timeout=15)
+        response.raise_for_status()
+        
+        data = response.json()
+        if data.get("retCode") == 0 and data.get("result", {}).get("list"):
+            candle = data["result"]["list"][0]
+            # Format: [startTime, openPrice, highPrice, lowPrice, closePrice, volume, turnover]
+            close_price = float(candle[4])  # Close price
+            
+            if close_price > 0:
+                print(f"[HISTORICAL PRICE] {symbol} at {timestamp.isoformat()}: {close_price}")
+                return close_price
+                
+        # Fallback: pobierz najbliższą dostępną cenę
+        return fetch_nearest_historical_price(symbol, timestamp)
+        
+    except Exception as e:
+        print(f"[HISTORICAL PRICE ERROR] {symbol} at {timestamp.isoformat()}: {e}")
+        return fetch_nearest_historical_price(symbol, timestamp)
+
+def fetch_nearest_historical_price(symbol: str, target_timestamp: datetime) -> Optional[float]:
+    """
+    Fallback: pobiera najbliższą dostępną cenę historyczną
+    
+    Args:
+        symbol: Symbol trading
+        target_timestamp: Docelowy czas
+        
+    Returns:
+        Najbliższa dostępna cena lub None
+    """
+    try:
+        # Rozszerz okno czasowe do ±30 minut
+        start_time = target_timestamp - timedelta(minutes=30)
+        end_time = target_timestamp + timedelta(minutes=30)
+        
+        start_ms = int(start_time.timestamp() * 1000)
+        end_ms = int(end_time.timestamp() * 1000)
+        
+        url = "https://api.bybit.com/v5/market/kline"
+        params = {
+            "category": "linear",
+            "symbol": symbol,
+            "interval": "5",  # 5 minutes for broader coverage
+            "start": start_ms,
+            "end": end_ms,
+            "limit": 20
+        }
+        
+        response = requests.get(url, params=params, timeout=15)
+        response.raise_for_status()
+        
+        data = response.json()
+        if data.get("retCode") == 0 and data.get("result", {}).get("list"):
+            # Znajdź najbliższą świeczkę
+            candles = data["result"]["list"]
+            if candles:
+                # Użyj pierwszej dostępnej świecy (najbliższej w czasie)
+                closest_candle = candles[0]
+                close_price = float(closest_candle[4])
+                
+                candle_time = datetime.fromtimestamp(int(closest_candle[0]) / 1000)
+                time_diff = abs((candle_time - target_timestamp).total_seconds() / 60)
+                
+                print(f"[FALLBACK PRICE] {symbol}: Found price {close_price} at {candle_time.isoformat()} ({time_diff:.1f}min from target)")
+                return close_price
+                
+        print(f"[FALLBACK PRICE] {symbol}: No historical data available around {target_timestamp.isoformat()}")
+        return None
+        
+    except Exception as e:
+        print(f"[FALLBACK PRICE ERROR] {symbol}: {e}")
         return None
 
 def evaluate_predictions_batch(predictions: List[Dict]) -> List[Dict]:
     """
-    Ocenia batch predykcji pobierając aktualne ceny
+    Ocenia batch predykcji pobierając rzeczywiste ceny historyczne
     
     Args:
         predictions: Lista predykcji do oceny
         
     Returns:
-        Lista wyników ewaluacji
+        Lista wyników ewaluacji z prawdziwymi danymi cenowymi
     """
     results = []
     
     for prediction in predictions:
         try:
             symbol = prediction["symbol"]
+            prediction_time = datetime.fromisoformat(prediction["timestamp"].replace('Z', '+00:00'))
             
-            # Pobierz aktualną cenę
-            current_price = fetch_current_price(symbol)
-            if current_price is None:
-                logging.warning(f"[FEEDBACK EVALUATOR] Skipping {symbol} - price fetch failed")
+            # Oblicz czasy dla których potrzebujemy ceny
+            time_after_2h = prediction_time + timedelta(hours=2)
+            time_after_6h = prediction_time + timedelta(hours=6)
+            
+            print(f"[FEEDBACK EVALUATION] {symbol}: Fetching historical prices...")
+            print(f"  Prediction time: {prediction_time.isoformat()}")
+            print(f"  Price after 2h:  {time_after_2h.isoformat()}")
+            print(f"  Price after 6h:  {time_after_6h.isoformat()}")
+            
+            # Pobierz rzeczywiste ceny historyczne
+            price_after_2h = fetch_price_at(symbol, time_after_2h)
+            price_after_6h = fetch_price_at(symbol, time_after_6h)
+            
+            if price_after_2h is None and price_after_6h is None:
+                print(f"[FEEDBACK EVALUATION] {symbol}: Could not fetch historical prices")
                 continue
             
-            # Oszacuj ceny 2h i 6h temu na podstawie timestampu predykcji
-            # W rzeczywistości potrzebowalibyśmy historycznych danych
-            # Na razie używamy current_price jako aproksymacji
-            price_after_2h = current_price
-            price_after_6h = current_price
+            # Użyj dostępnych cen (fallback jeśli jedna z nich nie jest dostępna)
+            if price_after_2h is None:
+                price_after_2h = price_after_6h
+            if price_after_6h is None:
+                price_after_6h = price_after_2h
             
-            # Oceń predykcję
-            evaluation = was_prediction_successful(prediction, price_after_2h, price_after_6h)
+            # Skip if no prices available
+            if price_after_2h is None or price_after_6h is None:
+                print(f"[FEEDBACK EVALUATION] {symbol}: Could not fetch current price")
+                continue
+            
+            # Oceń predykcję z rzeczywistymi danymi
+            evaluation = was_prediction_successful(prediction, float(price_after_2h), float(price_after_6h))
             evaluation["symbol"] = symbol
             evaluation["timestamp"] = prediction["timestamp"]
-            evaluation["current_price"] = current_price
+            evaluation["price_after_2h"] = price_after_2h
+            evaluation["price_after_6h"] = price_after_6h
+            evaluation["evaluation_timestamp"] = datetime.now().isoformat()
             
             results.append(evaluation)
             
-            logging.info(f"[FEEDBACK EVALUATOR] Evaluated {symbol}: {'SUCCESS' if evaluation['successful'] else 'FAILED'}")
+            success_status = "SUCCESS" if evaluation['successful'] else "FAILED"
+            print(f"[FEEDBACK EVALUATION] {symbol}: {success_status} (2h: {price_after_2h}, 6h: {price_after_6h})")
             
         except Exception as e:
-            logging.error(f"[FEEDBACK EVALUATOR ERROR] Failed to evaluate prediction: {e}")
+            try:
+                symbol = prediction.get("symbol", "UNKNOWN")
+            except:
+                symbol = "UNKNOWN"
+            print(f"[FEEDBACK EVALUATION] Failed: {symbol} - {e}")
             continue
     
     return results

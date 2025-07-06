@@ -399,9 +399,47 @@ def wait_for_next_candle():
         print(f"Waiting {wait_seconds:.1f}s for next candle at {next_candle.strftime('%H:%M:%S')} UTC")
         time.sleep(wait_seconds)
 
+def run_feedback_evaluation_if_needed():
+    """
+    Sprawdza i uruchamia ewaluację feedback loop jeśli potrzeba
+    """
+    try:
+        from feedback_loop.feedback_integration import should_run_evaluation_cycle, run_feedback_evaluation_cycle, update_label_weights_from_performance
+        import asyncio
+        
+        # Sprawdź czy należy uruchomić ewaluację
+        if should_run_evaluation_cycle():
+            print("[FEEDBACK SYSTEM] Starting automatic evaluation cycle...")
+            
+            # Uruchom ewaluację asynchronicznie
+            result = asyncio.run(run_feedback_evaluation_cycle())
+            
+            if result.get("status") == "success":
+                evaluated_count = result.get("evaluated_count", 0)
+                print(f"[FEEDBACK SYSTEM] ✅ Evaluation completed: {evaluated_count} predictions evaluated")
+                
+                # Aktualizuj wagi etykiet na podstawie wyników
+                if evaluated_count > 0:
+                    weight_updates = update_label_weights_from_performance()
+                    if weight_updates:
+                        print(f"[FEEDBACK SYSTEM] ✅ Updated {len(weight_updates)} label weights based on performance")
+                    else:
+                        print("[FEEDBACK SYSTEM] ℹ️ No weight updates needed yet")
+            else:
+                error = result.get("error", "Unknown error")
+                print(f"[FEEDBACK SYSTEM] ⚠️ Evaluation failed: {error}")
+        else:
+            print("[FEEDBACK SYSTEM] ℹ️ No evaluation needed - insufficient pending predictions")
+            
+    except Exception as e:
+        print(f"[FEEDBACK SYSTEM ERROR] Failed to run evaluation: {e}")
+
 def main():
-    """Main scanning loop"""
-    print("Starting Crypto Scanner Service (Simple Version)")
+    """Main scanning loop with integrated feedback evaluation"""
+    print("Starting Crypto Scanner Service (Enhanced with Feedback Loop)")
+    
+    # Licznik cykli dla harmonogramowania feedback
+    cycle_count = 0
     
     try:
         while True:
@@ -409,7 +447,14 @@ def main():
                 clear_scan_warnings()  # Clear warnings at start of each cycle
                 scan_cycle()
                 report_scan_warnings()  # Report warnings at end of cycle
+                
+                # Uruchom feedback evaluation co 4 cykle (co ~1 godzinę)
+                cycle_count += 1
+                if cycle_count % 4 == 0:
+                    run_feedback_evaluation_if_needed()
+                
                 wait_for_next_candle()
+                
             except KeyboardInterrupt:
                 print("\nShutting down...")
                 break

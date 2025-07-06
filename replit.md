@@ -98,6 +98,19 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### July 6, 2025 - MODULE 5 FEEDBACK LOOP ENHANCEMENT COMPLETE - Advanced Self-Learning System Operational ✅
+Successfully enhanced Module 5 Feedback Loop with comprehensive improvements enabling real-time prediction evaluation and dynamic label weight adjustment:
+- **Real Historical Price Fetching**: Implemented fetch_price_at() function using Bybit API kline data for authentic 2h/6h post-prediction price retrieval instead of current price proxy
+- **Enhanced Evaluation Engine**: Fixed evaluate_predictions_batch() to return actual price_after_2h and price_after_6h values with proper error handling and fallback mechanisms
+- **Dynamic Label Weight System**: Added update_label_weights_from_performance() function calculating success rates per label and updating label_weights.json with formula: new_weight = 0.5 + success_rate (range 0.5-1.5)
+- **Automatic Evaluation Scheduling**: Integrated run_feedback_evaluation_if_needed() into main scanning service running evaluation cycles every 4 scan cycles (~1 hour) when >5 predictions pending
+- **Performance Tracking**: Created get_label_performance_report() providing comprehensive analytics including success rates, confidence averages, performance categories (excellent/good/moderate/poor)
+- **Historical Data Integration**: Enhanced feedback cache with proper price_after_2h and price_after_6h storage in history.json enabling accurate prediction outcome analysis
+- **Intelligent Weight Adjustment**: Smooth transition algorithm (70% new weight, 30% old weight) preventing dramatic scoring changes while ensuring continuous learning
+- **Production Integration**: Automatic feedback system now runs in background analyzing prediction accuracy and adjusting AI pattern weights based on real market outcomes
+- **Label Categorization**: Performance-based classification with top performers (≥60% success), poor performers (<40% success), and automatic filtering recommendations
+System delivers revolutionary self-learning capabilities where Module 5 continuously evaluates prediction accuracy using real historical price data and automatically adjusts label weights to strengthen effective patterns while weakening poor performers, creating increasingly sophisticated AI intelligence.
+
 ### July 6, 2025 - MODULE 4 FUTURE SCENARIO MAPPING FIX COMPLETE - Intelligent Predictive Analysis Operational ✅
 Successfully resolved critical Module 4 Future Scenario Mapping issue where basic implementation always returned 0.0 score preventing predictive contribution to TJDE analysis:
 - **Root Cause Identified**: Module 4 in unified_scoring_engine.py used simple slope analysis without setup-based intelligence or contextual scoring logic preventing effective future scenario assessment

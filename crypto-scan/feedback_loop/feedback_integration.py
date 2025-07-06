@@ -12,7 +12,7 @@ from .feedback_evaluator import evaluate_predictions_batch, calculate_label_perf
 from .weight_adjuster import adjust_weights_batch, get_weight_statistics
 
 def log_prediction_for_feedback(symbol: str, ai_label: Dict, current_price: float, 
-                               tjde_score: float, decision: str, market_phase: str = None) -> bool:
+                               tjde_score: float, decision: str, market_phase: Optional[str] = None) -> bool:
     """
     Rejestruje predykcję dla systemu feedback loop
     
@@ -317,3 +317,186 @@ def should_run_evaluation_cycle() -> bool:
     except Exception as e:
         logging.error(f"[FEEDBACK INTEGRATION ERROR] Failed to check evaluation cycle: {e}")
         return False
+
+
+def update_label_weights_from_performance() -> Dict:
+    """
+    Aktualizuje wagi etykiet na podstawie historii skuteczności
+    
+    Returns:
+        Słownik z aktualizacjami wag
+    """
+    try:
+        from .feedback_cache import get_evaluation_history
+        
+        # Pobierz historię ewaluacji z ostatnich 30 dni
+        history = get_evaluation_history(days=30)
+        
+        if len(history) < 10:
+            print("[WEIGHT UPDATE] Insufficient evaluation history for weight adjustment")
+            return {}
+        
+        # Grupuj wyniki według etykiet
+        label_performance = {}
+        for entry in history:
+            label = entry.get("label", "unknown")
+            evaluation_result = entry.get("evaluation_result", {})
+            successful = evaluation_result.get("successful", False)
+            
+            if label not in label_performance:
+                label_performance[label] = {
+                    "total": 0,
+                    "successful": 0,
+                    "success_rate": 0.0
+                }
+            
+            label_performance[label]["total"] += 1
+            if successful:
+                label_performance[label]["successful"] += 1
+        
+        # Oblicz success rate dla każdej etykiety
+        for label, stats in label_performance.items():
+            stats["success_rate"] = stats["successful"] / stats["total"] if stats["total"] > 0 else 0.0
+        
+        # Aktualizuj wagi na podstawie skuteczności
+        from .weight_adjuster import load_label_weights, save_label_weights
+        current_weights = load_label_weights()
+        updated_weights = {}
+        weight_changes = {}
+        
+        for label, stats in label_performance.items():
+            if stats["total"] >= 5:  # Minimum 5 predykcji dla wiarygodności
+                success_rate = stats["success_rate"]
+                
+                # Nowa waga: 0.5 + success_rate (range 0.5-1.5)
+                new_weight = 0.5 + success_rate
+                old_weight = current_weights.get(label, 1.0)
+                
+                # Smooth transition: 70% nowa waga, 30% stara waga
+                final_weight = 0.7 * new_weight + 0.3 * old_weight
+                
+                updated_weights[label] = round(final_weight, 3)
+                weight_changes[label] = {
+                    "old_weight": round(old_weight, 3),
+                    "new_weight": round(final_weight, 3),
+                    "success_rate": round(success_rate, 3),
+                    "sample_size": stats["total"]
+                }
+                
+                print(f"[WEIGHT UPDATE] {label}: {old_weight:.3f} → {final_weight:.3f} (success: {success_rate:.1%}, n={stats['total']})")
+        
+        # Zachowaj istniejące wagi dla etykiet bez wystarczającej historii
+        for label, weight in current_weights.items():
+            if label not in updated_weights:
+                updated_weights[label] = weight
+        
+        # Zapisz zaktualizowane wagi
+        if weight_changes:
+            save_label_weights(updated_weights)
+            print(f"[WEIGHT UPDATE] Updated {len(weight_changes)} label weights based on performance")
+        
+        return weight_changes
+        
+    except Exception as e:
+        print(f"[WEIGHT UPDATE ERROR] Failed to update label weights: {e}")
+        return {}
+
+
+def get_label_performance_report() -> Dict:
+    """
+    Generuje raport skuteczności etykiet
+    
+    Returns:
+        Raport z analizą skuteczności
+    """
+    try:
+        from .feedback_cache import get_evaluation_history
+        from .weight_adjuster import load_label_weights
+        
+        # Pobierz dane z ostatnich 30 dni
+        history = get_evaluation_history(days=30)
+        current_weights = load_label_weights()
+        
+        if not history:
+            return {
+                "status": "no_data",
+                "message": "No evaluation history available"
+            }
+        
+        # Analiza per etykiety
+        label_stats = {}
+        total_predictions = len(history)
+        total_successful = 0
+        
+        for entry in history:
+            label = entry.get("label", "unknown")
+            evaluation_result = entry.get("evaluation_result", {})
+            successful = evaluation_result.get("successful", False)
+            confidence = entry.get("confidence", 0.0)
+            tjde_score = entry.get("tjde_score", 0.0)
+            
+            if successful:
+                total_successful += 1
+            
+            if label not in label_stats:
+                label_stats[label] = {
+                    "total": 0,
+                    "successful": 0,
+                    "success_rate": 0.0,
+                    "avg_confidence": 0.0,
+                    "avg_tjde_score": 0.0,
+                    "current_weight": current_weights.get(label, 1.0),
+                    "confidence_sum": 0.0,
+                    "tjde_sum": 0.0
+                }
+            
+            stats = label_stats[label]
+            stats["total"] += 1
+            if successful:
+                stats["successful"] += 1
+            stats["confidence_sum"] += confidence
+            stats["tjde_sum"] += tjde_score
+        
+        # Oblicz końcowe statystyki
+        for label, stats in label_stats.items():
+            if stats["total"] > 0:
+                stats["success_rate"] = round(stats["successful"] / stats["total"], 3)
+                stats["avg_confidence"] = round(stats["confidence_sum"] / stats["total"], 3)
+                stats["avg_tjde_score"] = round(stats["tjde_sum"] / stats["total"], 3)
+                
+                # Kategoria skuteczności
+                if stats["success_rate"] >= 0.75:
+                    stats["performance_category"] = "excellent"
+                elif stats["success_rate"] >= 0.60:
+                    stats["performance_category"] = "good"
+                elif stats["success_rate"] >= 0.45:
+                    stats["performance_category"] = "moderate"
+                else:
+                    stats["performance_category"] = "poor"
+        
+        # Sortuj według skuteczności
+        sorted_labels = sorted(label_stats.items(), key=lambda x: x[1]["success_rate"], reverse=True)
+        
+        # Overall statistics
+        overall_success_rate = total_successful / total_predictions if total_predictions > 0 else 0.0
+        
+        return {
+            "status": "success",
+            "overall": {
+                "total_predictions": total_predictions,
+                "successful_predictions": total_successful,
+                "success_rate": round(overall_success_rate, 3),
+                "evaluation_period_days": 30
+            },
+            "label_performance": dict(sorted_labels),
+            "top_performers": [label for label, stats in sorted_labels[:5] if stats["success_rate"] >= 0.60],
+            "poor_performers": [label for label, stats in sorted_labels if stats["success_rate"] < 0.40 and stats["total"] >= 5],
+            "report_timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "report_timestamp": datetime.now().isoformat()
+        }
