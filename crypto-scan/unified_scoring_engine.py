@@ -9,6 +9,74 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+def assess_future_scenario(setup: str, trend_strength: float, volume_score: float, clip_confidence: float, slope: float) -> float:
+    """
+    Intelligent Future Scenario Assessment based on setup patterns and market context
+    
+    Args:
+        setup: AI-detected setup pattern (breakout_pattern, momentum_follow, etc.)
+        trend_strength: Normalized trend strength (0-1)
+        volume_score: Normalized volume score (0-1)
+        clip_confidence: CLIP model confidence (0-1)
+        slope: Price slope from linear regression
+        
+    Returns:
+        Future scenario score (-0.2 to +0.5)
+    """
+    # Strong setups with high continuation potential
+    strong_setups = ["breakout_pattern", "momentum_follow", "impulse", "pullback_in_trend", "trend_continuation"]
+    
+    # Reversal patterns with different dynamics
+    reversal_setups = ["reversal_pattern", "exhaustion_pattern", "range_trading", "consolidation_squeeze"]
+    
+    base_score = 0.0
+    
+    # Strong bullish scenarios
+    if setup in strong_setups and trend_strength >= 0.7 and volume_score >= 0.4:
+        base_score = 0.2 + 0.2 * min(trend_strength, 1.0) + 0.1 * clip_confidence
+        print(f"[MODULE 4 DEBUG] Strong bullish scenario: {setup} (trend:{trend_strength:.3f}, vol:{volume_score:.3f})")
+        
+    # Medium bullish scenarios
+    elif setup in strong_setups and trend_strength >= 0.5:
+        base_score = 0.1 + 0.15 * trend_strength + 0.05 * clip_confidence
+        print(f"[MODULE 4 DEBUG] Medium bullish scenario: {setup} (trend:{trend_strength:.3f})")
+        
+    # Reversal scenarios (typically weaker but still valuable)
+    elif setup in reversal_setups and trend_strength < 0.4:
+        base_score = 0.05 + 0.05 * clip_confidence
+        print(f"[MODULE 4 DEBUG] Reversal scenario: {setup} (weak trend:{trend_strength:.3f})")
+        
+    # Bearish scenarios (strong down trends)
+    elif slope < -0.0005 and trend_strength >= 0.6:
+        base_score = -0.1 - 0.1 * trend_strength
+        print(f"[MODULE 4 DEBUG] Bearish scenario: strong downtrend (slope:{slope:.6f})")
+        
+    # Neutral/consolidation scenarios
+    elif setup in ["consolidation_squeeze", "range_trading"]:
+        base_score = 0.03 + 0.02 * clip_confidence
+        print(f"[MODULE 4 DEBUG] Consolidation scenario: {setup}")
+        
+    # Unknown or weak setups
+    else:
+        base_score = 0.0
+        print(f"[MODULE 4 DEBUG] Neutral scenario: {setup} (no clear prediction)")
+    
+    # AI confidence boost for high-confidence predictions
+    if clip_confidence >= 0.7:
+        base_score *= 1.2
+        print(f"[MODULE 4 DEBUG] High AI confidence boost: {clip_confidence:.3f}")
+    
+    # Volume confirmation bonus
+    if volume_score >= 0.6 and base_score > 0:
+        base_score += 0.05
+        print(f"[MODULE 4 DEBUG] Volume confirmation bonus: {volume_score:.3f}")
+    
+    # Cap the final score within bounds
+    final_score = max(-0.2, min(base_score, 0.5))
+    
+    return round(final_score, 3)
+
+
 def simulate_trader_decision_advanced(data: Dict) -> Dict:
     """
     🚀 Unified TJDE Engine - Complete Integration of All Scoring Modules
@@ -389,34 +457,40 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
                 
                 print(f"[MODULE 4 DEBUG] Slope: {slope:.6f}, Current price: {current_price:.4f}, Volatility: {volatility:.4f}")
                 
-                # Enhanced Future Scenario Scoring (based on user's suggestion)
+                # Intelligent Future Scenario Assessment
                 future_score = 0.0
                 scenario = "neutral"
                 
-                # Bullish scenario: positive slope
-                if slope > 0.0001:  # Lowered threshold
-                    future_score = 0.12  # Increased from 0.03
-                    scenario = "bullish_continuation"
-                    
-                # Bearish scenario: negative slope  
-                elif slope < -0.0001:  # Lowered threshold
-                    future_score = -0.08  # Enhanced from -0.02
-                    scenario = "bearish_continuation"
-                    
-                # Neutral scenario: sideways movement
-                else:
-                    future_score = 0.06  # Increased from 0.0 to have impact
-                    scenario = "neutral_consolidation"
+                # Get AI setup from data if available
+                setup = data.get("ai_label", {}).get("label", "unknown")
+                trend_strength = abs(slope) * 1000  # Scale slope to 0-1 range
+                trend_strength = min(trend_strength, 1.0)
                 
-                # AI pattern alignment boost
-                if ai_label and ai_label.get('label'):
-                    ai_pattern = ai_label.get('label')
-                    if ai_pattern in ['momentum_follow', 'breakout_pattern'] and future_score > 0:
-                        future_score *= 1.3  # 30% boost for aligned patterns
-                        print(f"[MODULE 4 DEBUG] AI alignment boost applied: {ai_pattern}")
-                    elif ai_pattern in ['trend_reversal', 'exhaustion_pattern'] and future_score < 0:
-                        future_score *= 1.3  # 30% boost for bearish alignment
-                        print(f"[MODULE 4 DEBUG] AI bearish alignment boost applied: {ai_pattern}")
+                # Calculate volume score from market data
+                volume_24h = data.get("volume_24h", 0)
+                volume_score = min(volume_24h / 1000000, 1.0) if volume_24h > 0 else 0.0  # Normalize to 0-1
+                
+                # Get CLIP confidence if available
+                clip_confidence = data.get("ai_label", {}).get("confidence", 0.0)
+                
+                print(f"[MODULE 4 DEBUG] Setup: {setup}, Trend strength: {trend_strength:.3f}, Volume score: {volume_score:.3f}")
+                
+                # Enhanced predictive logic based on setup patterns
+                future_score = assess_future_scenario(setup, trend_strength, volume_score, clip_confidence, slope)
+                
+                # Determine scenario based on slope and setup
+                if slope > 0.0001 and setup in ["breakout_pattern", "momentum_follow"]:
+                    scenario = "strong_bullish_continuation"
+                elif slope > 0.0001:
+                    scenario = "bullish_continuation"
+                elif slope < -0.0001 and setup in ["reversal_pattern", "exhaustion_pattern"]:
+                    scenario = "strong_bearish_continuation"
+                elif slope < -0.0001:
+                    scenario = "bearish_continuation"
+                elif setup in ["consolidation_squeeze", "range_trading"]:
+                    scenario = "consolidation_buildup"
+                else:
+                    scenario = "neutral_consolidation"
                 
                 # Volatility adjustment
                 if volatility > 0.08:  # High volatility - reduce confidence
