@@ -110,6 +110,7 @@ Successfully implemented complete dynamic weights integration into TJDE v2 simul
 - **Component Score Architecture**: Enhanced scoring with setup_score (trend+pullback analysis), phase_score (support+psychology), and liquidity_score enabling more granular weight application and intelligent market adaptation
 - **Revolutionary Self-Learning**: System continuously improves accuracy through weight adjustment based on actual trading outcomes, creating increasingly sophisticated AI intelligence that adapts to market conditions
 - **PHASE 2 Variable Scope Fix**: Resolved critical "name 'data' is not defined" error in unified_scoring_engine.py by properly mapping cluster features from market_data and signals parameters, and fixed two_stage_tjde_system.py function call to pass correct parameters to simulate_trader_decision_advanced()
+- **Weight Adjustment Cycle Counter Fix**: Resolved "name 'run_single_scan' is not defined" error in crypto_scan_service.py by implementing proper global cycle counter tracking for Module 5 dynamic weight adjustment scheduling
 System delivers revolutionary self-learning TJDE capabilities where scoring weights automatically evolve based on real market performance, establishing truly adaptive cryptocurrency trend detection with institutional-grade intelligence.
 
 ### July 6, 2025 - MODULE 5 FEEDBACK INTEGRATION ENHANCEMENT COMPLETE - Advanced Self-Learning System with Improved Selection Logic ✅

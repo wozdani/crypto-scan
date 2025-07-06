@@ -253,9 +253,12 @@ def scan_cycle():
     try:
         from feedback_loop.weight_adjustment_system import adjust_label_weights, print_weight_report
         
-        # Run weight adjustment every 4 cycles (approximately 1 hour)
-        cycle_counter = getattr(run_single_scan, 'cycle_counter', 0) + 1
-        run_single_scan.cycle_counter = cycle_counter
+        # Module-level cycle counter for weight adjustment tracking
+        global cycle_counter
+        try:
+            cycle_counter += 1
+        except NameError:
+            cycle_counter = 1
         
         if cycle_counter % 4 == 0:  # Every 4th cycle
             print(f"\n🧠 [MODULE 5] Running Dynamic Weight Adjustment (Cycle {cycle_counter})")
