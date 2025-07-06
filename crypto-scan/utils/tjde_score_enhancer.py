@@ -83,9 +83,14 @@ class TJDEScoreEnhancer:
             factors["momentum_breakout"] = min(0.08, (momentum - 0.8) * 0.4)
         
         # Combined Signal Synergy Boost (0.0-0.05)
-        active_signals = sum(1 for score in [ai_score, htf_score, volume_surge, momentum] if score > 0.5)
-        if active_signals >= 3:
-            factors["synergy"] = min(0.05, active_signals * 0.015)
+        # Count both strong signals (>0.5) and moderate AI signals (>0.05)
+        strong_signals = sum(1 for score in [volume_surge, momentum] if score > 0.5)
+        moderate_ai_signals = sum(1 for score in [ai_score, htf_score] if score > 0.05)
+        
+        # Synergy if 2+ strong signals OR 1 strong + 2 moderate AI signals
+        if strong_signals >= 2 or (strong_signals >= 1 and moderate_ai_signals >= 2):
+            total_synergy_strength = strong_signals + moderate_ai_signals * 0.5
+            factors["synergy"] = min(0.05, total_synergy_strength * 0.015)
         
         return factors
     

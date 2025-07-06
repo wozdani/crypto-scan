@@ -33,8 +33,15 @@ class RobustMemoryHandler:
             Loaded data dictionary or None if critical error
         """
         try:
-            # Ensure directory exists
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            # Handle empty or invalid file paths
+            if not file_path or not file_path.strip():
+                print(f"[MEMORY CRITICAL ERROR] {file_path}: Empty file path provided")
+                return None
+            
+            # Ensure directory exists (handle case where dirname might be empty)
+            dir_path = os.path.dirname(file_path)
+            if dir_path:  # Only create directory if path has a directory component
+                os.makedirs(dir_path, exist_ok=True)
             
             # Check if file exists
             if not os.path.exists(file_path):
@@ -85,8 +92,15 @@ class RobustMemoryHandler:
             True if successful, False otherwise
         """
         try:
-            # Ensure directory exists
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            # Handle empty or invalid file paths
+            if not file_path or not file_path.strip():
+                print(f"[MEMORY SAVE ERROR] Empty file path provided")
+                return False
+            
+            # Ensure directory exists (handle case where dirname might be empty)
+            dir_path = os.path.dirname(file_path)
+            if dir_path:  # Only create directory if path has a directory component
+                os.makedirs(dir_path, exist_ok=True)
             
             # Use atomic write (temp file + rename)
             temp_path = f"{file_path}.tmp.{int(time.time())}"

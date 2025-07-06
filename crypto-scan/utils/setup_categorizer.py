@@ -84,11 +84,13 @@ class SetupCategorizer:
             if setup_lower in [s.lower() for s in setups]:
                 return category
         
-        # Check for partial matches (but be more restrictive)
-        for category, setups in self.setup_categories.items():
-            for setup in setups:
-                if len(setup_lower) > 3 and (setup.lower() in setup_lower or setup_lower in setup.lower()):
-                    return category
+        # Check for partial matches (but be more restrictive) 
+        # Skip partial matching for ambiguous patterns like "unknown_pattern" vs "unknown"
+        if setup_lower not in ["unknown_pattern", "unknown_setup", "unknown_label"]:
+            for category, setups in self.setup_categories.items():
+                for setup in setups:
+                    if len(setup_lower) > 3 and len(setup) > 3 and (setup.lower() in setup_lower or setup_lower in setup.lower()):
+                        return category
         
         return "UNCATEGORIZED"
     

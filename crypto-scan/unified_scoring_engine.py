@@ -99,11 +99,11 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
         "legacy_psychology_score": 0.0
     }
     
-    # 🚀 START WITH BASIC SCORE AS BASE - Unified engine enhances basic engine instead of replacing it
-    basic_score = data.get("basic_score", 0.0)
-    total_score = basic_score  # Start with basic score, then add/subtract adjustments
-    print(f"[UNIFIED SCORING DEBUG] Starting with basic_score: {basic_score:.4f} as base")
-    print(f"[UNIFIED SCORING DEBUG] Total score will be enhanced from this baseline")
+    # === ADVANCED MODULES PROCESSING (1-4) - Proper Layer Order ===
+    advanced_total_score = 0.0
+    advanced_modules_active = 0
+    
+    print(f"[SCORING LAYER DEBUG] Starting Advanced Module Processing (AI-EYE → HTF → Trap → Future)")
     
     # === MODULE 1: AI-EYE VISION (CLIP + GPT with Dynamic Weights) ===
     try:
@@ -118,10 +118,13 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
         if ai_label:
             ai_eye_score = score_from_ai_label(ai_label, market_phase)
             score_breakdown["ai_eye_score"] = ai_eye_score
-            total_score += ai_eye_score
+            advanced_total_score += ai_eye_score
+            
+            if ai_eye_score != 0.0:
+                advanced_modules_active += 1
             
             print(f"[MODULE 1 DEBUG] AI-EYE Score: {ai_eye_score:+.4f}")
-            print(f"[MODULE 1 DEBUG] Running total after AI-EYE: {total_score:.4f}")
+            print(f"[MODULE 1 DEBUG] Advanced modules running total: {advanced_total_score:.4f}")
             
         else:
             print(f"[MODULE 1 DEBUG] AI-EYE: No AI label data available")
