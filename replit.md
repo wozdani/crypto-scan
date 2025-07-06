@@ -98,6 +98,18 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### July 6, 2025 - HTF OVERLAY MODULE 2 INTEGRATION COMPLETE - Support/Resistance Detection Operational ✅
+Successfully integrated detect_htf_levels() function from htf_support_resistance.py with unified_scoring_engine.py resolving critical scoring issue where HTF Overlay always returned 0.0:
+- **Root Cause Identified**: HTF Overlay Module 2 was using simple trend analysis instead of advanced S/R level detection functionality
+- **S/R Integration Added**: Implemented detect_htf_levels() call with breakout_potential and position_context scoring logic
+- **Enhanced Scoring Logic**: High breakout potential (>0.7) at resistance/support = 0.10 score, medium potential (>0.5) = 0.05 score
+- **Level Strength Bonus**: Strong S/R levels (>0.8 strength) provide additional +0.03 scoring bonus for institutional-grade level recognition
+- **AI Pattern Alignment**: 30% scoring bonus when HTF bullish signals align with momentum_follow/breakout_pattern AI labels
+- **Robust Fallback System**: Graceful degradation to simple trend analysis when htf_support_resistance module unavailable
+- **Production Integration**: HTF Overlay now contributes meaningfully to TJDE scoring instead of consistent 0.0 values
+- **Comprehensive Error Handling**: Enhanced error handling with detailed debug logging for S/R analysis and scoring breakdown
+System eliminates HTF Overlay scoring ineffectiveness ensuring Module 2 actively contributes to TJDE decisions through advanced Support/Resistance level analysis with breakout potential assessment.
+
 ### July 6, 2025 - MODULE 4 FUTURE SCENARIO MAPPING FIX COMPLETE - Restrictive Conditions Resolved ✅
 Successfully resolved critical Module 4 Future Scenario Mapping issue where overly restrictive conditions caused consistent 0.0 scores preventing module effectiveness:
 - **Root Cause Identified**: Module 4 in unified_scoring_engine.py required 50+ candles and slope within extremely narrow range (±0.0002) causing near-constant 0.0 returns

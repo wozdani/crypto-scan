@@ -141,39 +141,90 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
         print(f"[MODULE 2 DEBUG] HTF candles available: {len(htf_candles) if htf_candles else 0}")
         
         if htf_candles and len(htf_candles) >= 20:
-            # Simplified HTF scoring - calculate basic trend
-            closes = []
-            for candle in htf_candles[-20:]:
-                if isinstance(candle, dict):
-                    closes.append(float(candle['close']))
-                elif isinstance(candle, (list, tuple)) and len(candle) > 4:
-                    closes.append(float(candle[4]))
-            if len(closes) >= 10:
-                trend_strength = (closes[-1] - closes[0]) / closes[0] if closes[0] != 0 else 0
+            # Get current price for S/R analysis
+            current_price = None
+            if data and 'price' in data:
+                current_price = float(data['price'])
+            elif htf_candles:
+                last_candle = htf_candles[-1]
+                if isinstance(last_candle, dict) and 'close' in last_candle:
+                    current_price = float(last_candle['close'])
+                elif isinstance(last_candle, (list, tuple)) and len(last_candle) > 4:
+                    current_price = float(last_candle[4])
+            
+            htf_score = 0.0
+            
+            # Try advanced S/R level integration first
+            try:
+                from htf_overlay.htf_support_resistance import detect_htf_levels
                 
-                # Simple HTF trend scoring (-0.05 to +0.05)
-                htf_score = np.clip(trend_strength * 2, -0.05, 0.05)
-                
-                # AI pattern alignment bonus
-                if ai_label and ai_label.get('label') in ['momentum_follow', 'breakout_pattern']:
-                    if htf_score > 0:  # Bullish HTF + bullish AI
-                        htf_score *= 1.2
-                
-                score_breakdown["htf_overlay_score"] = htf_score
-                advanced_total_score += htf_score
-                
-                if htf_score != 0.0:
-                    advanced_modules_active += 1
-                
-                print(f"[MODULE 2 DEBUG] HTF Overlay Score: {htf_score:+.4f}")
-                print(f"[MODULE 2 DEBUG] Advanced modules running total: {advanced_total_score:.4f}")
-            else:
-                print(f"[MODULE 2 DEBUG] HTF Overlay: Invalid candle data")
+                if current_price:
+                    htf_result = detect_htf_levels(htf_candles, current_price)
+                    breakout_potential = htf_result.get("breakout_potential", 0.0)
+                    position_context = htf_result.get("price_position", "middle")
+                    
+                    # Enhanced scoring based on breakout potential and position
+                    if breakout_potential > 0.7 and position_context in ["at_resistance", "at_support"]:
+                        htf_score = 0.10
+                        print(f"[MODULE 2 DEBUG] HTF S/R: High breakout potential {breakout_potential:.2f} at {position_context}")
+                    elif breakout_potential > 0.5:
+                        htf_score = 0.05
+                        print(f"[MODULE 2 DEBUG] HTF S/R: Medium breakout potential {breakout_potential:.2f}")
+                    elif position_context == "middle_range":
+                        htf_score = 0.02
+                        print(f"[MODULE 2 DEBUG] HTF S/R: Middle range position")
+                    else:
+                        htf_score = 0.0
+                        print(f"[MODULE 2 DEBUG] HTF S/R: Low breakout potential {breakout_potential:.2f}")
+                    
+                    # Level strength bonus
+                    level_strength = htf_result.get("level_strength", {})
+                    if level_strength:
+                        max_strength = max(level_strength.values()) if level_strength.values() else 0.0
+                        if max_strength > 0.8:
+                            strength_bonus = 0.03
+                            htf_score += strength_bonus
+                            print(f"[MODULE 2 DEBUG] HTF S/R: Strong level bonus +{strength_bonus:.3f} (strength: {max_strength:.2f})")
+                    
+                    print(f"[MODULE 2 DEBUG] HTF S/R Integration: breakout_potential={breakout_potential:.3f}, position={position_context}")
+                    
+            except ImportError:
+                print(f"[MODULE 2 DEBUG] HTF S/R module not available, using fallback trend analysis")
+                # Fallback to simple trend analysis
+                closes = []
+                for candle in htf_candles[-20:]:
+                    if isinstance(candle, dict):
+                        closes.append(float(candle['close']))
+                    elif isinstance(candle, (list, tuple)) and len(candle) > 4:
+                        closes.append(float(candle[4]))
+                if len(closes) >= 10:
+                    trend_strength = (closes[-1] - closes[0]) / closes[0] if closes[0] != 0 else 0
+                    htf_score = max(-0.05, min(0.05, trend_strength * 2))
+            
+            # AI pattern alignment bonus
+            if ai_label and ai_label.get('label') in ['momentum_follow', 'breakout_pattern']:
+                if htf_score > 0:  # Bullish HTF + bullish AI
+                    ai_bonus = htf_score * 0.3  # 30% bonus
+                    htf_score += ai_bonus
+                    print(f"[MODULE 2 DEBUG] AI Pattern Alignment: +{ai_bonus:.4f} bonus for {ai_label.get('label')}")
+            
+            # Final bounds checking
+            htf_score = max(-0.20, min(0.20, htf_score))
+            
+            score_breakdown["htf_overlay_score"] = htf_score
+            advanced_total_score += htf_score
+            
+            if htf_score != 0.0:
+                advanced_modules_active += 1
+            
+            print(f"[MODULE 2 DEBUG] HTF Overlay Score: {htf_score:+.4f}")
+            print(f"[MODULE 2 DEBUG] Advanced modules running total: {advanced_total_score:.4f}")
         else:
             print(f"[MODULE 2 DEBUG] HTF Overlay: Insufficient HTF data ({len(htf_candles) if htf_candles else 0} candles)")
                 
     except Exception as e:
         logger.error(f"[MODULE 2 ERROR] HTF Overlay scoring failed: {e}")
+        print(f"[MODULE 2 DEBUG] HTF Overlay: Error - {e}")
     
     # === MODULE 3: TRAP DETECTOR (Risk Pattern Detection) ===
     try:
