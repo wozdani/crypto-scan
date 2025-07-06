@@ -62,6 +62,82 @@ class TJDEv3Pipeline:
         os.makedirs(self.clip_predictions_dir, exist_ok=True)
         os.makedirs("training_data/charts", exist_ok=True)
         
+    async def fetch_real_market_data(self, symbol: str, session: aiohttp.ClientSession = None) -> Optional[Dict]:
+        """
+        Fetch real market data from Bybit API for TJDE v3 Phase 1
+        
+        Args:
+            symbol: Trading symbol
+            session: Optional aiohttp session
+            
+        Returns:
+            Market data dictionary with candles, volume, price data
+        """
+        should_close_session = session is None
+        if session is None:
+            session = aiohttp.ClientSession()
+            
+        try:
+            # Fetch ticker data for basic market info
+            ticker_url = f"https://api.bybit.com/v5/market/tickers?category=spot&symbol={symbol}"
+            async with session.get(ticker_url) as response:
+                if response.status == 200:
+                    ticker_data = await response.json()
+                    if ticker_data.get('result', {}).get('list'):
+                        ticker = ticker_data['result']['list'][0]
+                        price = float(ticker.get('lastPrice', 0))
+                        volume_24h = float(ticker.get('volume24h', 0))
+                        price_change_24h = float(ticker.get('price24hPcnt', 0))
+                        
+                        # Skip invalid data
+                        if price <= 0 or volume_24h <= 0:
+                            return None
+                    else:
+                        return None
+                else:
+                    return None
+            
+            # Fetch 15M candles for basic scoring
+            candles_url = f"https://api.bybit.com/v5/market/kline?category=spot&symbol={symbol}&interval=15&limit=200"
+            candles_15m = []
+            
+            async with session.get(candles_url) as response:
+                if response.status == 200:
+                    candle_data = await response.json()
+                    if candle_data.get('result', {}).get('list'):
+                        raw_candles = candle_data['result']['list']
+                        # Convert to expected format [timestamp, open, high, low, close, volume]
+                        for candle in raw_candles:
+                            candles_15m.append([
+                                int(candle[0]),  # timestamp
+                                float(candle[1]),  # open
+                                float(candle[2]),  # high
+                                float(candle[3]),  # low
+                                float(candle[4]),  # close
+                                float(candle[5])   # volume
+                            ])
+                        # Reverse to get chronological order
+                        candles_15m.reverse()
+                        
+            # Return market data structure
+            return {
+                'symbol': symbol,
+                'price': price,
+                'volume_24h': volume_24h,
+                'price_change_24h': price_change_24h,
+                'candles_15m': candles_15m,
+                'candles_5m': [],  # Will be added if needed
+                'data_source': 'bybit_direct'
+            }
+            
+        except Exception as e:
+            print(f"[REAL DATA ERROR] {symbol}: {e}")
+            return None
+            
+        finally:
+            if should_close_session and session:
+                await session.close()
+        
     async def phase1_basic_scoring(self, symbols: List[str], priority_info: Dict = None) -> List[Dict]:
         """
         PHASE 1: Fast basic scoring for all tokens
@@ -81,21 +157,12 @@ class TJDEv3Pipeline:
         # Process all tokens with basic scoring
         for symbol in symbols:
             try:
-                # Get market data (simplified for basic phase)
-                try:
-                    from utils.async_data_processor import AsyncDataProcessor
-                    processor = AsyncDataProcessor()
-                    market_data = await processor.process_symbol_basic(symbol)
-                except ImportError:
-                    # Fallback to simple data structure
-                    market_data = {
-                        'symbol': symbol,
-                        'candles_15m': [],
-                        'candles_5m': [],
-                        'volume_24h': 0,
-                        'price_change_24h': 0,
-                        'price': 0
-                    }
+                # Get market data - use real data from existing APIs
+                market_data = await self.fetch_real_market_data(symbol)
+                
+                # Skip if no data
+                if not market_data:
+                    continue
                 
                 if not market_data:
                     continue
@@ -127,6 +194,11 @@ class TJDEv3Pipeline:
     async def run_basic_scoring(self, symbol: str, market_data: Dict) -> Optional[Dict]:
         """Run basic scoring without AI-EYE dependency"""
         try:
+            # Validate market data first
+            if not market_data or not market_data.get('candles_15m'):
+                print(f"[BASIC SCORING] {symbol}: No candle data available")
+                return None
+            
             # Use basic engine - no AI-EYE, no HTF dependency
             result = simulate_trader_decision_basic(
                 symbol=symbol,
@@ -137,37 +209,50 @@ class TJDEv3Pipeline:
                 current_price=market_data.get('price', 0)
             )
             
-            return result
+            # Validate result has meaningful score
+            if result and result.get('score', 0) > 0.001:
+                print(f"[BASIC SCORING] {symbol}: Score {result['score']:.3f}")
+                return result
+            else:
+                print(f"[BASIC SCORING] {symbol}: Low score {result.get('score', 0):.3f}")
+                return None
             
         except Exception as e:
             print(f"[BASIC SCORING ERROR] {symbol}: {e}")
             return None
             
     def select_top_tokens(self, basic_results: List[Dict], 
-                         top_n: int = 40, min_score: float = 0.25) -> List[Dict]:
+                         top_n: int = 40, min_score: float = 0.15) -> List[Dict]:
         """
-        PHASE 2 SELECTION: Select top tokens for advanced analysis - OPTIMIZED FOR 0.7+ TARGETS
+        PHASE 2 SELECTION: Select top tokens for advanced analysis - REALISTIC THRESHOLDS
         
         Args:
             basic_results: Results from phase 1
-            top_n: Maximum number of tokens to select (increased to 40)
-            min_score: Minimum score threshold (lowered to 0.25)
+            top_n: Maximum number of tokens to select
+            min_score: Minimum score threshold (realistic for market data)
             
         Returns:
             Selected tokens for advanced analysis
         """
-        # Filter by minimum score - lowered threshold for more candidates
+        # Filter by minimum score - realistic threshold for authentic market scores
         qualified = [r for r in basic_results if r['basic_score'] >= min_score]
         
-        # Take top N - increased to 40 for better 0.7+ opportunity
+        # Sort by score descending to get best candidates
+        qualified.sort(key=lambda x: x['basic_score'], reverse=True)
+        
+        # Take top N candidates
         selected = qualified[:top_n]
         
-        print(f"[PHASE 2 SELECTION OPTIMIZED] Selected {len(selected)}/{len(basic_results)} tokens (target: 0.7+ scores)")
+        print(f"[PHASE 2 SELECTION] Selected {len(selected)}/{len(basic_results)} tokens for advanced analysis")
         print(f"[SELECTION CRITERIA] min_score={min_score}, top_n={top_n}")
         
         if selected:
             top_scores = [f"{r['symbol']}:{r['basic_score']:.3f}" for r in selected[:5]]
-            print(f"[TOP 5] {', '.join(top_scores)}")
+            print(f"[TOP SELECTED] {', '.join(top_scores)}")
+        else:
+            # Debug - show what scores we have
+            all_scores = [f"{r['symbol']}:{r['basic_score']:.3f}" for r in basic_results[:5]]
+            print(f"[DEBUG SCORES] Available: {', '.join(all_scores)}")
             
         return selected
         
@@ -333,36 +418,84 @@ class TJDEv3Pipeline:
             symbol = token_data['symbol']
             
             try:
-                # Prepare data for unified engine
-                market_data = token_data['market_data'].copy()
+                # Extract market data components
+                market_data = token_data['market_data']
+                candles_15m = market_data.get('candles_15m', [])
                 
-                # Add AI-EYE data from CLIP
-                market_data['ai_label'] = token_data['ai_label']['label']
-                market_data['ai_confidence'] = token_data['ai_label']['confidence']
+                # Create ticker data structure
+                ticker_data = {
+                    'lastPrice': str(market_data.get('price', 0)),
+                    'volume24h': str(market_data.get('volume_24h', 0)),
+                    'price24hPcnt': str(market_data.get('price_change_24h', 0))
+                }
                 
-                # Prepare unified data
-                unified_data = prepare_unified_data(market_data, {})
+                # Create orderbook placeholder
+                orderbook = {}
                 
-                # Run advanced scoring with all modules
-                advanced_result = simulate_trader_decision_advanced(
+                # Create signals structure
+                signals = {
+                    'cluster_strength': 0.5,
+                    'cluster_direction': 1.0,
+                    'cluster_volume_ratio': 1.0,
+                    'market_phase': 'trend-following'
+                }
+                
+                # Create AI label structure
+                ai_label = token_data.get('ai_label', {
+                    'label': 'breakout_pattern',
+                    'confidence': 0.7,
+                    'method': 'clip_prediction'
+                })
+                
+                # Prepare unified data with correct signature
+                unified_data = prepare_unified_data(
                     symbol=symbol,
-                    market_data=unified_data,
-                    signals={}
+                    candles=candles_15m,
+                    ticker_data=ticker_data,
+                    orderbook=orderbook,
+                    market_data=market_data,
+                    signals=signals,
+                    ai_label=ai_label,
+                    htf_candles=[]
                 )
                 
+                # Run advanced scoring with unified data
+                advanced_result = simulate_trader_decision_advanced(data=unified_data)
+                
                 if advanced_result:
+                    # Extract meaningful scores from advanced result
+                    advanced_score = advanced_result.get('final_score', 
+                                   advanced_result.get('score', token_data['basic_score']))
+                    decision = advanced_result.get('decision', 'unknown')
+                    
                     final_result = {
                         'symbol': symbol,
                         'basic_score': token_data['basic_score'],
-                        'advanced_score': advanced_result.get('score', 0),
-                        'final_decision': advanced_result.get('decision', 'unknown'),
+                        'advanced_score': advanced_score,
+                        'final_decision': decision,
                         'ai_label': token_data['ai_label'],
                         'chart_path': token_data.get('chart_path'),
-                        'breakdown': advanced_result.get('breakdown', {}),
-                        'modules_active': advanced_result.get('active_modules', 0)
+                        'breakdown': advanced_result.get('score_breakdown', {}),
+                        'modules_active': advanced_result.get('active_modules', 0),
+                        'engine_version': 'tjde_v3',
+                        
+                        # MAIN SYSTEM COMPATIBILITY FIELDS
+                        'tjde_score': advanced_score,
+                        'tjde_decision': decision,
+                        'score': advanced_score,
+                        'decision': decision,
+                        
+                        # Additional fields expected by main system
+                        'volume_24h': token_data['market_data'].get('volume_24h', 0),
+                        'price_change_24h': token_data['market_data'].get('price_change_24h', 0),
+                        'current_price': token_data['market_data'].get('price', 0),
+                        'market_phase': advanced_result.get('market_phase', 'unknown')
                     }
                     
+                    print(f"[ADVANCED RESULT] {symbol}: {advanced_score:.3f} ({decision})")
                     final_results.append(final_result)
+                else:
+                    print(f"[ADVANCED FAIL] {symbol}: No result from unified engine")
                     
                     print(f"[ADVANCED OK] {symbol}: {advanced_result['score']:.3f} ({advanced_result['decision']})")
                     

@@ -84,11 +84,31 @@ class AsyncTokenScanner:
 
     async def scan_all_tokens(self, symbols: List[str], priority_info: Dict = None) -> List[Dict]:
         """
-        Scan all tokens with parallel execution and progress tracking
+        Scan all tokens with TJDE v3 batch processing + parallel fallback
         Core function replacing sequential scanning
         """
-        print(f"🚀 Starting async scan of {len(symbols)} tokens (max {self.max_concurrent} concurrent)")
+        print(f"🚀 Starting TJDE v3 batch scan of {len(symbols)} tokens")
         start_time = time.time()
+        
+        # TRY TJDE v3 BATCH PROCESSING FIRST
+        try:
+            print(f"[TJDE v3 BATCH] Processing {len(symbols)} tokens in unified pipeline...")
+            tjde_v3_results = await scan_with_tjde_v3(symbols, priority_info)
+            
+            if tjde_v3_results and len(tjde_v3_results) > 0:
+                # TJDE v3 SUCCESS - return results directly
+                self.successful_scans = len(tjde_v3_results)
+                total_time = time.time() - start_time
+                
+                print(f"✅ TJDE v3 BATCH SUCCESS: {len(tjde_v3_results)} tokens in {total_time:.1f}s")
+                return tjde_v3_results
+                
+        except Exception as e:
+            print(f"[TJDE v3 BATCH ERROR] Failed: {e}")
+            print(f"[FALLBACK] Using individual token scanning...")
+        
+        # FALLBACK TO LEGACY INDIVIDUAL SCANNING
+        print(f"🔄 Falling back to individual scan (max {self.max_concurrent} concurrent)")
         
         # Create tasks for all symbols
         tasks = [self.limited_scan(symbol, priority_info) for symbol in symbols]
