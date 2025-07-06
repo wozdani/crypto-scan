@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Async All Tokens Scanner - Mass parallel scanning with semaphore control
-Orchestrates scan_token_async() for hundreds of tokens simultaneously
-Target: <15 seconds for 500+ tokens
+Async All Tokens Scanner - TJDE v3 Architecture Implementation
+Uses new two-phase architecture to fix AI-EYE circular dependency
+Target: <15 seconds for 500+ tokens with enhanced intelligence
 """
 
 import asyncio
@@ -16,7 +16,9 @@ from typing import List, Dict, Optional
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from scan_token_async import scan_token_async
+# TJDE v3 PIPELINE - New architecture
+from scan_pipeline_v3 import scan_with_tjde_v3
+from scan_token_async import scan_token_async  # Fallback for compatibility
 from utils.bybit_cache_manager import get_bybit_symbols_cached
 from utils.coingecko import build_coingecko_cache
 from utils.whale_priority import prioritize_whale_tokens
@@ -60,9 +62,21 @@ class AsyncTokenScanner:
         print(f"Session closed. Total API calls: {self.total_api_calls}")
 
     async def limited_scan(self, symbol: str, priority_info: Dict = None) -> Optional[Dict]:
-        """Scan single token with semaphore control"""
+        """Scan single token with semaphore control - TJDE v3 Enhanced"""
         async with self.semaphore:
             self.total_api_calls += 4  # ticker + 15m + 5m + orderbook
+            
+            # Try TJDE v3 pipeline for enhanced analysis
+            try:
+                # Single symbol pipeline through v3
+                results = await scan_with_tjde_v3([symbol], priority_info)
+                if results and len(results) > 0:
+                    self.successful_scans += 1
+                    return results[0]  # Return first (and only) result
+            except Exception as e:
+                print(f"[TJDE v3 ERROR] {symbol}: {e} - falling back to legacy")
+            
+            # Fallback to legacy scan if v3 fails
             result = await scan_token_async(symbol, self.session, priority_info)
             if result:
                 self.successful_scans += 1
