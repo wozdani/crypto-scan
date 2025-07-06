@@ -102,6 +102,7 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
     # === ADVANCED MODULES PROCESSING (1-4) - Proper Layer Order ===
     advanced_total_score = 0.0
     advanced_modules_active = 0
+    total_score = 0.0  # For legacy compatibility
     
     print(f"[SCORING LAYER DEBUG] Starting Advanced Module Processing (AI-EYE → HTF → Trap → Future)")
     
@@ -159,10 +160,13 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
                         htf_score *= 1.2
                 
                 score_breakdown["htf_overlay_score"] = htf_score
-                total_score += htf_score
+                advanced_total_score += htf_score
+                
+                if htf_score != 0.0:
+                    advanced_modules_active += 1
                 
                 print(f"[MODULE 2 DEBUG] HTF Overlay Score: {htf_score:+.4f}")
-                print(f"[MODULE 2 DEBUG] Running total after HTF: {total_score:.4f}")
+                print(f"[MODULE 2 DEBUG] Advanced modules running total: {advanced_total_score:.4f}")
             else:
                 print(f"[MODULE 2 DEBUG] HTF Overlay: Invalid candle data")
         else:
@@ -206,7 +210,10 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
             trap_score = max(trap_score, -0.05)
             
             score_breakdown["trap_detector_score"] = trap_score
-            total_score += trap_score
+            advanced_total_score += trap_score
+            
+            if trap_score != 0.0:
+                advanced_modules_active += 1
             
             if debug:
                 logger.info(f"[MODULE 3] Trap Detector: {trap_score:+.4f} "
@@ -222,59 +229,87 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
     # === MODULE 4: FUTURE SCENARIO MAPPING (Predictive Analysis) ===
     try:
         candles = data.get("candles", [])
-        ema50 = data.get("ema50", None)
         
-        if candles and len(candles) >= 50 and ema50 is not None:
-            # Simplified future scenario analysis with dual format support
-            last_candle = candles[-1]
-            if isinstance(last_candle, dict):
-                current_price = float(last_candle['close'])
-            elif isinstance(last_candle, (list, tuple)):
-                current_price = float(last_candle[4])  # Last close
-            else:
-                current_price = 0.0
-            price_vs_ema = (current_price - ema50) / ema50 if ema50 != 0 else 0
-            
-            # Recent volatility assessment
+        print(f"[MODULE 4 DEBUG] Future Mapping starting for {symbol}")
+        print(f"[MODULE 4 DEBUG] Candles available: {len(candles) if candles else 0}")
+        
+        if candles and len(candles) >= 20:  # Reduced from 50 to 20
+            # Extract close prices for trend analysis
+            close_prices = []
             recent_highs = []
             recent_lows = []
-            for candle in candles[-5:]:
+            
+            for candle in candles[-20:]:  # Use last 20 candles
                 if isinstance(candle, dict):
+                    close_prices.append(float(candle['close']))
                     recent_highs.append(float(candle['high']))
                     recent_lows.append(float(candle['low']))
-                elif isinstance(candle, (list, tuple)):
-                    recent_highs.append(float(candle[2]))
-                    recent_lows.append(float(candle[3]))
-            volatility = (max(recent_highs) - min(recent_lows)) / current_price if current_price != 0 else 0
+                elif isinstance(candle, (list, tuple)) and len(candle) > 4:
+                    close_prices.append(float(candle[4]))  # close
+                    recent_highs.append(float(candle[2]))   # high
+                    recent_lows.append(float(candle[3]))    # low
             
-            # Future scenario scoring
-            future_score = 0.0
-            
-            # Bullish scenario: above EMA with controlled volatility
-            if price_vs_ema > 0.02 and volatility < 0.05:
-                future_score += 0.03
-            
-            # Bearish scenario: far below EMA
-            if price_vs_ema < -0.05:
-                future_score -= 0.02
-            
-            # AI pattern alignment
-            if ai_label and ai_label.get('label') == 'momentum_follow':
-                if price_vs_ema > 0:
-                    future_score += 0.01  # Momentum continuation bonus
-            
-            score_breakdown["future_mapping_score"] = future_score
-            total_score += future_score
-            
-            if debug:
-                logger.info(f"[MODULE 4] Future Mapping: {future_score:+.4f} "
-                           f"(price/EMA: {price_vs_ema:+.3f}, vol: {volatility:.3f})")
+            if len(close_prices) >= 10:
+                # Calculate price trend using linear regression (slope)
+                import numpy as np
+                x = list(range(len(close_prices)))
+                slope, intercept = np.polyfit(x, close_prices, 1)
+                
+                current_price = close_prices[-1]
+                volatility = (max(recent_highs[-5:]) - min(recent_lows[-5:])) / current_price if current_price != 0 else 0
+                
+                print(f"[MODULE 4 DEBUG] Slope: {slope:.6f}, Current price: {current_price:.4f}, Volatility: {volatility:.4f}")
+                
+                # Enhanced Future Scenario Scoring (based on user's suggestion)
+                future_score = 0.0
+                scenario = "neutral"
+                
+                # Bullish scenario: positive slope
+                if slope > 0.0001:  # Lowered threshold
+                    future_score = 0.12  # Increased from 0.03
+                    scenario = "bullish_continuation"
+                    
+                # Bearish scenario: negative slope  
+                elif slope < -0.0001:  # Lowered threshold
+                    future_score = -0.08  # Enhanced from -0.02
+                    scenario = "bearish_continuation"
+                    
+                # Neutral scenario: sideways movement
+                else:
+                    future_score = 0.06  # Increased from 0.0 to have impact
+                    scenario = "neutral_consolidation"
+                
+                # AI pattern alignment boost
+                if ai_label and ai_label.get('label'):
+                    ai_pattern = ai_label.get('label')
+                    if ai_pattern in ['momentum_follow', 'breakout_pattern'] and future_score > 0:
+                        future_score *= 1.3  # 30% boost for aligned patterns
+                        print(f"[MODULE 4 DEBUG] AI alignment boost applied: {ai_pattern}")
+                    elif ai_pattern in ['trend_reversal', 'exhaustion_pattern'] and future_score < 0:
+                        future_score *= 1.3  # 30% boost for bearish alignment
+                        print(f"[MODULE 4 DEBUG] AI bearish alignment boost applied: {ai_pattern}")
+                
+                # Volatility adjustment
+                if volatility > 0.08:  # High volatility - reduce confidence
+                    future_score *= 0.7
+                    print(f"[MODULE 4 DEBUG] High volatility penalty applied: {volatility:.4f}")
+                
+                score_breakdown["future_mapping_score"] = round(future_score, 4)
+                advanced_total_score += future_score
+                
+                if future_score != 0.0:
+                    advanced_modules_active += 1
+                
+                print(f"[MODULE 4 DEBUG] Future Mapping Score: {future_score:+.4f} ({scenario})")
+                print(f"[MODULE 4 DEBUG] Advanced modules running total: {advanced_total_score:.4f}")
+                
+            else:
+                print(f"[MODULE 4 DEBUG] Future Mapping: Invalid candle data (only {len(close_prices)} valid prices)")
         else:
-            if debug:
-                logger.info(f"[MODULE 4] Future Mapping: Missing data "
-                           f"(candles: {len(candles) if candles else 0}, EMA50: {ema50})")
+            print(f"[MODULE 4 DEBUG] Future Mapping: Insufficient data ({len(candles) if candles else 0} candles, need 20+)")
                 
     except Exception as e:
+        print(f"[MODULE 4 ERROR] Future Mapping scoring failed: {e}")
         logger.error(f"[MODULE 4 ERROR] Future Mapping scoring failed: {e}")
     
     # === MODULE 5: FEEDBACK LOOP ===
@@ -282,23 +317,23 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
     # and also logs predictions for future learning
     try:
         # Log prediction for feedback if significant signal
-        if total_score != 0.0 and ai_label:
+        if advanced_total_score != 0.0 and ai_label:
             from feedback_loop.feedback_integration import log_prediction_for_feedback
             
             current_price = data.get("current_price", 0.0)
             if current_price > 0:
                 # Determine preliminary decision for logging
                 preliminary_decision = "wait"
-                if total_score >= 0.15:
+                if advanced_total_score >= 0.15:
                     preliminary_decision = "enter"
-                elif total_score <= -0.10:
+                elif advanced_total_score <= -0.10:
                     preliminary_decision = "avoid"
                 
                 feedback_logged = log_prediction_for_feedback(
                     symbol=symbol,
                     ai_label=ai_label,
                     current_price=current_price,
-                    tjde_score=total_score,
+                    tjde_score=advanced_total_score,
                     decision=preliminary_decision,
                     market_phase=market_phase
                 )
@@ -323,6 +358,9 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
     
     if legacy_enabled:
         print(f"[TJDE DEBUG] Executing legacy scoring components...")
+        
+        # Sync total_score with advanced modules before legacy scoring
+        total_score = advanced_total_score
         
         # Legacy Volume Slope Analysis
         try:
@@ -399,7 +437,7 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
             "ai_eye_score": score_breakdown.get("ai_eye_score", 0.0),
             "htf_overlay_score": score_breakdown.get("htf_overlay_score", 0.0),
             "volume_behavior_score": score_breakdown.get("legacy_volume_score", 0.0),
-            "trend_strength": signals.get("trend_strength", 0.0),
+            "trend_strength": data.get("trend_strength", 0.0),
             "ai_confidence": ai_label.get("confidence", 0.0) if ai_label else 0.0
         }
         
@@ -738,9 +776,9 @@ def prepare_unified_data(symbol: str, candles: List, ticker_data: Dict,
     
     # Extract cluster features from signals
     cluster_features = {
-        "strength": signals.get("cluster_strength", 0.0),
-        "direction": signals.get("cluster_direction", 0.0),
-        "volume_ratio": signals.get("cluster_volume_ratio", 1.0)
+        "strength": data.get("cluster_strength", 0.0),
+        "direction": data.get("cluster_direction", 0.0),
+        "volume_ratio": data.get("cluster_volume_ratio", 1.0)
     }
     
     # Current price with dual format support
