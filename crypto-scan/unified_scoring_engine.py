@@ -184,7 +184,8 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
         print(f"[MODULE 1 DEBUG] AI Label data: {ai_label}")
         print(f"[MODULE 1 DEBUG] Market Phase: {market_phase}")
         
-        if ai_label:
+        # Handle both string and dict formats for ai_label
+        if isinstance(ai_label, dict) and ai_label.get("label") != "unknown":
             ai_eye_score = score_from_ai_label(ai_label, market_phase)
             score_breakdown["ai_eye_score"] = ai_eye_score
             advanced_total_score += ai_eye_score
@@ -195,8 +196,43 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
             print(f"[MODULE 1 DEBUG] AI-EYE Score: {ai_eye_score:+.4f}")
             print(f"[MODULE 1 DEBUG] Advanced modules running total: {advanced_total_score:.4f}")
             
+        elif isinstance(ai_label, str) and ai_label != "unknown":
+            # Handle string ai_label format
+            print(f"[MODULE 1 DEBUG] AI-EYE: String format label '{ai_label}' detected, applying basic scoring")
+            ai_eye_score = 0.05  # Basic score for any recognized pattern
+            score_breakdown["ai_eye_score"] = ai_eye_score
+            advanced_total_score += ai_eye_score
+            advanced_modules_active += 1
+            print(f"[MODULE 1 DEBUG] AI-EYE Score (string format): {ai_eye_score:+.4f}")
+            
         else:
-            print(f"[MODULE 1 DEBUG] AI-EYE: No AI label data available")
+            # CRITICAL FIX: AI-EYE Fallback when no CLIP data available
+            print(f"[MODULE 1 DEBUG] AI-EYE: No AI label data available, applying fallback analysis")
+            
+            # Fallback: Generate basic AI label based on trend analysis
+            candles = data.get("candles", [])
+            if candles and len(candles) >= 20:
+                closes = [float(c.get("close") if isinstance(c, dict) else c[4]) for c in candles[-20:]]
+                if closes:
+                    trend_strength = (closes[-1] - closes[0]) / closes[0] if closes[0] != 0 else 0
+                    volatility = sum(abs(closes[i] - closes[i-1]) for i in range(1, len(closes))) / len(closes)
+                    
+                    ai_eye_score = 0.0
+                    if trend_strength > 0.03 and volatility < closes[-1] * 0.02:  # Strong trend, low volatility
+                        ai_eye_score = 0.08
+                        print(f"[MODULE 1 FALLBACK] Trend-following pattern detected: {ai_eye_score:+.4f}")
+                    elif trend_strength > 0.01:  # Moderate trend
+                        ai_eye_score = 0.05
+                        print(f"[MODULE 1 FALLBACK] Moderate trend pattern: {ai_eye_score:+.4f}")
+                    elif volatility > closes[-1] * 0.03:  # High volatility - potential breakout
+                        ai_eye_score = 0.04
+                        print(f"[MODULE 1 FALLBACK] High volatility pattern: {ai_eye_score:+.4f}")
+                    
+                    score_breakdown["ai_eye_score"] = ai_eye_score
+                    advanced_total_score += ai_eye_score
+                    
+                    if ai_eye_score != 0.0:
+                        advanced_modules_active += 1
                 
     except Exception as e:
         print(f"[MODULE 1 ERROR] AI-EYE scoring failed: {e}")
@@ -235,7 +271,9 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
                 from htf_overlay.htf_support_resistance import detect_htf_levels
                 
                 if current_price:
+                    print(f"[MODULE 2 DEBUG] Calling detect_htf_levels with {len(htf_candles)} candles and price {current_price}")
                     htf_result = detect_htf_levels(htf_candles, current_price)
+                    print(f"[MODULE 2 DEBUG] HTF result: {htf_result}")
                     breakout_potential = htf_result.get("breakout_potential", 0.0)
                     position_context = htf_result.get("price_position", "middle")
                     
@@ -266,16 +304,45 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
                     
             except ImportError:
                 print(f"[MODULE 2 DEBUG] HTF S/R module not available, using fallback trend analysis")
-                # Fallback to simple trend analysis
+                # CRITICAL FIX: HTF Fallback Analysis
                 closes = []
+                volumes = []
+                
                 for candle in htf_candles[-20:]:
                     if isinstance(candle, dict):
-                        closes.append(float(candle['close']))
-                    elif isinstance(candle, (list, tuple)) and len(candle) > 4:
+                        closes.append(float(candle.get('close', 0)))
+                        volumes.append(float(candle.get('volume', 0)))
+                    elif isinstance(candle, (list, tuple)) and len(candle) > 5:
                         closes.append(float(candle[4]))
+                        volumes.append(float(candle[5]))
+                
                 if len(closes) >= 10:
+                    # Trend strength analysis
                     trend_strength = (closes[-1] - closes[0]) / closes[0] if closes[0] != 0 else 0
-                    htf_score = max(-0.05, min(0.05, trend_strength * 2))
+                    
+                    # Volume trend analysis
+                    recent_vol = sum(volumes[-5:]) / 5 if len(volumes) >= 5 else 0
+                    historical_vol = sum(volumes[:-5]) / (len(volumes) - 5) if len(volumes) > 5 else recent_vol
+                    volume_trend = (recent_vol - historical_vol) / historical_vol if historical_vol != 0 else 0
+                    
+                    # Combined HTF score
+                    htf_score = 0.0
+                    if trend_strength > 0.05 and volume_trend > 0.2:  # Strong uptrend with volume
+                        htf_score = 0.08
+                        print(f"[MODULE 2 FALLBACK] Strong HTF uptrend with volume: {htf_score:+.4f}")
+                    elif trend_strength > 0.02:  # Moderate uptrend
+                        htf_score = 0.04
+                        print(f"[MODULE 2 FALLBACK] Moderate HTF uptrend: {htf_score:+.4f}")
+                    elif trend_strength < -0.05 and volume_trend > 0.2:  # Strong downtrend with volume
+                        htf_score = -0.06
+                        print(f"[MODULE 2 FALLBACK] Strong HTF downtrend with volume: {htf_score:+.4f}")
+                    elif abs(trend_strength) < 0.01 and volume_trend > 0.3:  # Consolidation with volume spike
+                        htf_score = 0.03
+                        print(f"[MODULE 2 FALLBACK] HTF consolidation with volume spike: {htf_score:+.4f}")
+                    
+                    print(f"[MODULE 2 FALLBACK] Trend: {trend_strength:.4f}, Volume trend: {volume_trend:.4f}")
+                else:
+                    print(f"[MODULE 2 DEBUG] Insufficient HTF data for analysis: {len(closes)} closes")
             
             # AI pattern alignment bonus
             if ai_label and ai_label.get('label') in ['momentum_follow', 'breakout_pattern']:
@@ -465,14 +532,87 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
                 
                 print(f"[MODULE 4 DEBUG] Slope: {slope:.6f}, Current price: {current_price:.4f}, Volatility: {volatility:.4f}")
                 
-                # Intelligent Future Scenario Assessment
+                # CRITICAL FIX: Enhanced Future Scenario Assessment
                 future_score = 0.0
                 scenario = "neutral"
                 
-                # Get AI setup from data if available
-                setup = data.get("ai_label", {}).get("label", "unknown")
-                trend_strength = abs(slope) * 1000  # Scale slope to 0-1 range
+                # Get AI setup from data if available (handle string case)
+                ai_label_data = data.get("ai_label", "unknown")
+                if isinstance(ai_label_data, str):
+                    setup = ai_label_data
+                else:
+                    setup = ai_label_data.get("label", "unknown") if isinstance(ai_label_data, dict) else "unknown"
+                
+                # Enhanced trend strength calculation
+                trend_strength = abs(slope) * 10000  # Scale slope appropriately
                 trend_strength = min(trend_strength, 1.0)
+                
+                # Strong setup patterns that benefit from good predictions
+                strong_setups = ["breakout_pattern", "momentum_follow", "impulse", "pullback_in_trend"]
+                reversal_setups = ["reversal_pattern", "exhaustion_pattern", "consolidation_squeeze"]
+                
+                print(f"[MODULE 4 DEBUG] Setup: {setup}, Trend strength: {trend_strength:.4f}")
+                
+                # Multi-tiered scoring logic (enhanced from original)
+                if setup in strong_setups:
+                    if trend_strength >= 0.7 and volatility >= 0.02:  # Strong bullish scenario
+                        future_score = 0.15 + 0.15 * trend_strength
+                        scenario = "strong_bullish"
+                        print(f"[MODULE 4 DEBUG] Strong bullish scenario: {future_score:+.4f}")
+                    elif trend_strength >= 0.4:  # Medium bullish scenario
+                        future_score = 0.08 + 0.10 * trend_strength
+                        scenario = "medium_bullish"
+                        print(f"[MODULE 4 DEBUG] Medium bullish scenario: {future_score:+.4f}")
+                    elif trend_strength >= 0.2:  # Weak bullish scenario
+                        future_score = 0.04 + 0.05 * trend_strength
+                        scenario = "weak_bullish"
+                        print(f"[MODULE 4 DEBUG] Weak bullish scenario: {future_score:+.4f}")
+                
+                elif setup in reversal_setups:
+                    if volatility >= 0.04:  # High volatility reversal
+                        future_score = 0.06 + 0.08 * volatility
+                        scenario = "reversal_setup"
+                        print(f"[MODULE 4 DEBUG] Reversal setup scenario: {future_score:+.4f}")
+                    else:
+                        future_score = 0.02
+                        scenario = "consolidation"
+                        print(f"[MODULE 4 DEBUG] Consolidation scenario: {future_score:+.4f}")
+                
+                else:  # Unknown or basic patterns
+                    if slope > 0.0001:  # Positive slope
+                        future_score = 0.03 + 0.05 * trend_strength
+                        scenario = "basic_uptrend"
+                        print(f"[MODULE 4 DEBUG] Basic uptrend scenario: {future_score:+.4f}")
+                    elif slope < -0.0001:  # Negative slope  
+                        future_score = -0.02 - 0.03 * trend_strength
+                        scenario = "basic_downtrend"
+                        print(f"[MODULE 4 DEBUG] Basic downtrend scenario: {future_score:+.4f}")
+                    else:
+                        future_score = 0.01  # Small neutral bonus
+                        scenario = "sideways"
+                        print(f"[MODULE 4 DEBUG] Sideways scenario: {future_score:+.4f}")
+                
+                # CLIP confidence boost (if available)
+                ai_confidence = data.get("ai_confidence", 0.0)
+                if ai_confidence >= 0.7 and future_score > 0:
+                    confidence_boost = future_score * 0.2  # 20% boost for high confidence
+                    future_score += confidence_boost
+                    print(f"[MODULE 4 DEBUG] High AI confidence boost: +{confidence_boost:.4f}")
+                
+                # Volume confirmation bonus
+                recent_volumes = data.get("recent_volumes", [])
+                if recent_volumes and len(recent_volumes) >= 5:
+                    avg_volume = sum(recent_volumes) / len(recent_volumes)
+                    current_volume = recent_volumes[-1] if recent_volumes else avg_volume
+                    volume_ratio = current_volume / avg_volume if avg_volume > 0 else 1.0
+                    
+                    if volume_ratio > 1.5 and future_score > 0:  # High volume confirmation
+                        volume_boost = 0.05
+                        future_score += volume_boost
+                        print(f"[MODULE 4 DEBUG] Volume confirmation boost: +{volume_boost:.4f}")
+                
+                # Bounds control (-0.2 to +0.5 as per user specs)
+                future_score = max(-0.2, min(0.5, future_score))
                 
                 # Calculate volume score from market data
                 volume_24h = data.get("volume_24h", 0)
@@ -753,6 +893,33 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
             final_score = round(final_score, 4)
             print(f"[TJDE BOOST] Score boosted from {original_score:.4f} to {final_score:.4f}")
     
+    # 🎯 CRITICAL FIX: MARKET PHASE MODIFIER - Apply context-based score adjustment
+    try:
+        from utils.market_phase_modifier import apply_market_phase_modifier
+        
+        # Prepare market context for phase modifier
+        market_context = {
+            "htf_phase": "unknown",
+            "volume_trend": "neutral", 
+            "fear_greed": 50,
+            "market_sentiment": "neutral",
+            "volatility_regime": "normal",
+            "candles": candles,
+            "htf_candles": htf_candles
+        }
+        
+        print(f"[MARKET PHASE] Base score before modifier: {final_score:.4f}")
+        final_score_with_modifier, modifier = apply_market_phase_modifier(final_score, market_context)
+        
+        if modifier != 0.0:
+            print(f"[MARKET PHASE] Applied modifier: {modifier:+.4f} → Final: {final_score_with_modifier:.4f}")
+            final_score = final_score_with_modifier
+        else:
+            print(f"[MARKET PHASE] No modifier applied (phase: unknown)")
+            
+    except Exception as e:
+        print(f"[MARKET PHASE ERROR] Failed to apply modifier: {e}")
+
     # Enhanced decision thresholds based on comprehensive scoring
     if final_score >= 0.20:
         decision = "enter"

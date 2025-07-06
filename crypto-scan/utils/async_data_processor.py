@@ -186,6 +186,8 @@ def process_async_data_enhanced_with_5m(symbol: str, ticker_data: Optional[Dict]
     
     # FIX 2: Generate HTF candles from 15M candles if not available separately
     htf_candles = generate_htf_candles_from_15m(candles_15m)
+    print(f"[AI LABEL] {symbol}: {ai_label_data.get('label', 'No existing AI label found') if ai_label_data else 'No existing AI label found'}")
+    print(f"[HTF GEN] Generated {len(htf_candles)} HTF candles from {len(candles_15m)} 15M candles")
     
     # Return enhanced market data with both timeframes
     market_data = {
@@ -453,10 +455,11 @@ def load_ai_label_for_symbol(symbol: str) -> Optional[Dict]:
                     metadata_path = os.path.join(charts_dir, filename)
                     with open(metadata_path, 'r') as f:
                         metadata = json.load(f)
-                        if metadata.get("gpt_analysis", {}).get("setup"):
+                        setup_label = metadata.get("setup_label")
+                        if setup_label and setup_label != "unknown":
                             return {
-                                "label": metadata["gpt_analysis"]["setup"],
-                                "confidence": metadata.get("ai_confidence", 0.8),
+                                "label": setup_label,
+                                "confidence": metadata.get("ai_confidence", 0.85),
                                 "source": "vision_ai_metadata"
                             }
         

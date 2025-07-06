@@ -557,6 +557,17 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                                 ticker_data = market_data.get('ticker_data', {})
                                 orderbook_data = market_data.get('orderbook', {})
                                 
+                                # 🎯 CRITICAL FIX: Pass actual AI label and HTF data from market_data
+                                ai_label_dict = {
+                                    "label": market_data.get('ai_label', 'unknown'),
+                                    "confidence": market_data.get('ai_confidence', 0.0),
+                                    "source": "vision_ai_metadata"
+                                }
+                                htf_candles_data = market_data.get('htf_candles', [])
+                                
+                                print(f"[DATA TRANSFER] {symbol}: AI label '{ai_label_dict['label']}' (conf: {ai_label_dict['confidence']:.2f})")
+                                print(f"[DATA TRANSFER] {symbol}: HTF candles {len(htf_candles_data)}")
+                                
                                 # Use trend_features as signals data
                                 unified_data = prepare_unified_data(
                                     symbol=symbol,
@@ -565,8 +576,8 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                                     orderbook=orderbook_data,
                                     market_data=market_data,
                                     signals=trend_features,  # Use trend_features instead of undefined all_features
-                                    ai_label=None,  # Will be populated by AI-EYE module
-                                    htf_candles=None  # Will be populated by HTF module
+                                    ai_label=ai_label_dict,  # Pass actual AI label from market_data
+                                    htf_candles=htf_candles_data  # Pass actual HTF candles from market_data
                                 )
                                 
                                 print(f"[PHASE 2 DATA] {symbol}: Unified data prepared for advanced modules")

@@ -27,14 +27,96 @@ def compute_market_phase_modifier(market_context: Dict) -> float:
     try:
         modifier = 0.0
         
-        # Pobierz kontekst rynku
+        # CRITICAL FIX: Generate market context from candle data when not available
         htf_phase = market_context.get("htf_phase", "unknown")
         volume_trend = market_context.get("volume_trend", "neutral")
         fear_greed = market_context.get("fear_greed", 50)
         market_sentiment = market_context.get("market_sentiment", "neutral")
         volatility_regime = market_context.get("volatility_regime", "normal")
         
-        print(f"[MARKET MODIFIER] HTF Phase: {htf_phase}, Volume: {volume_trend}, Fear/Greed: {fear_greed}")
+        # If htf_phase is unknown, try to derive it from candle data
+        if htf_phase == "unknown":
+            candles = market_context.get("candles", [])
+            htf_candles = market_context.get("htf_candles", [])
+            
+            # Try HTF candles first, then regular candles
+            analysis_candles = htf_candles if htf_candles and len(htf_candles) >= 10 else candles
+            
+            if analysis_candles and len(analysis_candles) >= 20:
+                print(f"[MARKET MODIFIER] Deriving HTF phase from {len(analysis_candles)} candles")
+                
+                closes = []
+                volumes = []
+                highs = []
+                lows = []
+                
+                for candle in analysis_candles[-20:]:
+                    if isinstance(candle, dict):
+                        closes.append(float(candle.get('close', 0)))
+                        volumes.append(float(candle.get('volume', 0)))
+                        highs.append(float(candle.get('high', 0)))
+                        lows.append(float(candle.get('low', 0)))
+                    elif isinstance(candle, (list, tuple)) and len(candle) >= 6:
+                        closes.append(float(candle[4]))
+                        volumes.append(float(candle[5]))
+                        highs.append(float(candle[2]))
+                        lows.append(float(candle[3]))
+                
+                if len(closes) >= 15:
+                    # Calculate trend
+                    recent_close = closes[-1]
+                    old_close = closes[-15]
+                    trend_change = (recent_close - old_close) / old_close if old_close != 0 else 0
+                    
+                    # Calculate volatility
+                    price_ranges = [(highs[i] - lows[i]) / closes[i] for i in range(len(closes)) if closes[i] != 0]
+                    avg_volatility = sum(price_ranges) / len(price_ranges) if price_ranges else 0
+                    
+                    # Calculate volume trend
+                    if len(volumes) >= 10 and sum(volumes) > 0:
+                        recent_vol = sum(volumes[-5:]) / 5
+                        historical_vol = sum(volumes[-15:-5]) / 10
+                        vol_change = (recent_vol - historical_vol) / historical_vol if historical_vol != 0 else 0
+                        
+                        if vol_change > 0.3:
+                            volume_trend = "rising"
+                        elif vol_change < -0.3:
+                            volume_trend = "falling"
+                        else:
+                            volume_trend = "neutral"
+                    
+                    # Determine HTF phase
+                    if trend_change > 0.05 and avg_volatility < 0.04:
+                        htf_phase = "uptrend"
+                    elif trend_change > 0.02:
+                        htf_phase = "bullish_momentum"
+                    elif trend_change < -0.05 and avg_volatility < 0.04:
+                        htf_phase = "downtrend"
+                    elif trend_change < -0.02:
+                        htf_phase = "bearish_momentum"
+                    elif abs(trend_change) < 0.01 and volume_trend == "rising":
+                        htf_phase = "accumulation"
+                    elif abs(trend_change) < 0.01:
+                        htf_phase = "consolidation"
+                    elif avg_volatility > 0.06:
+                        htf_phase = "high_volatility"
+                    else:
+                        htf_phase = "range"
+                    
+                    # Determine volatility regime
+                    if avg_volatility > 0.08:
+                        volatility_regime = "extreme"
+                    elif avg_volatility > 0.05:
+                        volatility_regime = "high"
+                    elif avg_volatility < 0.02:
+                        volatility_regime = "low"
+                    else:
+                        volatility_regime = "normal"
+                    
+                    print(f"[MARKET MODIFIER] Derived: HTF={htf_phase}, Vol={volume_trend}, Volatility={volatility_regime}")
+                    print(f"[MARKET MODIFIER] Trend change: {trend_change:.4f}, Avg volatility: {avg_volatility:.4f}")
+        
+        print(f"[MARKET MODIFIER] Final context: HTF={htf_phase}, Volume={volume_trend}, Fear/Greed={fear_greed}, Volatility={volatility_regime}")
         
         # === POZYTYWNE MODYFIKATORY ===
         
@@ -47,6 +129,16 @@ def compute_market_phase_modifier(market_context: Dict) -> float:
         if htf_phase == "accumulation":
             modifier += 0.05
             print(f"[MODIFIER +] Accumulation phase: +0.05")
+        
+        # Konsolidacja z niską zmiennością - potencjał na breakout
+        if htf_phase == "consolidation" and volatility_regime == "low":
+            modifier += 0.04
+            print(f"[MODIFIER +] Consolidation + low volatility (breakout potential): +0.04")
+        
+        # Range z rosnącym wolumenem - przygotowanie do wybicia
+        if htf_phase == "range" and volume_trend == "rising":
+            modifier += 0.03
+            print(f"[MODIFIER +] Range + rising volume (breakout prep): +0.03")
         
         # Extreme greed (potencjalne kontynuacje trendów)
         if fear_greed >= 80:
