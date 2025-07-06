@@ -36,6 +36,17 @@ def score_from_ai_label(ai_label: Dict, market_phase: str = None) -> float:
         if confidence < 0.5:
             min_score = 0.02  # Provide minimal score for low confidence patterns
         
+        # 🧠 MODULE 5: Load dynamic weight from feedback loop
+        dynamic_weight = 1.0
+        try:
+            from feedback_loop.weight_adjustment_system import get_label_weight
+            dynamic_weight = get_label_weight(label)
+        except ImportError:
+            pass  # Fallback to default weight if module unavailable
+        except Exception as e:
+            logger.warning(f"Failed to load dynamic weight for {label}: {e}")
+            pass
+        
         # Enhanced base scoring with higher values for quality setups
         base_adjustments = {
             # Bullish patterns - Enhanced scoring ranges
@@ -83,18 +94,13 @@ def score_from_ai_label(ai_label: Dict, market_phase: str = None) -> float:
         elif confidence >= 0.7:
             base_adjustment += 0.01  # Medium confidence bonus
         
-        # Apply dynamic weight from feedback loop
-        try:
-            from feedback_loop.weight_adjuster import get_effective_score_adjustment
-            effective_adjustment = get_effective_score_adjustment(label, base_adjustment, confidence)
-            
-            logger.info(f"[VISION SCORE DYNAMIC] {label}: base {base_adjustment:.3f} → effective {effective_adjustment:.3f} "
-                       f"(conf: {confidence:.2f})")
-            
-        except ImportError:
-            # Fallback to static scoring if feedback loop not available
-            effective_adjustment = base_adjustment
-            logger.info(f"[VISION SCORE STATIC] {label}: {base_adjustment:.3f} (conf: {confidence:.2f})")
+        # 🧠 MODULE 5: Apply dynamic weight from feedback loop
+        effective_adjustment = base_adjustment * dynamic_weight
+        
+        if dynamic_weight != 1.0:
+            print(f"[VISION SCORE DYNAMIC] {label}: base {base_adjustment:.3f} × weight {dynamic_weight:.2f} = {effective_adjustment:.3f} (conf: {confidence:.2f})")
+        else:
+            print(f"[VISION SCORE STATIC] {label}: {base_adjustment:.3f} (conf: {confidence:.2f})")
         
         # Market phase context adjustments
         phase_modifier = 0.0

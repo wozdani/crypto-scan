@@ -249,6 +249,24 @@ def scan_cycle():
     except Exception as memory_error:
         log_warning("MEMORY FEEDBACK EVALUATION ERROR", memory_error)
     
+    # Run Module 5: Dynamic Weight Adjustment every 4 cycles (~1 hour)
+    try:
+        from feedback_loop.weight_adjustment_system import adjust_label_weights, print_weight_report
+        
+        # Run weight adjustment every 4 cycles (approximately 1 hour)
+        cycle_counter = getattr(run_single_scan, 'cycle_counter', 0) + 1
+        run_single_scan.cycle_counter = cycle_counter
+        
+        if cycle_counter % 4 == 0:  # Every 4th cycle
+            print(f"\n🧠 [MODULE 5] Running Dynamic Weight Adjustment (Cycle {cycle_counter})")
+            updated_weights = adjust_label_weights()
+            print_weight_report()
+            print(f"🧠 [MODULE 5] Weight adjustment complete - {len(updated_weights)} labels processed")
+    except ImportError as import_error:
+        log_warning("WEIGHT ADJUSTMENT MODULE IMPORT ERROR", import_error)
+    except Exception as weight_error:
+        log_warning("WEIGHT ADJUSTMENT ERROR", weight_error)
+    
     # Run Phase 2 memory outcome updates periodically
     try:
         from token_context_memory import update_historical_outcomes_loop
