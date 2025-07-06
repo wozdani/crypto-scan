@@ -230,52 +230,130 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
     try:
         candles = data.get("candles", [])
         
-        if candles and len(candles) >= 20:
-            # Simplified trap detection - look for fake breakouts
+        if candles and len(candles) >= 10:
+            # Enhanced trap detection with volume analysis
             recent_candles = candles[-10:]
             trap_score = 0.0
             
+            # Calculate average volume for context
+            volumes = []
             for candle in recent_candles:
-                if len(candle) >= 5:
-                    if isinstance(candle, dict):
-                        open_price = float(candle['open'])
-                        high_price = float(candle['high'])
-                        low_price = float(candle['low'])
-                        close_price = float(candle['close'])
-                    elif isinstance(candle, (list, tuple)):
-                        open_price = float(candle[1])
-                        high_price = float(candle[2])
-                        low_price = float(candle[3])
-                        close_price = float(candle[4])
-                    else:
-                        continue
-                    
-                    # Check for long upper wicks (potential trap)
-                    body_size = abs(close_price - open_price)
-                    upper_wick = high_price - max(open_price, close_price)
-                    
-                    if body_size > 0 and upper_wick > body_size * 2:
-                        trap_score -= 0.002  # Penalty for fake breakout pattern
+                if isinstance(candle, dict):
+                    volume = float(candle.get('volume', 0))
+                elif isinstance(candle, (list, tuple)) and len(candle) >= 6:
+                    volume = float(candle[5])
+                else:
+                    volume = 0
+                volumes.append(volume)
             
-            # Cap the score
-            trap_score = max(trap_score, -0.05)
+            avg_volume = sum(volumes) / len(volumes) if volumes and sum(volumes) > 0 else 1.0
             
+            # Analyze current candle for trap patterns
+            current_candle = recent_candles[-1]
+            trap_score = 0.0
+            
+            # Initialize price variables
+            open_price = high_price = low_price = close_price = volume = 0.0
+            
+            if isinstance(current_candle, dict):
+                open_price = float(current_candle['open'])
+                high_price = float(current_candle['high'])
+                low_price = float(current_candle['low'])
+                close_price = float(current_candle['close'])
+                volume = float(current_candle.get('volume', 0))
+                candle_valid = True
+            elif isinstance(current_candle, (list, tuple)) and len(current_candle) >= 5:
+                open_price = float(current_candle[1])
+                high_price = float(current_candle[2])
+                low_price = float(current_candle[3])
+                close_price = float(current_candle[4])
+                volume = float(current_candle[5]) if len(current_candle) >= 6 else 0
+                candle_valid = True
+            else:
+                candle_valid = False
+            
+            if candle_valid:
+                # Calculate trap detection components
+                body_size = abs(close_price - open_price)
+                wick_top = high_price - max(open_price, close_price)
+                wick_bottom = min(open_price, close_price) - low_price
+                
+                # Volume score calculation
+                volume_ratio = volume / (avg_volume + 1e-9) if avg_volume > 0 else 1.0
+                volume_score = min(1.0, volume_ratio / 2.0)  # Normalize to 0-1 range
+                
+                # Trap detection logic
+                trap_detected = (wick_top > 2 * body_size or wick_bottom > 2 * body_size) and volume > 1.5 * avg_volume
+                
+                # Dynamic scoring based on user-requested logic
+                if trap_detected and volume_score >= 0.5:
+                    trap_score = 0.2 + 0.2 * volume_score  # High volume trap
+                    print(f"[MODULE 3 DEBUG] High volume trap detected: volume_score={volume_score:.3f}, trap_score={trap_score:.3f}")
+                elif trap_detected and volume_score >= 0.3:
+                    trap_score = 0.1 + 0.15 * volume_score  # Medium volume trap
+                    print(f"[MODULE 3 DEBUG] Medium volume trap detected: volume_score={volume_score:.3f}, trap_score={trap_score:.3f}")
+                else:
+                    trap_score = 0.0
+                    print(f"[MODULE 3 DEBUG] No trap detected: volume_score={volume_score:.3f}, trap_detected={trap_detected}")
+                
+                # Additional fake breakout detection
+                if not trap_detected:
+                    # Check for subtle fake breakouts in recent candles
+                    fake_breakout_count = 0
+                    for candle in recent_candles[-5:]:
+                        if isinstance(candle, dict):
+                            c_open = float(candle['open'])
+                            c_high = float(candle['high'])
+                            c_low = float(candle['low'])
+                            c_close = float(candle['close'])
+                            c_volume = float(candle.get('volume', 0))
+                        elif isinstance(candle, (list, tuple)) and len(candle) >= 5:
+                            c_open = float(candle[1])
+                            c_high = float(candle[2])
+                            c_low = float(candle[3])
+                            c_close = float(candle[4])
+                            c_volume = float(candle[5]) if len(candle) >= 6 else 0
+                        else:
+                            continue
+                        
+                        c_body = abs(c_close - c_open)
+                        c_wick_top = c_high - max(c_open, c_close)
+                        c_vol_ratio = c_volume / (avg_volume + 1e-9)
+                        
+                        # Detect fake breakout patterns
+                        if c_body > 0 and c_wick_top > c_body * 1.8 and c_vol_ratio > 1.3:
+                            fake_breakout_count += 1
+                    
+                    if fake_breakout_count >= 2:
+                        trap_score = 0.05 + 0.05 * (fake_breakout_count / 5.0)
+                        print(f"[MODULE 3 DEBUG] Multiple fake breakouts detected: count={fake_breakout_count}, score={trap_score:.3f}")
+                
+                # Final scoring and bounds
+                trap_score = min(trap_score, 0.4)  # Cap maximum trap score
+                
+                print(f"[MODULE 3 DEBUG] Trap Detector: {trap_score:+.4f} (volume_ratio={volume_ratio:.2f}, trap_detected={trap_detected})")
+                
+                if debug:
+                    logger.info(f"[MODULE 3] Trap Detector: {trap_score:+.4f} "
+                               f"(volume_score={volume_score:.3f}, trap_detected={trap_detected})")
+            else:
+                print(f"[MODULE 3 DEBUG] Trap Detector: Invalid candle format - no detection")
+            
+            # Always set score breakdown and add to total
             score_breakdown["trap_detector_score"] = trap_score
             advanced_total_score += trap_score
             
             if trap_score != 0.0:
                 advanced_modules_active += 1
-            
-            if debug:
-                logger.info(f"[MODULE 3] Trap Detector: {trap_score:+.4f} "
-                           f"(analyzed {len(recent_candles)} candles)")
         else:
+            print(f"[MODULE 3 DEBUG] Trap Detector: Insufficient candle data ({len(candles) if candles else 0} candles)")
             if debug:
                 logger.info(f"[MODULE 3] Trap Detector: Insufficient candle data "
                            f"({len(candles) if candles else 0} candles)")
                 
     except Exception as e:
         logger.error(f"[MODULE 3 ERROR] Trap Detector scoring failed: {e}")
+        print(f"[MODULE 3 DEBUG] Trap Detector: Error - {e}")
     
     # === MODULE 4: FUTURE SCENARIO MAPPING (Predictive Analysis) ===
     try:

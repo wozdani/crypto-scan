@@ -98,6 +98,18 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### July 6, 2025 - MODULE 3 TRAP DETECTOR FIX COMPLETE - Dynamic Volume-Based Scoring Operational ✅
+Successfully resolved critical Module 3 Trap Detector issue where simplified implementation always returned 0.0 score failing to detect fake breakouts, volume traps, and rejection wicks:
+- **Root Cause Identified**: Module 3 in unified_scoring_engine.py used basic wick detection without volume analysis or dynamic scoring logic preventing effective trap pattern recognition
+- **Dynamic Scoring Logic Implemented**: High volume traps (volume_score ≥0.5) = 0.2 + 0.2 * volume_score, medium volume traps (≥0.3) = 0.1 + 0.15 * volume_score matching user-requested specifications
+- **Enhanced Trap Detection**: Trap_detected = (wick_top > 2 * body OR wick_bottom > 2 * body) AND volume > 1.5 * avg_volume providing comprehensive psychological pattern recognition
+- **Volume Score Integration**: Normalized volume_ratio/2.0 to 0-1 range enabling volume-weighted scoring for strengthening fake breakout detection with market context
+- **Multi-Pattern Analysis**: Additional fake breakout detection across recent 5 candles with wick_top > body * 1.8 AND volume_ratio > 1.3 for subtle pattern recognition
+- **Production Debug Framework**: Comprehensive MODULE 3 DEBUG logging showing volume_score, trap_detected status, and score calculations for optimization monitoring
+- **Enhanced Bounds Control**: Maximum trap score capped at 0.4 preventing excessive penalty while maintaining meaningful differentiation for risk assessment
+- **Dual Format Compatibility**: Full support for both dictionary and list candle formats ensuring reliable operation across different data sources
+System eliminates Module 3 scoring ineffectiveness ensuring Trap Detector actively contributes meaningful risk-based scoring adjustments instead of consistent 0.0 values through advanced volume-weighted fake breakout and rejection wick analysis.
+
 ### July 6, 2025 - HTF OVERLAY MODULE 2 INTEGRATION COMPLETE - Support/Resistance Detection Operational ✅
 Successfully integrated detect_htf_levels() function from htf_support_resistance.py with unified_scoring_engine.py resolving critical scoring issue where HTF Overlay always returned 0.0:
 - **Root Cause Identified**: HTF Overlay Module 2 was using simple trend analysis instead of advanced S/R level detection functionality
