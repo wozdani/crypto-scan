@@ -1041,11 +1041,11 @@ def prepare_unified_data(symbol: str, candles: List, ticker_data: Dict,
             print(f"[EMA ERROR] Failed to calculate EMA50: {ema_error}")
             ema50 = None
     
-    # Extract cluster features from signals
+    # Extract cluster features from market_data and signals
     cluster_features = {
-        "strength": data.get("cluster_strength", 0.0),
-        "direction": data.get("cluster_direction", 0.0),
-        "volume_ratio": data.get("cluster_volume_ratio", 1.0)
+        "strength": market_data.get("cluster_strength", signals.get("cluster_strength", 0.0)),
+        "direction": market_data.get("cluster_direction", signals.get("cluster_direction", 0.0)),
+        "volume_ratio": market_data.get("cluster_volume_ratio", signals.get("cluster_volume_ratio", 1.0))
     }
     
     # Current price with dual format support

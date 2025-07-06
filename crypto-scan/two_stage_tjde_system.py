@@ -159,7 +159,12 @@ class TwoStageTJDESystem:
                     )
                     
                     # Advanced TJDE analysis with complete contextual data
-                    advanced_result = simulate_trader_decision_advanced(unified_data)
+                    advanced_result = simulate_trader_decision_advanced(
+                        symbol=symbol,
+                        market_data=unified_data.get('market_data', {}),
+                        signals=unified_data.get('signals', {}),
+                        debug_info=unified_data
+                    )
                     
                     final_score = advanced_result.get('final_score', 0.0)
                     final_decision = advanced_result.get('decision', 'wait')
