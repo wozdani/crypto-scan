@@ -565,7 +565,41 @@ def simulate_trader_decision_advanced(data: Dict) -> Dict:
         # Sync total_score with advanced modules before legacy scoring
         total_score = advanced_total_score
         
-        # Legacy Volume Slope Analysis
+        # 🎯 DYNAMIC WEIGHTS INTEGRATION - Load weights from feedback loop system
+        # This integrates Module 5 Feedback Loop dynamic weight adjustment with TJDE scoring
+        try:
+            from feedback_loop.feedback_integration import load_dynamic_weights
+            
+            # Domyślne wagi fallback
+            DEFAULT_WEIGHTS = {
+                "trend": 0.3,
+                "volume": 0.2,
+                "momentum": 0.2,
+                "orderbook": 0.1,
+                "price_change": 0.2,
+            }
+            
+            # Załaduj dynamiczne wagi – jeśli niekompletne lub brak: fallback
+            dynamic_weights = load_dynamic_weights(symbol)
+            if not dynamic_weights or set(dynamic_weights.keys()) != set(DEFAULT_WEIGHTS.keys()):
+                weights = DEFAULT_WEIGHTS
+                print(f"[DYNAMIC WEIGHTS] {symbol}: Using fallback weights - incomplete feedback data")
+            else:
+                weights = dynamic_weights
+                print(f"[DYNAMIC WEIGHTS] {symbol}: Applied feedback-learned weights successfully")
+                
+        except Exception as e:
+            # Fallback to default weights if dynamic loading fails
+            weights = {
+                "trend": 0.3,
+                "volume": 0.2,
+                "momentum": 0.2,
+                "orderbook": 0.1,
+                "price_change": 0.2,
+            }
+            print(f"[DYNAMIC WEIGHTS ERROR] {symbol}: {e} - using fallback weights")
+        
+        # Legacy Volume Slope Analysis with Dynamic Weights
         try:
             candles = data.get("candles", [])
             if candles and len(candles) >= 10:

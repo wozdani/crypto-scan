@@ -1046,15 +1046,63 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
         htf_supportive_score = float(htf_supportive_score)
         market_phase_modifier = float(market_phase_modifier)
         
-        # CRITICAL FIX: New scoring logic with enhanced trend_strength and pullback_quality dominance
-        score = (
-            trend_strength * 0.35 +
-            pullback_quality * 0.30 +
-            liquidity_pattern_score * 0.10 +  # volume_behavior_score equivalent
-            support_reaction * 0.10 +
-            psych_score * 0.05 +
-            market_phase_modifier
-        )
+        # 🎯 DYNAMIC WEIGHTS INTEGRATION - Feedback Loop v2 Enhanced Scoring
+        # Load dynamic weights from feedback loop system for intelligent adaptation
+        try:
+            from feedback_loop.feedback_cache import load_dynamic_weights
+            
+            # Extract setup and pattern information for weight mapping
+            setup_result = signals.get('ai_label', {})
+            if isinstance(setup_result, str):
+                setup_name = setup_result
+                clip_pattern = setup_result
+            else:
+                setup_name = setup_result.get("setup", setup_result.get("label", "unknown"))
+                clip_pattern = setup_result.get("clip_label", setup_name)
+            
+            # Load category-specific weights with fallbacks
+            setup_weights = load_dynamic_weights("setup_weights") or {}
+            phase_weights = load_dynamic_weights("phase_weights") or {}
+            clip_weights = load_dynamic_weights("clip_weights") or {}
+            
+            # Apply dynamic weights with fallback to 1.0
+            setup_weight = setup_weights.get(setup_name, 1.0)
+            phase_weight = phase_weights.get(market_phase, 1.0)
+            clip_weight = clip_weights.get(clip_pattern, 1.0)
+            
+            print(f"[TJDE v2] Setup weight: {setup_weight:.2f} | Phase weight: {phase_weight:.2f} | CLIP weight: {clip_weight:.2f}")
+            
+            # Calculate component scores for dynamic weighting
+            setup_score = trend_strength * 0.7 + pullback_quality * 0.3  # Combined trend analysis
+            phase_score = support_reaction * 0.6 + psych_score * 0.4      # Market phase strength
+            liquidity_score = liquidity_pattern_score                      # Pure liquidity
+            
+            # Apply enhanced TJDE v2 formula with dynamic weights
+            score = (
+                0.3 * setup_score * setup_weight +
+                0.2 * phase_score * phase_weight +
+                0.2 * clip_confidence * clip_weight +
+                0.3 * liquidity_score
+            )
+            
+            print(f"[TJDE v2] Final Score: {score:.3f}")
+            print(f"[TJDE v2] Components: setup={setup_score:.3f}×{setup_weight:.2f}={setup_score*setup_weight:.3f}, "
+                  f"phase={phase_score:.3f}×{phase_weight:.2f}={phase_score*phase_weight:.3f}, "
+                  f"clip={clip_confidence:.3f}×{clip_weight:.2f}={clip_confidence*clip_weight:.3f}, "
+                  f"liquidity={liquidity_score:.3f}")
+            
+        except Exception as e:
+            print(f"[DYNAMIC WEIGHTS ERROR] {e} - using fallback scoring")
+            # Fallback to original scoring if dynamic weights fail
+            score = (
+                trend_strength * 0.35 +
+                pullback_quality * 0.30 +
+                liquidity_pattern_score * 0.10 +  # volume_behavior_score equivalent
+                support_reaction * 0.10 +
+                psych_score * 0.05 +
+                market_phase_modifier
+            )
+            print(f"[TJDE FALLBACK] Using static weights - score: {score:.3f}")
         
         # 🔍 DEBUG: Identify fallback score source
         print(f"[TJDE MODULE DEBUG] Raw scoring components:")

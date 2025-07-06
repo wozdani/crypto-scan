@@ -307,3 +307,76 @@ def get_cache_statistics() -> Dict:
             "success_rate": 0.0,
             "error": str(e)
         }
+
+def load_dynamic_weights(category: str) -> Dict[str, float]:
+    """
+    Load dynamic weights by category for TJDE v2 integration
+    
+    Args:
+        category: Weight category ('setup_weights', 'phase_weights', 'clip_weights')
+        
+    Returns:
+        Dictionary with category-specific weights
+    """
+    try:
+        from .weight_adjustment_system import load_current_weights
+        
+        # Load main weights data
+        weights_data = load_current_weights()
+        
+        # Handle structured weight file format
+        if isinstance(weights_data, dict) and "weights" in weights_data:
+            all_weights = weights_data["weights"]
+        else:
+            all_weights = weights_data or {}
+        
+        # Map AI labels to categories
+        if category == "setup_weights":
+            # Setup-specific patterns
+            setup_patterns = {
+                "breakout_pattern": all_weights.get("breakout_pattern", 1.0),
+                "momentum_follow": all_weights.get("momentum_follow", 1.0),
+                "trend_continuation": all_weights.get("trend_continuation", 1.0),
+                "pullback": all_weights.get("pullback", 1.0),
+                "reversal_pattern": all_weights.get("reversal_pattern", 1.0),
+                "consolidation": all_weights.get("consolidation", 1.0),
+                "unknown": 0.8  # Lower weight for unknown patterns
+            }
+            return setup_patterns
+            
+        elif category == "phase_weights":
+            # Market phase patterns
+            phase_patterns = {
+                "trend-following": all_weights.get("trend_continuation", 1.0),
+                "breakout-continuation": all_weights.get("breakout_pattern", 1.0),
+                "consolidation": all_weights.get("consolidation", 1.0),
+                "pullback-in-trend": all_weights.get("pullback", 1.0),
+                "range": all_weights.get("consolidation", 0.8),
+                "basic_screening": 0.7,  # Lower weight for basic screening
+                "unknown": 0.6
+            }
+            return phase_patterns
+            
+        elif category == "clip_weights":
+            # CLIP-specific patterns
+            clip_patterns = {
+                "trend_continuation": all_weights.get("trend_continuation", 1.0),
+                "breakout_pattern": all_weights.get("breakout_pattern", 1.0),
+                "momentum_follow": all_weights.get("momentum_follow", 1.0),
+                "consolidation": all_weights.get("consolidation", 1.0),
+                "pullback": all_weights.get("pullback", 1.0),
+                "reversal_pattern": all_weights.get("reversal_pattern", 1.0),
+                "unknown": 0.5  # Lowest weight for unknown CLIP patterns
+            }
+            return clip_patterns
+            
+        else:
+            logging.warning(f"[DYNAMIC WEIGHTS] Unknown category: {category}")
+            return {}
+            
+    except ImportError:
+        logging.warning(f"[DYNAMIC WEIGHTS] Weight adjustment module not available")
+        return {}
+    except Exception as e:
+        logging.error(f"[DYNAMIC WEIGHTS ERROR] Failed to load {category}: {e}")
+        return {}

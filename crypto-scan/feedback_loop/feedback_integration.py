@@ -482,3 +482,71 @@ def get_label_performance_report() -> Dict:
             "error": str(e),
             "report_timestamp": datetime.now().isoformat()
         }
+
+def load_dynamic_weights(symbol: str = None) -> Dict[str, float]:
+    """
+    Load dynamic scoring weights from feedback loop system for TJDE v2 integration
+    
+    Args:
+        symbol: Trading symbol (optional, for symbol-specific weights)
+        
+    Returns:
+        Dict with dynamic TJDE component weights or empty dict if unavailable
+    """
+    try:
+        from .weight_adjustment_system import load_current_weights
+        
+        weights_data = load_current_weights()
+        
+        # Handle structured weight file format
+        if isinstance(weights_data, dict) and "weights" in weights_data:
+            weights = weights_data["weights"]
+        else:
+            weights = weights_data
+        
+        # Ensure weights is a valid dict
+        if not isinstance(weights, dict):
+            print(f"[DYNAMIC WEIGHTS] Invalid weights format - using fallback")
+            return {}
+        
+        # Map AI label weights to TJDE component weights
+        tjde_weights = {}
+        
+        # Extract weights for TJDE components based on AI labels
+        if weights:
+            # Calculate average weight for different pattern types
+            bullish_patterns = ["breakout_pattern", "momentum_follow", "trend_continuation", "pullback"]
+            bearish_patterns = ["reversal_pattern", "exhaustion", "resistance_rejection"]
+            neutral_patterns = ["consolidation", "range", "sideways"]
+            
+            # Get weights that exist in our data
+            bullish_weights = [weights.get(p, 1.0) for p in bullish_patterns if p in weights]
+            bearish_weights = [weights.get(p, 1.0) for p in bearish_patterns if p in weights]
+            neutral_weights = [weights.get(p, 1.0) for p in neutral_patterns if p in weights]
+            
+            # Calculate averages with fallback to 1.0
+            bullish_avg = sum(bullish_weights) / len(bullish_weights) if bullish_weights else 1.0
+            bearish_avg = sum(bearish_weights) / len(bearish_weights) if bearish_weights else 1.0
+            neutral_avg = sum(neutral_weights) / len(neutral_weights) if neutral_weights else 1.0
+            
+            # Map to TJDE components with base weights
+            tjde_weights = {
+                "trend": bullish_avg * 0.3,           # Base trend weight adjusted by bullish pattern success
+                "volume": (bullish_avg + neutral_avg) / 2 * 0.2,  # Volume weight from mixed patterns
+                "momentum": bullish_avg * 0.2,        # Momentum from bullish patterns
+                "orderbook": neutral_avg * 0.1,       # Orderbook from neutral patterns
+                "price_change": (bullish_avg + bearish_avg) / 2 * 0.2  # Price change from all patterns
+            }
+            
+            print(f"[DYNAMIC WEIGHTS] Loaded for {symbol or 'global'}: trend={tjde_weights['trend']:.3f}, "
+                  f"volume={tjde_weights['volume']:.3f}, momentum={tjde_weights['momentum']:.3f}, "
+                  f"orderbook={tjde_weights['orderbook']:.3f}, price_change={tjde_weights['price_change']:.3f}")
+        
+        return tjde_weights
+        
+    except ImportError:
+        print(f"[DYNAMIC WEIGHTS] Weight adjustment module not available - using fallback")
+        return {}
+    except Exception as e:
+        print(f"[DYNAMIC WEIGHTS ERROR] Failed to load weights: {e}")
+        return {}
