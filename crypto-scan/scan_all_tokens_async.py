@@ -90,36 +90,18 @@ class AsyncTokenScanner:
         print(f"🚀 Starting TJDE v3 batch scan of {len(symbols)} tokens")
         start_time = time.time()
         
-        # TRY TJDE v3 BATCH PROCESSING FIRST
-        try:
-            print(f"[TJDE v3 BATCH] Processing {len(symbols)} tokens in unified pipeline...")
-            tjde_v3_results = await scan_with_tjde_v3(symbols, priority_info)
-            
-            if tjde_v3_results and len(tjde_v3_results) > 0:
-                # TJDE v3 SUCCESS - return results directly
-                self.successful_scans = len(tjde_v3_results)
-                total_time = time.time() - start_time
-                
-                print(f"✅ TJDE v3 BATCH SUCCESS: {len(tjde_v3_results)} tokens in {total_time:.1f}s")
-                return tjde_v3_results
-                
-        except Exception as e:
-            print(f"[TJDE v3 BATCH ERROR] Failed: {e}")
-            print(f"[FALLBACK] Using individual token scanning...")
-        
-        # FALLBACK TO LEGACY INDIVIDUAL SCANNING
-        print(f"🔄 Falling back to individual scan (max {self.max_concurrent} concurrent)")
+        # FALLBACK TO LEGACY INDIVIDUAL SCANNING FIRST (for data gathering)
+        print(f"🔄 Using individual token scanning for data gathering (max {self.max_concurrent} concurrent)")
         
         # Create tasks for all symbols
         tasks = [self.limited_scan(symbol, priority_info) for symbol in symbols]
         
         # Process with progress tracking
-        results = []
+        legacy_results = []
         completed = 0
         
         # Process in chunks for memory efficiency and progress display
         chunk_size = min(50, len(tasks)) if len(tasks) > 0 else 1
-        # Ensure chunk_size is never 0 to prevent range() error
         chunk_size = max(1, chunk_size)
         
         if len(tasks) == 0:
@@ -141,7 +123,7 @@ class AsyncTokenScanner:
                     print(f"[{completed}/{len(symbols)}] {symbol}: ERROR - {result}")
                     log_token_error(symbol, "ASYNC_SCAN", f"Scan failed: {result}")
                 elif result:
-                    results.append(result)
+                    legacy_results.append(result)
                     # Compact progress display
                     if completed % 10 == 0 or result.get("tjde_score", 0) >= 0.7:
                         print(f"[{completed}/{len(symbols)}] {symbol}: TJDE {result['tjde_score']:.3f} ({result['tjde_decision']})")
@@ -149,10 +131,42 @@ class AsyncTokenScanner:
                     if completed % 20 == 0:  # Less frequent logging for skipped tokens
                         print(f"[{completed}/{len(symbols)}] {symbol}: Skipped")
         
+        print(f"[LEGACY COMPLETE] Gathered data for {len(legacy_results)} tokens")
+        
+        # NOW TRY TJDE v3 PIPELINE WITH PRE-FETCHED DATA
+        try:
+            from scan_pipeline_v3 import scan_with_tjde_v3_from_data
+            
+            print(f"[TJDE v3 FROM DATA] Processing {len(legacy_results)} pre-fetched results...")
+            print(f"[PIPELINE FLOW] Phase 2: TOP 20 selection → Phase 3: Charts → Phase 4: CLIP → Phase 5: Advanced")
+            
+            tjde_v3_results = await scan_with_tjde_v3_from_data(legacy_results, priority_info)
+            
+            if tjde_v3_results and len(tjde_v3_results) > 0:
+                # TJDE v3 SUCCESS - return enhanced results
+                self.successful_scans = len(tjde_v3_results)
+                total_time = time.time() - start_time
+                
+                print(f"✅ TJDE v3 FROM DATA SUCCESS: {len(tjde_v3_results)} TOP tokens with advanced analysis in {total_time:.1f}s")
+                print(f"[CRITICAL SUCCESS] TOP 20 selection and advanced AI-EYE analysis completed!")
+                return tjde_v3_results
+                
+        except Exception as e:
+            print(f"[TJDE v3 FROM DATA ERROR] Failed: {e}")
+            import traceback
+            print(f"[TJDE v3 ERROR DETAILS] {traceback.format_exc()}")
+            print(f"[FALLBACK] Returning legacy scan results...")
+            
+            # Return legacy results as fallback
+            self.successful_scans = len(legacy_results)
+            total_time = time.time() - start_time
+            print(f"[LEGACY FALLBACK] Returning {len(legacy_results)} results in {total_time:.1f}s")
+            return legacy_results
+
+        # Performance summary for legacy results
         total_time = time.time() - start_time
         tokens_per_second = len(symbols) / total_time if total_time > 0 else 0
         
-        # Performance summary
         print(f"\n🎯 ASYNC SCAN RESULTS:")
         print(f"- Processed: {self.successful_scans}/{len(symbols)} tokens")
         print(f"- Total time: {total_time:.1f}s (TARGET: <15s)")
@@ -161,13 +175,13 @@ class AsyncTokenScanner:
         print(f"- API calls: {self.total_api_calls} ({api_per_token:.1f} per token)")
         
         # Top performers
-        if results:
-            sorted_results = sorted(results, key=lambda x: x.get('tjde_score', 0), reverse=True)
+        if legacy_results:
+            sorted_results = sorted(legacy_results, key=lambda x: x.get('tjde_score', 0), reverse=True)
             print(f"\n🔥 TOP 10 PERFORMERS:")
             for i, result in enumerate(sorted_results[:10], 1):
                 print(f"{i:2d}. {result['symbol']:12} TJDE {result['tjde_score']:5.3f} ({result['tjde_decision']:12}) Vol ${result['volume_24h']:>12,.0f}")
         
-        return results
+        return legacy_results
 
 async def async_scan_cycle():
     """Main async scan cycle with unified scoring deduplication"""

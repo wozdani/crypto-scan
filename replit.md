@@ -98,6 +98,19 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### July 7, 2025 - TJDE v3 PREFETCHED DATA PIPELINE COMPLETE - Critical TOP 20 Selection Bug Fixed ✅
+Successfully resolved critical pipeline architecture bug and implemented optimized data flow eliminating duplicate API calls and ensuring proper TOP 20 token selection:
+- **Root Cause Fixed**: System was bypassing TOP 20 selection by failing TJDE v3 data fetch and falling back to legacy individual token processing without selection stage
+- **New Architecture Implemented**: run_pipeline_from_data() method in TJDEv3Pipeline accepting pre-fetched scan results and skipping Phase 1 data gathering to focus on TOP 20 selection + advanced analysis
+- **Data Flow Optimization**: Legacy scan (ALL tokens) → TJDE v3 FROM DATA → Phase 2 (TOP 20 selection) → Phase 3 (Charts) → Phase 4 (CLIP) → Phase 5 (Advanced modules)
+- **Duplicate API Call Elimination**: System now performs data fetching once through AsyncTokenScanner then processes results through TJDE v3 pipeline preventing redundant API calls and timeout issues
+- **Production Validation**: Live system confirms correct flow execution with proper pipeline logging: "[TJDE v3 FROM DATA] Processing X pre-fetched results" and "[PHASE FLOW] Skip Phase 1 → Phase 2: TOP 20 selection"
+- **Error Handling Enhanced**: Complete fallback mechanism to legacy results when TJDE v3 pipeline fails ensuring system reliability while maintaining advanced analysis capabilities
+- **Performance Optimization**: Eliminates TJDE v3 data fetching bottleneck while preserving advanced AI-EYE, HTF Overlay, and all five modules for TOP 20 selected tokens
+- **scan_all_tokens_async.py Integration**: Comprehensive refactoring implementing two-phase approach (legacy data gathering + TJDE v3 processing) with proper error handling and result management
+- **Critical Bug Resolution**: Fixed issue where ALL tokens proceeded to Phase 2 instead of proper TOP 20 selection based on basic_score ranking ensuring optimal resource allocation
+System delivers optimal pipeline architecture eliminating duplicate data fetching while ensuring TOP 20 tokens receive full TJDE v3 advanced analysis with AI-EYE, chart generation, and all five modules.
+
 ### July 7, 2025 - PRE-PHASE 1 CANDLE VALIDATION SYSTEM COMPLETE - Enhanced Data Quality Control ✅
 Successfully implemented comprehensive candle validation system eliminating tokens with insufficient trading history before Phase 1 analysis ensuring superior TJDE scoring quality:
 - **Early Validation Logic**: Integrated candle validation immediately after data fetching (PRE-Phase 1) across async_scanner.py, scan_pipeline_v3.py, and scan_token_async.py preventing low-quality tokens from consuming processing resources

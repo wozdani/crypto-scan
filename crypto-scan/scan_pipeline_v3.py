@@ -272,26 +272,46 @@ class TJDEv3Pipeline:
             return None
             
     def select_top_tokens(self, basic_results: List[Dict], 
-                         top_n: int = 40, min_score: float = 0.15) -> List[Dict]:
+                         top_n: int = 20, min_score: float = 0.15) -> List[Dict]:
         """
-        🎯 STAGE 1.5 - Dynamic Token Selector 
+        🎯 STAGE 1.5 - TOP 20 Token Selector
         
-        Inteligentny selektor tokenów z adaptacyjną logiką zastępującą sztywny próg basic_score > 0.35
+        Selects TOP 20 tokens based on basic_score for Phase 2 (chart generation + AI-EYE analysis)
         
         Args:
             basic_results: Results from phase 1 (simulate_trader_decision_basic)
-            top_n: Maximum number of tokens to select (ignored - dynamic logic determines count)
+            top_n: Number of top tokens to select (default: 20)
             min_score: Minimum score threshold (fallback safety)
             
         Returns:
-            Selected tokens for advanced analysis using dynamic market-adaptive logic
+            TOP 20 tokens sorted by basic_score for advanced analysis
         """
-        print(f"[STAGE 1.5] 🎯 Dynamic Token Selector - Processing {len(basic_results)} basic results")
+        print(f"[STAGE 1.5] 🎯 TOP {top_n} Token Selector - Processing {len(basic_results)} basic results")
         
-        # Delegate to the new Dynamic Token Selector
-        selected_tokens = self.dynamic_selector.select_top_basic_candidates(basic_results)
+        # Extract basic scores and sort
+        scored_tokens = []
+        for result in basic_results:
+            score = result.get('score', 0) or result.get('basic_score', 0)
+            if score > min_score:  # Only consider tokens above minimum threshold
+                scored_tokens.append({
+                    'symbol': result['symbol'],
+                    'basic_score': score,
+                    'market_data': result['market_data'],
+                    'decision': result.get('decision', 'unknown'),
+                    'breakdown': result.get('breakdown', {})
+                })
         
-        print(f"[STAGE 1.5] ✅ Dynamic selection complete: {len(selected_tokens)} tokens selected for advanced AI-EYE + HTF analysis")
+        # Sort by basic_score (descending) and select TOP N
+        sorted_tokens = sorted(scored_tokens, key=lambda x: x['basic_score'], reverse=True)
+        selected_tokens = sorted_tokens[:top_n]
+        
+        print(f"[STAGE 1.5] ✅ TOP {top_n} selection complete:")
+        for i, token in enumerate(selected_tokens[:5], 1):  # Show top 5
+            print(f"  {i}. {token['symbol']}: {token['basic_score']:.3f}")
+        
+        if len(selected_tokens) == top_n and len(sorted_tokens) > top_n:
+            cutoff_score = selected_tokens[-1]['basic_score']
+            print(f"[STAGE 1.5] Selection cutoff: {cutoff_score:.3f} (excluded {len(sorted_tokens) - top_n} tokens)")
         
         return selected_tokens
         
@@ -563,20 +583,28 @@ class TJDEv3Pipeline:
         """
         pipeline_start = time.time()
         print(f"[TJDE v3 PIPELINE] Starting full analysis for {len(symbols)} symbols")
+        print(f"[PHASE FLOW] Phase 1: Basic scoring → Phase 2: TOP 20 selection → Phase 3: Charts → Phase 4: CLIP → Phase 5: Advanced")
         
         # Phase 1: Basic scoring for all tokens
+        print(f"[PHASE 1] Running basic scoring for ALL {len(symbols)} symbols...")
         basic_results = await self.phase1_basic_scoring(symbols, priority_info)
         
         if not basic_results:
             print("[PIPELINE] No viable tokens from basic scoring")
             return []
             
+        print(f"[PHASE 1 COMPLETE] {len(basic_results)} tokens with basic scores")
+        
         # Phase 2: Select top tokens
+        print(f"[PHASE 2] Selecting TOP 20 tokens from {len(basic_results)} candidates...")
         selected_tokens = self.select_top_tokens(basic_results)
         
         if not selected_tokens:
             print("[PIPELINE] No tokens selected for advanced analysis")
             return []
+            
+        print(f"[PHASE 2 COMPLETE] {len(selected_tokens)} tokens selected for Phase 3-5 (charts + AI-EYE + advanced)")
+        print(f"[CRITICAL CHECK] Only these {len(selected_tokens)} tokens will proceed to chart generation and AI analysis")
             
         # Phase 3: Capture charts
         tokens_with_charts = await self.phase3_chart_capture(selected_tokens)
@@ -597,6 +625,97 @@ class TJDEv3Pipeline:
             print(f"[TOP 3 FINAL] {top_3}")
             
         return final_results
+        
+    async def run_pipeline_from_data(self, scan_results: List[Dict], priority_info: Dict = None) -> List[Dict]:
+        """
+        Run TJDE v3 pipeline using pre-fetched scan data
+        Skips Phase 1 data fetching and goes directly to basic scoring
+        
+        Args:
+            scan_results: Pre-fetched scan results from AsyncTokenScanner
+            priority_info: Priority information
+            
+        Returns:
+            Final TJDE results from TOP 20 selection + advanced analysis
+        """
+        pipeline_start = time.time()
+        print(f"[TJDE v3 FROM DATA] Starting pipeline from {len(scan_results)} pre-fetched results")
+        print(f"[PHASE FLOW] Skip Phase 1 → Phase 2: TOP 20 selection → Phase 3: Charts → Phase 4: CLIP → Phase 5: Advanced")
+        
+        # Convert scan results to basic scoring format
+        basic_results = []
+        for result in scan_results:
+            try:
+                symbol = result.get('symbol')
+                if not symbol:
+                    continue
+                
+                # Check if token has TJDE score (already processed)
+                tjde_score = result.get('tjde_score', 0) or result.get('score', 0)
+                
+                if tjde_score > 0:
+                    # Convert to basic scoring format
+                    basic_result = {
+                        'symbol': symbol,
+                        'score': tjde_score,
+                        'basic_score': tjde_score,
+                        'decision': result.get('tjde_decision', 'unknown'),
+                        'market_data': {
+                            'symbol': symbol,
+                            'price': result.get('price', 0),
+                            'volume_24h': result.get('volume_24h', 0),
+                            'price_change_24h': result.get('price_change_24h', 0),
+                            'candles_15m': result.get('candles_15m', []),
+                            'candles_5m': result.get('candles_5m', []),
+                            'data_source': 'legacy_scan'
+                        },
+                        'breakdown': {
+                            'trend': tjde_score * 0.3,
+                            'volume': tjde_score * 0.3,
+                            'momentum': tjde_score * 0.4
+                        }
+                    }
+                    basic_results.append(basic_result)
+                    
+            except Exception as e:
+                print(f"[DATA CONVERSION ERROR] {symbol}: {e}")
+                continue
+        
+        print(f"[DATA CONVERSION] Converted {len(basic_results)} scan results to basic scoring format")
+        
+        if not basic_results:
+            print("[PIPELINE FROM DATA] No viable tokens from scan results")
+            return []
+            
+        # Phase 2: Select TOP 20 tokens
+        print(f"[PHASE 2] Selecting TOP 20 tokens from {len(basic_results)} candidates...")
+        selected_tokens = self.select_top_tokens(basic_results, top_n=20)
+        
+        if not selected_tokens:
+            print("[PIPELINE FROM DATA] No tokens selected for advanced analysis")
+            return []
+            
+        print(f"[PHASE 2 COMPLETE] {len(selected_tokens)} tokens selected for Phase 3-5 (charts + AI-EYE + advanced)")
+        
+        # Phase 3: Capture charts for selected tokens only
+        tokens_with_charts = await self.phase3_chart_capture(selected_tokens)
+        
+        # Phase 4: CLIP inference
+        clip_enhanced = await self.phase4_clip_inference(tokens_with_charts)
+        
+        # Phase 5: Advanced modules
+        final_results = await self.phase5_advanced_modules(clip_enhanced)
+        
+        total_elapsed = time.time() - pipeline_start
+        
+        print(f"[TJDE v3 FROM DATA COMPLETE] Pipeline finished in {total_elapsed:.1f}s")
+        print(f"[PIPELINE SUMMARY] {len(scan_results)} → {len(basic_results)} → {len(selected_tokens)} → {len(final_results)}")
+        
+        if final_results:
+            top_3 = [(r['symbol'], r['advanced_score'], r['final_decision']) for r in final_results[:3]]
+            print(f"[TOP 3 FINAL] {top_3}")
+            
+        return final_results
 
 
 # Global pipeline instance
@@ -608,6 +727,20 @@ async def scan_with_tjde_v3(symbols: List[str], priority_info: Dict = None) -> L
     Main entry point for TJDE v3 scanning
     """
     return await tjde_v3_pipeline.run_full_pipeline(symbols, priority_info)
+
+async def scan_with_tjde_v3_from_data(scan_results: List[Dict], priority_info: Dict = None) -> List[Dict]:
+    """
+    TJDE v3 entry point using pre-fetched scan data
+    Bypasses Phase 1 data fetching and uses existing results
+    
+    Args:
+        scan_results: Pre-fetched scan results from AsyncTokenScanner
+        priority_info: Priority information
+        
+    Returns:
+        Final TJDE v3 results from TOP 20 selected tokens
+    """
+    return await tjde_v3_pipeline.run_pipeline_from_data(scan_results, priority_info)
 
 
 if __name__ == "__main__":
