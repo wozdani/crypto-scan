@@ -211,6 +211,25 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         # Process data using enhanced data processor  
         print(f"[DATA VALIDATION] {symbol} → ticker: {type(ticker)}, 15m: {type(candles_15m)}, 5m: {type(candles_5m)}, orderbook: {type(orderbook)}")
         
+        # 🎯 EARLY CANDLE VALIDATION - Skip tokens with insufficient candle history
+        if not isinstance(candles_15m, Exception) and isinstance(candles_15m, list):
+            if len(candles_15m) < 20:  # Minimum 20 candles (~5 hours)
+                print(f"[CANDLE SKIP] {symbol}: Insufficient 15M candles ({len(candles_15m)}/20) - skipping analysis")
+                return None
+        else:
+            print(f"[CANDLE SKIP] {symbol}: Invalid 15M candle data - skipping analysis")
+            return None
+            
+        if not isinstance(candles_5m, Exception) and isinstance(candles_5m, list):
+            if len(candles_5m) < 60:  # Minimum 60 candles (~5 hours)
+                print(f"[CANDLE SKIP] {symbol}: Insufficient 5M candles ({len(candles_5m)}/60) - skipping analysis")
+                return None
+        else:
+            print(f"[CANDLE SKIP] {symbol}: Invalid 5M candle data - skipping analysis")
+            return None
+            
+        print(f"[CANDLE VALID] {symbol}: Candle validation passed (15M: {len(candles_15m)}, 5M: {len(candles_5m)})")
+        
         # Debug raw exception content
         if isinstance(ticker, Exception):
             print(f"[EXCEPTION DEBUG] {symbol} ticker: {str(ticker)[:100]}")

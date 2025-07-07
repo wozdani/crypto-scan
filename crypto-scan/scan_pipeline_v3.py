@@ -216,10 +216,27 @@ class TJDEv3Pipeline:
     async def run_basic_scoring(self, symbol: str, market_data: Dict) -> Optional[Dict]:
         """Run basic scoring without AI-EYE dependency"""
         try:
-            # Validate market data first
-            if not market_data or not market_data.get('candles_15m'):
-                print(f"[BASIC SCORING] {symbol}: No candle data available")
+            # 🎯 ENHANCED CANDLE VALIDATION - Ensure sufficient candle history
+            candles_15m = market_data.get('candles_15m', [])
+            candles_5m = market_data.get('candles_5m', [])
+            
+            # Minimum candle requirements
+            MIN_15M_CANDLES = 20  # ~5 hours of data
+            MIN_5M_CANDLES = 60   # ~5 hours of data
+            
+            if not market_data:
+                print(f"[BASIC SCORING] {symbol}: No market data available")
                 return None
+                
+            if len(candles_15m) < MIN_15M_CANDLES:
+                print(f"[CANDLE SKIP] {symbol}: Insufficient 15M candles ({len(candles_15m)}/{MIN_15M_CANDLES}) - skipping basic scoring")
+                return None
+                
+            if len(candles_5m) < MIN_5M_CANDLES:
+                print(f"[CANDLE SKIP] {symbol}: Insufficient 5M candles ({len(candles_5m)}/{MIN_5M_CANDLES}) - skipping basic scoring")
+                return None
+                
+            print(f"[CANDLE VALID] {symbol}: Basic scoring validation passed (15M: {len(candles_15m)}, 5M: {len(candles_5m)})")
             
             # Use basic engine - no AI-EYE, no HTF dependency
             result = simulate_trader_decision_basic(

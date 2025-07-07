@@ -258,6 +258,36 @@ class AsyncCryptoScanner:
                 price_usd = market_data["price_usd"]
                 volume_24h = market_data["volume_24h"]
                 
+                # 🎯 CANDLE VALIDATION - Early rejection for tokens with insufficient candle history
+                candles_15m = market_data.get("candles", [])
+                candles_5m = market_data.get("candles_5m", [])
+                
+                # Use centralized candle validation configuration
+                try:
+                    from config.candle_validation_config import should_skip_token
+                    should_skip, reason = should_skip_token(len(candles_15m), len(candles_5m))
+                    
+                    if should_skip:
+                        print(f"[CANDLE SKIP] {symbol}: {reason} - skipping Phase 1")
+                        return None
+                    else:
+                        print(f"[CANDLE VALID] {symbol}: {reason}")
+                        
+                except ImportError:
+                    # Fallback to hardcoded values if config not available
+                    MIN_15M_CANDLES = 20
+                    MIN_5M_CANDLES = 60
+                    
+                    if len(candles_15m) < MIN_15M_CANDLES:
+                        print(f"[CANDLE SKIP] {symbol}: Insufficient 15M candles ({len(candles_15m)}/{MIN_15M_CANDLES}) - skipping Phase 1")
+                        return None
+                        
+                    if len(candles_5m) < MIN_5M_CANDLES:
+                        print(f"[CANDLE SKIP] {symbol}: Insufficient 5M candles ({len(candles_5m)}/{MIN_5M_CANDLES}) - skipping Phase 1")
+                        return None
+                    
+                    print(f"[CANDLE VALID] {symbol}: Candle validation passed (15M: {len(candles_15m)}, 5M: {len(candles_5m)})")
+                
                 # Basic validation
                 if not price_usd or price_usd <= 0 or volume_24h < 100_000:
                     return None
