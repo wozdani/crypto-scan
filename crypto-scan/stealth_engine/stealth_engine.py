@@ -439,7 +439,16 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 print(f"  - imbalance_pct: {imbalance_pct:.3f}")
         
         # Pobierz aktywne sygnały z detektorów (zgodnie z user specification)
-        signals = detector.get_active_stealth_signals(token_data)
+        try:
+            signals = detector.get_active_stealth_signals(token_data)
+            print(f"[STEALTH DEBUG] {symbol}: Successfully got {len(signals)} signals from detector")
+        except Exception as e:
+            print(f"[STEALTH ERROR] {symbol}: Failed to get signals from detector: {e}")
+            return {
+                "score": 0.0,
+                "active_signals": [],
+                "error": f"signal_detection_failed: {e}"
+            }
         
         # Załaduj aktualne wagi (mogą być dostrojone przez feedback loop)
         weights = load_weights()
@@ -542,10 +551,13 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         }
         
     except Exception as e:
-        print(f"[COMPUTE STEALTH SCORE ERROR] {e}")
+        import traceback
+        print(f"[COMPUTE STEALTH SCORE ERROR] {symbol}: Exception occurred: {type(e).__name__}: {e}")
+        print(f"[COMPUTE STEALTH SCORE ERROR] {symbol}: Traceback: {traceback.format_exc()}")
         return {
             "score": 0.0,
-            "active_signals": []
+            "active_signals": [],
+            "error": f"compute_stealth_error: {e}"
         }
 
 

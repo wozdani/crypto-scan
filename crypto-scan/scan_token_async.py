@@ -412,9 +412,12 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 print(f"[STEALTH DATA FINAL] {symbol} → stealth_token_data candles_5m: {len(stealth_token_data['candles_5m'])}")
                 
                 # Wywołaj główny silnik scoringu z debug=True dla pełnego logowania
+                print(f"[STEALTH DEBUG] {symbol} → Calling compute_stealth_score() with {len(stealth_token_data)} keys")
                 stealth_result = compute_stealth_score(stealth_token_data)
-                stealth_score = stealth_result["score"]
-                active_signals = stealth_result["active_signals"]
+                print(f"[STEALTH DEBUG] {symbol} → compute_stealth_score() returned: {type(stealth_result)} = {stealth_result}")
+                
+                stealth_score = stealth_result.get("score", 0.0)
+                active_signals = stealth_result.get("active_signals", [])
                 
                 # Klasyfikacja alertu
                 alert_type = classify_stealth_alert(stealth_score)
@@ -440,7 +443,9 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 market_data["stealth_alert_type"] = alert_type
                 
             except Exception as stealth_error:
-                print(f"[STEALTH ENGINE ERROR] {symbol} → Stealth analysis failed: {stealth_error}")
+                import traceback
+                print(f"[STEALTH ENGINE ERROR] {symbol} → Stealth analysis failed: {type(stealth_error).__name__}: {stealth_error}")
+                print(f"[STEALTH ENGINE ERROR] {symbol} → Traceback: {traceback.format_exc()}")
                 # Kontynuuj bez Stealth Engine w przypadku błędu
                 market_data["stealth_score"] = 0.0
                 market_data["stealth_signals"] = []

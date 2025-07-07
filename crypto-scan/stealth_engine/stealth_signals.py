@@ -112,24 +112,39 @@ class StealthSignalDetector:
         Funkcja główna wykrywająca aktywne sygnały stealth
         Zgodnie ze specyfikacją użytkownika
         """
+        symbol = token_data.get("symbol", "UNKNOWN")
         signals = []
         
-        # Lista głównych sygnałów stealth - zaktualizowana z nowymi definicjami
-        signals.append(self.check_whale_ping(token_data))
-        signals.append(self.check_spoofing_layers(token_data))
-        signals.append(self.check_dex_inflow(token_data))
-        signals.append(self.check_orderbook_anomaly(token_data))  # Nowa funkcja
-        signals.append(self.check_volume_slope(token_data))
-        signals.append(self.check_ghost_orders(token_data))
-        signals.append(self.check_event_tag(token_data))
+        # Lista funkcji sygnałów do sprawdzenia z error handling
+        signal_functions = [
+            ("whale_ping", self.check_whale_ping),
+            ("spoofing_layers", self.check_spoofing_layers), 
+            ("dex_inflow", self.check_dex_inflow),
+            ("orderbook_anomaly", self.check_orderbook_anomaly),
+            ("volume_slope", self.check_volume_slope),
+            ("ghost_orders", self.check_ghost_orders),
+            ("event_tag", self.check_event_tag),
+            ("orderbook_imbalance_stealth", self.check_orderbook_imbalance_stealth),
+            ("large_bid_walls_stealth", self.check_large_bid_walls_stealth),
+            ("ask_wall_removal", self.check_ask_wall_removal),
+            ("volume_spike_stealth", self.check_volume_spike_stealth),
+            ("bid_ask_spread_tightening_stealth", self.check_bid_ask_spread_tightening_stealth),
+            ("liquidity_absorption", self.check_liquidity_absorption)
+        ]
         
-        # Dodaj podstawowe detektory z istniejącej implementacji
-        signals.append(self.check_orderbook_imbalance_stealth(token_data))
-        signals.append(self.check_large_bid_walls_stealth(token_data))
-        signals.append(self.check_ask_wall_removal(token_data))
-        signals.append(self.check_volume_spike_stealth(token_data))
-        signals.append(self.check_bid_ask_spread_tightening_stealth(token_data))
-        signals.append(self.check_liquidity_absorption(token_data))
+        # Sprawdź każdy sygnał z obsługą błędów
+        for signal_name, signal_func in signal_functions:
+            try:
+                signal = signal_func(token_data)
+                if signal is not None:
+                    signals.append(signal)
+                else:
+                    print(f"[STEALTH WARNING] {symbol}: {signal_name} returned None, creating empty signal")
+                    signals.append(StealthSignal(signal_name, False, 0.0))
+            except Exception as e:
+                print(f"[STEALTH ERROR] {symbol}: Failed to check {signal_name}: {e}")
+                # Dodaj pustý sygnał aby utrzymać spójność
+                signals.append(StealthSignal(signal_name, False, 0.0))
         
         return signals
     
