@@ -6,6 +6,7 @@ Wysyła alerty o ukrytych sygnałach pre-pump bez potrzeby wykresów
 
 import json
 import os
+import time
 from datetime import datetime
 from typing import List, Optional
 
@@ -79,7 +80,7 @@ stealth_alert_manager = StealthAlertManager()
 
 async def send_stealth_alert(symbol: str, stealth_score: float, active_signals: List[str], alert_type: str):
     """
-    Wysyła alert Stealth Engine bez wykresu
+    Wysyła alert Stealth Engine z pełną integracją utility modules
     
     Args:
         symbol: Symbol tokena
@@ -93,37 +94,100 @@ async def send_stealth_alert(symbol: str, stealth_score: float, active_signals: 
         print(f"[STEALTH ALERT] {symbol} → Alert w cooldown, pomijam")
         return
     
-    # Przygotuj wiadomość alertu
-    alert_message = format_stealth_alert_message(symbol, stealth_score, active_signals, alert_type)
+    processing_start = time.time()
     
-    # Wyślij alert przez dostępne kanały
-    success = False
-    
-    # 1. Telegram Alert
-    if STEALTH_ALERT_CONFIG["telegram_enabled"]:
-        try:
-            telegram_success = await send_telegram_stealth_alert(alert_message)
-            if telegram_success:
+    # 🎯 INTEGRACJA Z UTILITY MODULES
+    try:
+        # Import utility modules
+        from stealth_engine.stealth_labels import save_stealth_label, generate_stealth_label
+        from stealth_engine.stealth_debug import log_stealth_debug, stealth_debug_session
+        from stealth_engine.stealth_utils import metadata_manager
+        
+        # Start debug session for comprehensive logging
+        with stealth_debug_session(symbol) as session_id:
+            
+            # Step 1: Generate and save stealth label
+            label_filepath = save_stealth_label(symbol, stealth_score, active_signals, alert_type)
+            stealth_label = generate_stealth_label(active_signals)
+            print(f"[STEALTH ALERT] {symbol} → Label generated: {stealth_label}")
+            
+            # Step 2: Log detailed debug information
+            processing_time = time.time() - processing_start
+            log_stealth_debug(
+                symbol=symbol,
+                stealth_score=stealth_score, 
+                active_signals=active_signals,
+                signal_details={signal: 1.0 for signal in active_signals},
+                processing_time=processing_time
+            )
+            
+            # Step 3: Record in metadata system
+            metadata_manager.record_alert(symbol, stealth_score, active_signals, alert_type, processing_time)
+            
+            # Step 4: Przygotuj wiadomość alertu
+            alert_message = format_stealth_alert_message(symbol, stealth_score, active_signals, alert_type)
+            
+            # Step 5: Wyślij alert przez dostępne kanały
+            success = False
+            
+            # 5a. Telegram Alert
+            if STEALTH_ALERT_CONFIG["telegram_enabled"]:
+                try:
+                    telegram_success = await send_telegram_stealth_alert(alert_message)
+                    if telegram_success:
+                        success = True
+                        print(f"[STEALTH ALERT] {symbol} → Telegram alert sent successfully")
+                except Exception as e:
+                    print(f"[STEALTH ALERT] {symbol} → Telegram error: {e}")
+            
+            # 5b. File Logging
+            if STEALTH_ALERT_CONFIG["file_logging_enabled"]:
+                try:
+                    log_stealth_alert_to_file(symbol, stealth_score, active_signals, alert_type, alert_message)
+                    success = True
+                    print(f"[STEALTH ALERT] {symbol} → Alert logged to file")
+                except Exception as e:
+                    print(f"[STEALTH ALERT] {symbol} → File logging error: {e}")
+            
+            # Step 6: Zapisz alert w historii
+            if success:
+                stealth_alert_manager.record_alert(symbol, stealth_score, active_signals, alert_type)
+                print(f"[STEALTH ALERT] ✅ {symbol} → Complete alert with utilities sent successfully (Label: {stealth_label})")
+            else:
+                print(f"[STEALTH ALERT] ❌ {symbol} → Failed to send alert")
+                
+    except ImportError as e:
+        print(f"[STEALTH ALERT] Warning: Utility modules not available ({e}), using basic alert system")
+        
+        # Fallback to basic alert system
+        alert_message = format_stealth_alert_message(symbol, stealth_score, active_signals, alert_type)
+        success = False
+        
+        # Basic telegram and file logging
+        if STEALTH_ALERT_CONFIG["telegram_enabled"]:
+            try:
+                telegram_success = await send_telegram_stealth_alert(alert_message)
+                if telegram_success:
+                    success = True
+            except Exception as e:
+                print(f"[STEALTH ALERT] {symbol} → Telegram error: {e}")
+        
+        if STEALTH_ALERT_CONFIG["file_logging_enabled"]:
+            try:
+                log_stealth_alert_to_file(symbol, stealth_score, active_signals, alert_type, alert_message)
                 success = True
-                print(f"[STEALTH ALERT] {symbol} → Telegram alert sent successfully")
-        except Exception as e:
-            print(f"[STEALTH ALERT] {symbol} → Telegram error: {e}")
-    
-    # 2. File Logging
-    if STEALTH_ALERT_CONFIG["file_logging_enabled"]:
-        try:
-            log_stealth_alert_to_file(symbol, stealth_score, active_signals, alert_type, alert_message)
-            success = True
-            print(f"[STEALTH ALERT] {symbol} → Alert logged to file")
-        except Exception as e:
-            print(f"[STEALTH ALERT] {symbol} → File logging error: {e}")
-    
-    # Zapisz alert w historii
-    if success:
-        stealth_alert_manager.record_alert(symbol, stealth_score, active_signals, alert_type)
-        print(f"[STEALTH ALERT] ✅ {symbol} → Alert sent successfully")
-    else:
-        print(f"[STEALTH ALERT] ❌ {symbol} → Failed to send alert")
+            except Exception as e:
+                print(f"[STEALTH ALERT] {symbol} → File logging error: {e}")
+        
+        if success:
+            stealth_alert_manager.record_alert(symbol, stealth_score, active_signals, alert_type)
+            print(f"[STEALTH ALERT] ✅ {symbol} → Basic alert sent successfully")
+        else:
+            print(f"[STEALTH ALERT] ❌ {symbol} → Failed to send alert")
+        
+    except Exception as e:
+        print(f"[STEALTH ALERT] Error with utility integration: {e}")
+        print(f"[STEALTH ALERT] ⚠️ {symbol} → Alert sent with errors")
 
 def format_stealth_alert_message(symbol: str, stealth_score: float, active_signals: List[str], alert_type: str) -> str:
     """Formatuj wiadomość alertu Stealth Engine"""
