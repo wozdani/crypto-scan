@@ -253,37 +253,174 @@ class TJDEv3Pipeline:
     def select_top_tokens(self, basic_results: List[Dict], 
                          top_n: int = 40, min_score: float = 0.15) -> List[Dict]:
         """
-        PHASE 2 SELECTION: Select top tokens for advanced analysis - REALISTIC THRESHOLDS
+        PHASE 2 SELECTION: Intelligent dynamic selection based on market conditions and ranking
         
         Args:
             basic_results: Results from phase 1
             top_n: Maximum number of tokens to select
-            min_score: Minimum score threshold (realistic for market data)
+            min_score: Minimum score threshold (fallback safety)
             
         Returns:
-            Selected tokens for advanced analysis
+            Selected tokens for advanced analysis using dynamic ranking
         """
-        # Filter by minimum score - realistic threshold for authentic market scores
-        qualified = [r for r in basic_results if r['basic_score'] >= min_score]
+        if not basic_results:
+            print("[SELECTION] No basic results to select from")
+            return []
         
-        # Sort by score descending to get best candidates
-        qualified.sort(key=lambda x: x['basic_score'], reverse=True)
+        # Sort all tokens by score descending - full ranking approach
+        all_results = sorted(basic_results, key=lambda x: x['basic_score'], reverse=True)
         
-        # Take top N candidates
-        selected = qualified[:top_n]
+        # DYNAMIC SELECTION LOGIC - Adaptacja do warunków rynkowych
+        selected_tokens = self._apply_dynamic_selection_logic(all_results, top_n, min_score)
         
-        print(f"[PHASE 2 SELECTION] Selected {len(selected)}/{len(basic_results)} tokens for advanced analysis")
-        print(f"[SELECTION CRITERIA] min_score={min_score}, top_n={top_n}")
-        
-        if selected:
-            top_scores = [f"{r['symbol']}:{r['basic_score']:.3f}" for r in selected[:5]]
-            print(f"[TOP SELECTED] {', '.join(top_scores)}")
+        # Determine strategy used for statistics
+        top_score = all_results[0]['basic_score']
+        if top_score >= 0.5:
+            strategy_used = "HIGH-QUALITY"
+        elif top_score >= 0.25:
+            strategy_used = "MODERATE"
         else:
-            # Debug - show what scores we have
-            all_scores = [f"{r['symbol']}:{r['basic_score']:.3f}" for r in basic_results[:5]]
-            print(f"[DEBUG SCORES] Available: {', '.join(all_scores)}")
+            strategy_used = "WEAK"
+        
+        print(f"[DYNAMIC SELECTION] Market analysis complete:")
+        print(f"  📊 Total tokens: {len(basic_results)}")
+        print(f"  🏆 Top score: {all_results[0]['basic_score']:.3f}")
+        print(f"  📉 Lowest score: {all_results[-1]['basic_score']:.3f}")
+        print(f"  🎯 Selected for Phase 2: {len(selected_tokens)}")
+        
+        # Save selection statistics for future feedback loop enhancement
+        self.save_selection_statistics(
+            total_tokens=len(basic_results),
+            selected_count=len(selected_tokens),
+            top_score=top_score,
+            strategy_used=strategy_used
+        )
+        
+        return selected_tokens
+    
+    def _apply_dynamic_selection_logic(self, sorted_results: List[Dict], 
+                                     target_n: int = 40, min_threshold: float = 0.15) -> List[Dict]:
+        """
+        Inteligentna logika selekcji adaptująca się do warunków rynkowych
+        """
+        if not sorted_results:
+            return []
+        
+        top_score = sorted_results[0]['basic_score']
+        scores = [r['basic_score'] for r in sorted_results]
+        
+        # STRATEGIA 1: Silny rynek (wysokie scores) - selektywne podejście  
+        if top_score >= 0.5:
+            # High-quality market - select only excellent signals
+            dynamic_threshold = max(min_threshold, top_score * 0.7)  # 70% of top score
+            qualified = [r for r in sorted_results if r['basic_score'] >= dynamic_threshold]
+            selected = qualified[:min(target_n, 15)]  # Max 15 w silnym rynku
+            print(f"[SELECTION STRATEGY] HIGH-QUALITY MARKET: threshold={dynamic_threshold:.3f}, selected={len(selected)}")
+            return selected
+        
+        # STRATEGIA 2: Średni rynek (moderate scores) - ranking + percentyl
+        elif top_score >= 0.25:
+            # Moderate market - top 10% or best 20 tokens
+            percentile_cutoff = max(5, int(len(sorted_results) * 0.1))  # Top 10%
+            ranking_selection = min(percentile_cutoff, 20)  # Max 20 tokens
+            qualified = [r for r in sorted_results[:ranking_selection] if r['basic_score'] >= min_threshold]
+            print(f"[SELECTION STRATEGY] MODERATE MARKET: top {ranking_selection} tokens, qualified={len(qualified)}")
+            return qualified
+        
+        # STRATEGIA 3: Słaby rynek (low scores) - elastyczne podejście
+        else:
+            # Weak market - expand selection to find any opportunities
+            import numpy as np
+            score_std = np.std(scores) if len(scores) > 1 else 0
+            score_mean = np.mean(scores)
             
-        return selected
+            # Dynamic threshold based on statistical distribution
+            adaptive_threshold = max(min_threshold * 0.7, score_mean + 0.5 * score_std)
+            
+            # In weak markets, allow more tokens but cap absolute number
+            qualified = [r for r in sorted_results if r['basic_score'] >= adaptive_threshold]
+            selected = qualified[:min(target_n, 30)]  # Max 30 w słabym rynku
+            
+            print(f"[SELECTION STRATEGY] WEAK MARKET: adaptive_threshold={adaptive_threshold:.3f}")
+            print(f"  📈 Mean: {score_mean:.3f}, StdDev: {score_std:.3f}, Selected: {len(selected)}")
+            return selected
+    
+    def load_feedback_thresholds(self) -> Dict:
+        """
+        Opcjonalne: Ładowanie adaptacyjnych progów z feedback loop
+        """
+        try:
+            import json
+            import os
+            
+            feedback_file = 'feedback_loop/base_thresholds.json'
+            if os.path.exists(feedback_file):
+                with open(feedback_file, 'r') as f:
+                    thresholds = json.load(f)
+                print(f"[FEEDBACK THRESHOLDS] Loaded adaptive thresholds from {feedback_file}")
+                return thresholds
+            else:
+                # Default thresholds gdy brak pliku feedback
+                return {
+                    'high_quality_threshold': 0.5,
+                    'moderate_threshold': 0.25,
+                    'weak_market_multiplier': 0.7,
+                    'last_updated': None
+                }
+        except Exception as e:
+            print(f"[FEEDBACK THRESHOLDS] Error loading: {e}")
+            return {
+                'high_quality_threshold': 0.5,
+                'moderate_threshold': 0.25,
+                'weak_market_multiplier': 0.7,
+                'last_updated': None
+            }
+    
+    def save_selection_statistics(self, total_tokens: int, selected_count: int, 
+                                top_score: float, strategy_used: str):
+        """
+        Zapisuje statystyki selekcji dla przyszłego feedback loop
+        """
+        try:
+            import json
+            import os
+            from datetime import datetime
+            
+            stats_file = 'data/selection_statistics.json'
+            
+            # Load existing stats
+            stats = []
+            if os.path.exists(stats_file):
+                try:
+                    with open(stats_file, 'r') as f:
+                        stats = json.load(f)
+                except:
+                    stats = []
+            
+            # Add current selection data
+            current_stats = {
+                'timestamp': datetime.now().isoformat(),
+                'total_tokens': total_tokens,
+                'selected_count': selected_count,
+                'selection_ratio': selected_count / total_tokens if total_tokens > 0 else 0,
+                'top_score': top_score,
+                'strategy_used': strategy_used
+            }
+            
+            stats.append(current_stats)
+            
+            # Keep only last 100 entries
+            stats = stats[-100:]
+            
+            # Save updated stats
+            os.makedirs(os.path.dirname(stats_file), exist_ok=True)
+            with open(stats_file, 'w') as f:
+                json.dump(stats, f, indent=2)
+                
+            print(f"[SELECTION STATS] Saved selection statistics: {strategy_used}")
+            
+        except Exception as e:
+            print(f"[SELECTION STATS] Error saving: {e}")
         
     async def phase3_chart_capture(self, selected_tokens: List[Dict]) -> List[Dict]:
         """
