@@ -170,7 +170,18 @@ class StealthSignalDetector:
             return StealthSignal("whale_ping", False, 0.0)
         
         try:
-            # Oblicz max_bid_usd i max_ask_usd zgodnie ze specyfikacją
+            # Handle different orderbook formats (list vs dict)
+            if isinstance(bids, dict):
+                # Convert dict format to list format
+                bids_list = [bids[key] for key in sorted(bids.keys(), key=lambda x: float(x) if x.isdigit() else 0, reverse=True)]
+                bids = bids_list
+            
+            if isinstance(asks, dict):
+                # Convert dict format to list format
+                asks_list = [asks[key] for key in sorted(asks.keys(), key=lambda x: float(x) if x.isdigit() else 0)]
+                asks = asks_list
+            
+            # Now process as list format - Oblicz max_bid_usd i max_ask_usd zgodnie ze specyfikacją
             best_bid_price = float(bids[0][0])
             best_bid_size = float(bids[0][1])
             max_bid_usd = best_bid_price * best_bid_size
@@ -346,6 +357,15 @@ class StealthSignalDetector:
             return StealthSignal("orderbook_imbalance", False, 0.0)
         
         try:
+            # Handle different orderbook formats (list vs dict)
+            if isinstance(bids, dict):
+                bids_list = [bids[key] for key in sorted(bids.keys(), key=lambda x: float(x) if x.isdigit() else 0, reverse=True)]
+                bids = bids_list
+            
+            if isinstance(asks, dict):
+                asks_list = [asks[key] for key in sorted(asks.keys(), key=lambda x: float(x) if x.isdigit() else 0)]
+                asks = asks_list
+            
             # Oblicz siłę bid vs ask
             bid_strength = sum(float(bid[1]) for bid in bids[:5])
             ask_strength = sum(float(ask[1]) for ask in asks[:5])
@@ -505,6 +525,17 @@ class StealthSignalDetector:
             return StealthSignal("orderbook_anomaly", False, 0.0)
         
         try:
+            # Handle different orderbook formats (list vs dict)
+            if isinstance(bids, dict):
+                # Convert dict format to list format
+                bids_list = [bids[key] for key in sorted(bids.keys(), key=lambda x: float(x) if x.isdigit() else 0, reverse=True)]
+                bids = bids_list
+            
+            if isinstance(asks, dict):
+                # Convert dict format to list format
+                asks_list = [asks[key] for key in sorted(asks.keys(), key=lambda x: float(x) if x.isdigit() else 0)]
+                asks = asks_list
+            
             # Oblicz spread_pct i imbalance_pct zgodnie ze specyfikacją
             bid_price = float(bids[0][0])
             ask_price = float(asks[0][0])
@@ -980,6 +1011,15 @@ class StealthSignalDetector:
             }
         
         try:
+            # Handle different orderbook formats (list vs dict)
+            if isinstance(bids, dict):
+                bids_list = [bids[key] for key in sorted(bids.keys(), key=lambda x: float(x) if x.isdigit() else 0, reverse=True)]
+                bids = bids_list
+            
+            if isinstance(asks, dict):
+                asks_list = [asks[key] for key in sorted(asks.keys(), key=lambda x: float(x) if x.isdigit() else 0)]
+                asks = asks_list
+            
             best_bid = float(bids[0][0])
             best_ask = float(asks[0][0])
             

@@ -418,25 +418,107 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         if orderbook:
             bids = orderbook.get("bids", [])
             asks = orderbook.get("asks", [])
+            
+            # Debug orderbook structure before processing
+            print(f"[STEALTH DEBUG] {symbol} orderbook structure:")
+            print(f"  - bids type: {type(bids)}, length: {len(bids) if bids else 0}")
+            print(f"  - asks type: {type(asks)}, length: {len(asks) if asks else 0}")
+            
+            # Safe inspection of orderbook format
+            try:
+                if bids and isinstance(bids, list) and len(bids) > 0:
+                    print(f"  - first bid type: {type(bids[0])}, content: {bids[0]}")
+                elif bids and isinstance(bids, dict):
+                    print(f"  - bids dict keys: {list(bids.keys())[:3]}...")  # Show first 3 keys
+                    if '0' in bids:
+                        print(f"  - bids['0']: {bids['0']}")
+                
+                if asks and isinstance(asks, list) and len(asks) > 0:
+                    print(f"  - first ask type: {type(asks[0])}, content: {asks[0]}")
+                elif asks and isinstance(asks, dict):
+                    print(f"  - asks dict keys: {list(asks.keys())[:3]}...")  # Show first 3 keys
+                    if '0' in asks:
+                        print(f"  - asks['0']: {asks['0']}")
+            except Exception as debug_e:
+                print(f"[STEALTH DEBUG] {symbol}: Debug inspection error: {debug_e}")
+            
+            # Handle different orderbook formats safely
             if bids and asks:
-                max_bid_usd = float(bids[0][0]) * float(bids[0][1])
-                max_ask_usd = float(asks[0][0]) * float(asks[0][1])
-                max_order_usd = max(max_bid_usd, max_ask_usd)
+                try:
+                    # Convert dict-based orderbook to list format if needed
+                    if isinstance(bids, dict):
+                        # Convert {'0': ['100', '10'], '1': ['99', '5']} to [['100', '10'], ['99', '5']]
+                        bids_list = [bids[key] for key in sorted(bids.keys(), key=lambda x: float(x) if x.isdigit() else 0, reverse=True)]
+                        bids = bids_list
+                    
+                    if isinstance(asks, dict):
+                        # Convert {'0': ['101', '10'], '1': ['102', '5']} to [['101', '10'], ['102', '5']]
+                        asks_list = [asks[key] for key in sorted(asks.keys(), key=lambda x: float(x) if x.isdigit() else 0)]
+                        asks = asks_list
+                    
+                    # Now process as list format
+                    if len(bids) > 0 and len(asks) > 0:
+                        # Handle both list and dict formats safely
+                        if isinstance(bids[0], list) and len(bids[0]) >= 2:
+                            max_bid_usd = float(bids[0][0]) * float(bids[0][1])
+                            bid_price = float(bids[0][0])
+                        elif isinstance(bids[0], dict):
+                            max_bid_usd = float(bids[0].get('price', 0)) * float(bids[0].get('size', 0))
+                            bid_price = float(bids[0].get('price', 0))
+                        else:
+                            print(f"[STEALTH DEBUG] {symbol}: Unknown bid format: {type(bids[0])}")
+                            max_bid_usd = 0
+                            bid_price = 0
+                        
+                        if isinstance(asks[0], list) and len(asks[0]) >= 2:
+                            max_ask_usd = float(asks[0][0]) * float(asks[0][1])
+                            ask_price = float(asks[0][0])
+                        elif isinstance(asks[0], dict):
+                            max_ask_usd = float(asks[0].get('price', 0)) * float(asks[0].get('size', 0))
+                            ask_price = float(asks[0].get('price', 0))
+                        else:
+                            print(f"[STEALTH DEBUG] {symbol}: Unknown ask format: {type(asks[0])}")
+                            max_ask_usd = 0
+                            ask_price = 0
+                    
+                    max_order_usd = max(max_bid_usd, max_ask_usd)
+                    
+                    if bid_price > 0 and ask_price > 0:
+                        mid_price = (bid_price + ask_price) / 2
+                        spread_pct = (ask_price - bid_price) / mid_price
+                    else:
+                        mid_price = price or 0
+                        spread_pct = 0.01  # Default spread
+                    
+                    # Safe volume calculation
+                    try:
+                        if isinstance(bids[0], list):
+                            total_bids = sum(float(bid[1]) for bid in bids[:10] if len(bid) >= 2)
+                            total_asks = sum(float(ask[1]) for ask in asks[:10] if len(ask) >= 2)
+                        else:
+                            total_bids = sum(float(bid.get('size', 0)) for bid in bids[:10] if isinstance(bid, dict))
+                            total_asks = sum(float(ask.get('size', 0)) for ask in asks[:10] if isinstance(ask, dict))
+                        total_volume = total_bids + total_asks
+                    except (ValueError, TypeError, KeyError) as e:
+                        print(f"[STEALTH DEBUG] {symbol}: Volume calculation error: {e}")
+                        total_bids = total_asks = total_volume = 0
+                        
+                except (ValueError, TypeError, KeyError, IndexError) as e:
+                    print(f"[STEALTH DEBUG] {symbol}: Orderbook parsing error: {e}")
+                    max_order_usd = spread_pct = total_volume = 0
+                    total_bids = total_asks = 0
                 
-                bid_price = float(bids[0][0])
-                ask_price = float(asks[0][0])
-                mid_price = (bid_price + ask_price) / 2
-                spread_pct = (ask_price - bid_price) / mid_price
-                
-                total_bids = sum(float(bid[1]) for bid in bids[:10])
-                total_asks = sum(float(ask[1]) for ask in asks[:10])
-                total_volume = total_bids + total_asks
+                # Calculate imbalance
                 imbalance_pct = abs(total_bids - total_asks) / total_volume if total_volume > 0 else 0.0
                 
                 print(f"[STEALTH DEBUG] {symbol} orderbook metrics:")
                 print(f"  - max_order_usd: ${max_order_usd:,.0f}")
                 print(f"  - spread_pct: {spread_pct:.6f}")
                 print(f"  - imbalance_pct: {imbalance_pct:.3f}")
+            else:
+                print(f"[STEALTH DEBUG] {symbol}: No valid orderbook data available")
+                max_order_usd = spread_pct = total_volume = 0
+                total_bids = total_asks = imbalance_pct = 0
         
         # Pobierz aktywne sygnały z detektorów (zgodnie z user specification)
         try:
