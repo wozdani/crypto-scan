@@ -135,8 +135,8 @@ class StealthSignalDetector:
     
     def check_whale_ping(self, token_data: Dict) -> StealthSignal:
         """
-        Whale ping detector - wykrycie wielorybów przez duże zlecenia (>= $100,000)
-        Nowa implementacja zgodna z user specification
+        Whale ping detector - wykrycie wielorybów przez duże zlecenia
+        Matematycznie precyzyjna implementacja zgodna z user specification v2
         """
         symbol = token_data.get("symbol", "UNKNOWN")
         orderbook = token_data.get("orderbook", {})
@@ -149,35 +149,44 @@ class StealthSignalDetector:
         
         bids = orderbook.get("bids", [])
         asks = orderbook.get("asks", [])
-        whale_threshold_usd = 100_000  # $100k threshold
         
-        active = False
-        max_order_value = 0
+        if not bids or not asks:
+            print(f"[STEALTH DEBUG] whale_ping for {symbol}: insufficient orderbook data")
+            return StealthSignal("whale_ping", False, 0.0)
         
-        # Sprawdź obie strony orderbook
-        for side_name, side in [("bids", bids), ("asks", asks)]:
-            for price, size in side:
-                try:
-                    order_value = float(price) * float(size)
-                    max_order_value = max(max_order_value, order_value)
-                    
-                    if order_value >= whale_threshold_usd:
-                        active = True
-                        print(f"[STEALTH DEBUG] whale_ping DETECTED for {symbol}: {side_name} order ${order_value:,.0f} >= ${whale_threshold_usd:,.0f}")
-                        break
-                except Exception as e:
-                    continue
-            if active:
-                break
-        
-        strength = 1.0 if active else 0.0
-        print(f"[STEALTH DEBUG] whale_ping result for {symbol}: active={active}, strength={strength}, max_order=${max_order_value:,.0f}")
-        return StealthSignal("whale_ping", active, strength)
+        try:
+            # Oblicz max_bid_usd i max_ask_usd zgodnie ze specyfikacją
+            best_bid_price = float(bids[0][0])
+            best_bid_size = float(bids[0][1])
+            max_bid_usd = best_bid_price * best_bid_size
+            
+            best_ask_price = float(asks[0][0])
+            best_ask_size = float(asks[0][1])
+            max_ask_usd = best_ask_price * best_ask_size
+            
+            # Warunek aktywacji: max(max_bid_usd, max_ask_usd) > 100_000
+            max_order_usd = max(max_bid_usd, max_ask_usd)
+            is_whale = max_order_usd > 100_000
+            
+            # Strength: logarytmicznie min(1.0, log10(max_order_usd / 10_000) / 2)
+            if is_whale:
+                import math
+                strength = min(1.0, math.log10(max_order_usd / 10_000) / 2)
+                print(f"[STEALTH DEBUG] whale_ping DETECTED for {symbol}: max_order_usd=${max_order_usd:,.0f} > $100,000")
+            else:
+                strength = 0.0
+            
+            print(f"[STEALTH DEBUG] whale_ping result for {symbol}: active={is_whale}, strength={strength:.3f}, max_order_usd=${max_order_usd:,.0f}")
+            return StealthSignal("whale_ping", is_whale, strength)
+            
+        except Exception as e:
+            print(f"[STEALTH DEBUG] whale_ping error for {symbol}: {e}")
+            return StealthSignal("whale_ping", False, 0.0)
     
     def check_spoofing_layers(self, token_data: Dict) -> StealthSignal:
         """
-        Spoofing layers detector - wykrycie warstw spoofingu przez zlecenia w wąskim zakresie cenowym
-        Nowa implementacja zgodna z user specification
+        Spoofing layers detector - detekcja warstwowania zleceń
+        Matematycznie precyzyjna implementacja zgodna z user specification v2
         """
         symbol = token_data.get("symbol", "UNKNOWN")
         orderbook = token_data.get("orderbook", {})
@@ -190,32 +199,72 @@ class StealthSignalDetector:
         
         bids = orderbook.get("bids", [])
         asks = orderbook.get("asks", [])
-        spoof_layers_threshold = 3
-        price_tolerance = 0.0025  # 0.25% price range
         
-        def has_layers(side, side_name):
-            layers = 0
-            prev_price = None
-            for price, _ in side:
-                try:
-                    price = float(price)
-                    if prev_price is not None and abs(price - prev_price) / price < price_tolerance:
-                        layers += 1
-                        if layers >= spoof_layers_threshold:
-                            print(f"[STEALTH DEBUG] spoofing_layers DETECTED for {symbol}: {layers+1} {side_name} layers within {price_tolerance*100:.2f}% range")
-                            return True
+        if len(bids) < 3 and len(asks) < 3:
+            print(f"[STEALTH DEBUG] spoofing_layers for {symbol}: insufficient layers")
+            return StealthSignal("spoofing_layers", False, 0.0)
+        
+        try:
+            def analyze_side_spoofing(orders, side_name):
+                if len(orders) < 3:
+                    return False, 0.0, 0.0, 0.0
+                
+                # Oblicz total volume dla tej strony
+                total_side_volume = sum(float(order[1]) for order in orders)
+                layers_volume = 0.0
+                layer_count = 0
+                
+                # Sprawdź pierwsze 10 poziomów
+                for i in range(min(len(orders), 10)):
+                    if i == 0:
+                        continue  # Skip first level
+                    
+                    base_price = float(orders[0][0])
+                    current_price = float(orders[i][0])
+                    current_volume = float(orders[i][1])
+                    
+                    # Sprawdź odległość <0.2% między sobą
+                    price_diff_pct = abs(current_price - base_price) / base_price * 100
+                    
+                    if price_diff_pct < 0.2:
+                        # Sprawdź czy wolumen stanowi >5% całkowitego bid/ask sum
+                        volume_pct = current_volume / total_side_volume
+                        if volume_pct > 0.05:
+                            layers_volume += current_volume
+                            layer_count += 1
                     else:
-                        layers = 1
-                    prev_price = price
-                except:
-                    continue
-            return False
-        
-        active = has_layers(bids, "bid") or has_layers(asks, "ask")
-        strength = 0.8 if active else 0.0
-        
-        print(f"[STEALTH DEBUG] spoofing_layers result for {symbol}: active={active}, strength={strength}")
-        return StealthSignal("spoofing_layers", active, strength)
+                        break
+                
+                # Warunek aktywacji: co najmniej 3 bidy lub aski w odległości <0.2%
+                is_spoofing = layer_count >= 3
+                
+                # Strength: min(1.0, (layers_volume / total_side_volume))
+                strength = min(1.0, layers_volume / total_side_volume) if total_side_volume > 0 else 0.0
+                
+                return is_spoofing, strength, layers_volume, total_side_volume
+            
+            # Analizuj obie strony
+            bid_spoofing, bid_strength, bid_layers_vol, bid_total_vol = analyze_side_spoofing(bids, "bids")
+            ask_spoofing, ask_strength, ask_layers_vol, ask_total_vol = analyze_side_spoofing(asks, "asks")
+            
+            # Aktywacja jeśli którakolwiek strona ma spoofing
+            is_active = bid_spoofing or ask_spoofing
+            
+            # Wybierz wyższą strength
+            strength = max(bid_strength, ask_strength)
+            
+            if is_active:
+                side_detected = "bids" if bid_spoofing else "asks"
+                layers_vol = bid_layers_vol if bid_spoofing else ask_layers_vol
+                total_vol = bid_total_vol if bid_spoofing else ask_total_vol
+                print(f"[STEALTH DEBUG] spoofing_layers DETECTED for {symbol}: {side_detected} layers_volume={layers_vol:.0f}, total_side_volume={total_vol:.0f}")
+            
+            print(f"[STEALTH DEBUG] spoofing_layers result for {symbol}: active={is_active}, strength={strength:.3f}")
+            return StealthSignal("spoofing_layers", is_active, strength)
+            
+        except Exception as e:
+            print(f"[STEALTH DEBUG] spoofing_layers error for {symbol}: {e}")
+            return StealthSignal("spoofing_layers", False, 0.0)
     
     def check_volume_slope(self, token_data: Dict) -> StealthSignal:
         """
@@ -233,47 +282,35 @@ class StealthSignalDetector:
     
     def check_dex_inflow(self, token_data: Dict) -> StealthSignal:
         """
-        DEX inflow detection - wykrycie napływu do portfeli DEX
-        Nowa implementacja zgodna z user specification
+        DEX inflow detector - detekcja przepływu tokenów on-chain do CEX/DEX
+        Matematycznie precyzyjna implementacja zgodna z user specification v2
         """
         symbol = token_data.get("symbol", "UNKNOWN")
         inflow_value = token_data.get("dex_inflow", 0)
         
         print(f"[STEALTH DEBUG] dex_inflow for {symbol}: checking inflow value={inflow_value}")
         
-        # Konwersja do liczby jeśli potrzebna
-        if isinstance(inflow_value, str):
-            try:
-                inflow_value = float(inflow_value)
-            except:
-                inflow_value = 0
+        if inflow_value is None:
+            inflow_value = 0
         
-        active = False
-        strength = 0.0
+        try:
+            inflow_usd = float(inflow_value)
+        except:
+            inflow_usd = 0.0
         
-        if inflow_value == 0:
-            active = False
-            strength = 0.0
-            print(f"[STEALTH DEBUG] dex_inflow for {symbol}: no inflow detected")
-        elif inflow_value > 25000:
-            active = True
-            strength = 1.0
-            print(f"[STEALTH DEBUG] dex_inflow HIGH for {symbol}: ${inflow_value:,.0f} > $25,000")
-        elif inflow_value > 10000:
-            active = True
-            strength = 0.7
-            print(f"[STEALTH DEBUG] dex_inflow MEDIUM for {symbol}: ${inflow_value:,.0f} > $10,000")
-        elif inflow_value > 5000:
-            active = True
-            strength = 0.4
-            print(f"[STEALTH DEBUG] dex_inflow LOW for {symbol}: ${inflow_value:,.0f} > $5,000")
+        # Warunek aktywacji: inflow_usd > 30_000
+        is_active = inflow_usd > 30_000
+        
+        # Strength: min(1.0, inflow_usd / 100_000)
+        if is_active:
+            strength = min(1.0, inflow_usd / 100_000)
+            print(f"[STEALTH DEBUG] dex_inflow DETECTED for {symbol}: inflow_usd=${inflow_usd:,.0f} > $30,000")
         else:
-            active = False
             strength = 0.0
-            print(f"[STEALTH DEBUG] dex_inflow BELOW THRESHOLD for {symbol}: ${inflow_value:,.0f} <= $5,000")
+            print(f"[STEALTH DEBUG] dex_inflow BELOW THRESHOLD for {symbol}: inflow_usd=${inflow_usd:,.0f} <= $30,000")
         
-        print(f"[STEALTH DEBUG] dex_inflow result for {symbol}: active={active}, strength={strength}")
-        return StealthSignal("dex_inflow", active, strength)
+        print(f"[STEALTH DEBUG] dex_inflow result for {symbol}: active={is_active}, strength={strength:.3f}, inflow_usd=${inflow_usd:,.0f}")
+        return StealthSignal("dex_inflow", is_active, strength)
     
     def check_event_tag(self, token_data: Dict) -> StealthSignal:
         """
@@ -339,47 +376,62 @@ class StealthSignalDetector:
     
     def check_volume_spike_stealth(self, token_data: Dict) -> StealthSignal:
         """
-        Wykryj spike w wolumenie - wersja stealth
+        Volume spike detector - nagłe zwiększenie wolumenu na 15M świecy
+        Matematycznie precyzyjna implementacja zgodna z user specification v2
         """
         symbol = token_data.get("symbol", "UNKNOWN")
         candles_15m = token_data.get('candles_15m', [])
         volume_24h = token_data.get('volume_24h', 0)
         
-        # 🔍 DEBUG: Szczegółowe debugowanie volume spike + FIX 2 validation
         print(f"[STEALTH DEBUG] volume_spike for {symbol}: candles_15m={len(candles_15m)}, volume_24h={volume_24h}")
         print(f"[STEALTH INPUT] volume_spike received candles_15m with {len(candles_15m)} entries")
         
-        # 🛡️ FIX 2: Enhanced data validation - pokazuj szczegóły
         if len(candles_15m) < 4:
             print(f"[STEALTH DEBUG] volume_spike for {symbol}: insufficient candle data ({len(candles_15m)}/4)")
             print(f"[STEALTH DEBUG] volume_spike DIAGNOSTIC for {symbol}: candles_15m type={type(candles_15m)}, content preview={str(candles_15m)[:200]}...")
             return StealthSignal("volume_spike", False, 0.0)
         
         try:
-            # Porównaj ostatni wolumen z średnią z 3 poprzednich
-            recent_volumes = []
-            for candle in candles_15m[-4:]:
-                if isinstance(candle, dict):
-                    volume = candle.get('volume', 0)
-                else:
-                    volume = candle[5] if len(candle) > 5 else 0
-                recent_volumes.append(float(volume))
+            # Pobierz ostatnie 4 świece zgodnie ze specyfikacją
+            recent_candles = candles_15m[-4:]
+            volumes = []
             
-            current_volume = recent_volumes[-1]
-            avg_volume = sum(recent_volumes[:-1]) / 3
+            for candle in recent_candles:
+                try:
+                    if isinstance(candle, dict):
+                        volume = float(candle.get('volume', 0))
+                    elif isinstance(candle, (list, tuple)) and len(candle) >= 6:
+                        volume = float(candle[5])  # Volume na pozycji 5
+                    else:
+                        volume = 0
+                    volumes.append(volume)
+                except (ValueError, TypeError, IndexError):
+                    volumes.append(0)
             
-            print(f"[STEALTH DEBUG] volume_spike for {symbol}: volumes={recent_volumes}, current={current_volume}, avg={avg_volume}")
-            
-            if avg_volume == 0:
-                print(f"[STEALTH DEBUG] volume_spike for {symbol}: zero average volume - skipping")
+            if len(volumes) < 4 or volumes[-1] == 0:
+                print(f"[STEALTH DEBUG] volume_spike for {symbol}: invalid volume data")
                 return StealthSignal("volume_spike", False, 0.0)
             
-            volume_ratio = current_volume / avg_volume
-            active = volume_ratio > 1.8  # Lowered threshold for testing (was 2.0)
-            strength = min(volume_ratio / 3.0, 1.0)  # Scale 0-1
+            # Warunek aktywacji: vol_current > 2 × avg([vol_1, vol_2, vol_3])
+            vol_current = volumes[-1]  # Ostatnia świeca
+            vol_prev = volumes[:-1]    # Poprzednie 3 świece
             
-            print(f"[STEALTH DEBUG] volume_spike result for {symbol}: ratio={volume_ratio:.2f}, active={active}, strength={strength}")
-            return StealthSignal("volume_spike", active, strength)
+            # Oblicz avg_volume z poprzednich 3 świec
+            avg_volume = sum(vol_prev) / len(vol_prev) if vol_prev else 1
+            
+            # Warunek aktywacji
+            is_active = vol_current > 2 * avg_volume
+            
+            # Strength: min(1.0, vol_current / avg_volume - 1)
+            if is_active:
+                strength = min(1.0, vol_current / avg_volume - 1)
+                print(f"[STEALTH DEBUG] volume_spike DETECTED for {symbol}: vol_current={vol_current:.0f} > 2×avg_volume={avg_volume:.0f}")
+            else:
+                strength = 0.0
+                
+            print(f"[STEALTH DEBUG] volume_spike result for {symbol}: active={is_active}, strength={strength:.3f}, vol_current={vol_current:.0f}, avg_volume={avg_volume:.0f}")
+            return StealthSignal("volume_spike", is_active, strength)
+            
         except Exception as e:
             print(f"[STEALTH DEBUG] volume_spike error for {symbol}: {e}")
             return StealthSignal("volume_spike", False, 0.0)
@@ -422,8 +474,8 @@ class StealthSignalDetector:
     
     def check_orderbook_anomaly(self, token_data: Dict) -> StealthSignal:
         """
-        Orderbook anomaly detector - wykrycie anomalii w spread bid/ask lub ekstremalnej nierównowagi
-        Nowa implementacja zgodna z user specification
+        Orderbook anomaly detector - anomalie w spreadzie i balansie bid/ask
+        Matematycznie precyzyjna implementacja zgodna z user specification v2
         """
         symbol = token_data.get("symbol", "UNKNOWN")
         orderbook = token_data.get("orderbook", {})
@@ -438,37 +490,34 @@ class StealthSignalDetector:
             return StealthSignal("orderbook_anomaly", False, 0.0)
         
         try:
-            best_bid = float(bids[0][0])
-            best_ask = float(asks[0][0])
+            # Oblicz spread_pct i imbalance_pct zgodnie ze specyfikacją
+            bid_price = float(bids[0][0])
+            ask_price = float(asks[0][0])
+            mid_price = (bid_price + ask_price) / 2
             
-            # Oblicz spread jako procent
-            spread = abs(best_ask - best_bid) / best_ask
+            # spread_pct = (ask_price - bid_price) / mid_price
+            spread_pct = (ask_price - bid_price) / mid_price
             
-            # Oblicz imbalance jako ratio liczby bidów do asków
-            imbalance = len(bids) / max(len(asks), 1)
+            # Oblicz total bids i total asks volume
+            total_bids = sum(float(bid[1]) for bid in bids[:10])  # Top 10 levels
+            total_asks = sum(float(ask[1]) for ask in asks[:10])  # Top 10 levels
             
-            active = False
-            strength = 0.0
+            # imbalance_pct = abs(total_bids - total_asks) / (total_bids + total_asks)
+            total_volume = total_bids + total_asks
+            imbalance_pct = abs(total_bids - total_asks) / total_volume if total_volume > 0 else 0.0
             
-            # Sprawdź szeroki spread (>2%)
-            if spread > 0.02:
-                active = True
-                strength = 0.6
-                print(f"[STEALTH DEBUG] orderbook_anomaly WIDE SPREAD for {symbol}: {spread*100:.2f}% > 2%")
+            # Warunek aktywacji: spread_pct < 0.0005 and imbalance_pct > 0.85
+            is_active = spread_pct < 0.0005 and imbalance_pct > 0.85
             
-            # Sprawdź ekstremalną nierównowagę (>2.5x więcej bidów niż asków)
-            elif imbalance > 2.5:
-                active = True
-                strength = 0.7
-                print(f"[STEALTH DEBUG] orderbook_anomaly IMBALANCE for {symbol}: {imbalance:.2f}x > 2.5x")
+            # Strength: min(1.0, imbalance_pct × 2)
+            if is_active:
+                strength = min(1.0, imbalance_pct * 2)
+                print(f"[STEALTH DEBUG] orderbook_anomaly DETECTED for {symbol}: spread_pct={spread_pct:.6f} < 0.0005, imbalance_pct={imbalance_pct:.3f} > 0.85")
+            else:
+                strength = 0.0
             
-            # Jeśli oba warunki spełnione, zwiększ strength
-            if spread > 0.02 and imbalance > 2.5:
-                strength = 0.8
-                print(f"[STEALTH DEBUG] orderbook_anomaly BOTH CONDITIONS for {symbol}: spread={spread*100:.2f}%, imbalance={imbalance:.2f}x")
-            
-            print(f"[STEALTH DEBUG] orderbook_anomaly result for {symbol}: active={active}, strength={strength}")
-            return StealthSignal("orderbook_anomaly", active, strength)
+            print(f"[STEALTH DEBUG] orderbook_anomaly result for {symbol}: active={is_active}, strength={strength:.3f}, spread_pct={spread_pct:.6f}, imbalance_pct={imbalance_pct:.3f}")
+            return StealthSignal("orderbook_anomaly", is_active, strength)
             
         except Exception as e:
             print(f"[STEALTH DEBUG] orderbook_anomaly error for {symbol}: {e}")

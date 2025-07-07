@@ -359,19 +359,17 @@ async def analyze_token_stealth(symbol: str, market_data: Dict) -> Optional[Stea
 
 def compute_stealth_score(token_data: Dict) -> Dict:
     """
-    🎯 GŁÓWNA FUNKCJA FINALIZACJI SCORE - zgodnie z user specification
+    🎯 GŁÓWNA FUNKCJA FINALIZACJI SCORE - zgodnie z user specification v2
     
     Finalne wyliczenie score dla tokena na podstawie aktywnych sygnałów Stealth 
-    oraz aktualnych wag (uczących się przez feedback loop).
-    
-    Nie używamy wykresu — to "ślepy" skaner oparty na otoczeniu rynku.
+    z nowymi matematycznie precyzyjnymi warunkami aktywacji i bonusem +0.025 za każdą regułę.
     
     Args:
         token_data: Dane rynkowe tokena (orderbook, volume, DEX, etc.)
         
     Returns:
         dict: {
-            "score": float,       # Zsumowany score z aktywnych sygnałów
+            "score": float,       # Zsumowany score z aktywnych sygnałów + bonus
             "active_signals": list  # Lista nazw aktywnych sygnałów
         }
     """
@@ -382,10 +380,10 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         
         symbol = token_data.get("symbol", "UNKNOWN")
         
-        # 🔍 LOG: Rozpoczęcie analizy Stealth Engine
+        # LOG: Rozpoczęcie analizy Stealth Engine
         print(f"[STEALTH] Checking token: {symbol}...")
         
-        # 🛡️ FIX 1: Walidacja tickera - zablokuj STEALTH jeśli ticker nieprawidłowy
+        # Walidacja tickera - zablokuj STEALTH jeśli ticker nieprawidłowy
         price = token_data.get("price", 0)
         volume_24h = token_data.get("volume_24h", 0)
         
@@ -404,7 +402,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         # Utwórz detektor sygnałów
         detector = StealthSignalDetector()
         
-        # 🔍 FIX 2: Debug danych wejściowych przed analizą sygnałów
+        # Debug danych wejściowych przed analizą sygnałów
         candles_15m = token_data.get("candles_15m", [])
         candles_5m = token_data.get("candles_5m", [])
         orderbook = token_data.get("orderbook", {})
@@ -416,26 +414,50 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         print(f"  - orderbook: {bool(orderbook)} (bids: {len(orderbook.get('bids', []))}, asks: {len(orderbook.get('asks', []))})")
         print(f"  - dex_inflow: {dex_inflow} (type: {type(dex_inflow)})")
         
+        # Enhanced debug logging dla kluczowych wartości (zgodnie ze specyfikacją)
+        if orderbook:
+            bids = orderbook.get("bids", [])
+            asks = orderbook.get("asks", [])
+            if bids and asks:
+                max_bid_usd = float(bids[0][0]) * float(bids[0][1])
+                max_ask_usd = float(asks[0][0]) * float(asks[0][1])
+                max_order_usd = max(max_bid_usd, max_ask_usd)
+                
+                bid_price = float(bids[0][0])
+                ask_price = float(asks[0][0])
+                mid_price = (bid_price + ask_price) / 2
+                spread_pct = (ask_price - bid_price) / mid_price
+                
+                total_bids = sum(float(bid[1]) for bid in bids[:10])
+                total_asks = sum(float(ask[1]) for ask in asks[:10])
+                total_volume = total_bids + total_asks
+                imbalance_pct = abs(total_bids - total_asks) / total_volume if total_volume > 0 else 0.0
+                
+                print(f"[STEALTH DEBUG] {symbol} orderbook metrics:")
+                print(f"  - max_order_usd: ${max_order_usd:,.0f}")
+                print(f"  - spread_pct: {spread_pct:.6f}")
+                print(f"  - imbalance_pct: {imbalance_pct:.3f}")
+        
         # Pobierz aktywne sygnały z detektorów (zgodnie z user specification)
         signals = detector.get_active_stealth_signals(token_data)
         
         # Załaduj aktualne wagi (mogą być dostrojone przez feedback loop)
         weights = load_weights()
         
-        # 🔍 LOG: Analizuj każdy sygnał - usunięto duplikowane ostrzeżenia
+        # Analizuj każdy sygnał
         signal_status = {}
         
         for signal in signals:
             signal_status[signal.name] = getattr(signal, 'active', False)
         
         # Wyloguj kluczowe sygnały
-        whale_activity = signal_status.get('whale_activity_tracking', False)
-        spoofing = signal_status.get('spoofing_layers', False) 
+        whale_ping = signal_status.get('whale_ping', False)
+        spoofing_layers = signal_status.get('spoofing_layers', False) 
         volume_spike = signal_status.get('volume_spike', False)
-        orderbook_imbalance = signal_status.get('orderbook_imbalance', False)
-        dex_inflow = signal_status.get('dex_inflow', False)
+        orderbook_anomaly = signal_status.get('orderbook_anomaly', False)
+        dex_inflow_active = signal_status.get('dex_inflow', False)
         
-        print(f"[STEALTH] Detected signals for {symbol}: whale={whale_activity}, spoofing={spoofing}, volume_spike={volume_spike}, orderbook={orderbook_imbalance}, dex={dex_inflow}")
+        print(f"[STEALTH] Detected signals for {symbol}: whale={whale_ping}, spoofing={spoofing_layers}, volume_spike={volume_spike}, orderbook={orderbook_anomaly}, dex={dex_inflow_active}")
         
         score = 0.0
         used_signals = []
@@ -492,15 +514,24 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             score = score * scaling_factor
             print(f"[STEALTH PARTIAL] {symbol}: Low data coverage ({data_coverage:.1%}), scaling {original_score:.3f} → {score:.3f} (factor: {scaling_factor:.2f})")
         
+        # Dodaj bonus zgodnie z nową specyfikacją: +0.025 za każdą aktywną regułę
+        active_rules_bonus = len(used_signals) * 0.025
+        score += active_rules_bonus
+        
         # Dodaj minimalny baseline score jeśli wykryto jakiekolwiek pozytywne sygnały
         if len(used_signals) > 0 and score < 0.5:
             baseline_bonus = 0.3 * len(used_signals) / total_signals
             score += baseline_bonus
             print(f"[STEALTH PARTIAL] {symbol}: Added baseline bonus +{baseline_bonus:.3f} for {len(used_signals)} active signals")
         
-        # 🎯 LOG: Finalna decyzja scoringowa z informacją o partial
+        # LOG: Finalna decyzja scoringowa z nową implementacją bonusu
         decision = "strong" if score >= 3.0 else "weak" if score >= 1.0 else "none"
         partial_note = f" (partial: {available_signals}/{total_signals} signals)" if data_coverage < 0.8 else ""
+        
+        print(f"[STEALTH SCORING] {symbol} final calculation:")
+        print(f"  Base score: {score - active_rules_bonus:.3f}")
+        print(f"  Active rules bonus: {len(used_signals)} × 0.025 = +{active_rules_bonus:.3f}")
+        print(f"  Final score: {score:.3f}")
         print(f"[STEALTH] Final signal for {symbol} → Score: {score:.3f}, Decision: {decision}, Active: {len(used_signals)} signals{partial_note}")
         
         return {
