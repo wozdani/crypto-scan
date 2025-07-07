@@ -172,14 +172,33 @@ class StealthSignalDetector:
         try:
             # Handle different orderbook formats (list vs dict)
             if isinstance(bids, dict):
-                # Convert dict format to list format
-                bids_list = [bids[key] for key in sorted(bids.keys(), key=lambda x: float(x) if x.isdigit() else 0, reverse=True)]
-                bids = bids_list
+                # Convert dict format to list format with safe key processing
+                try:
+                    bids_list = []
+                    for key in sorted(bids.keys(), key=lambda x: float(x) if str(x).replace('.','').isdigit() else 0, reverse=True):
+                        if isinstance(bids[key], list) and len(bids[key]) >= 2:
+                            bids_list.append(bids[key])
+                    bids = bids_list if bids_list else []
+                except Exception as e:
+                    print(f"[STEALTH DEBUG] whale_ping bids conversion error for {symbol}: {e}")
+                    bids = []
             
             if isinstance(asks, dict):
-                # Convert dict format to list format
-                asks_list = [asks[key] for key in sorted(asks.keys(), key=lambda x: float(x) if x.isdigit() else 0)]
-                asks = asks_list
+                # Convert dict format to list format with safe key processing
+                try:
+                    asks_list = []
+                    for key in sorted(asks.keys(), key=lambda x: float(x) if str(x).replace('.','').isdigit() else 0):
+                        if isinstance(asks[key], list) and len(asks[key]) >= 2:
+                            asks_list.append(asks[key])
+                    asks = asks_list if asks_list else []
+                except Exception as e:
+                    print(f"[STEALTH DEBUG] whale_ping asks conversion error for {symbol}: {e}")
+                    asks = []
+            
+            # Verify we have valid orderbook data after conversion
+            if not bids or not asks:
+                print(f"[STEALTH DEBUG] whale_ping for {symbol}: no valid bids/asks after conversion")
+                return StealthSignal("whale_ping", False, 0.0)
             
             # Now process as list format - Oblicz max_bid_usd i max_ask_usd zgodnie ze specyfikacją
             best_bid_price = float(bids[0][0])
