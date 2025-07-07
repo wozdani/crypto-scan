@@ -385,6 +385,18 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         # 🔍 LOG: Rozpoczęcie analizy Stealth Engine
         print(f"[STEALTH] Checking token: {symbol}...")
         
+        # 🛡️ FIX 1: Walidacja tickera - zablokuj STEALTH jeśli ticker nieprawidłowy
+        price = token_data.get("price", 0)
+        volume_24h = token_data.get("volume_24h", 0)
+        
+        if price == 0 or volume_24h == 0:
+            print(f"[STEALTH SKIPPED] {symbol}: Invalid ticker data (price={price}, volume={volume_24h}) - blocking STEALTH analysis")
+            return {
+                "score": 0.0,
+                "active_signals": [],
+                "skipped": "invalid_ticker"
+            }
+        
         # Załaduj wagi dynamiczne i wyloguj
         weights = load_weights()
         print(f"[STEALTH WEIGHTS] Loaded {len(weights)} dynamic weights from feedback system")
@@ -392,28 +404,29 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         # Utwórz detektor sygnałów
         detector = StealthSignalDetector()
         
+        # 🔍 FIX 2: Debug danych wejściowych przed analizą sygnałów
+        candles_15m = token_data.get("candles_15m", [])
+        candles_5m = token_data.get("candles_5m", [])
+        orderbook = token_data.get("orderbook", {})
+        dex_inflow = token_data.get("dex_inflow")
+        
+        print(f"[STEALTH INPUT] {symbol} data validation:")
+        print(f"  - candles_15m: {len(candles_15m)} candles")
+        print(f"  - candles_5m: {len(candles_5m)} candles") 
+        print(f"  - orderbook: {bool(orderbook)} (bids: {len(orderbook.get('bids', []))}, asks: {len(orderbook.get('asks', []))})")
+        print(f"  - dex_inflow: {dex_inflow} (type: {type(dex_inflow)})")
+        
         # Pobierz aktywne sygnały z detektorów (zgodnie z user specification)
         signals = detector.get_active_stealth_signals(token_data)
         
         # Załaduj aktualne wagi (mogą być dostrojone przez feedback loop)
         weights = load_weights()
         
-        # 🔍 LOG: Analizuj każdy sygnał i sprawdź dostępność danych
+        # 🔍 LOG: Analizuj każdy sygnał - usunięto duplikowane ostrzeżenia
         signal_status = {}
-        data_warnings = []
         
         for signal in signals:
             signal_status[signal.name] = getattr(signal, 'active', False)
-            
-            # Sprawdź czy brakuje danych dla kluczowych sygnałów
-            if signal.name == 'spoofing_layers' and not token_data.get('orderbook'):
-                data_warnings.append(f"Missing orderbook data for {symbol}, skipping spoofing detection")
-            elif signal.name == 'dex_inflow' and not token_data.get('dex_inflow'):
-                data_warnings.append(f"Missing DEX data for {symbol}, skipping inflow detection")
-        
-        # Wyloguj ostrzeżenia o brakujących danych
-        for warning in data_warnings:
-            print(f"[STEALTH WARNING] {warning}")
         
         # Wyloguj kluczowe sygnały
         whale_activity = signal_status.get('whale_activity_tracking', False)
@@ -431,12 +444,26 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         
         # Oblicz score tylko z aktywnych sygnałów + liczenie dostępności
         for signal in signals:
-            # Sprawdź czy sygnał ma dane (nie jest placeholder)
+            # 🔍 FIX 3: Sprawdź czy sygnał ma dane (nie jest placeholder) - poprawiona logika
             has_data = True
-            if signal.name in ['dex_inflow'] and not token_data.get('dex_inflow'):
-                has_data = False
-            elif signal.name in ['spoofing_layers', 'large_bid_walls', 'orderbook_imbalance'] and not token_data.get('orderbook'):
-                has_data = False
+            if signal.name in ['dex_inflow']:
+                # DEX inflow ma dane jeśli wartość nie jest None lub False
+                dex_value = token_data.get('dex_inflow')
+                has_data = dex_value is not None
+                if not has_data:
+                    print(f"[STEALTH DATA] {symbol}: {signal.name} - no DEX data available")
+            elif signal.name in ['spoofing_layers', 'large_bid_walls', 'orderbook_imbalance']:
+                # Orderbook sygnały mają dane jeśli orderbook istnieje
+                orderbook_data = token_data.get('orderbook', {})
+                has_data = bool(orderbook_data.get('bids')) and bool(orderbook_data.get('asks'))
+                if not has_data:
+                    print(f"[STEALTH DATA] {symbol}: {signal.name} - no orderbook data available")
+            elif signal.name in ['volume_spike']:
+                # Volume spike ma dane jeśli są świece
+                candles_data = token_data.get('candles_15m', [])
+                has_data = len(candles_data) >= 4
+                if not has_data:
+                    print(f"[STEALTH DATA] {symbol}: {signal.name} - insufficient candle data ({len(candles_data)}/4)")
             
             if has_data:
                 available_signals += 1

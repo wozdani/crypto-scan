@@ -222,16 +222,23 @@ class StealthSignalDetector:
         # 🔍 DEBUG: Szczegółowe debugowanie DEX inflow
         print(f"[STEALTH DEBUG] dex_inflow for {symbol}: inflow={inflow}, inflow_value={inflow_value}, type={type(token_data.get('dex_inflow'))}")
         
-        # Enhanced logic - check both boolean and numeric values
-        active = inflow
-        strength = 1.0
+        # 🛡️ FIX 3: Enhanced logic - zawsze zwróć sygnał, nawet przy braku danych
+        active = False
+        strength = 0.0
         
-        if not active and inflow_value > 0:
-            # Fallback: use numeric threshold
+        # Check boolean value first
+        if isinstance(inflow, bool) and inflow:
+            active = True
+            strength = 1.0
+        # Check numeric value if boolean is False/None
+        elif inflow_value > 0:
             threshold = 10000  # Lower threshold for testing
             active = inflow_value > threshold
             strength = min(inflow_value / 50000, 1.0) if active else 0.0
             print(f"[STEALTH DEBUG] dex_inflow FALLBACK for {symbol}: value={inflow_value}, threshold={threshold}, active={active}")
+        # Brak danych - zwróć neutralny sygnał zamiast None
+        else:
+            print(f"[STEALTH DEBUG] dex_inflow NEUTRAL for {symbol}: no valid data, returning inactive signal")
         
         print(f"[STEALTH DEBUG] dex_inflow result for {symbol}: active={active}, strength={strength}")
         return StealthSignal("dex_inflow", active, strength)
@@ -306,11 +313,14 @@ class StealthSignalDetector:
         candles_15m = token_data.get('candles_15m', [])
         volume_24h = token_data.get('volume_24h', 0)
         
-        # 🔍 DEBUG: Szczegółowe debugowanie volume spike
+        # 🔍 DEBUG: Szczegółowe debugowanie volume spike + FIX 2 validation
         print(f"[STEALTH DEBUG] volume_spike for {symbol}: candles_15m={len(candles_15m)}, volume_24h={volume_24h}")
+        print(f"[STEALTH INPUT] volume_spike received candles_15m with {len(candles_15m)} entries")
         
+        # 🛡️ FIX 2: Enhanced data validation - pokazuj szczegóły
         if len(candles_15m) < 4:
             print(f"[STEALTH DEBUG] volume_spike for {symbol}: insufficient candle data ({len(candles_15m)}/4)")
+            print(f"[STEALTH DEBUG] volume_spike DIAGNOSTIC for {symbol}: candles_15m type={type(candles_15m)}, content preview={str(candles_15m)[:200]}...")
             return StealthSignal("volume_spike", False, 0.0)
         
         try:
