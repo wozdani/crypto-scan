@@ -66,7 +66,7 @@ class StealthFeedbackSystem:
         """Upewnij się że wymagane katalogi istnieją"""
         os.makedirs(self.feedback_dir, exist_ok=True)
     
-    async def log_prediction(self, stealth_result, market_data: Dict) -> str:
+    def log_prediction(self, stealth_result, market_data: Dict) -> str:
         """
         Zaloguj predykcję do systemu feedback
         

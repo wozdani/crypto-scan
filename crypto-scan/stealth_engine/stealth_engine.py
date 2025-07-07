@@ -17,7 +17,7 @@ from dataclasses import dataclass
 import json
 import os
 
-from .stealth_signals import StealthSignalDetector
+from .stealth_signals import StealthSignalDetector, StealthSignal
 from .stealth_weights import StealthWeightManager
 from .stealth_feedback import StealthFeedbackSystem
 
@@ -116,7 +116,7 @@ class StealthEngine:
             )
             
             # KROK 6: Logging dla feedback loop
-            await self.feedback_system.log_prediction(result, market_data)
+            self.feedback_system.log_prediction(result, market_data)
             
             elapsed = time.time() - start_time
             print(f"[STEALTH] {symbol}: score={stealth_score:.3f} ({decision}) in {elapsed:.3f}s")
@@ -255,6 +255,71 @@ class StealthEngine:
                 print(f"[STEALTH] Updated {len(updated_weights)} weights from feedback")
         except Exception as e:
             print(f"[STEALTH FEEDBACK ERROR] {e}")
+    
+    async def analyze_token_stealth_v2(self, symbol: str, market_data: Dict) -> Optional[StealthResult]:
+        """
+        Analizuj token używając nowej architektury StealthSignal
+        Implementuje specyfikację użytkownika z funkcją get_active_stealth_signals
+        
+        Args:
+            symbol: Symbol tokena
+            market_data: Dane rynkowe
+            
+        Returns:
+            StealthResult lub None jeśli błąd
+        """
+        start_time = time.time()
+        
+        try:
+            # Użyj nowej funkcji get_active_stealth_signals
+            stealth_signals = self.signal_detector.get_active_stealth_signals(market_data)
+            # Konwertuj StealthSignal do formatu używanego przez calculate_stealth_score
+            signals_dict = []
+            for sig in stealth_signals:
+                if hasattr(sig, 'name') and hasattr(sig, 'active') and hasattr(sig, 'strength'):
+                    signals_dict.append({
+                        'signal_name': sig.name,
+                        'active': sig.active,
+                        'strength': sig.strength,
+                        'details': f'Stealth signal strength: {sig.strength:.3f}'
+                    })
+            
+            # Oblicz stealth score
+            stealth_score, signal_breakdown = self.calculate_stealth_score(signals_dict)
+            
+            # Podejmij decyzję
+            decision, confidence = self.make_decision(stealth_score, signals_dict)
+            
+            # Risk assessment
+            risk_assessment = self.assess_risk(signals_dict, stealth_score)
+            
+            # Lista aktywnych sygnałów
+            active_signals = [sig.name for sig in stealth_signals if sig.active]
+            
+            # Utwórz StealthResult
+            result = StealthResult(
+                symbol=symbol,
+                stealth_score=stealth_score,
+                decision=decision,
+                confidence=confidence,
+                active_signals=active_signals,
+                signal_breakdown=signal_breakdown,
+                risk_assessment=risk_assessment,
+                timestamp=time.time()
+            )
+            
+            # Log to feedback system
+            if decision in ['enter', 'wait'] and stealth_score > 0.3:
+                self.feedback_system.log_prediction(result, market_data)
+            
+            analysis_time = time.time() - start_time
+            print(f"[STEALTH v2] {symbol}: score={stealth_score:.3f} ({decision}) in {analysis_time:.3f}s")
+            
+            return result
+            
+        except Exception as e:
+            print(f"[STEALTH v2 ERROR] {symbol}: {e}")
+            return None
     
     def get_engine_stats(self) -> Dict:
         """Pobierz statystyki silnika"""

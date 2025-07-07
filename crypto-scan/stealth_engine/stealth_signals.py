@@ -16,6 +16,17 @@ import statistics
 import time
 
 
+class StealthSignal:
+    """
+    Klasa reprezentująca pojedynczy sygnał stealth
+    Zgodnie ze specyfikacją użytkownika
+    """
+    def __init__(self, name: str, active: bool, strength: float = 1.0):
+        self.name = name
+        self.active = active
+        self.strength = strength if active else 0.0
+
+
 class StealthSignalDetector:
     """
     Detektor sygnałów stealth pre-pump
@@ -96,6 +107,199 @@ class StealthSignalDetector:
         
         print(f"[STEALTH SIGNALS] Initialized {len(self.signal_definitions)} signal definitions")
     
+    def get_active_stealth_signals(self, token_data: Dict) -> List[StealthSignal]:
+        """
+        Funkcja główna wykrywająca aktywne sygnały stealth
+        Zgodnie ze specyfikacją użytkownika
+        """
+        signals = []
+        
+        # Dodaj wszystkie detektory zgodnie ze specyfikacją
+        signals.append(self.check_whale_ping(token_data))
+        signals.append(self.check_spoofing_layers(token_data))
+        signals.append(self.check_volume_slope(token_data))
+        signals.append(self.check_ghost_orders(token_data))
+        signals.append(self.check_dex_inflow(token_data))
+        signals.append(self.check_event_tag(token_data))
+        
+        # Dodaj podstawowe detektory z istniejącej implementacji
+        signals.append(self.check_orderbook_imbalance_stealth(token_data))
+        signals.append(self.check_large_bid_walls_stealth(token_data))
+        signals.append(self.check_ask_wall_removal(token_data))
+        signals.append(self.check_volume_spike_stealth(token_data))
+        signals.append(self.check_bid_ask_spread_tightening_stealth(token_data))
+        signals.append(self.check_liquidity_absorption(token_data))
+        
+        return signals
+    
+    def check_whale_ping(self, token_data: Dict) -> StealthSignal:
+        """
+        Wykrycie whale ping - duże bidy znikające w <3s
+        """
+        active = token_data.get("orderbook_anomaly", False)
+        strength = 1.0 if active else 0.0
+        return StealthSignal("whale_ping", active, strength)
+    
+    def check_spoofing_layers(self, token_data: Dict) -> StealthSignal:
+        """
+        Wykrycie warstw spoofing - ≥3 warstwy bidów blisko siebie
+        """
+        active = token_data.get("spoofing_suspected", False)
+        strength = 0.9 if active else 0.0
+        return StealthSignal("spoofing_layers", active, strength)
+    
+    def check_volume_slope(self, token_data: Dict) -> StealthSignal:
+        """
+        Wolumen rosnący bez zmiany ceny
+        """
+        slope = token_data.get("volume_slope_up", False)
+        return StealthSignal("volume_slope", slope, 1.0 if slope else 0.0)
+    
+    def check_ghost_orders(self, token_data: Dict) -> StealthSignal:
+        """
+        Martwe poziomy z nietypową aktywnością
+        """
+        ghost = token_data.get("ghost_orders", False)
+        return StealthSignal("ghost_orders", ghost, 1.0 if ghost else 0.0)
+    
+    def check_dex_inflow(self, token_data: Dict) -> StealthSignal:
+        """
+        DEX inflow detection
+        """
+        inflow = token_data.get("dex_inflow", False)
+        return StealthSignal("dex_inflow", inflow, 1.0 if inflow else 0.0)
+    
+    def check_event_tag(self, token_data: Dict) -> StealthSignal:
+        """
+        Event tag detection - unlock tokenów / airdrop
+        """
+        tag = token_data.get("event_tag", None)
+        return StealthSignal("event_tag", tag is not None, 1.0 if tag else 0.0)
+    
+    def check_orderbook_imbalance_stealth(self, token_data: Dict) -> StealthSignal:
+        """
+        Sprawdź asymetrię orderbook - wersja stealth
+        """
+        orderbook = token_data.get('orderbook', {})
+        bids = orderbook.get('bids', [])
+        asks = orderbook.get('asks', [])
+        
+        if not bids or not asks:
+            return StealthSignal("orderbook_imbalance", False, 0.0)
+        
+        try:
+            # Oblicz siłę bid vs ask
+            bid_strength = sum(float(bid[1]) for bid in bids[:5])
+            ask_strength = sum(float(ask[1]) for ask in asks[:5])
+            
+            if bid_strength + ask_strength == 0:
+                return StealthSignal("orderbook_imbalance", False, 0.0)
+            
+            imbalance_ratio = abs(bid_strength - ask_strength) / (bid_strength + ask_strength)
+            active = imbalance_ratio > 0.6  # 60% threshold
+            strength = min(imbalance_ratio, 1.0)
+            
+            return StealthSignal("orderbook_imbalance", active, strength)
+        except:
+            return StealthSignal("orderbook_imbalance", False, 0.0)
+    
+    def check_large_bid_walls_stealth(self, token_data: Dict) -> StealthSignal:
+        """
+        Wykryj duże mury bid wspierające cenę - wersja stealth
+        """
+        orderbook = token_data.get('orderbook', {})
+        bids = orderbook.get('bids', [])
+        
+        if len(bids) < 3:
+            return StealthSignal("large_bid_walls", False, 0.0)
+        
+        try:
+            # Sprawdź czy są duże bidy w top 3 poziomach
+            large_bids = sum(1 for bid in bids[:3] if float(bid[1]) > 10.0)
+            active = large_bids >= 2
+            strength = large_bids / 3.0
+            
+            return StealthSignal("large_bid_walls", active, strength)
+        except:
+            return StealthSignal("large_bid_walls", False, 0.0)
+    
+    def check_ask_wall_removal(self, token_data: Dict) -> StealthSignal:
+        """
+        Wykryj usunięcie murów ask (placeholder - wymaga historycznych danych)
+        """
+        # Placeholder - w rzeczywistości potrzebne są dane historyczne orderbook
+        active = token_data.get("ask_walls_removed", False)
+        return StealthSignal("ask_wall_removal", active, 1.0 if active else 0.0)
+    
+    def check_volume_spike_stealth(self, token_data: Dict) -> StealthSignal:
+        """
+        Wykryj spike w wolumenie - wersja stealth
+        """
+        candles_15m = token_data.get('candles_15m', [])
+        
+        if len(candles_15m) < 4:
+            return StealthSignal("volume_spike", False, 0.0)
+        
+        try:
+            # Porównaj ostatni wolumen z średnią z 3 poprzednich
+            recent_volumes = []
+            for candle in candles_15m[-4:]:
+                if isinstance(candle, dict):
+                    volume = candle.get('volume', 0)
+                else:
+                    volume = candle[5] if len(candle) > 5 else 0
+                recent_volumes.append(float(volume))
+            
+            current_volume = recent_volumes[-1]
+            avg_volume = sum(recent_volumes[:-1]) / 3
+            
+            if avg_volume == 0:
+                return StealthSignal("volume_spike", False, 0.0)
+            
+            volume_ratio = current_volume / avg_volume
+            active = volume_ratio > 2.0  # 200% wzrost
+            strength = min(volume_ratio / 3.0, 1.0)  # Scale 0-1
+            
+            return StealthSignal("volume_spike", active, strength)
+        except:
+            return StealthSignal("volume_spike", False, 0.0)
+    
+    def check_bid_ask_spread_tightening_stealth(self, token_data: Dict) -> StealthSignal:
+        """
+        Wykryj zwężenie spreadu bid-ask - wersja stealth
+        """
+        orderbook = token_data.get('orderbook', {})
+        bids = orderbook.get('bids', [])
+        asks = orderbook.get('asks', [])
+        
+        if not bids or not asks:
+            return StealthSignal("bid_ask_spread_tightening", False, 0.0)
+        
+        try:
+            best_bid = float(bids[0][0])
+            best_ask = float(asks[0][0])
+            
+            if best_bid == 0:
+                return StealthSignal("bid_ask_spread_tightening", False, 0.0)
+            
+            spread_percentage = (best_ask - best_bid) / best_bid * 100
+            
+            # Tight spread < 0.1%
+            active = spread_percentage < 0.1
+            strength = max(0.0, (0.1 - spread_percentage) / 0.1) if active else 0.0
+            
+            return StealthSignal("bid_ask_spread_tightening", active, strength)
+        except:
+            return StealthSignal("bid_ask_spread_tightening", False, 0.0)
+    
+    def check_liquidity_absorption(self, token_data: Dict) -> StealthSignal:
+        """
+        Wykryj absorpcję płynności (placeholder)
+        """
+        # Placeholder - wymaga analizy zmian w orderbook
+        active = token_data.get("liquidity_absorbed", False)
+        return StealthSignal("liquidity_absorption", active, 1.0 if active else 0.0)
+
     async def detect_all_signals(self, symbol: str, market_data: Dict) -> List[Dict]:
         """
         Wykryj wszystkie sygnały stealth dla tokena
