@@ -66,6 +66,53 @@ class TJDEv3Pipeline:
         os.makedirs(self.clip_predictions_dir, exist_ok=True)
         os.makedirs("training_data/charts", exist_ok=True)
         
+    def generate_htf_candles_from_15m(self, candles_15m: List) -> List:
+        """
+        Generate Higher Time Frame (1H) candles from 15M candles
+        
+        Args:
+            candles_15m: List of 15-minute candles
+            
+        Returns:
+            List of 1-hour candles
+        """
+        try:
+            if not candles_15m or len(candles_15m) < 4:
+                return []
+            
+            htf_candles = []
+            
+            # Group 15M candles into 1H periods (4 x 15M = 1H)
+            for i in range(0, len(candles_15m) - 3, 4):
+                chunk = candles_15m[i:i+4]
+                
+                if len(chunk) == 4:
+                    # Extract OHLC data from 4x15M candles
+                    opens = [c[1] if isinstance(c, list) else c.get('open', 0) for c in chunk]
+                    highs = [c[2] if isinstance(c, list) else c.get('high', 0) for c in chunk]
+                    lows = [c[3] if isinstance(c, list) else c.get('low', 0) for c in chunk]
+                    closes = [c[4] if isinstance(c, list) else c.get('close', 0) for c in chunk]
+                    volumes = [c[5] if isinstance(c, list) else c.get('volume', 0) for c in chunk]
+                    
+                    # Create 1H candle: Open of first, High of max, Low of min, Close of last
+                    htf_candle = {
+                        'timestamp': chunk[0][0] if isinstance(chunk[0], list) else chunk[0].get('timestamp', 0),
+                        'open': opens[0],
+                        'high': max(highs),
+                        'low': min(lows),
+                        'close': closes[-1],
+                        'volume': sum(volumes),
+                        'timeframe': '1H'
+                    }
+                    
+                    htf_candles.append(htf_candle)
+            
+            return htf_candles
+            
+        except Exception as e:
+            print(f"[HTF GENERATION ERROR] {e}")
+            return []
+        
     async def fetch_real_market_data(self, symbol: str, session: aiohttp.ClientSession = None) -> Optional[Dict]:
         """
         Fetch real market data from Bybit API for TJDE v3 Phase 1
@@ -345,6 +392,16 @@ class TJDEv3Pipeline:
                 else:
                     token_data['chart_captured'] = False
                     print(f"[CHART FAIL] {symbol}: Chart capture failed")
+                
+                # CRITICAL: Generate HTF candles as required by logic
+                candles_15m = token_data['market_data'].get('candles_15m', [])
+                if candles_15m and len(candles_15m) >= 4:  # Need at least 4x15M for 1x1H
+                    htf_candles = self.generate_htf_candles_from_15m(candles_15m)
+                    token_data['htf_candles'] = htf_candles
+                    print(f"[HTF OK] {symbol}: Generated {len(htf_candles)} HTF candles")
+                else:
+                    token_data['htf_candles'] = []
+                    print(f"[HTF SKIP] {symbol}: Insufficient 15M data for HTF generation")
                     
                 enhanced_tokens.append(token_data)
                 
@@ -362,13 +419,30 @@ class TJDEv3Pipeline:
     async def capture_single_chart(self, symbol: str, score: float) -> Optional[str]:
         """Capture single chart using TradingView"""
         try:
-            # Simplified chart generation for testing
-            chart_filename = f"{symbol}_BYBIT_score-{int(score*1000):03d}_{datetime.now().strftime('%Y%m%d_%H%M')}.png"
-            chart_path = f"training_data/charts/{chart_filename}"
+            # INTEGRATION WITH REAL TRADINGVIEW SYSTEM
+            from utils.robust_tradingview import generate_chart_async_safe
             
-            # For now, create a placeholder path (actual chart generation would happen here)
-            # This will be integrated with real TradingView generation later
-            return chart_path
+            print(f"[CHART CAPTURE] {symbol}: Initiating TradingView screenshot...")
+            
+            # Generate real chart using TradingView system
+            chart_result = await generate_chart_async_safe(
+                symbol=symbol,
+                score=score,
+                decision='consider',
+                priority=1  # High priority for TOP 20 tokens
+            )
+            
+            if chart_result and chart_result.get('success'):
+                chart_path = chart_result.get('chart_path')
+                if chart_path and os.path.exists(chart_path):
+                    print(f"[CHART SUCCESS] {symbol}: {os.path.basename(chart_path)}")
+                    return chart_path
+                else:
+                    print(f"[CHART ERROR] {symbol}: Generated path does not exist")
+                    return None
+            else:
+                print(f"[CHART FAILED] {symbol}: TradingView generation failed")
+                return None
             
         except Exception as e:
             print(f"[CHART CAPTURE ERROR] {symbol}: {e}")
@@ -426,28 +500,50 @@ class TJDEv3Pipeline:
     async def run_clip_prediction(self, symbol: str, chart_path: str) -> Optional[Dict]:
         """Run CLIP prediction on chart"""
         try:
-            # For testing - simplified CLIP prediction
-            # This will be enhanced with real CLIP model later
-            test_labels = ['breakout_pattern', 'trend_continuation', 'pullback_in_trend', 
-                          'momentum_follow', 'consolidation', 'unknown']
+            # INTEGRATION WITH REAL CLIP VISION-AI SYSTEM
+            from vision.label_with_clip import label_with_clip
             
-            # Simple pattern based on symbol characteristics for testing
-            import random
-            random.seed(hash(symbol) % 1000)  # Deterministic for same symbol
+            print(f"[CLIP INFERENCE] {symbol}: Analyzing chart with Vision-AI...")
             
-            label = random.choice(test_labels)
-            confidence = random.uniform(0.3, 0.9)
+            if not chart_path or not os.path.exists(chart_path):
+                print(f"[CLIP ERROR] {symbol}: Chart path invalid or missing")
+                return None
             
-            return {
-                'label': label,
-                'confidence': confidence,
-                'method': 'test_fallback',
-                'timestamp': datetime.now().isoformat()
-            }
+            # Run CLIP Vision-AI analysis on captured chart
+            clip_result = await label_with_clip(chart_path, symbol)
+            
+            if clip_result and 'label' in clip_result:
+                label = clip_result['label']
+                confidence = clip_result.get('confidence', 0.0)
+                
+                print(f"[CLIP SUCCESS] {symbol}: {label} (confidence: {confidence:.3f})")
+                
+                return {
+                    'label': label,
+                    'confidence': confidence,
+                    'method': 'clip_vision_ai',
+                    'timestamp': datetime.now().isoformat(),
+                    'chart_analyzed': chart_path
+                }
+            else:
+                print(f"[CLIP FAILED] {symbol}: No label extracted from Vision-AI")
+                return {
+                    'label': 'unknown',
+                    'confidence': 0.0,
+                    'method': 'clip_failed',
+                    'timestamp': datetime.now().isoformat()
+                }
             
         except Exception as e:
             print(f"[CLIP PREDICTION ERROR] {symbol}: {e}")
-            return None
+            # Return fallback instead of None to maintain pipeline flow
+            return {
+                'label': 'unknown',
+                'confidence': 0.0,
+                'method': 'clip_error',
+                'error': str(e),
+                'timestamp': datetime.now().isoformat()
+            }
             
     def save_clip_cache(self, symbol: str, clip_result: Dict):
         """Save CLIP prediction to cache"""
