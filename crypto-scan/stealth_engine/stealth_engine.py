@@ -426,9 +426,21 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         
         score = 0.0
         used_signals = []
+        total_signals = len(signals)
+        available_signals = 0  # Sygnały z danymi (niezależnie od aktywności)
         
-        # Oblicz score tylko z aktywnych sygnałów
+        # Oblicz score tylko z aktywnych sygnałów + liczenie dostępności
         for signal in signals:
+            # Sprawdź czy sygnał ma dane (nie jest placeholder)
+            has_data = True
+            if signal.name in ['dex_inflow'] and not token_data.get('dex_inflow'):
+                has_data = False
+            elif signal.name in ['spoofing_layers', 'large_bid_walls', 'orderbook_imbalance'] and not token_data.get('orderbook'):
+                has_data = False
+            
+            if has_data:
+                available_signals += 1
+            
             if hasattr(signal, 'active') and signal.active:
                 # Pobierz wagę dla tego sygnału (fallback na 1.0)
                 weight = weights.get(signal.name, 1.0)
@@ -442,13 +454,33 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 if signal.strength > 0:
                     print(f"[STEALTH] Signal {signal.name}: strength={signal.strength:.3f}, weight={weight:.3f}, contribution=+{contribution:.3f}")
         
-        # 🎯 LOG: Finalna decyzja scoringowa
+        # 🧠 PARTIAL SCORING MECHANISM - zgodnie z user request
+        data_coverage = available_signals / total_signals if total_signals > 0 else 0
+        
+        # Jeśli mało danych dostępnych (≤50%), zastosuj scaling
+        if data_coverage <= 0.5 and available_signals >= 3:
+            # Proporcjonalne przeliczenie - scale up score based on data coverage
+            scaling_factor = min(2.0, 1.0 / data_coverage) if data_coverage > 0 else 1.0
+            original_score = score
+            score = score * scaling_factor
+            print(f"[STEALTH PARTIAL] {symbol}: Low data coverage ({data_coverage:.1%}), scaling {original_score:.3f} → {score:.3f} (factor: {scaling_factor:.2f})")
+        
+        # Dodaj minimalny baseline score jeśli wykryto jakiekolwiek pozytywne sygnały
+        if len(used_signals) > 0 and score < 0.5:
+            baseline_bonus = 0.3 * len(used_signals) / total_signals
+            score += baseline_bonus
+            print(f"[STEALTH PARTIAL] {symbol}: Added baseline bonus +{baseline_bonus:.3f} for {len(used_signals)} active signals")
+        
+        # 🎯 LOG: Finalna decyzja scoringowa z informacją o partial
         decision = "strong" if score >= 3.0 else "weak" if score >= 1.0 else "none"
-        print(f"[STEALTH] Final signal for {symbol} → Score: {score:.3f}, Decision: {decision}, Active: {len(used_signals)} signals")
+        partial_note = f" (partial: {available_signals}/{total_signals} signals)" if data_coverage < 0.8 else ""
+        print(f"[STEALTH] Final signal for {symbol} → Score: {score:.3f}, Decision: {decision}, Active: {len(used_signals)} signals{partial_note}")
         
         return {
             "score": round(score, 3),
-            "active_signals": used_signals
+            "active_signals": used_signals,
+            "data_coverage": round(data_coverage, 2),
+            "partial_scoring": data_coverage < 0.8
         }
         
     except Exception as e:
