@@ -376,14 +376,33 @@ class StealthSignalDetector:
             return StealthSignal("orderbook_imbalance", False, 0.0)
         
         try:
-            # Handle different orderbook formats (list vs dict)
+            # Handle different orderbook formats (list vs dict) with safe processing
             if isinstance(bids, dict):
-                bids_list = [bids[key] for key in sorted(bids.keys(), key=lambda x: float(x) if x.isdigit() else 0, reverse=True)]
-                bids = bids_list
+                try:
+                    bids_list = []
+                    for key in sorted(bids.keys(), key=lambda x: float(x) if str(x).replace('.','').isdigit() else 0, reverse=True):
+                        if isinstance(bids[key], list) and len(bids[key]) >= 2:
+                            bids_list.append(bids[key])
+                    bids = bids_list if bids_list else []
+                except Exception as e:
+                    print(f"[STEALTH DEBUG] orderbook_imbalance bids conversion error for {symbol}: {e}")
+                    bids = []
             
             if isinstance(asks, dict):
-                asks_list = [asks[key] for key in sorted(asks.keys(), key=lambda x: float(x) if x.isdigit() else 0)]
-                asks = asks_list
+                try:
+                    asks_list = []
+                    for key in sorted(asks.keys(), key=lambda x: float(x) if str(x).replace('.','').isdigit() else 0):
+                        if isinstance(asks[key], list) and len(asks[key]) >= 2:
+                            asks_list.append(asks[key])
+                    asks = asks_list if asks_list else []
+                except Exception as e:
+                    print(f"[STEALTH DEBUG] orderbook_imbalance asks conversion error for {symbol}: {e}")
+                    asks = []
+            
+            # Verify we have valid data after conversion
+            if not bids or not asks:
+                print(f"[STEALTH DEBUG] orderbook_imbalance for {symbol}: no valid bids/asks after conversion")
+                return StealthSignal("orderbook_imbalance", False, 0.0)
             
             # Oblicz siłę bid vs ask
             bid_strength = sum(float(bid[1]) for bid in bids[:5])
@@ -502,6 +521,36 @@ class StealthSignalDetector:
             return StealthSignal("bid_ask_spread_tightening", False, 0.0)
         
         try:
+            # Handle different orderbook formats (list vs dict) with safe processing
+            symbol = token_data.get("symbol", "UNKNOWN")
+            
+            if isinstance(bids, dict):
+                try:
+                    bids_list = []
+                    for key in sorted(bids.keys(), key=lambda x: float(x) if str(x).replace('.','').isdigit() else 0, reverse=True):
+                        if isinstance(bids[key], list) and len(bids[key]) >= 2:
+                            bids_list.append(bids[key])
+                    bids = bids_list if bids_list else []
+                except Exception as e:
+                    print(f"[STEALTH DEBUG] spread_tightening bids conversion error for {symbol}: {e}")
+                    bids = []
+            
+            if isinstance(asks, dict):
+                try:
+                    asks_list = []
+                    for key in sorted(asks.keys(), key=lambda x: float(x) if str(x).replace('.','').isdigit() else 0):
+                        if isinstance(asks[key], list) and len(asks[key]) >= 2:
+                            asks_list.append(asks[key])
+                    asks = asks_list if asks_list else []
+                except Exception as e:
+                    print(f"[STEALTH DEBUG] spread_tightening asks conversion error for {symbol}: {e}")
+                    asks = []
+            
+            # Verify we have valid data after conversion
+            if not bids or not asks:
+                print(f"[STEALTH DEBUG] spread_tightening for {symbol}: no valid bids/asks after conversion")
+                return StealthSignal("bid_ask_spread_tightening", False, 0.0)
+            
             best_bid = float(bids[0][0])
             best_ask = float(asks[0][0])
             
@@ -515,7 +564,9 @@ class StealthSignalDetector:
             strength = max(0.0, (0.1 - spread_percentage) / 0.1) if active else 0.0
             
             return StealthSignal("bid_ask_spread_tightening", active, strength)
-        except:
+        except Exception as e:
+            symbol = token_data.get("symbol", "UNKNOWN") 
+            print(f"[STEALTH DEBUG] spread_tightening error for {symbol}: {e}")
             return StealthSignal("bid_ask_spread_tightening", False, 0.0)
     
     def check_liquidity_absorption(self, token_data: Dict) -> StealthSignal:
@@ -544,16 +595,33 @@ class StealthSignalDetector:
             return StealthSignal("orderbook_anomaly", False, 0.0)
         
         try:
-            # Handle different orderbook formats (list vs dict)
+            # Handle different orderbook formats (list vs dict) with safe processing
             if isinstance(bids, dict):
-                # Convert dict format to list format
-                bids_list = [bids[key] for key in sorted(bids.keys(), key=lambda x: float(x) if x.isdigit() else 0, reverse=True)]
-                bids = bids_list
+                try:
+                    bids_list = []
+                    for key in sorted(bids.keys(), key=lambda x: float(x) if str(x).replace('.','').isdigit() else 0, reverse=True):
+                        if isinstance(bids[key], list) and len(bids[key]) >= 2:
+                            bids_list.append(bids[key])
+                    bids = bids_list if bids_list else []
+                except Exception as e:
+                    print(f"[STEALTH DEBUG] orderbook_anomaly bids conversion error for {symbol}: {e}")
+                    bids = []
             
             if isinstance(asks, dict):
-                # Convert dict format to list format
-                asks_list = [asks[key] for key in sorted(asks.keys(), key=lambda x: float(x) if x.isdigit() else 0)]
-                asks = asks_list
+                try:
+                    asks_list = []
+                    for key in sorted(asks.keys(), key=lambda x: float(x) if str(x).replace('.','').isdigit() else 0):
+                        if isinstance(asks[key], list) and len(asks[key]) >= 2:
+                            asks_list.append(asks[key])
+                    asks = asks_list if asks_list else []
+                except Exception as e:
+                    print(f"[STEALTH DEBUG] orderbook_anomaly asks conversion error for {symbol}: {e}")
+                    asks = []
+            
+            # Verify we have valid data after conversion
+            if not bids or not asks:
+                print(f"[STEALTH DEBUG] orderbook_anomaly for {symbol}: no valid bids/asks after conversion")
+                return StealthSignal("orderbook_anomaly", False, 0.0)
             
             # Oblicz spread_pct i imbalance_pct zgodnie ze specyfikacją
             bid_price = float(bids[0][0])
