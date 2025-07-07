@@ -355,3 +355,127 @@ async def analyze_token_stealth(symbol: str, market_data: Dict) -> Optional[Stea
     """
     engine = get_stealth_engine()
     return await engine.analyze_token(symbol, market_data)
+
+
+def compute_stealth_score(token_data: Dict) -> Dict:
+    """
+    🎯 GŁÓWNA FUNKCJA FINALIZACJI SCORE - zgodnie z user specification
+    
+    Finalne wyliczenie score dla tokena na podstawie aktywnych sygnałów Stealth 
+    oraz aktualnych wag (uczących się przez feedback loop).
+    
+    Nie używamy wykresu — to "ślepy" skaner oparty na otoczeniu rynku.
+    
+    Args:
+        token_data: Dane rynkowe tokena (orderbook, volume, DEX, etc.)
+        
+    Returns:
+        dict: {
+            "score": float,       # Zsumowany score z aktywnych sygnałów
+            "active_signals": list  # Lista nazw aktywnych sygnałów
+        }
+    """
+    try:
+        # Import lokalny aby uniknąć circular imports
+        from .stealth_signals import StealthSignalDetector
+        from .stealth_weights import load_weights
+        
+        # Utwórz detektor sygnałów
+        detector = StealthSignalDetector()
+        
+        # Pobierz aktywne sygnały z detektorów (zgodnie z user specification)
+        signals = detector.get_active_stealth_signals(token_data)
+        
+        # Załaduj aktualne wagi (mogą być dostrojone przez feedback loop)
+        weights = load_weights()
+        
+        score = 0.0
+        used_signals = []
+        
+        # Oblicz score tylko z aktywnych sygnałów
+        for signal in signals:
+            if hasattr(signal, 'active') and signal.active:
+                # Pobierz wagę dla tego sygnału (fallback na 1.0)
+                weight = weights.get(signal.name, 1.0)
+                
+                # Wkład sygnału = waga * siła sygnału
+                contribution = weight * signal.strength
+                score += contribution
+                used_signals.append(signal.name)
+        
+        return {
+            "score": round(score, 3),
+            "active_signals": used_signals
+        }
+        
+    except Exception as e:
+        print(f"[COMPUTE STEALTH SCORE ERROR] {e}")
+        return {
+            "score": 0.0,
+            "active_signals": []
+        }
+
+
+def classify_stealth_alert(stealth_score: float) -> Optional[str]:
+    """
+    🚨 KLASYFIKACJA ALERTÓW - zgodnie z user specification
+    
+    Określa typ alertu na podstawie stealth score:
+    - strong_stealth_alert: score > 4.0
+    - medium_alert: score > 2.5  
+    - None: score <= 2.5
+    
+    Args:
+        stealth_score: Score z compute_stealth_score()
+        
+    Returns:
+        str lub None: Typ alertu
+    """
+    if stealth_score > 4.0:
+        return "strong_stealth_alert"
+    elif stealth_score > 2.5:
+        return "medium_alert"
+    else:
+        return None
+
+
+def analyze_token_with_stealth_score(symbol: str, token_data: Dict) -> Dict:
+    """
+    🔍 KOMPLETNA ANALIZA TOKENA - convenience function
+    
+    Łączy compute_stealth_score() z klasyfikacją alertów
+    
+    Args:
+        symbol: Symbol tokena
+        token_data: Dane rynkowe
+        
+    Returns:
+        dict: Kompletny wynik analizy Stealth
+    """
+    try:
+        # Oblicz stealth score
+        stealth_result = compute_stealth_score(token_data)
+        
+        # Klasyfikuj alert
+        alert_type = classify_stealth_alert(stealth_result["score"])
+        
+        return {
+            "symbol": symbol,
+            "stealth_score": stealth_result["score"], 
+            "active_signals": stealth_result["active_signals"],
+            "alert_type": alert_type,
+            "signal_count": len(stealth_result["active_signals"]),
+            "timestamp": time.time()
+        }
+        
+    except Exception as e:
+        print(f"[STEALTH ANALYSIS ERROR] {symbol}: {e}")
+        return {
+            "symbol": symbol,
+            "stealth_score": 0.0,
+            "active_signals": [],
+            "alert_type": None,
+            "signal_count": 0,
+            "timestamp": time.time(),
+            "error": str(e)
+        }
