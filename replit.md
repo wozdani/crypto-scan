@@ -108,6 +108,9 @@ Successfully resolved all critical production issues identified in FILUSDT token
 - **Signal-by-Signal Diagnostics**: Each stealth signal now logs input validation, threshold analysis, and decision reasoning for complete transparency
 - **Production Test Suite**: Created comprehensive test framework validating all 4 critical fixes with 100% success rate across multiple data scenarios
 - **Enhanced Error Prevention**: System now handles missing orderbook, insufficient candle data, and null DEX inflow gracefully without scoring pipeline failures
+- **Critical Data Passing Fix**: Resolved fundamental bug where candles_15m and candles_5m were not being passed to stealth_token_data in scan_token_async.py causing all tokens to receive 0 candles despite successful data fetching
+- **Volume Spike Detection Restored**: Fixed volume_spike function receiving empty candle arrays (0/4) instead of populated data (96+ candles) enabling authentic market microstructure analysis
+- **Production Data Pipeline**: Complete data flow validation from async fetching → market_data → stealth_token_data → compute_stealth_score ensuring no data loss in pipeline
 System eliminates fundamental production issues ensuring reliable STEALTH analysis with authentic market data while providing institutional-grade diagnostic capabilities for troubleshooting.
 
 ### July 7, 2025 - STEALTH ENGINE v2 PRODUCTION INTEGRATION COMPLETE - Live Market Analysis Operational ✅

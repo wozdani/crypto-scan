@@ -385,19 +385,31 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             try:
                 print(f"[STEALTH ENGINE] {symbol} → Analyzing stealth signals...")
                 
-                # Przygotuj dane dla Stealth Engine zgodnie z checklistą
+                # 🔍 FIX: Dodaj debugowanie przed przekazaniem do STEALTH
+                print(f"[STEALTH DATA PREP] {symbol} → Preparing data for STEALTH engine...")
+                print(f"[STEALTH DATA PREP] {symbol} → market_data keys: {list(market_data.keys())}")
+                print(f"[STEALTH DATA PREP] {symbol} → candles_15m in market_data: {len(market_data.get('candles_15m', []))}")
+                print(f"[STEALTH DATA PREP] {symbol} → candles_5m in market_data: {len(market_data.get('candles_5m', []))}")
+                
+                # Przygotuj dane dla Stealth Engine zgodnie z checklistą + FIX: dodaj candles
                 stealth_token_data = {
                     "symbol": symbol,
                     "price": price,
                     "volume_24h": volume_24h,
                     "price_change_24h": price_change_24h,
                     "orderbook": market_data.get("orderbook", {}),
+                    "candles_15m": market_data.get("candles_15m", []),  # FIX: Dodane brakujące pole
+                    "candles_5m": market_data.get("candles_5m", []),    # FIX: Dodane brakujące pole
                     "recent_volumes": market_data.get("recent_volumes", []),
                     "dex_inflow": market_data.get("dex_inflow", 0),
                     "spread": market_data.get("spread", 0),
                     "bid_ask_data": market_data.get("bid_ask_data", {}),
                     "volume_profile": market_data.get("volume_profile", [])
                 }
+                
+                # Debug final data przekazane do STEALTH
+                print(f"[STEALTH DATA FINAL] {symbol} → stealth_token_data candles_15m: {len(stealth_token_data['candles_15m'])}")
+                print(f"[STEALTH DATA FINAL] {symbol} → stealth_token_data candles_5m: {len(stealth_token_data['candles_5m'])}")
                 
                 # Wywołaj główny silnik scoringu z debug=True dla pełnego logowania
                 stealth_result = compute_stealth_score(stealth_token_data)
