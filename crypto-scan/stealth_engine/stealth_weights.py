@@ -1,322 +1,241 @@
 """
-Stealth Weight Manager
-Loader i saver wag sygnałów dla Stealth Engine
+Stealth Weights Manager
+Zarządzanie wagami sygnałów dla Stealth Engine
 
-Zarządza wagami sygnałów w pliku JSON i zapewnia
-domyślne wartości przy pierwszym uruchomieniu
+Pozwala na dynamiczną aktualizację wag na podstawie feedback loop
+i skuteczności poszczególnych sygnałów w predykcji rynku
 """
 
 import json
 import os
 from typing import Dict, Optional
-import time
+
+# Ścieżka do pliku wag
+WEIGHTS_PATH = "crypto-scan/cache/stealth_weights.json"
+
+# Domyślne wagi dla wszystkich sygnałów Stealth Engine
+DEFAULT_WEIGHTS = {
+    # Sygnały orderbook
+    "orderbook_imbalance": 0.15,
+    "large_bid_walls": 0.12,
+    "bid_ask_spread_tightening": 0.16,
+    
+    # Sygnały volume
+    "volume_spike": 0.18,
+    "volume_accumulation": 0.14,
+    "volume_slope": 0.17,
+    
+    # Sygnały DEX i whale
+    "dex_inflow": 0.20,
+    "whale_ping": 0.22,
+    
+    # Sygnały mikrostruktury
+    "spoofing_layers": 0.10,
+    "ghost_orders": 0.11,
+    "liquidity_absorption": 0.13,
+    "event_tag": 0.10,
+    
+    # Negatywne sygnały
+    "spoofing_detected": -0.25,
+    "ask_wall_removal": 0.14
+}
+
+def load_weights():
+    """
+    Załaduj wagi sygnałów z pliku JSON
+    
+    Returns:
+        Słownik z wagami sygnałów
+    """
+    if not os.path.exists(WEIGHTS_PATH):
+        # Jeśli plik nie istnieje, utwórz go z domyślnymi wagami
+        save_weights(DEFAULT_WEIGHTS)
+        return DEFAULT_WEIGHTS.copy()
+    
+    try:
+        with open(WEIGHTS_PATH, "r", encoding="utf-8") as f:
+            weights = json.load(f)
+        
+        # Sprawdź czy wszystkie domyślne sygnały są obecne
+        updated = False
+        for signal_name, default_weight in DEFAULT_WEIGHTS.items():
+            if signal_name not in weights:
+                weights[signal_name] = default_weight
+                updated = True
+                print(f"[STEALTH WEIGHTS] Added missing signal: {signal_name} = {default_weight}")
+        
+        # Zapisz zaktualizowane wagi jeśli dodano nowe sygnały
+        if updated:
+            save_weights(weights)
+        
+        print(f"[STEALTH WEIGHTS] Loaded {len(weights)} weights from {WEIGHTS_PATH}")
+        return weights
+        
+    except Exception as e:
+        print(f"[STEALTH WEIGHTS ERROR] Failed to load weights: {e}")
+        print(f"[STEALTH WEIGHTS] Using default weights")
+        return DEFAULT_WEIGHTS.copy()
+
+def save_weights(weights):
+    """
+    Zapisz wagi do pliku JSON
+    
+    Args:
+        weights: Słownik z wagami do zapisania
+        
+    Returns:
+        True jeśli sukces, False w przeciwnym razie
+    """
+    try:
+        # Upewnij się że katalog istnieje
+        os.makedirs(os.path.dirname(WEIGHTS_PATH), exist_ok=True)
+        
+        with open(WEIGHTS_PATH, "w", encoding="utf-8") as f:
+            json.dump(weights, f, indent=2, ensure_ascii=False)
+        
+        print(f"[STEALTH WEIGHTS] Saved {len(weights)} weights to {WEIGHTS_PATH}")
+        return True
+        
+    except Exception as e:
+        print(f"[STEALTH WEIGHTS ERROR] Failed to save weights: {e}")
+        return False
+
+def update_weight(signal_name, delta):
+    """
+    Aktualizuj wagę konkretnego sygnału (używane przez feedback loop)
+    
+    Args:
+        signal_name: Nazwa sygnału
+        delta: Zmiana wagi (może być ujemna)
+        
+    Returns:
+        True jeśli sukces, False w przeciwnym razie
+    """
+    try:
+        weights = load_weights()
+        current = weights.get(signal_name, 1.0)
+        new_weight = current + delta
+        
+        # Nie schodzimy poniżej 0.1 dla pozytywnych sygnałów
+        if signal_name == "spoofing_detected":
+            # Negatywny sygnał - może być od -0.5 do 0.0
+            new_weight = max(-0.5, min(0.0, new_weight))
+        else:
+            # Pozytywne sygnały - minimum 0.1, maksimum 0.5
+            new_weight = max(0.1, min(0.5, new_weight))
+        
+        # Zaokrąglij do 3 miejsc po przecinku
+        weights[signal_name] = round(new_weight, 3)
+        
+        if save_weights(weights):
+            print(f"[STEALTH WEIGHTS] Updated {signal_name}: {current:.3f} → {new_weight:.3f} (Δ{delta:+.3f})")
+            return True
+        
+        return False
+        
+    except Exception as e:
+        print(f"[STEALTH WEIGHTS ERROR] Failed to update {signal_name}: {e}")
+        return False
+
+def get_weight_stats():
+    """
+    Pobierz statystyki wag sygnałów
+    
+    Returns:
+        Słownik ze statystykami
+    """
+    weights = load_weights()
+    
+    positive_weights = {k: v for k, v in weights.items() if v > 0}
+    negative_weights = {k: v for k, v in weights.items() if v < 0}
+    zero_weights = {k: v for k, v in weights.items() if v == 0}
+    
+    return {
+        'total_signals': len(weights),
+        'positive_weights': len(positive_weights),
+        'negative_weights': len(negative_weights),
+        'zero_weights': len(zero_weights),
+        'max_weight': max(weights.values()) if weights else 0,
+        'min_weight': min(weights.values()) if weights else 0,
+        'avg_positive': sum(positive_weights.values()) / len(positive_weights) if positive_weights else 0,
+        'weights_breakdown': weights
+    }
+
+def reset_to_defaults():
+    """
+    Resetuj wszystkie wagi do wartości domyślnych
+    
+    Returns:
+        True jeśli sukces
+    """
+    print("[STEALTH WEIGHTS] Resetting all weights to default values")
+    return save_weights(DEFAULT_WEIGHTS.copy())
+
+def batch_update_weights(weight_updates):
+    """
+    Zaktualizuj wiele wag jednocześnie (feedback loop)
+    
+    Args:
+        weight_updates: Słownik {signal_name: delta}
+        
+    Returns:
+        True jeśli wszystkie aktualizacje się powiodły
+    """
+    success_count = 0
+    
+    for signal_name, delta in weight_updates.items():
+        if update_weight(signal_name, delta):
+            success_count += 1
+    
+    success_rate = success_count / len(weight_updates) if weight_updates else 0
+    print(f"[STEALTH WEIGHTS] Batch update: {success_count}/{len(weight_updates)} successful ({success_rate*100:.1f}%)")
+    
+    return success_rate == 1.0
 
 
+# Klasa dla zaawansowanego zarządzania wagami (backward compatibility)
 class StealthWeightManager:
     """
-    Zarządca wag sygnałów Stealth Engine
-    Ładuje, zapisuje i zarządza wagami w pliku JSON
+    Manager wag sygnałów dla Stealth Engine
+    Obsługuje ładowanie, zapisywanie i aktualizację wag na podstawie feedback
     """
     
-    def __init__(self, config_path: str = "crypto-scan/cache"):
+    def __init__(self, weights_path: str = WEIGHTS_PATH):
         """
-        Inicjalizacja menagera wag
+        Inicjalizacja managera wag
         
         Args:
-            config_path: Ścieżka do katalogu z konfiguracją
+            weights_path: Ścieżka do pliku z wagami
         """
-        self.config_path = config_path
-        self.weights_file = os.path.join(config_path, "stealth_weights.json")
-        self.backup_file = os.path.join(config_path, "stealth_weights_backup.json")
+        self.weights_path = weights_path
         
-        # Domyślne wagi sygnałów
-        self.default_weights = {
-            # ORDERBOOK SIGNALS
-            'orderbook_imbalance': 0.15,
-            'large_bid_walls': 0.12,
-            'ask_wall_removal': 0.18,
-            'spoofing_detected': -0.25,  # Negatywny sygnał
-            
-            # VOLUME SIGNALS
-            'volume_spike': 0.20,
-            'volume_accumulation': 0.14,
-            'unusual_volume_profile': 0.16,
-            
-            # DEX SIGNALS
-            'dex_inflow_spike': 0.22,
-            'whale_accumulation': 0.19,
-            
-            # MICROSTRUCTURE SIGNALS
-            'bid_ask_spread_tightening': 0.10,
-            'order_flow_pressure': 0.13,
-            'liquidity_absorption': 0.17
-        }
+        # Zapewnij katalog
+        os.makedirs(os.path.dirname(self.weights_path), exist_ok=True)
         
-        self.ensure_directory()
+        # Załaduj lub utwórz wagi
+        if not os.path.exists(self.weights_path):
+            save_weights(DEFAULT_WEIGHTS)
     
-    def ensure_directory(self):
-        """Upewnij się że katalog konfiguracji istnieje"""
-        os.makedirs(self.config_path, exist_ok=True)
+    def load_weights(self):
+        """Załaduj wagi z pliku"""
+        return load_weights()
     
-    def load_weights(self) -> Dict[str, float]:
-        """
-        Załaduj wagi sygnałów z pliku JSON
-        
-        Returns:
-            Słownik wag sygnałów
-        """
-        try:
-            if os.path.exists(self.weights_file):
-                with open(self.weights_file, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                
-                # Sprawdź strukturę pliku
-                if isinstance(data, dict) and 'weights' in data:
-                    weights = data['weights']
-                elif isinstance(data, dict):
-                    weights = data  # Backward compatibility
-                else:
-                    weights = {}
-                
-                # Sprawdź czy wszystkie sygnały mają wagi
-                updated = False
-                for signal_name, default_weight in self.default_weights.items():
-                    if signal_name not in weights:
-                        weights[signal_name] = default_weight
-                        updated = True
-                        print(f"[STEALTH WEIGHTS] Added missing weight: {signal_name} = {default_weight}")
-                
-                # Zapisz jeśli dodano nowe wagi
-                if updated:
-                    self.save_weights(weights)
-                
-                print(f"[STEALTH WEIGHTS] Loaded {len(weights)} weights from {self.weights_file}")
-                return weights
-            else:
-                # Pierwszego uruchomienia - utwórz plik z domyślnymi wagami
-                print(f"[STEALTH WEIGHTS] Creating default weights file: {self.weights_file}")
-                self.save_weights(self.default_weights)
-                return self.default_weights.copy()
-                
-        except Exception as e:
-            print(f"[STEALTH WEIGHTS ERROR] Failed to load weights: {e}")
-            print(f"[STEALTH WEIGHTS] Using default weights")
-            return self.default_weights.copy()
+    def save_weights(self, weights):
+        """Zapisz wagi do pliku"""
+        return save_weights(weights)
     
-    def save_weights(self, weights: Dict[str, float]) -> bool:
-        """
-        Zapisz wagi sygnałów do pliku JSON
-        
-        Args:
-            weights: Słownik wag do zapisu
-            
-        Returns:
-            True jeśli zapis powiódł się
-        """
-        try:
-            # Utwórz backup istniejącego pliku
-            if os.path.exists(self.weights_file):
-                import shutil
-                shutil.copy2(self.weights_file, self.backup_file)
-            
-            # Przygotuj dane do zapisu
-            weights_data = {
-                'weights': weights,
-                'last_updated': time.time(),
-                'last_updated_human': time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime()),
-                'total_signals': len(weights),
-                'positive_weights': sum(1 for w in weights.values() if w > 0),
-                'negative_weights': sum(1 for w in weights.values() if w < 0),
-                'zero_weights': sum(1 for w in weights.values() if w == 0)
-            }
-            
-            # Zapisz do pliku
-            with open(self.weights_file, 'w', encoding='utf-8') as f:
-                json.dump(weights_data, f, indent=2, ensure_ascii=False)
-            
-            print(f"[STEALTH WEIGHTS] Saved {len(weights)} weights to {self.weights_file}")
-            return True
-            
-        except Exception as e:
-            print(f"[STEALTH WEIGHTS ERROR] Failed to save weights: {e}")
-            return False
+    def update_weight(self, signal_name, delta):
+        """Aktualizuj wagę sygnału"""
+        return update_weight(signal_name, delta)
     
-    def get_weight(self, signal_name: str) -> float:
-        """
-        Pobierz wagę dla konkretnego sygnału
-        
-        Args:
-            signal_name: Nazwa sygnału
-            
-        Returns:
-            Waga sygnału lub 0.0 jeśli nie istnieje
-        """
-        weights = self.load_weights()
-        return weights.get(signal_name, 0.0)
+    def get_weight_stats(self):
+        """Pobierz statystyki wag"""
+        return get_weight_stats()
     
-    def update_weight(self, signal_name: str, new_weight: float) -> bool:
-        """
-        Aktualizuj wagę pojedynczego sygnału
-        
-        Args:
-            signal_name: Nazwa sygnału
-            new_weight: Nowa waga
-            
-        Returns:
-            True jeśli aktualizacja powiodła się
-        """
-        try:
-            weights = self.load_weights()
-            old_weight = weights.get(signal_name, 0.0)
-            weights[signal_name] = new_weight
-            
-            success = self.save_weights(weights)
-            
-            if success:
-                print(f"[STEALTH WEIGHTS] Updated {signal_name}: {old_weight:.3f} → {new_weight:.3f}")
-            
-            return success
-            
-        except Exception as e:
-            print(f"[STEALTH WEIGHTS ERROR] Failed to update {signal_name}: {e}")
-            return False
+    def reset_to_defaults(self):
+        """Resetuj wagi do wartości domyślnych"""
+        return reset_to_defaults()
     
-    def update_weights_batch(self, weight_updates: Dict[str, float]) -> bool:
-        """
-        Aktualizuj wiele wag jednocześnie
-        
-        Args:
-            weight_updates: Słownik aktualizacji {signal_name: new_weight}
-            
-        Returns:
-            True jeśli aktualizacja powiodła się
-        """
-        try:
-            weights = self.load_weights()
-            
-            # Zastosuj aktualizacje
-            updated_signals = []
-            for signal_name, new_weight in weight_updates.items():
-                old_weight = weights.get(signal_name, 0.0)
-                weights[signal_name] = new_weight
-                updated_signals.append(f"{signal_name}: {old_weight:.3f}→{new_weight:.3f}")
-            
-            success = self.save_weights(weights)
-            
-            if success:
-                print(f"[STEALTH WEIGHTS] Batch update: {len(weight_updates)} weights")
-                for update_info in updated_signals:
-                    print(f"[STEALTH WEIGHTS]   {update_info}")
-            
-            return success
-            
-        except Exception as e:
-            print(f"[STEALTH WEIGHTS ERROR] Failed batch update: {e}")
-            return False
-    
-    def reset_to_defaults(self) -> bool:
-        """
-        Zresetuj wszystkie wagi do wartości domyślnych
-        
-        Returns:
-            True jeśli reset się powiódł
-        """
-        try:
-            success = self.save_weights(self.default_weights.copy())
-            
-            if success:
-                print(f"[STEALTH WEIGHTS] Reset to defaults: {len(self.default_weights)} weights")
-            
-            return success
-            
-        except Exception as e:
-            print(f"[STEALTH WEIGHTS ERROR] Failed to reset: {e}")
-            return False
-    
-    def get_weights_summary(self) -> Dict:
-        """
-        Pobierz podsumowanie wag
-        
-        Returns:
-            Słownik ze statystykami wag
-        """
-        try:
-            weights = self.load_weights()
-            
-            weight_values = list(weights.values())
-            positive_weights = {k: v for k, v in weights.items() if v > 0}
-            negative_weights = {k: v for k, v in weights.items() if v < 0}
-            zero_weights = {k: v for k, v in weights.items() if v == 0}
-            
-            summary = {
-                'total_signals': len(weights),
-                'positive_weights': len(positive_weights),
-                'negative_weights': len(negative_weights),
-                'zero_weights': len(zero_weights),
-                'max_weight': max(weight_values) if weight_values else 0,
-                'min_weight': min(weight_values) if weight_values else 0,
-                'avg_weight': sum(weight_values) / len(weight_values) if weight_values else 0,
-                'weights_file': self.weights_file,
-                'backup_exists': os.path.exists(self.backup_file)
-            }
-            
-            return summary
-            
-        except Exception as e:
-            print(f"[STEALTH WEIGHTS ERROR] Failed to get summary: {e}")
-            return {}
-    
-    def validate_weights(self) -> Dict:
-        """
-        Zwaliduj integralność pliku wag
-        
-        Returns:
-            Słownik z wynikami walidacji
-        """
-        validation = {
-            'file_exists': os.path.exists(self.weights_file),
-            'file_readable': False,
-            'valid_json': False,
-            'has_weights': False,
-            'missing_signals': [],
-            'extra_signals': [],
-            'invalid_weights': []
-        }
-        
-        try:
-            # Sprawdź czy plik istnieje i jest czytelny
-            if validation['file_exists']:
-                with open(self.weights_file, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                
-                validation['file_readable'] = True
-                validation['valid_json'] = True
-                
-                # Sprawdź strukturę
-                if 'weights' in data and isinstance(data['weights'], dict):
-                    weights = data['weights']
-                    validation['has_weights'] = True
-                    
-                    # Sprawdź brakujące sygnały
-                    for signal_name in self.default_weights:
-                        if signal_name not in weights:
-                            validation['missing_signals'].append(signal_name)
-                    
-                    # Sprawdź dodatkowe sygnały
-                    for signal_name in weights:
-                        if signal_name not in self.default_weights:
-                            validation['extra_signals'].append(signal_name)
-                    
-                    # Sprawdź niepoprawne wagi
-                    for signal_name, weight in weights.items():
-                        if not isinstance(weight, (int, float)):
-                            validation['invalid_weights'].append(f"{signal_name}: {type(weight)}")
-                        elif abs(weight) > 1.0:  # Wagi >1.0 mogą być problematyczne
-                            validation['invalid_weights'].append(f"{signal_name}: {weight} (>1.0)")
-        
-        except json.JSONDecodeError:
-            validation['valid_json'] = False
-        except Exception as e:
-            validation['error'] = str(e)
-        
-        return validation
+    def batch_update_weights(self, weight_updates):
+        """Zaktualizuj wiele wag jednocześnie"""
+        return batch_update_weights(weight_updates)
