@@ -18,6 +18,15 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 # Import training data manager
 from utils.training_data_manager import TrainingDataManager
 
+# Import adaptive threshold learning system
+try:
+    from feedback_loop.adaptive_threshold_integration import log_token_for_adaptive_learning
+    ADAPTIVE_LEARNING_AVAILABLE = True
+    print("[ADAPTIVE LEARNING] Adaptive threshold learning system available")
+except ImportError:
+    print("[ADAPTIVE LEARNING] Adaptive threshold learning not available")
+    ADAPTIVE_LEARNING_AVAILABLE = False
+
 # PPWCS SYSTEM REMOVED - Using TJDE v2 only
 print("[SYSTEM] PPWCS system completely removed - using TJDE v2 exclusively")
 
@@ -1009,6 +1018,21 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         
         # Final result summary
         print(f"[FINAL RESULT] {symbol} → TJDE: {tjde_score:.3f} ({tjde_decision})")
+        
+        # 🎯 LOG TO ADAPTIVE THRESHOLD LEARNING SYSTEM
+        if ADAPTIVE_LEARNING_AVAILABLE and 'basic_score' in locals():
+            try:
+                # Log token result for adaptive threshold learning
+                entry_id = log_token_for_adaptive_learning(
+                    symbol=symbol,
+                    basic_score=basic_score,
+                    final_score=tjde_score,
+                    decision=tjde_decision,
+                    price_at_scan=price
+                )
+                print(f"[ADAPTIVE LEARNING] {symbol}: Logged for threshold learning (ID: {entry_id[:8]}...)")
+            except Exception as adaptive_error:
+                print(f"[ADAPTIVE LEARNING ERROR] {symbol}: {adaptive_error}")
         
         # Check if scores are suspicious (identical fallback values)
         if tjde_score == 0.4:

@@ -426,6 +426,14 @@ def run_feedback_evaluation_if_needed():
     """
     try:
         from feedback_loop.feedback_integration import should_run_evaluation_cycle, run_feedback_evaluation_cycle, update_label_weights_from_performance
+        
+        # Import adaptive threshold learning system
+        try:
+            from feedback_loop.adaptive_threshold_integration import run_adaptive_threshold_maintenance, get_adaptive_system_status
+            ADAPTIVE_LEARNING_AVAILABLE = True
+        except ImportError:
+            print("[ADAPTIVE LEARNING] Adaptive threshold learning system not available")
+            ADAPTIVE_LEARNING_AVAILABLE = False
         import asyncio
         
         # Sprawdź czy należy uruchomić ewaluację
@@ -473,6 +481,18 @@ def main():
                 cycle_count += 1
                 if cycle_count % 4 == 0:
                     run_feedback_evaluation_if_needed()
+                    
+                    # 🎯 ADAPTIVE THRESHOLD MAINTENANCE
+                    if ADAPTIVE_LEARNING_AVAILABLE:
+                        try:
+                            import asyncio
+                            evaluated_threshold_count = asyncio.run(run_adaptive_threshold_maintenance())
+                            if evaluated_threshold_count > 0:
+                                print(f"[ADAPTIVE LEARNING] ✅ Evaluated {evaluated_threshold_count} tokens for threshold learning")
+                            else:
+                                print("[ADAPTIVE LEARNING] ℹ️ No threshold evaluation needed")
+                        except Exception as adaptive_error:
+                            print(f"[ADAPTIVE LEARNING ERROR] {adaptive_error}")
                 
                 wait_for_next_candle()
                 

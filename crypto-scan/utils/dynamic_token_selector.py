@@ -1,9 +1,9 @@
 """
-Stage 1.5 - Dynamic Token Selector
-Inteligentny selektor tokenów po fast scan z adaptacyjną logiką
+Stage 1.5 - Dynamic Token Selector v2.0
+Inteligentny selektor tokenów po fast scan z adaptacyjną logiką + samouczenie się progu
 
 Zastępuje sztywny próg basic_score > 0.35 z dynamicznym threshold
-bazującym na max score i kontekście rynkowym.
+bazującym na max score, kontekście rynkowym i samouczącym się progu z feedback loop.
 """
 
 import json
@@ -11,6 +11,13 @@ import os
 from typing import List, Dict, Tuple
 from datetime import datetime
 import numpy as np
+
+try:
+    from feedback_loop.adaptive_threshold_integration import get_dynamic_selection_threshold
+    ADAPTIVE_THRESHOLD_AVAILABLE = True
+except ImportError:
+    print("[DYNAMIC SELECTOR] Adaptive threshold not available, using fallback logic")
+    ADAPTIVE_THRESHOLD_AVAILABLE = False
 
 class DynamicTokenSelector:
     """
@@ -102,17 +109,30 @@ class DynamicTokenSelector:
             (strategy_name, threshold_used, selected_tokens)
         """
         
-        # Strategy 1: HIGH-QUALITY MARKET (max_score >= 0.5)
+        # Strategy 1: HIGH-QUALITY MARKET (max_score >= 0.5) - with adaptive learning
         if max_score >= 0.5:
-            threshold = max(0.7 * max_score, self.sentry_cutoff)
+            # Try to use adaptive threshold with learned intelligence
+            if ADAPTIVE_THRESHOLD_AVAILABLE:
+                try:
+                    adaptive_threshold = get_dynamic_selection_threshold(max_score, self.sentry_cutoff)
+                    threshold = adaptive_threshold
+                    print(f"[ADAPTIVE THRESHOLD] Using learned threshold: {threshold:.3f}")
+                except Exception as e:
+                    print(f"[ADAPTIVE THRESHOLD ERROR] Fallback to 70% threshold: {e}")
+                    threshold = max(0.7 * max_score, self.sentry_cutoff)
+            else:
+                # Fallback to traditional 70% threshold
+                threshold = max(0.7 * max_score, self.sentry_cutoff)
+            
             selected = [r for r in candidates if r.get('score', 0) >= threshold]
             
             # Limit to best 15 tokens in high-quality markets (more selective)
             if len(selected) > 15:
                 selected = sorted(selected, key=lambda x: x.get('score', 0), reverse=True)[:15]
                 
-            print(f"[SELECTION STRATEGY] HIGH-QUALITY MARKET: threshold={threshold:.3f}, selected={len(selected)}")
-            return "HIGH-QUALITY", threshold, selected
+            strategy_name = "HIGH-QUALITY-ADAPTIVE" if ADAPTIVE_THRESHOLD_AVAILABLE else "HIGH-QUALITY"
+            print(f"[SELECTION STRATEGY] {strategy_name}: threshold={threshold:.3f}, selected={len(selected)}")
+            return strategy_name, threshold, selected
             
         # Strategy 2: MODERATE MARKET (0.25 <= max_score < 0.5)
         elif max_score >= 0.25:
