@@ -69,6 +69,12 @@ def load_weights():
             save_weights(weights)
         
         print(f"[STEALTH WEIGHTS] Loaded {len(weights)} weights from {WEIGHTS_PATH}")
+        
+        # Pokaż top 5 wag dla debugowania
+        top_weights = sorted(weights.items(), key=lambda x: x[1], reverse=True)[:5]
+        weights_str = ", ".join([f"{name}:{weight:.2f}" for name, weight in top_weights])
+        print(f"[STEALTH WEIGHTS] Top weights: {weights_str}")
+        
         return weights
         
     except Exception as e:

@@ -399,7 +399,7 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     "volume_profile": market_data.get("volume_profile", [])
                 }
                 
-                # Wywołaj główny silnik scoringu
+                # Wywołaj główny silnik scoringu z debug=True dla pełnego logowania
                 stealth_result = compute_stealth_score(stealth_token_data)
                 stealth_score = stealth_result["score"]
                 active_signals = stealth_result["active_signals"]

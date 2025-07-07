@@ -380,6 +380,15 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         from .stealth_signals import StealthSignalDetector
         from .stealth_weights import load_weights
         
+        symbol = token_data.get("symbol", "UNKNOWN")
+        
+        # 🔍 LOG: Rozpoczęcie analizy Stealth Engine
+        print(f"[STEALTH] Checking token: {symbol}...")
+        
+        # Załaduj wagi dynamiczne i wyloguj
+        weights = load_weights()
+        print(f"[STEALTH WEIGHTS] Loaded {len(weights)} dynamic weights from feedback system")
+        
         # Utwórz detektor sygnałów
         detector = StealthSignalDetector()
         
@@ -388,6 +397,32 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         
         # Załaduj aktualne wagi (mogą być dostrojone przez feedback loop)
         weights = load_weights()
+        
+        # 🔍 LOG: Analizuj każdy sygnał i sprawdź dostępność danych
+        signal_status = {}
+        data_warnings = []
+        
+        for signal in signals:
+            signal_status[signal.name] = getattr(signal, 'active', False)
+            
+            # Sprawdź czy brakuje danych dla kluczowych sygnałów
+            if signal.name == 'spoofing_layers' and not token_data.get('orderbook'):
+                data_warnings.append(f"Missing orderbook data for {symbol}, skipping spoofing detection")
+            elif signal.name == 'dex_inflow' and not token_data.get('dex_inflow'):
+                data_warnings.append(f"Missing DEX data for {symbol}, skipping inflow detection")
+        
+        # Wyloguj ostrzeżenia o brakujących danych
+        for warning in data_warnings:
+            print(f"[STEALTH WARNING] {warning}")
+        
+        # Wyloguj kluczowe sygnały
+        whale_activity = signal_status.get('whale_activity_tracking', False)
+        spoofing = signal_status.get('spoofing_layers', False) 
+        volume_spike = signal_status.get('volume_spike', False)
+        orderbook_imbalance = signal_status.get('orderbook_imbalance', False)
+        dex_inflow = signal_status.get('dex_inflow', False)
+        
+        print(f"[STEALTH] Detected signals for {symbol}: whale={whale_activity}, spoofing={spoofing}, volume_spike={volume_spike}, orderbook={orderbook_imbalance}, dex={dex_inflow}")
         
         score = 0.0
         used_signals = []
@@ -402,6 +437,14 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 contribution = weight * signal.strength
                 score += contribution
                 used_signals.append(signal.name)
+                
+                # LOG: Każdy aktywny sygnał
+                if signal.strength > 0:
+                    print(f"[STEALTH] Signal {signal.name}: strength={signal.strength:.3f}, weight={weight:.3f}, contribution=+{contribution:.3f}")
+        
+        # 🎯 LOG: Finalna decyzja scoringowa
+        decision = "strong" if score >= 3.0 else "weak" if score >= 1.0 else "none"
+        print(f"[STEALTH] Final signal for {symbol} → Score: {score:.3f}, Decision: {decision}, Active: {len(used_signals)} signals")
         
         return {
             "score": round(score, 3),
