@@ -12,7 +12,7 @@ Główne komponenty:
 from .stealth_engine import StealthEngine, StealthResult, analyze_token_stealth, get_stealth_engine
 from .stealth_signals import StealthSignalDetector
 from .stealth_weights import StealthWeightManager
-from .stealth_feedback import StealthFeedbackSystem, StealthPrediction
+from .stealth_feedback import StealthFeedbackSystem
 
 __version__ = "2.0.0"
 __author__ = "Crypto Scanner Team"
@@ -24,7 +24,7 @@ __all__ = [
     'StealthSignalDetector',
     'StealthWeightManager',
     'StealthFeedbackSystem',
-    'StealthPrediction',
+
     'analyze_token_stealth',
     'get_stealth_engine'
 ]

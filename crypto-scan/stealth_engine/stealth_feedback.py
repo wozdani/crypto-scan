@@ -1,66 +1,49 @@
 """
-Stealth Feedback System
-System uczenia wag przez feedback loop dla Stealth Engine
+Stealth Feedback System v3
+Mechanizm samouczenia wag sygnałów StealthSignal
 
-Analizuje skuteczność sygnałów na podstawie rzeczywistych wyników
-i automatycznie dostosowuje wagi dla lepszej dokładności predykcji
+Automatyczne dostrajanie wag na podstawie skuteczności alertów z przeszłości:
+- Po 2-6h sprawdza efektywność alertu
+- Wzmacnia wagi skutecznych sygnałów (+X% cena)
+- Osłabia wagi nieskutecznych sygnałów (spadek/brak ruchu)
 """
 
 import json
 import os
 import time
-import asyncio
+import requests
 from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass, asdict
-import statistics
-
-
-@dataclass
-class StealthPrediction:
-    """Predykcja Stealth Engine do ewaluacji"""
-    prediction_id: str
-    symbol: str
-    stealth_score: float
-    decision: str
-    confidence: float
-    active_signals: List[str]
-    signal_breakdown: Dict[str, float]
-    price_at_prediction: float
-    timestamp: float
-    evaluated: bool = False
-    price_after_2h: Optional[float] = None
-    price_after_6h: Optional[float] = None
-    success_2h: Optional[bool] = None
-    success_6h: Optional[bool] = None
-
+from datetime import datetime, timedelta
+from .stealth_weights import update_weight
 
 class StealthFeedbackSystem:
     """
-    System uczenia wag sygnałów przez feedback loop
-    Ewaluuje skuteczność predykcji i dostosowuje wagi
+    System feedback loop v3 dla automatycznego uczenia wag sygnałów
+    Implementuje mechanizm samouczenia na podstawie skuteczności alertów
     """
     
-    def __init__(self, config_path: str = "crypto-scan/cache"):
+    def __init__(self, feedback_dir: str = "crypto-scan/cache/stealth_feedback"):
         """
-        Inicjalizacja systemu feedback
+        Inicjalizacja systemu feedback v3
         
         Args:
-            config_path: Ścieżka do katalogu z konfiguracją
+            feedback_dir: Katalog do przechowywania danych feedback
         """
-        self.config_path = config_path
-        self.feedback_dir = os.path.join(config_path, "stealth_feedback")
-        self.predictions_file = os.path.join(self.feedback_dir, "predictions.jsonl")
-        self.performance_file = os.path.join(self.feedback_dir, "signal_performance.json")
-        self.weight_updates_file = os.path.join(self.feedback_dir, "weight_updates.json")
+        self.feedback_dir = feedback_dir
+        self.predictions_file = os.path.join(feedback_dir, "predictions.json")
+        self.history_file = os.path.join(feedback_dir, "history.json")
+        self.feedback_log_file = os.path.join(feedback_dir, "feedback_log.json")
+        self.performance_file = os.path.join(feedback_dir, "performance.json")
         
+        # Konfiguracja feedback loop
+        self.evaluation_hours = [2, 6]  # Sprawdzaj skuteczność po 2h i 6h
+        self.success_threshold = 0.02   # +2% = sukces
+        self.failure_threshold = -0.01  # -1% = porażka
+        
+        # Upewnij się że katalogi istnieją
         self.ensure_directories()
         
-        # Konfiguracja ewaluacji
-        self.min_price_change_threshold = 0.02  # 2% min zmiana dla sukcesu
-        self.evaluation_hours = [2, 6]  # Ewaluacja po 2h i 6h
-        self.min_predictions_for_update = 10  # Min predykcji do aktualizacji wag
-        
-        print(f"[STEALTH FEEDBACK] Initialized feedback system in {self.feedback_dir}")
+        print(f"[STEALTH FEEDBACK] Initialized feedback system v3 in {feedback_dir}")
     
     def ensure_directories(self):
         """Upewnij się że wymagane katalogi istnieją"""
@@ -68,43 +51,54 @@ class StealthFeedbackSystem:
     
     def log_prediction(self, stealth_result, market_data: Dict) -> str:
         """
-        Zaloguj predykcję do systemu feedback
+        Zaloguj predykcję do systemu feedback v3
         
         Args:
-            stealth_result: Wynik z StealthEngine
-            market_data: Dane rynkowe (zawierające cenę)
+            stealth_result: Wynik analizy stealth
+            market_data: Dane rynkowe w momencie predykcji
             
         Returns:
-            ID predykcji
+            ID predykcji dla trackingu
         """
         try:
-            # Utwórz unikalny ID predykcji
             prediction_id = f"{stealth_result.symbol}_{int(time.time())}"
             
-            # Pobierz cenę z market_data
-            current_price = market_data.get('price', 0)
-            if current_price == 0:
-                # Spróbuj pobrać z ticker_data
-                ticker_data = market_data.get('ticker_data', {})
-                if isinstance(ticker_data, dict):
-                    current_price = float(ticker_data.get('lastPrice', 0))
+            # Przygotuj dane aktywnych sygnałów
+            active_signal_names = []
+            signal_strengths = {}
             
-            # Utwórz predykcję
-            prediction = StealthPrediction(
-                prediction_id=prediction_id,
-                symbol=stealth_result.symbol,
-                stealth_score=stealth_result.stealth_score,
-                decision=stealth_result.decision,
-                confidence=stealth_result.confidence,
-                active_signals=stealth_result.active_signals,
-                signal_breakdown=stealth_result.signal_breakdown,
-                price_at_prediction=current_price,
-                timestamp=stealth_result.timestamp
-            )
+            if hasattr(stealth_result, 'active_signals') and stealth_result.active_signals:
+                active_signal_names = stealth_result.active_signals
             
-            # Zapisz do pliku JSONL
-            with open(self.predictions_file, 'a', encoding='utf-8') as f:
-                f.write(json.dumps(asdict(prediction), ensure_ascii=False) + '\n')
+            if hasattr(stealth_result, 'signal_breakdown') and stealth_result.signal_breakdown:
+                signal_strengths = stealth_result.signal_breakdown
+            
+            prediction_data = {
+                "prediction_id": prediction_id,
+                "symbol": stealth_result.symbol,
+                "timestamp": stealth_result.timestamp,
+                "timestamp_human": datetime.fromtimestamp(stealth_result.timestamp).strftime("%Y-%m-%d %H:%M:%S UTC"),
+                "stealth_score": stealth_result.stealth_score,
+                "decision": stealth_result.decision,
+                "confidence": stealth_result.confidence,
+                "active_signals": active_signal_names,
+                "signal_strengths": signal_strengths,
+                "risk_assessment": stealth_result.risk_assessment,
+                "initial_price": market_data.get("price", 0.0),
+                "volume_24h": market_data.get("volume_24h", 0.0),
+                "price_change_24h": market_data.get("price_change_24h", 0.0),
+                "evaluation_pending": True,
+                "evaluation_attempts": 0,
+                "feedback_applied": False
+            }
+            
+            # Załaduj istniejące predykcje
+            predictions = self.load_predictions()
+            predictions[prediction_id] = prediction_data
+            
+            # Zapisz do pliku
+            with open(self.predictions_file, 'w', encoding='utf-8') as f:
+                json.dump(predictions, f, indent=2, ensure_ascii=False)
             
             print(f"[STEALTH FEEDBACK] Logged prediction: {prediction_id}")
             return prediction_id
@@ -113,338 +107,314 @@ class StealthFeedbackSystem:
             print(f"[STEALTH FEEDBACK ERROR] Failed to log prediction: {e}")
             return ""
     
-    def load_pending_predictions(self) -> List[StealthPrediction]:
+    def evaluate_pending_predictions(self) -> Dict:
         """
-        Załaduj predykcje oczekujące na ewaluację
-        
-        Returns:
-            Lista nieewaluowanych predykcji
-        """
-        predictions = []
-        
-        if not os.path.exists(self.predictions_file):
-            return predictions
-        
-        try:
-            with open(self.predictions_file, 'r', encoding='utf-8') as f:
-                for line in f:
-                    line = line.strip()
-                    if line:
-                        pred_data = json.loads(line)
-                        prediction = StealthPrediction(**pred_data)
-                        
-                        # Dodaj tylko nieewaluowane predykcje starsze niż 6h
-                        if not prediction.evaluated:
-                            age_hours = (time.time() - prediction.timestamp) / 3600
-                            if age_hours >= 6:  # Minimum 6h dla pełnej ewaluacji
-                                predictions.append(prediction)
-            
-            print(f"[STEALTH FEEDBACK] Loaded {len(predictions)} pending predictions")
-            return predictions
-            
-        except Exception as e:
-            print(f"[STEALTH FEEDBACK ERROR] Failed to load predictions: {e}")
-            return []
-    
-    async def evaluate_predictions(self) -> Dict:
-        """
-        Ewaluuj oczekujące predykcje
+        Oceń oczekujące predykcje i zastosuj feedback do wag
         
         Returns:
             Statystyki ewaluacji
         """
-        pending_predictions = self.load_pending_predictions()
-        
-        if len(pending_predictions) < self.min_predictions_for_update:
-            print(f"[STEALTH FEEDBACK] Not enough predictions for evaluation: {len(pending_predictions)}")
-            return {'evaluated': 0, 'reason': 'insufficient_data'}
-        
-        evaluated_count = 0
-        
-        for prediction in pending_predictions:
-            try:
-                # Pobierz ceny historyczne
-                price_2h = await self.fetch_historical_price(prediction.symbol, prediction.timestamp + 2*3600)
-                price_6h = await self.fetch_historical_price(prediction.symbol, prediction.timestamp + 6*3600)
-                
-                # Oceń sukces
-                success_2h = self.evaluate_success(prediction, price_2h)
-                success_6h = self.evaluate_success(prediction, price_6h)
-                
-                # Aktualizuj predykcję
-                prediction.price_after_2h = price_2h
-                prediction.price_after_6h = price_6h
-                prediction.success_2h = success_2h
-                prediction.success_6h = success_6h
-                prediction.evaluated = True
-                
-                evaluated_count += 1
-                
-            except Exception as e:
-                print(f"[STEALTH FEEDBACK ERROR] Failed to evaluate {prediction.prediction_id}: {e}")
-        
-        # Zapisz zaktualizowane predykcje
-        if evaluated_count > 0:
-            self.save_evaluated_predictions(pending_predictions)
-            print(f"[STEALTH FEEDBACK] Evaluated {evaluated_count} predictions")
-        
-        return {'evaluated': evaluated_count}
-    
-    async def fetch_historical_price(self, symbol: str, timestamp: float) -> Optional[float]:
-        """
-        Pobierz historyczną cenę tokena
-        
-        Args:
-            symbol: Symbol tokena
-            timestamp: Timestamp (unix)
-            
-        Returns:
-            Cena lub None jeśli nie udało się pobrać
-        """
         try:
-            # Import Bybit API
-            import aiohttp
+            predictions = self.load_predictions()
+            current_time = time.time()
             
-            # Konwertuj timestamp na milisekundy
-            end_time = int(timestamp * 1000)
-            start_time = end_time - 3600000  # 1h przed
+            evaluated_count = 0
+            successful_count = 0
+            failed_count = 0
+            feedback_applied_count = 0
             
-            # API call do Bybit klines
-            url = "https://api.bybit.com/v5/market/kline"
-            params = {
-                'category': 'spot',
-                'symbol': symbol,
-                'interval': '15',
-                'start': start_time,
-                'end': end_time,
-                'limit': 10
-            }
-            
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, params=params) as response:
-                    if response.status == 200:
-                        data = await response.json()
+            for prediction_id, prediction in predictions.items():
+                if not prediction.get("evaluation_pending", False):
+                    continue
+                
+                # Sprawdź czy minął czas na ewaluację (2h lub 6h)
+                prediction_time = prediction.get("timestamp", 0)
+                time_elapsed_hours = (current_time - prediction_time) / 3600
+                
+                if time_elapsed_hours >= 2 and not prediction.get("feedback_applied", False):
+                    # Pobierz aktualną cenę i oceń skuteczność
+                    outcome = self.evaluate_prediction_outcome(prediction)
+                    
+                    if outcome is not None:
+                        # Zastosuj feedback do wag sygnałów
+                        if self.apply_feedback_to_signals(prediction, outcome):
+                            feedback_applied_count += 1
+                            prediction["feedback_applied"] = True
+                            
+                        if outcome > 0:
+                            successful_count += 1
+                        else:
+                            failed_count += 1
                         
-                        if data.get('retCode') == 0 and data.get('result', {}).get('list'):
-                            # Pobierz ostatnią dostępną cenę
-                            klines = data['result']['list']
-                            if klines:
-                                # Kline format: [timestamp, open, high, low, close, volume, turnover]
-                                last_kline = klines[0]  # Najbardziej aktualna
-                                close_price = float(last_kline[4])
-                                return close_price
+                        # Oznacz jako ocenioną
+                        prediction["evaluation_pending"] = False
+                        prediction["outcome"] = outcome
+                        prediction["evaluated_at"] = current_time
+                        prediction["evaluated_at_human"] = datetime.fromtimestamp(current_time).strftime("%Y-%m-%d %H:%M:%S UTC")
+                        
+                        evaluated_count += 1
             
-            return None
-            
-        except Exception as e:
-            print(f"[STEALTH FEEDBACK] Failed to fetch price for {symbol}: {e}")
-            return None
-    
-    def evaluate_success(self, prediction: StealthPrediction, price_after: Optional[float]) -> Optional[bool]:
-        """
-        Oceń czy predykcja była skuteczna
-        
-        Args:
-            prediction: Predykcja do oceny
-            price_after: Cena po określonym czasie
-            
-        Returns:
-            True/False dla sukcesu/porażki, None jeśli brak danych
-        """
-        if price_after is None or prediction.price_at_prediction == 0:
-            return None
-        
-        price_change = (price_after - prediction.price_at_prediction) / prediction.price_at_prediction
-        
-        # Logika sukcesu na podstawie decyzji
-        if prediction.decision == 'enter':
-            # Sukces dla 'enter' gdy cena wzrosła >2%
-            return price_change >= self.min_price_change_threshold
-        elif prediction.decision == 'avoid':
-            # Sukces dla 'avoid' gdy cena spadła lub wzrosła <2%
-            return price_change < self.min_price_change_threshold
-        elif prediction.decision == 'wait':
-            # 'wait' to neutralna predykcja - sukces przy małych zmianach
-            return abs(price_change) < self.min_price_change_threshold
-        
-        return None
-    
-    def save_evaluated_predictions(self, predictions: List[StealthPrediction]):
-        """Zapisz ewaluowane predykcje z powrotem do pliku"""
-        try:
-            # Załaduj wszystkie predykcje
-            all_predictions = []
-            
-            if os.path.exists(self.predictions_file):
-                with open(self.predictions_file, 'r', encoding='utf-8') as f:
-                    for line in f:
-                        line = line.strip()
-                        if line:
-                            pred_data = json.loads(line)
-                            all_predictions.append(StealthPrediction(**pred_data))
-            
-            # Aktualizuj ewaluowane predykcje
-            predictions_dict = {p.prediction_id: p for p in predictions}
-            
-            for i, pred in enumerate(all_predictions):
-                if pred.prediction_id in predictions_dict:
-                    all_predictions[i] = predictions_dict[pred.prediction_id]
-            
-            # Zapisz wszystkie predykcje
-            with open(self.predictions_file, 'w', encoding='utf-8') as f:
-                for pred in all_predictions:
-                    f.write(json.dumps(asdict(pred), ensure_ascii=False) + '\n')
-            
-        except Exception as e:
-            print(f"[STEALTH FEEDBACK ERROR] Failed to save predictions: {e}")
-    
-    def calculate_signal_performance(self) -> Dict[str, Dict]:
-        """
-        Oblicz wydajność każdego sygnału na podstawie ewaluowanych predykcji
-        
-        Returns:
-            Słownik z wydajnością sygnałów
-        """
-        try:
-            # Załaduj wszystkie ewaluowane predykcje
-            evaluated_predictions = []
-            
-            if os.path.exists(self.predictions_file):
-                with open(self.predictions_file, 'r', encoding='utf-8') as f:
-                    for line in f:
-                        line = line.strip()
-                        if line:
-                            pred_data = json.loads(line)
-                            prediction = StealthPrediction(**pred_data)
-                            if prediction.evaluated and prediction.success_6h is not None:
-                                evaluated_predictions.append(prediction)
-            
-            if not evaluated_predictions:
-                return {}
-            
-            # Analiza wydajności per sygnał
-            signal_stats = {}
-            
-            for prediction in evaluated_predictions:
-                for signal_name in prediction.active_signals:
-                    if signal_name not in signal_stats:
-                        signal_stats[signal_name] = {
-                            'total_predictions': 0,
-                            'successful_predictions': 0,
-                            'success_rate': 0.0,
-                            'avg_confidence': 0.0,
-                            'confidences': []
-                        }
-                    
-                    stats = signal_stats[signal_name]
-                    stats['total_predictions'] += 1
-                    stats['confidences'].append(prediction.confidence)
-                    
-                    if prediction.success_6h:
-                        stats['successful_predictions'] += 1
-            
-            # Oblicz finalne statystyki
-            for signal_name, stats in signal_stats.items():
-                if stats['total_predictions'] > 0:
-                    stats['success_rate'] = stats['successful_predictions'] / stats['total_predictions']
-                    stats['avg_confidence'] = statistics.mean(stats['confidences'])
+            # Zapisz zaktualizowane predykcje
+            if evaluated_count > 0:
+                with open(self.predictions_file, 'w', encoding='utf-8') as f:
+                    json.dump(predictions, f, indent=2, ensure_ascii=False)
                 
-                # Usuń surowe listy confidence
-                del stats['confidences']
-            
-            # Zapisz wydajność
-            with open(self.performance_file, 'w', encoding='utf-8') as f:
-                json.dump({
-                    'signal_performance': signal_stats,
-                    'last_updated': time.time(),
-                    'total_evaluated_predictions': len(evaluated_predictions)
-                }, f, indent=2)
-            
-            print(f"[STEALTH FEEDBACK] Calculated performance for {len(signal_stats)} signals")
-            return signal_stats
-            
-        except Exception as e:
-            print(f"[STEALTH FEEDBACK ERROR] Failed to calculate performance: {e}")
-            return {}
-    
-    def calculate_updated_weights(self) -> Dict[str, float]:
-        """
-        Oblicz zaktualizowane wagi na podstawie wydajności sygnałów
-        
-        Returns:
-            Słownik z nowymi wagami
-        """
-        signal_performance = self.calculate_signal_performance()
-        
-        if not signal_performance:
-            return {}
-        
-        updated_weights = {}
-        
-        for signal_name, performance in signal_performance.items():
-            success_rate = performance['success_rate']
-            total_predictions = performance['total_predictions']
-            
-            # Wymagaj minimum predykcji dla wiarygodności
-            if total_predictions < 5:
-                continue
-            
-            # Oblicz nową wagę na podstawie success rate
-            if success_rate >= 0.6:
-                # Dobry sygnał - zwiększ wagę
-                weight_multiplier = 1.0 + (success_rate - 0.6) * 0.5  # Max 1.2x dla 80% success
-            elif success_rate <= 0.4:
-                # Słaby sygnał - zmniejsz wagę
-                weight_multiplier = 0.5 + success_rate  # Min 0.5x dla 0% success
-            else:
-                # Neutralny sygnał - mała korekta
-                weight_multiplier = 0.8 + success_rate * 0.4  # 0.8x-1.0x dla 40-60%
-            
-            updated_weights[signal_name] = weight_multiplier
-        
-        # Zapisz aktualizacje
-        if updated_weights:
-            weight_update_data = {
-                'weight_multipliers': updated_weights,
-                'calculated_at': time.time(),
-                'based_on_signals': len(signal_performance),
-                'performance_summary': signal_performance
-            }
-            
-            with open(self.weight_updates_file, 'w', encoding='utf-8') as f:
-                json.dump(weight_update_data, f, indent=2)
-            
-            print(f"[STEALTH FEEDBACK] Calculated weight updates for {len(updated_weights)} signals")
-        
-        return updated_weights
-    
-    def get_stats(self) -> Dict:
-        """Pobierz statystyki systemu feedback"""
-        try:
-            total_predictions = 0
-            evaluated_predictions = 0
-            
-            if os.path.exists(self.predictions_file):
-                with open(self.predictions_file, 'r', encoding='utf-8') as f:
-                    for line in f:
-                        if line.strip():
-                            total_predictions += 1
-                            pred_data = json.loads(line)
-                            if pred_data.get('evaluated', False):
-                                evaluated_predictions += 1
+                print(f"[STEALTH FEEDBACK] Evaluated {evaluated_count} predictions: {successful_count} successful, {failed_count} failed")
+                print(f"[STEALTH FEEDBACK] Applied feedback to {feedback_applied_count} predictions")
             
             return {
-                'total_predictions': total_predictions,
-                'evaluated_predictions': evaluated_predictions,
-                'pending_predictions': total_predictions - evaluated_predictions,
-                'feedback_dir': self.feedback_dir,
-                'files_exist': {
-                    'predictions': os.path.exists(self.predictions_file),
-                    'performance': os.path.exists(self.performance_file),
-                    'weight_updates': os.path.exists(self.weight_updates_file)
-                }
+                "evaluated": evaluated_count,
+                "successful": successful_count,
+                "failed": failed_count,
+                "feedback_applied": feedback_applied_count
+            }
+            
+        except Exception as e:
+            print(f"[STEALTH FEEDBACK ERROR] Failed to evaluate predictions: {e}")
+            return {"evaluated": 0, "successful": 0, "failed": 0, "feedback_applied": 0}
+    
+    def evaluate_prediction_outcome(self, prediction: Dict) -> Optional[float]:
+        """
+        Oceń skuteczność pojedynczej predykcji
+        
+        Args:
+            prediction: Dane predykcji
+            
+        Returns:
+            Outcome [-1.0, +1.0] lub None jeśli błąd
+        """
+        try:
+            symbol = prediction.get("symbol", "")
+            initial_price = prediction.get("initial_price", 0.0)
+            
+            if not symbol or initial_price <= 0:
+                return None
+            
+            # Pobierz aktualną cenę z Bybit API
+            current_price = self.fetch_current_price(symbol)
+            if current_price is None:
+                return None
+            
+            # Oblicz zmianę ceny w procentach
+            price_change_pct = (current_price - initial_price) / initial_price
+            
+            # Określ outcome na podstawie zmiany ceny
+            if price_change_pct >= self.success_threshold:
+                # Sukces: +2% lub więcej
+                outcome = min(1.0, price_change_pct / 0.1)  # Normalizuj do [0, 1.0] przy 10% zysku
+            elif price_change_pct <= self.failure_threshold:
+                # Porażka: -1% lub więcej strat
+                outcome = max(-1.0, price_change_pct / 0.05)  # Normalizuj do [-1.0, 0] przy 5% stracie
+            else:
+                # Neutralny: między -1% a +2%
+                outcome = price_change_pct / 0.02  # Lekka kara/nagroda
+            
+            print(f"[STEALTH FEEDBACK] {symbol}: {initial_price:.6f} → {current_price:.6f} ({price_change_pct*100:+.2f}%) = outcome {outcome:.3f}")
+            
+            return outcome
+            
+        except Exception as e:
+            print(f"[STEALTH FEEDBACK ERROR] Failed to evaluate outcome: {e}")
+            return None
+    
+    def fetch_current_price(self, symbol: str) -> Optional[float]:
+        """
+        Pobierz aktualną cenę z Bybit API
+        
+        Args:
+            symbol: Symbol tokena (np. BTCUSDT)
+            
+        Returns:
+            Aktualna cena lub None jeśli błąd
+        """
+        try:
+            url = "https://api.bybit.com/v5/market/tickers"
+            params = {
+                "category": "spot",
+                "symbol": symbol
+            }
+            
+            response = requests.get(url, params=params, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("retCode") == 0 and data.get("result", {}).get("list"):
+                    ticker = data["result"]["list"][0]
+                    return float(ticker.get("lastPrice", 0))
+            
+            return None
+            
+        except Exception as e:
+            print(f"[STEALTH FEEDBACK ERROR] Failed to fetch price for {symbol}: {e}")
+            return None
+    
+    def apply_feedback_to_signals(self, prediction: Dict, outcome: float) -> bool:
+        """
+        Zastosuj feedback do wag aktywnych sygnałów
+        
+        Args:
+            prediction: Dane predykcji
+            outcome: Skuteczność [-1.0, +1.0]
+            
+        Returns:
+            True jeśli feedback został zastosowany
+        """
+        try:
+            active_signals = prediction.get("active_signals", [])
+            signal_strengths = prediction.get("signal_strengths", {})
+            
+            if not active_signals:
+                return False
+            
+            feedback_applied = 0
+            feedback_details = []
+            
+            for signal_name in active_signals:
+                # Pobierz siłę sygnału (domyślnie 1.0)
+                signal_strength = signal_strengths.get(signal_name, 1.0)
+                
+                # Oblicz delta dla wagi: outcome * siła sygnału * współczynnik uczenia
+                learning_rate = 0.1  # Współczynnik uczenia
+                delta = learning_rate * outcome * signal_strength
+                
+                # Zastosuj update do wagi
+                if update_weight(signal_name, delta):
+                    feedback_applied += 1
+                    feedback_details.append({
+                        "signal": signal_name,
+                        "strength": signal_strength,
+                        "delta": delta,
+                        "outcome": outcome
+                    })
+            
+            # Zaloguj feedback do feedback_log
+            self.log_feedback_application(prediction, outcome, feedback_details)
+            
+            print(f"[STEALTH FEEDBACK] Applied feedback to {feedback_applied}/{len(active_signals)} signals (outcome: {outcome:.3f})")
+            
+            return feedback_applied > 0
+            
+        except Exception as e:
+            print(f"[STEALTH FEEDBACK ERROR] Failed to apply feedback: {e}")
+            return False
+    
+    def log_feedback_application(self, prediction: Dict, outcome: float, feedback_details: List[Dict]):
+        """
+        Zaloguj zastosowanie feedback do historii
+        
+        Args:
+            prediction: Dane predykcji
+            outcome: Skuteczność
+            feedback_details: Szczegóły zastosowanego feedback
+        """
+        try:
+            # Załaduj istniejący log
+            feedback_log = []
+            if os.path.exists(self.feedback_log_file):
+                with open(self.feedback_log_file, 'r', encoding='utf-8') as f:
+                    feedback_log = json.load(f)
+            
+            # Dodaj nowy wpis
+            log_entry = {
+                "timestamp": time.time(),
+                "timestamp_human": datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC"),
+                "prediction_id": prediction.get("prediction_id", ""),
+                "symbol": prediction.get("symbol", ""),
+                "outcome": outcome,
+                "feedback_details": feedback_details,
+                "initial_price": prediction.get("initial_price", 0),
+                "stealth_score": prediction.get("stealth_score", 0),
+                "decision": prediction.get("decision", "")
+            }
+            
+            feedback_log.append(log_entry)
+            
+            # Zachowaj tylko ostatnie 1000 wpisów
+            if len(feedback_log) > 1000:
+                feedback_log = feedback_log[-1000:]
+            
+            # Zapisz log
+            with open(self.feedback_log_file, 'w', encoding='utf-8') as f:
+                json.dump(feedback_log, f, indent=2, ensure_ascii=False)
+                
+        except Exception as e:
+            print(f"[STEALTH FEEDBACK ERROR] Failed to log feedback application: {e}")
+    
+    def load_predictions(self) -> Dict:
+        """Załaduj istniejące predykcje"""
+        try:
+            if os.path.exists(self.predictions_file):
+                with open(self.predictions_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            return {}
+        except Exception as e:
+            print(f"[STEALTH FEEDBACK ERROR] Failed to load predictions: {e}")
+            return {}
+    
+    def get_feedback_stats(self) -> Dict:
+        """
+        Pobierz statystyki systemu feedback v3
+        
+        Returns:
+            Słownik ze statystykami
+        """
+        try:
+            predictions = self.load_predictions()
+            pending = sum(1 for p in predictions.values() if p.get("evaluation_pending", True))
+            evaluated = sum(1 for p in predictions.values() if not p.get("evaluation_pending", True))
+            successful = sum(1 for p in predictions.values() if not p.get("evaluation_pending", True) and p.get("outcome", 0) > 0)
+            
+            # Statystyki feedback log
+            feedback_entries = 0
+            if os.path.exists(self.feedback_log_file):
+                with open(self.feedback_log_file, 'r', encoding='utf-8') as f:
+                    feedback_log = json.load(f)
+                    feedback_entries = len(feedback_log)
+            
+            return {
+                "total_predictions": len(predictions),
+                "pending_evaluation": pending,
+                "evaluated_predictions": evaluated,
+                "successful_predictions": successful,
+                "success_rate": successful / evaluated if evaluated > 0 else 0,
+                "feedback_log_entries": feedback_entries,
+                "feedback_dir": self.feedback_dir
             }
             
         except Exception as e:
             print(f"[STEALTH FEEDBACK ERROR] Failed to get stats: {e}")
-            return {}
+            return {
+                "total_predictions": 0,
+                "pending_evaluation": 0,
+                "evaluated_predictions": 0,
+                "successful_predictions": 0,
+                "success_rate": 0,
+                "feedback_log_entries": 0,
+                "feedback_dir": self.feedback_dir
+            }
+
+
+# Convenience functions dla łatwego użycia
+def apply_feedback_to_signal(token: str, signals: List, outcome: float):
+    """
+    Zastosuj feedback do sygnałów (zgodnie z oryginalną specyfikacją)
+    
+    Args:
+        token: Symbol tokena (np. "XYZUSDT")
+        signals: Lista StealthSignal użytych w momencie alertu
+        outcome: Efektywność alertu [-1.0, +1.0]
+    """
+    try:
+        learning_rate = 0.1
+        
+        for signal in signals:
+            if hasattr(signal, 'active') and signal.active:
+                signal_strength = getattr(signal, 'strength', 1.0)
+                delta = learning_rate * outcome * signal_strength
+                
+                signal_name = getattr(signal, 'name', str(signal))
+                update_weight(signal_name, delta)
+                
+                print(f"[STEALTH FEEDBACK] {token}: Updated {signal_name} by {delta:+.4f} (outcome: {outcome:.3f}, strength: {signal_strength:.3f})")
+        
+    except Exception as e:
+        print(f"[STEALTH FEEDBACK ERROR] Failed to apply feedback for {token}: {e}")
