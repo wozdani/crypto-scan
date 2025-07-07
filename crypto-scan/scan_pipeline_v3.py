@@ -737,94 +737,327 @@ class TJDEv3Pipeline:
         
     async def run_pipeline_from_data(self, scan_results: List[Dict], priority_info: Dict = None) -> List[Dict]:
         """
-        Run TJDE v3 pipeline using pre-fetched scan data
-        Skips Phase 1 data fetching and goes directly to basic scoring
+        🎯 PROPER 5-STEP TJDE v3 LOGIC - Fixed Resource Waste Issue
+        
+        CORRECT FLOW:
+        1. PHASE 1: Basic scoring for ALL tokens → base_score
+        2. TOP 20 selection by base_score ranking  
+        3. Chart + AI label generation for TOP 20 ONLY
+        4. Data validation: charts exist + ai_label != 'unknown' + confidence > 0.0
+        5. PHASE 2: Advanced modules ONLY for validated TOP 20 tokens
         
         Args:
             scan_results: Pre-fetched scan results from AsyncTokenScanner
             priority_info: Priority information
             
         Returns:
-            Final TJDE results from TOP 20 selection + advanced analysis
+            Final TJDE results from TOP 20 advanced analysis only
         """
         pipeline_start = time.time()
-        print(f"[TJDE v3 FROM DATA] Starting pipeline from {len(scan_results)} pre-fetched results")
-        print(f"[PHASE FLOW] Skip Phase 1 → Phase 2: TOP 20 selection → Phase 3: Charts → Phase 4: CLIP → Phase 5: Advanced")
+        print(f"[TJDE v3 FROM DATA] 🎯 PROPER 5-STEP LOGIC: {len(scan_results)} input tokens")
+        print(f"[PHASE FLOW] Phase 1: Basic scoring ALL → TOP 20 selection → Chart/AI generation → Data validation → Phase 2: Advanced ONLY TOP 20")
         
-        # Convert scan results to basic scoring format
-        basic_results = []
+        # ===== STEP 1: PHASE 1 BASIC SCORING FOR ALL TOKENS =====
+        print(f"[STEP 1] Running basic scoring for ALL {len(scan_results)} tokens...")
+        base_scores = {}
+        
         for result in scan_results:
             try:
-                symbol = result.get('symbol')
-                if not symbol:
+                symbol = result.get('symbol', 'UNKNOWN')
+                
+                # Extract market data from scan result
+                market_data = {
+                    'symbol': symbol,
+                    'price': result.get('price', 0),
+                    'volume_24h': result.get('volume_24h', 0),
+                    'price_change_24h': result.get('price_change_24h', 0),
+                    'candles_15m': result.get('candles_15m', []),
+                    'candles_5m': result.get('candles_5m', []),
+                    'orderbook': result.get('orderbook', {})
+                }
+                
+                # Skip tokens without sufficient candle data
+                candles_15m = market_data.get('candles_15m', [])
+                candles_5m = market_data.get('candles_5m', [])
+                
+                if len(candles_15m) == 0 and len(candles_5m) == 0:
+                    print(f"[STEP 1 SKIP] {symbol}: No candle data available")
                     continue
                 
-                # Check if token has TJDE score (already processed)
-                tjde_score = result.get('tjde_score', 0) or result.get('score', 0)
-                
-                if tjde_score > 0:
-                    # Convert to basic scoring format
-                    basic_result = {
-                        'symbol': symbol,
-                        'score': tjde_score,
-                        'basic_score': tjde_score,
-                        'decision': result.get('tjde_decision', 'unknown'),
-                        'market_data': {
-                            'symbol': symbol,
-                            'price': result.get('price', 0),
-                            'volume_24h': result.get('volume_24h', 0),
-                            'price_change_24h': result.get('price_change_24h', 0),
-                            'candles_15m': result.get('candles_15m', []),
-                            'candles_5m': result.get('candles_5m', []),
-                            'data_source': 'legacy_scan'
-                        },
-                        'breakdown': {
-                            'trend': tjde_score * 0.3,
-                            'volume': tjde_score * 0.3,
-                            'momentum': tjde_score * 0.4
+                # CRITICAL: Only basic scoring - NO advanced modules here
+                basic_result = await self.run_basic_scoring(symbol, market_data)
+                if basic_result and isinstance(basic_result, dict):
+                    base_score = basic_result.get("score", 0.0)
+                    if base_score > 0:
+                        base_scores[symbol] = {
+                            'base_score': base_score,
+                            'market_data': market_data,
+                            'basic_result': basic_result
                         }
-                    }
-                    basic_results.append(basic_result)
+                        print(f"[PHASE 1] {symbol}: base_score={base_score:.3f}")
                     
             except Exception as e:
-                print(f"[DATA CONVERSION ERROR] {symbol}: {e}")
+                print(f"[PHASE 1 ERROR] {result.get('symbol', 'unknown')}: {e}")
                 continue
         
-        print(f"[DATA CONVERSION] Converted {len(basic_results)} scan results to basic scoring format")
-        
-        if not basic_results:
-            print("[PIPELINE FROM DATA] No viable tokens from scan results")
+        if not base_scores:
+            print(f"[PHASE 1 FAIL] No tokens passed basic scoring - returning empty")
             return []
+        
+        print(f"[PHASE 1 COMPLETE] {len(base_scores)} tokens passed basic scoring")
+        
+        # ===== STEP 2: TOP 20 SELECTION BY BASE_SCORE =====
+        print(f"[STEP 2] Selecting TOP 20 tokens by base_score ranking...")
+        top20 = sorted(base_scores.items(), key=lambda x: x[1]['base_score'], reverse=True)[:20]
+        top20_symbols = [symbol for symbol, data in top20]
+        
+        print(f"[TOP 20 SELECTED] {top20_symbols[:5]}... (showing first 5)")
+        for symbol, data in top20[:10]:
+            print(f"[TOP 20] {symbol}: base_score={data['base_score']:.3f}")
+        
+        # ===== STEP 3: CHART + AI LABEL GENERATION FOR TOP 20 ONLY =====
+        print(f"[STEP 3] Generating charts + AI labels for TOP 20 tokens ONLY...")
+        tokens_with_charts = []
+        
+        for symbol in top20_symbols:
+            token_data = base_scores[symbol]
+            market_data = token_data['market_data']
             
-        # Phase 2: Select TOP 20 tokens
-        print(f"[PHASE 2] Selecting TOP 20 tokens from {len(basic_results)} candidates...")
-        selected_tokens = self.select_top_tokens(basic_results, top_n=20)
+            # Generate chart and AI label for this specific token
+            chart_result = await self.generate_single_chart_and_label(symbol, market_data, token_data['base_score'])
+            if chart_result:
+                tokens_with_charts.append(chart_result)
+                print(f"[CHART+AI] {symbol}: Chart and AI label generated successfully")
+            else:
+                print(f"[CHART+AI SKIP] {symbol}: Failed chart/AI generation")
         
-        if not selected_tokens:
-            print("[PIPELINE FROM DATA] No tokens selected for advanced analysis")
-            return []
+        # ===== STEP 4: DATA VALIDATION =====
+        print(f"[STEP 4] Data validation: charts exist + ai_label != 'unknown' + confidence > 0.0")
+        validated_tokens = []
+        
+        for token_data in tokens_with_charts:
+            symbol = token_data['symbol']
+            ai_label = token_data.get('ai_label', {})
+            label = ai_label.get('label', 'unknown')
+            confidence = ai_label.get('confidence', 0.0)
+            chart_path = token_data.get('chart_path', '')
             
-        print(f"[PHASE 2 COMPLETE] {len(selected_tokens)} tokens selected for Phase 3-5 (charts + AI-EYE + advanced)")
+            # CRITICAL VALIDATION CHECKS
+            if chart_path and not os.path.exists(chart_path):
+                print(f"[VALIDATION SKIP] {symbol}: missing chart.png at {chart_path}")
+                continue
+                
+            if label == "unknown" or confidence <= 0.0:
+                print(f"[VALIDATION SKIP] {symbol}: Invalid AI label → {label} ({confidence})")
+                continue
+                
+            # ALL VALIDATION PASSED
+            validated_tokens.append(token_data)
+            print(f"[VALIDATION OK] {symbol}: chart ✓, label={label}, confidence={confidence:.3f}")
         
-        # Phase 3: Capture charts for selected tokens only
-        tokens_with_charts = await self.phase3_chart_capture(selected_tokens)
+        # ===== STEP 5: PHASE 2 ADVANCED MODULES FOR VALIDATED TOKENS ONLY =====
+        print(f"[STEP 5] Running Phase 2 advanced modules for {len(validated_tokens)} validated tokens...")
+        final_results = []
         
-        # Phase 4: CLIP inference
-        clip_enhanced = await self.phase4_clip_inference(tokens_with_charts)
-        
-        # Phase 5: Advanced modules
-        final_results = await self.phase5_advanced_modules(clip_enhanced)
+        for token_data in validated_tokens:
+            symbol = token_data['symbol']
+            market_data = token_data['market_data']
+            ai_label = token_data['ai_label']
+            
+            try:
+                # NOW run full advanced analysis with complete data
+                advanced_result = await self.run_advanced_scoring_with_data(symbol, market_data, ai_label)
+                if advanced_result:
+                    final_results.append(advanced_result)
+                    print(f"[PHASE 2] {symbol}: Advanced scoring completed")
+                    
+            except Exception as e:
+                print(f"[PHASE 2 ERROR] {symbol}: {e}")
+                continue
         
         total_elapsed = time.time() - pipeline_start
         
-        print(f"[TJDE v3 FROM DATA COMPLETE] Pipeline finished in {total_elapsed:.1f}s")
-        print(f"[PIPELINE SUMMARY] {len(scan_results)} → {len(basic_results)} → {len(selected_tokens)} → {len(final_results)}")
+        print(f"[TJDE v3 5-STEP COMPLETE] Pipeline finished in {total_elapsed:.1f}s")
+        print(f"[PIPELINE SUMMARY] {len(scan_results)} → {len(base_scores)} → 20 → {len(validated_tokens)} → {len(final_results)}")
         
         if final_results:
-            top_3 = [(r['symbol'], r['advanced_score'], r['final_decision']) for r in final_results[:3]]
+            top_3 = [(r['symbol'], r.get('advanced_score', 0), r.get('final_decision', 'unknown')) for r in final_results[:3]]
             print(f"[TOP 3 FINAL] {top_3}")
             
         return final_results
+    
+    async def generate_single_chart_and_label(self, symbol: str, market_data: Dict, base_score: float) -> Optional[Dict]:
+        """
+        Generate chart and AI label for single token (TOP 20 only)
+        
+        Args:
+            symbol: Trading symbol
+            market_data: Market data dictionary
+            base_score: Base score from Phase 1
+            
+        Returns:
+            Token data with chart_path and ai_label
+        """
+        try:
+            # Step 3a: Generate TradingView chart
+            chart_path = await self.capture_single_chart(symbol, base_score)
+            
+            if not chart_path or not os.path.exists(chart_path):
+                print(f"[CHART FAIL] {symbol}: Chart generation failed")
+                return None
+            
+            # Step 3b: Generate AI label using CLIP
+            ai_label = await self.generate_ai_label_for_chart(symbol, chart_path)
+            
+            if not ai_label or ai_label.get('label') == 'unknown':
+                print(f"[AI LABEL FAIL] {symbol}: AI label generation failed")
+                return None
+            
+            # Step 3c: Generate HTF candles
+            candles_15m = market_data.get('candles_15m', [])
+            htf_candles = []
+            if candles_15m and len(candles_15m) >= 4:
+                htf_candles = self.generate_htf_candles_from_15m(candles_15m)
+                print(f"[HTF GEN] {symbol}: Generated {len(htf_candles)} HTF candles")
+            
+            return {
+                'symbol': symbol,
+                'base_score': base_score,
+                'market_data': market_data,
+                'chart_path': chart_path,
+                'ai_label': ai_label,
+                'htf_candles': htf_candles
+            }
+            
+        except Exception as e:
+            print(f"[CHART+AI ERROR] {symbol}: {e}")
+            return None
+    
+    async def generate_ai_label_for_chart(self, symbol: str, chart_path: str) -> Optional[Dict]:
+        """
+        Generate AI label for chart using CLIP inference
+        
+        Args:
+            symbol: Trading symbol
+            chart_path: Path to chart image
+            
+        Returns:
+            AI label dictionary with label and confidence
+        """
+        try:
+            # INTEGRATION WITH REAL CLIP SYSTEM
+            from vision.ai_label_pipeline import prepare_ai_label
+            
+            print(f"[AI LABEL] {symbol}: Running CLIP inference on {os.path.basename(chart_path)}")
+            
+            # Run CLIP inference on chart
+            ai_result = await prepare_ai_label(chart_path, symbol)
+            
+            if ai_result and ai_result.get('label') != 'unknown':
+                print(f"[AI LABEL OK] {symbol}: {ai_result['label']} (confidence: {ai_result.get('confidence', 0):.3f})")
+                return ai_result
+            else:
+                print(f"[AI LABEL FAIL] {symbol}: No valid AI label generated")
+                return {'label': 'unknown', 'confidence': 0.0}
+                
+        except Exception as e:
+            print(f"[AI LABEL ERROR] {symbol}: {e}")
+            return {'label': 'unknown', 'confidence': 0.0}
+    
+    async def run_advanced_scoring_with_data(self, symbol: str, market_data: Dict, ai_label: Dict) -> Optional[Dict]:
+        """
+        Run advanced scoring with complete validated data
+        
+        Args:
+            symbol: Trading symbol
+            market_data: Market data dictionary
+            ai_label: AI label with confidence
+            
+        Returns:
+            Advanced scoring result
+        """
+        try:
+            # Import unified scoring system
+            from unified_scoring_engine import simulate_trader_decision_advanced, prepare_unified_data
+            
+            # Extract components
+            candles_15m = market_data.get('candles_15m', [])
+            
+            # Create ticker data structure
+            ticker_data = {
+                'lastPrice': str(market_data.get('price', 0)),
+                'volume24h': str(market_data.get('volume_24h', 0)),
+                'price24hPcnt': str(market_data.get('price_change_24h', 0))
+            }
+            
+            # Create orderbook placeholder
+            orderbook = market_data.get('orderbook', {})
+            
+            # Create signals structure
+            signals = {
+                'cluster_strength': 0.5,
+                'cluster_direction': 1.0,
+                'cluster_volume_ratio': 1.0,
+                'market_phase': 'trend-following'
+            }
+            
+            # Generate HTF candles if needed
+            htf_candles = []
+            if candles_15m and len(candles_15m) >= 4:
+                htf_candles = self.generate_htf_candles_from_15m(candles_15m)
+            
+            # Prepare unified data
+            unified_data = prepare_unified_data(
+                symbol=symbol,
+                candles=candles_15m,
+                ticker_data=ticker_data,
+                orderbook=orderbook,
+                market_data=market_data,
+                signals=signals,
+                ai_label=ai_label,
+                htf_candles=htf_candles
+            )
+            
+            # Run advanced scoring with unified data
+            advanced_result = simulate_trader_decision_advanced(data=unified_data)
+            
+            if advanced_result:
+                # Extract meaningful scores from advanced result
+                advanced_score = advanced_result.get('final_score', 
+                               advanced_result.get('score', 0))
+                decision = advanced_result.get('decision', 'unknown')
+                
+                final_result = {
+                    'symbol': symbol,
+                    'advanced_score': advanced_score,
+                    'final_decision': decision,
+                    'ai_label': ai_label,
+                    'breakdown': advanced_result.get('score_breakdown', {}),
+                    'modules_active': advanced_result.get('active_modules', 0),
+                    'engine_version': 'tjde_v3_5step',
+                    
+                    # MAIN SYSTEM COMPATIBILITY FIELDS
+                    'tjde_score': advanced_score,
+                    'tjde_decision': decision,
+                    'score': advanced_score,
+                    'decision': decision,
+                    
+                    # Additional fields expected by main system
+                    'volume_24h': market_data.get('volume_24h', 0),
+                    'price_change_24h': market_data.get('price_change_24h', 0),
+                    'current_price': market_data.get('price', 0),
+                    'market_phase': advanced_result.get('market_phase', 'unknown')
+                }
+                
+                print(f"[ADVANCED RESULT] {symbol}: {advanced_score:.3f} ({decision})")
+                return final_result
+            else:
+                print(f"[ADVANCED FAIL] {symbol}: No result from unified engine")
+                return None
+                
+        except Exception as e:
+            print(f"[ADVANCED ERROR] {symbol}: {e}")
+            return None
 
 
 # Global pipeline instance
