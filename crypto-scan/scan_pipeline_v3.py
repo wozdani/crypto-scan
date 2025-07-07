@@ -154,34 +154,52 @@ class TJDEv3Pipeline:
         
         results = []
         
-        # Process all tokens with basic scoring
-        for symbol in symbols:
-            try:
-                # Get market data - use real data from existing APIs
-                market_data = await self.fetch_real_market_data(symbol)
-                
-                # Skip if no data
-                if not market_data:
-                    continue
-                
-                if not market_data:
-                    continue
+        # ASYNC BATCH PROCESSING - Use existing AsyncCryptoScanner
+        from async_scanner import AsyncCryptoScanner
+        
+        scanner = AsyncCryptoScanner(max_concurrent=120)
+        
+        async with scanner:
+            # Batch fetch all market data using async scanner
+            print(f"[PHASE 1 ASYNC] Starting parallel data fetch for {len(symbols)} tokens")
+            scan_results = await scanner.scan_all_tokens(symbols, priority_info)
+            
+            print(f"[PHASE 1 ASYNC] Fetched data for {len(scan_results)} tokens")
+            
+            # Process results with basic scoring
+            for result in scan_results:
+                try:
+                    symbol = result.get('symbol')
+                    if not symbol:
+                        continue
                     
-                # Run basic scoring (no AI-EYE dependency)
-                basic_result = await self.run_basic_scoring(symbol, market_data)
-                
-                if basic_result and basic_result.get('score', 0) > 0:
-                    results.append({
+                    # Convert async scan result to market_data format
+                    market_data = {
                         'symbol': symbol,
-                        'basic_score': basic_result['score'],
-                        'basic_decision': basic_result['decision'],
-                        'market_data': market_data,
-                        'basic_breakdown': basic_result.get('breakdown', {})
-                    })
+                        'price': result.get('price', 0),
+                        'volume_24h': result.get('volume_24h', 0),
+                        'price_change_24h': result.get('price_change_24h', 0),
+                        'candles_15m': result.get('candles_15m', []),
+                        'candles_5m': result.get('candles_5m', []),
+                        'data_source': 'async_scanner'
+                    }
                     
-            except Exception as e:
-                print(f"[PHASE 1 ERROR] {symbol}: {e}")
-                continue
+                    # Run basic scoring (no AI-EYE dependency)
+                    basic_result = await self.run_basic_scoring(symbol, market_data)
+                    
+                    if basic_result and basic_result.get('score', 0) > 0:
+                        results.append({
+                            'symbol': symbol,
+                            'basic_score': basic_result['score'],
+                            'basic_decision': basic_result['decision'],
+                            'market_data': market_data,
+                            'basic_breakdown': basic_result.get('breakdown', {}),
+                            'ai_label': {'label': 'unknown', 'confidence': 0.0}  # Default for Phase 2
+                        })
+                        
+                except Exception as e:
+                    print(f"[PHASE 1 ERROR] {result.get('symbol', 'unknown')}: {e}")
+                    continue
                 
         # Sort by score
         results.sort(key=lambda x: x['basic_score'], reverse=True)
@@ -209,12 +227,23 @@ class TJDEv3Pipeline:
                 current_price=market_data.get('price', 0)
             )
             
-            # Validate result has meaningful score
-            if result and result.get('score', 0) > 0.001:
-                print(f"[BASIC SCORING] {symbol}: Score {result['score']:.3f}")
+            # Debug basic scoring result
+            score = result.get('score', 0) if result else 0
+            decision = result.get('decision', 'unknown') if result else 'none'
+            breakdown = result.get('breakdown', {}) if result else {}
+            
+            print(f"[BASIC SCORING DEBUG] {symbol}: Score {score:.3f}, Decision: {decision}")
+            if breakdown:
+                trend = breakdown.get('trend', 0)
+                volume = breakdown.get('volume', 0) 
+                momentum = breakdown.get('momentum', 0)
+                print(f"[BASIC BREAKDOWN] {symbol}: Trend={trend:.3f}, Volume={volume:.3f}, Momentum={momentum:.3f}")
+            
+            # Accept any positive score for testing
+            if result and score > 0:
                 return result
             else:
-                print(f"[BASIC SCORING] {symbol}: Low score {result.get('score', 0):.3f}")
+                print(f"[BASIC SCORING] {symbol}: Rejected - score too low")
                 return None
             
         except Exception as e:

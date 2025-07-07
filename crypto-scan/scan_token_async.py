@@ -533,15 +533,14 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         # Basic screening only needs core market data - NO ai_label or htf_candles
                         basic_result = simulate_trader_decision_basic(
                             symbol=symbol,
-                            current_price=price,
                             candles_15m=candles_15m,
                             candles_5m=candles_5m or [],
-                            orderbook_data=market_data.get('orderbook', {}),
                             volume_24h=safe_volume_24h or 0.0,
-                            price_change_24h=safe_price_change_24h or 0.0
+                            price_change_24h=safe_price_change_24h or 0.0,
+                            current_price=price
                         )
                         
-                        basic_score = basic_result.get('final_score', 0.0)
+                        basic_score = basic_result.get('score', 0.0)
                         basic_decision = basic_result.get('decision', 'unknown')
                         
                         print(f"[BASIC SCREENING SUCCESS] {symbol}: Score={basic_score:.4f}, Decision={basic_decision}")
