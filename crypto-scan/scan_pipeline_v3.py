@@ -420,26 +420,22 @@ class TJDEv3Pipeline:
         """Capture single chart using TradingView"""
         try:
             # INTEGRATION WITH REAL TRADINGVIEW SYSTEM
-            from utils.robust_tradingview import generate_chart_async_safe
+            from utils.tradingview_robust import RobustTradingViewGenerator
             
             print(f"[CHART CAPTURE] {symbol}: Initiating TradingView screenshot...")
             
-            # Generate real chart using TradingView system
-            chart_result = await generate_chart_async_safe(
+            # Initialize TradingView generator and capture chart
+            tv_generator = RobustTradingViewGenerator()
+            chart_path = await tv_generator.generate_chart_async(
                 symbol=symbol,
                 score=score,
                 decision='consider',
-                priority=1  # High priority for TOP 20 tokens
+                priority='high'  # High priority for TOP 20 tokens
             )
             
-            if chart_result and chart_result.get('success'):
-                chart_path = chart_result.get('chart_path')
-                if chart_path and os.path.exists(chart_path):
-                    print(f"[CHART SUCCESS] {symbol}: {os.path.basename(chart_path)}")
-                    return chart_path
-                else:
-                    print(f"[CHART ERROR] {symbol}: Generated path does not exist")
-                    return None
+            if chart_path and os.path.exists(chart_path):
+                print(f"[CHART SUCCESS] {symbol}: {os.path.basename(chart_path)}")
+                return chart_path
             else:
                 print(f"[CHART FAILED] {symbol}: TradingView generation failed")
                 return None
@@ -501,7 +497,7 @@ class TJDEv3Pipeline:
         """Run CLIP prediction on chart"""
         try:
             # INTEGRATION WITH REAL CLIP VISION-AI SYSTEM
-            from vision.label_with_clip import label_with_clip
+            from vision.ai_label_pipeline import prepare_ai_label
             
             print(f"[CLIP INFERENCE] {symbol}: Analyzing chart with Vision-AI...")
             
@@ -509,28 +505,36 @@ class TJDEv3Pipeline:
                 print(f"[CLIP ERROR] {symbol}: Chart path invalid or missing")
                 return None
             
-            # Run CLIP Vision-AI analysis on captured chart
-            clip_result = await label_with_clip(chart_path, symbol)
+            # Run complete AI-EYE Vision-AI pipeline analysis
+            ai_result = prepare_ai_label(
+                symbol=symbol,
+                chart_path=chart_path,
+                heatmap_path=None,  # Will be generated if needed
+                candles=[],  # Can be enhanced with candle data later
+                orderbook={}  # Can be enhanced with orderbook data later
+            )
             
-            if clip_result and 'label' in clip_result:
-                label = clip_result['label']
-                confidence = clip_result.get('confidence', 0.0)
+            if ai_result and 'ai_label' in ai_result:
+                label = ai_result['ai_label']
+                confidence = ai_result.get('ai_confidence', 0.0)
                 
                 print(f"[CLIP SUCCESS] {symbol}: {label} (confidence: {confidence:.3f})")
                 
                 return {
                     'label': label,
                     'confidence': confidence,
-                    'method': 'clip_vision_ai',
+                    'method': 'ai_eye_vision',
                     'timestamp': datetime.now().isoformat(),
-                    'chart_analyzed': chart_path
+                    'chart_analyzed': chart_path,
+                    'phase': ai_result.get('ai_phase', 'unknown'),
+                    'setup': ai_result.get('ai_setup', 'unknown')
                 }
             else:
-                print(f"[CLIP FAILED] {symbol}: No label extracted from Vision-AI")
+                print(f"[CLIP FAILED] {symbol}: No label extracted from AI-EYE")
                 return {
                     'label': 'unknown',
                     'confidence': 0.0,
-                    'method': 'clip_failed',
+                    'method': 'ai_eye_failed',
                     'timestamp': datetime.now().isoformat()
                 }
             
@@ -602,7 +606,16 @@ class TJDEv3Pipeline:
                     'method': 'clip_prediction'
                 })
                 
-                # Prepare unified data with correct signature
+                # CRITICAL FIX: Generate HTF candles for Phase 5 advanced modules
+                htf_candles = token_data.get('htf_candles', [])
+                if not htf_candles and candles_15m and len(candles_15m) >= 4:
+                    htf_candles = self.generate_htf_candles_from_15m(candles_15m)
+                    token_data['htf_candles'] = htf_candles  # Save for future use
+                    print(f"[PHASE 5 HTF] {symbol}: Generated {len(htf_candles)} HTF candles")
+                else:
+                    print(f"[PHASE 5 HTF] {symbol}: Using existing {len(htf_candles)} HTF candles")
+                
+                # Prepare unified data with correct signature and HTF candles
                 unified_data = prepare_unified_data(
                     symbol=symbol,
                     candles=candles_15m,
@@ -611,7 +624,7 @@ class TJDEv3Pipeline:
                     market_data=market_data,
                     signals=signals,
                     ai_label=ai_label,
-                    htf_candles=[]
+                    htf_candles=htf_candles  # Use real HTF candles
                 )
                 
                 # Run advanced scoring with unified data
