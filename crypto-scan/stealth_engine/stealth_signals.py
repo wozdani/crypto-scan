@@ -1098,14 +1098,38 @@ class StealthSignalDetector:
             }
         
         try:
-            # Handle different orderbook formats (list vs dict)
+            # Handle different orderbook formats (list vs dict) with safe processing
             if isinstance(bids, dict):
-                bids_list = [bids[key] for key in sorted(bids.keys(), key=lambda x: float(x) if x.isdigit() else 0, reverse=True)]
-                bids = bids_list
+                try:
+                    bids_list = []
+                    for key in sorted(bids.keys(), key=lambda x: float(x) if str(x).replace('.','').isdigit() else 0, reverse=True):
+                        if isinstance(bids[key], list) and len(bids[key]) >= 2:
+                            bids_list.append(bids[key])
+                    bids = bids_list if bids_list else []
+                except Exception as e:
+                    print(f"[STEALTH DEBUG] detect_microstructure bids conversion error: {e}")
+                    bids = []
             
             if isinstance(asks, dict):
-                asks_list = [asks[key] for key in sorted(asks.keys(), key=lambda x: float(x) if x.isdigit() else 0)]
-                asks = asks_list
+                try:
+                    asks_list = []
+                    for key in sorted(asks.keys(), key=lambda x: float(x) if str(x).replace('.','').isdigit() else 0):
+                        if isinstance(asks[key], list) and len(asks[key]) >= 2:
+                            asks_list.append(asks[key])
+                    asks = asks_list if asks_list else []
+                except Exception as e:
+                    print(f"[STEALTH DEBUG] detect_microstructure asks conversion error: {e}")
+                    asks = []
+            
+            # Verify we have valid data after conversion
+            if not bids or not asks:
+                print(f"[STEALTH DEBUG] detect_microstructure: no valid bids/asks after conversion")
+                return {
+                    'signal_name': 'bid_ask_spread_tightening',
+                    'active': False,
+                    'strength': 0.0,
+                    'details': 'No valid orderbook data after conversion'
+                }
             
             best_bid = float(bids[0][0])
             best_ask = float(asks[0][0])

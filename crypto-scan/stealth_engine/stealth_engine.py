@@ -445,16 +445,28 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             # Handle different orderbook formats safely
             if bids and asks:
                 try:
-                    # Convert dict-based orderbook to list format if needed
+                    # Convert dict-based orderbook to list format if needed with safe processing
                     if isinstance(bids, dict):
-                        # Convert {'0': ['100', '10'], '1': ['99', '5']} to [['100', '10'], ['99', '5']]
-                        bids_list = [bids[key] for key in sorted(bids.keys(), key=lambda x: float(x) if x.isdigit() else 0, reverse=True)]
-                        bids = bids_list
+                        try:
+                            bids_list = []
+                            for key in sorted(bids.keys(), key=lambda x: float(x) if str(x).replace('.','').isdigit() else 0, reverse=True):
+                                if isinstance(bids[key], list) and len(bids[key]) >= 2:
+                                    bids_list.append(bids[key])
+                            bids = bids_list if bids_list else []
+                        except Exception as e:
+                            print(f"[STEALTH DEBUG] stealth_engine bids conversion error for {symbol}: {e}")
+                            bids = []
                     
                     if isinstance(asks, dict):
-                        # Convert {'0': ['101', '10'], '1': ['102', '5']} to [['101', '10'], ['102', '5']]
-                        asks_list = [asks[key] for key in sorted(asks.keys(), key=lambda x: float(x) if x.isdigit() else 0)]
-                        asks = asks_list
+                        try:
+                            asks_list = []
+                            for key in sorted(asks.keys(), key=lambda x: float(x) if str(x).replace('.','').isdigit() else 0):
+                                if isinstance(asks[key], list) and len(asks[key]) >= 2:
+                                    asks_list.append(asks[key])
+                            asks = asks_list if asks_list else []
+                        except Exception as e:
+                            print(f"[STEALTH DEBUG] stealth_engine asks conversion error for {symbol}: {e}")
+                            asks = []
                     
                     # Now process as list format
                     if len(bids) > 0 and len(asks) > 0:
