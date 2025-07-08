@@ -447,9 +447,29 @@ class StealthSignalDetector:
                 print(f"[STEALTH DEBUG] orderbook_imbalance for {symbol}: invalid ask structure after conversion: {type(asks[0])}, content: {asks[0]}")
                 return StealthSignal("orderbook_imbalance", False, 0.0)
             
-            # Oblicz siłę bid vs ask
-            bid_strength = sum(float(bid[1]) for bid in bids[:5])
-            ask_strength = sum(float(ask[1]) for ask in asks[:5])
+            # Oblicz siłę bid vs ask z enhanced validation dla każdego poziomu
+            bid_strength = 0
+            ask_strength = 0
+            
+            # Safe calculation for bid strength
+            for i, bid in enumerate(bids[:5]):
+                if isinstance(bid, (list, tuple)) and len(bid) >= 2:
+                    try:
+                        bid_strength += float(bid[1])
+                    except (ValueError, TypeError) as e:
+                        print(f"[STEALTH DEBUG] orderbook_imbalance for {symbol}: invalid bid[{i}][1] value: {bid[1]}")
+                else:
+                    print(f"[STEALTH DEBUG] orderbook_imbalance for {symbol}: invalid bid[{i}] structure: {type(bid)}, content: {bid}")
+            
+            # Safe calculation for ask strength  
+            for i, ask in enumerate(asks[:5]):
+                if isinstance(ask, (list, tuple)) and len(ask) >= 2:
+                    try:
+                        ask_strength += float(ask[1])
+                    except (ValueError, TypeError) as e:
+                        print(f"[STEALTH DEBUG] orderbook_imbalance for {symbol}: invalid ask[{i}][1] value: {ask[1]}")
+                else:
+                    print(f"[STEALTH DEBUG] orderbook_imbalance for {symbol}: invalid ask[{i}] structure: {type(ask)}, content: {ask}")
             
             if bid_strength + ask_strength == 0:
                 return StealthSignal("orderbook_imbalance", False, 0.0)
@@ -483,8 +503,18 @@ class StealthSignalDetector:
             return StealthSignal("large_bid_walls", False, 0.0)
         
         try:
-            # Sprawdź czy są duże bidy w top 3 poziomach
-            large_bids = sum(1 for bid in bids[:3] if float(bid[1]) > 10.0)
+            # Sprawdź czy są duże bidy w top 3 poziomach z enhanced validation
+            large_bids = 0
+            for i, bid in enumerate(bids[:3]):
+                if isinstance(bid, (list, tuple)) and len(bid) >= 2:
+                    try:
+                        if float(bid[1]) > 10.0:
+                            large_bids += 1
+                    except (ValueError, TypeError) as e:
+                        print(f"[STEALTH DEBUG] large_bid_walls for {symbol}: invalid bid[{i}][1] value: {bid[1]}")
+                else:
+                    print(f"[STEALTH DEBUG] large_bid_walls for {symbol}: invalid bid[{i}] structure: {type(bid)}, content: {bid}")
+            
             active = large_bids >= 2
             strength = large_bids / 3.0
             
@@ -730,9 +760,29 @@ class StealthSignalDetector:
             # spread_pct = (ask_price - bid_price) / mid_price
             spread_pct = (ask_price - bid_price) / mid_price
             
-            # Oblicz total bids i total asks volume
-            total_bids = sum(float(bid[1]) for bid in bids[:10])  # Top 10 levels
-            total_asks = sum(float(ask[1]) for ask in asks[:10])  # Top 10 levels
+            # Oblicz total bids i total asks volume z enhanced validation
+            total_bids = 0
+            total_asks = 0
+            
+            # Safe calculation for total bids
+            for i, bid in enumerate(bids[:10]):
+                if isinstance(bid, (list, tuple)) and len(bid) >= 2:
+                    try:
+                        total_bids += float(bid[1])
+                    except (ValueError, TypeError) as e:
+                        print(f"[STEALTH DEBUG] orderbook_anomaly for {symbol}: invalid bid[{i}][1] value: {bid[1]}")
+                else:
+                    print(f"[STEALTH DEBUG] orderbook_anomaly for {symbol}: invalid bid[{i}] structure: {type(bid)}, content: {bid}")
+            
+            # Safe calculation for total asks
+            for i, ask in enumerate(asks[:10]):
+                if isinstance(ask, (list, tuple)) and len(ask) >= 2:
+                    try:
+                        total_asks += float(ask[1])
+                    except (ValueError, TypeError) as e:
+                        print(f"[STEALTH DEBUG] orderbook_anomaly for {symbol}: invalid ask[{i}][1] value: {ask[1]}")
+                else:
+                    print(f"[STEALTH DEBUG] orderbook_anomaly for {symbol}: invalid ask[{i}] structure: {type(ask)}, content: {ask}")
             
             # imbalance_pct = abs(total_bids - total_asks) / (total_bids + total_asks)
             total_volume = total_bids + total_asks
