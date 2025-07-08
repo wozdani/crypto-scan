@@ -102,6 +102,11 @@ class StealthSignalDetector:
                 'description': 'Absorpcja płynności na kluczowych poziomach',
                 'category': 'liquidity',
                 'weight_default': 0.17
+            },
+            'repeated_address_boost': {
+                'description': 'Boost za powtarzające się adresy w sygnałach (+0.2 per adres, max +0.6)',
+                'category': 'accumulation',
+                'weight_default': 0.25
             }
         }
         
@@ -129,7 +134,8 @@ class StealthSignalDetector:
             ("ask_wall_removal", self.check_ask_wall_removal),
             ("volume_spike_stealth", self.check_volume_spike_stealth),
             ("bid_ask_spread_tightening_stealth", self.check_bid_ask_spread_tightening_stealth),
-            ("liquidity_absorption", self.check_liquidity_absorption)
+            ("liquidity_absorption", self.check_liquidity_absorption),
+            ("repeated_address_boost", self.check_repeated_address_boost)
         ]
         
         # Sprawdź każdy sygnał z obsługą błędów
@@ -274,6 +280,21 @@ class StealthSignalDetector:
             
             # Strength: max_order / (dynamic_threshold * 2)
             strength = min(max_order / (dynamic_threshold * 2), 1.0) if dynamic_threshold > 0 else 0.0
+            
+            # Address tracking dla whale ping
+            if active and max_order > 0:
+                try:
+                    from .address_tracker import address_tracker
+                    # Symulujemy adres na podstawie whale order (w rzeczywistości byłby to prawdziwy adres z orderbook)
+                    mock_address = f"whale_{symbol.lower()}_{int(max_order)}"[:42]  # Symulacja adresu
+                    address_tracker.record_address_activity(
+                        token=symbol,
+                        address=mock_address,
+                        usd_value=max_order,
+                        source="whale_ping"
+                    )
+                except Exception as addr_e:
+                    print(f"[STEALTH DEBUG] whale_ping address tracking error for {symbol}: {addr_e}")
             
             print(f"[STEALTH DEBUG] whale_ping: max_order=${max_order:.0f}, dynamic_threshold=${dynamic_threshold:.0f}, active={active}")
             if active:
@@ -498,7 +519,7 @@ class StealthSignalDetector:
     def check_dex_inflow(self, token_data: Dict) -> StealthSignal:
         """
         DEX inflow detector - detekcja nagłych napływów DEX względem historii
-        Dynamiczna wersja z kontekstem historycznym
+        Dynamiczna wersja z kontekstem historycznym + tracking adresów
         """
         symbol = token_data.get("symbol", "UNKNOWN")
         
@@ -519,6 +540,21 @@ class StealthSignalDetector:
             
             # Strength: min(inflow_usd / (avg_recent * 3 + 1), 1.0)
             strength = min(inflow_usd / (avg_recent * 3 + 1), 1.0) if avg_recent > 0 else 0.0
+            
+            # Address tracking dla DEX inflow
+            if spike_detected and inflow_usd > 0:
+                try:
+                    from .address_tracker import address_tracker
+                    # Symulujemy adres na podstawie danych DEX inflow (w rzeczywistości byłby to prawdziwy adres z blockchain)
+                    mock_address = f"dex_{symbol.lower()}_{int(inflow_usd)}"[:42]  # Symulacja adresu
+                    address_tracker.record_address_activity(
+                        token=symbol,
+                        address=mock_address,
+                        usd_value=inflow_usd,
+                        source="dex_inflow"
+                    )
+                except Exception as addr_e:
+                    print(f"[STEALTH DEBUG] dex_inflow address tracking error for {symbol}: {addr_e}")
             
             print(f"[STEALTH DEBUG] dex_inflow: inflow=${inflow_usd}, avg_recent=${avg_recent:.0f}, spike_detected={spike_detected}")
             if spike_detected:
@@ -1557,6 +1593,95 @@ class StealthSignalDetector:
             'strength': 0.0,
             'details': 'Liquidity absorption - requires orderbook history'
         }
+    
+    def check_repeated_address_boost(self, token_data: Dict) -> StealthSignal:
+        """
+        Repeated Address Boost - wykrycie powtarzalnych schematów akumulacji
+        przez te same adresy w sygnałach whale_ping i dex_inflow
+        """
+        symbol = token_data.get("symbol", "UNKNOWN")
+        
+        try:
+            print(f"[STEALTH DEBUG] repeated_address_boost for {symbol}: checking address patterns...")
+            
+            from .address_tracker import address_tracker
+            
+            # Pobierz aktywne adresy z ostatnich sygnałów (symulowane na podstawie aktualnych wartości)
+            current_addresses = []
+            
+            # Dodaj adresy z dex_inflow jeśli był aktywny
+            inflow_usd = token_data.get("dex_inflow", 0)
+            if inflow_usd > 1000:
+                address = f"dex_{symbol.lower()}_{int(inflow_usd)}"[:42]
+                current_addresses.append(address)
+                # Zapisz aktywność adresu w historii
+                address_tracker.record_address_activity(
+                    token=symbol,
+                    address=address,
+                    usd_value=inflow_usd,
+                    source="dex_inflow"
+                )
+            
+            # Dodaj adresy z whale_ping na podstawie orderbook
+            orderbook = token_data.get("orderbook", {})
+            if orderbook.get("bids") and orderbook.get("asks"):
+                try:
+                    bids = orderbook.get("bids", [])
+                    asks = orderbook.get("asks", [])
+                    
+                    # Oblicz max order value
+                    all_orders = []
+                    for bid in bids[:3]:  # Sprawdź top 3 bids
+                        if isinstance(bid, (list, tuple)) and len(bid) >= 2:
+                            price = float(bid[0])
+                            size = float(bid[1])
+                            usd_value = price * size
+                            all_orders.append(usd_value)
+                    
+                    for ask in asks[:3]:  # Sprawdź top 3 asks
+                        if isinstance(ask, (list, tuple)) and len(ask) >= 2:
+                            price = float(ask[0])
+                            size = float(ask[1])
+                            usd_value = price * size
+                            all_orders.append(usd_value)
+                    
+                    max_order = max(all_orders, default=0)
+                    if max_order > 10000:  # Próg dla whale orders
+                        address = f"whale_{symbol.lower()}_{int(max_order)}"[:42]
+                        current_addresses.append(address)
+                        # Zapisz aktywność adresu w historii
+                        address_tracker.record_address_activity(
+                            token=symbol,
+                            address=address,
+                            usd_value=max_order,
+                            source="whale_ping"
+                        )
+                        
+                except Exception as e:
+                    print(f"[STEALTH DEBUG] repeated_address_boost orderbook processing error for {symbol}: {e}")
+            
+            if not current_addresses:
+                return StealthSignal("repeated_address_boost", False, 0.0)
+            
+            # Oblicz boost na podstawie powtarzających się adresów
+            boost_score, details = address_tracker.get_repeated_addresses_boost(
+                token=symbol,
+                current_addresses=current_addresses,
+                history_days=7
+            )
+            
+            active = boost_score > 0
+            strength = min(boost_score / 0.6, 1.0)  # Normalizuj do 0-1 (max boost 0.6)
+            
+            print(f"[STEALTH DEBUG] repeated_address_boost: addresses={len(current_addresses)}, boost_score={boost_score:.2f}, active={active}")
+            if active:
+                print(f"[STEALTH DEBUG] repeated_address_boost DETECTED: {details['repeated_addresses']} repeated addresses, boost={boost_score:.2f}")
+            
+            return StealthSignal("repeated_address_boost", active, strength)
+            
+        except Exception as e:
+            print(f"[STEALTH DEBUG] repeated_address_boost error for {symbol}: {e}")
+            return StealthSignal("repeated_address_boost", False, 0.0)
     
     def get_signal_definitions(self) -> Dict:
         """Pobierz definicje wszystkich sygnałów"""
