@@ -226,6 +226,10 @@ class StealthSignalDetector:
             
         except Exception as e:
             print(f"[STEALTH DEBUG] whale_ping error for {symbol}: {e}")
+            print(f"[STEALTH DEBUG] whale_ping error details for {symbol}: bids_type={type(bids)}, asks_type={type(asks)}")
+            if hasattr(e, '__traceback__'):
+                import traceback
+                print(f"[STEALTH DEBUG] whale_ping traceback for {symbol}: {traceback.format_exc()}")
             return StealthSignal("whale_ping", False, 0.0)
     
     def check_spoofing_layers(self, token_data: Dict) -> StealthSignal:
@@ -315,14 +319,24 @@ class StealthSignalDetector:
         """
         Wolumen rosnący bez zmiany ceny
         """
+        symbol = token_data.get("symbol", "UNKNOWN")
         slope = token_data.get("volume_slope_up", False)
+        
+        print(f"[STEALTH DEBUG] volume_slope for {symbol}: volume_slope_up={slope}")
+        print(f"[STEALTH DEBUG] volume_slope result for {symbol}: active={slope}, strength={1.0 if slope else 0.0}")
+        
         return StealthSignal("volume_slope", slope, 1.0 if slope else 0.0)
     
     def check_ghost_orders(self, token_data: Dict) -> StealthSignal:
         """
         Martwe poziomy z nietypową aktywnością
         """
+        symbol = token_data.get("symbol", "UNKNOWN")
         ghost = token_data.get("ghost_orders", False)
+        
+        print(f"[STEALTH DEBUG] ghost_orders for {symbol}: ghost_orders={ghost}")
+        print(f"[STEALTH DEBUG] ghost_orders result for {symbol}: active={ghost}, strength={1.0 if ghost else 0.0}")
+        
         return StealthSignal("ghost_orders", ghost, 1.0 if ghost else 0.0)
     
     def check_dex_inflow(self, token_data: Dict) -> StealthSignal:
@@ -361,18 +375,27 @@ class StealthSignalDetector:
         """
         Event tag detection - unlock tokenów / airdrop
         """
+        symbol = token_data.get("symbol", "UNKNOWN")
         tag = token_data.get("event_tag", None)
+        
+        print(f"[STEALTH DEBUG] event_tag for {symbol}: event_tag={tag}")
+        print(f"[STEALTH DEBUG] event_tag result for {symbol}: active={tag is not None}, strength={1.0 if tag else 0.0}")
+        
         return StealthSignal("event_tag", tag is not None, 1.0 if tag else 0.0)
     
     def check_orderbook_imbalance_stealth(self, token_data: Dict) -> StealthSignal:
         """
         Sprawdź asymetrię orderbook - wersja stealth
         """
+        symbol = token_data.get("symbol", "UNKNOWN")
         orderbook = token_data.get('orderbook', {})
         bids = orderbook.get('bids', [])
         asks = orderbook.get('asks', [])
         
+        print(f"[STEALTH DEBUG] orderbook_imbalance_stealth for {symbol}: checking orderbook asymmetry...")
+        
         if not bids or not asks:
+            print(f"[STEALTH DEBUG] orderbook_imbalance_stealth for {symbol}: insufficient orderbook data")
             return StealthSignal("orderbook_imbalance", False, 0.0)
         
         try:
@@ -386,6 +409,7 @@ class StealthSignalDetector:
                     bids = bids_list if bids_list else []
                 except Exception as e:
                     print(f"[STEALTH DEBUG] orderbook_imbalance bids conversion error for {symbol}: {e}")
+                    print(f"[STEALTH DEBUG] orderbook_imbalance bids format for {symbol}: {type(bids)}, keys: {list(bids.keys()) if isinstance(bids, dict) else 'N/A'}")
                     bids = []
             
             if isinstance(asks, dict):
@@ -397,6 +421,7 @@ class StealthSignalDetector:
                     asks = asks_list if asks_list else []
                 except Exception as e:
                     print(f"[STEALTH DEBUG] orderbook_imbalance asks conversion error for {symbol}: {e}")
+                    print(f"[STEALTH DEBUG] orderbook_imbalance asks format for {symbol}: {type(asks)}, keys: {list(asks.keys()) if isinstance(asks, dict) else 'N/A'}")
                     asks = []
             
             # Verify we have valid data after conversion
@@ -415,18 +440,28 @@ class StealthSignalDetector:
             active = imbalance_ratio > 0.6  # 60% threshold
             strength = min(imbalance_ratio, 1.0)
             
+            if active:
+                print(f"[STEALTH DEBUG] orderbook_imbalance_stealth DETECTED for {symbol}: imbalance_ratio={imbalance_ratio:.3f} > 0.6")
+            
+            print(f"[STEALTH DEBUG] orderbook_imbalance_stealth result for {symbol}: active={active}, strength={strength:.3f}, bid_strength={bid_strength:.0f}, ask_strength={ask_strength:.0f}")
             return StealthSignal("orderbook_imbalance", active, strength)
-        except:
+        except Exception as e:
+            print(f"[STEALTH DEBUG] orderbook_imbalance_stealth error for {symbol}: {e}")
+            print(f"[STEALTH DEBUG] orderbook_imbalance_stealth error details for {symbol}: bids_type={type(bids)}, asks_type={type(asks)}")
             return StealthSignal("orderbook_imbalance", False, 0.0)
     
     def check_large_bid_walls_stealth(self, token_data: Dict) -> StealthSignal:
         """
         Wykryj duże mury bid wspierające cenę - wersja stealth
         """
+        symbol = token_data.get("symbol", "UNKNOWN")
         orderbook = token_data.get('orderbook', {})
         bids = orderbook.get('bids', [])
         
+        print(f"[STEALTH DEBUG] large_bid_walls for {symbol}: checking bid wall sizes...")
+        
         if len(bids) < 3:
+            print(f"[STEALTH DEBUG] large_bid_walls for {symbol}: insufficient bid levels ({len(bids)} < 3)")
             return StealthSignal("large_bid_walls", False, 0.0)
         
         try:
@@ -435,16 +470,26 @@ class StealthSignalDetector:
             active = large_bids >= 2
             strength = large_bids / 3.0
             
+            if active:
+                print(f"[STEALTH DEBUG] large_bid_walls DETECTED for {symbol}: {large_bids}/3 large bids (>10.0 volume)")
+            
+            print(f"[STEALTH DEBUG] large_bid_walls result for {symbol}: active={active}, strength={strength:.3f}, large_bids={large_bids}/3")
             return StealthSignal("large_bid_walls", active, strength)
-        except:
+        except Exception as e:
+            print(f"[STEALTH DEBUG] large_bid_walls error for {symbol}: {e}")
             return StealthSignal("large_bid_walls", False, 0.0)
     
     def check_ask_wall_removal(self, token_data: Dict) -> StealthSignal:
         """
         Wykryj usunięcie murów ask (placeholder - wymaga historycznych danych)
         """
+        symbol = token_data.get("symbol", "UNKNOWN")
         # Placeholder - w rzeczywistości potrzebne są dane historyczne orderbook
         active = token_data.get("ask_walls_removed", False)
+        
+        print(f"[STEALTH DEBUG] ask_wall_removal for {symbol}: ask_walls_removed={active}")
+        print(f"[STEALTH DEBUG] ask_wall_removal result for {symbol}: active={active}, strength={1.0 if active else 0.0}")
+        
         return StealthSignal("ask_wall_removal", active, 1.0 if active else 0.0)
     
     def check_volume_spike_stealth(self, token_data: Dict) -> StealthSignal:
@@ -513,11 +558,15 @@ class StealthSignalDetector:
         """
         Wykryj zwężenie spreadu bid-ask - wersja stealth
         """
+        symbol = token_data.get("symbol", "UNKNOWN")
         orderbook = token_data.get('orderbook', {})
         bids = orderbook.get('bids', [])
         asks = orderbook.get('asks', [])
         
+        print(f"[STEALTH DEBUG] spread_tightening for {symbol}: checking bid-ask spread compression...")
+        
         if not bids or not asks:
+            print(f"[STEALTH DEBUG] spread_tightening for {symbol}: insufficient orderbook data")
             return StealthSignal("bid_ask_spread_tightening", False, 0.0)
         
         try:
@@ -533,6 +582,7 @@ class StealthSignalDetector:
                     bids = bids_list if bids_list else []
                 except Exception as e:
                     print(f"[STEALTH DEBUG] spread_tightening bids conversion error for {symbol}: {e}")
+                    print(f"[STEALTH DEBUG] spread_tightening bids format for {symbol}: {type(bids)}, keys: {list(bids.keys()) if isinstance(bids, dict) else 'N/A'}")
                     bids = []
             
             if isinstance(asks, dict):
@@ -544,6 +594,7 @@ class StealthSignalDetector:
                     asks = asks_list if asks_list else []
                 except Exception as e:
                     print(f"[STEALTH DEBUG] spread_tightening asks conversion error for {symbol}: {e}")
+                    print(f"[STEALTH DEBUG] spread_tightening asks format for {symbol}: {type(asks)}, keys: {list(asks.keys()) if isinstance(asks, dict) else 'N/A'}")
                     asks = []
             
             # Verify we have valid data after conversion
@@ -563,18 +614,30 @@ class StealthSignalDetector:
             active = spread_percentage < 0.1
             strength = max(0.0, (0.1 - spread_percentage) / 0.1) if active else 0.0
             
+            if active:
+                print(f"[STEALTH DEBUG] spread_tightening DETECTED for {symbol}: spread_percentage={spread_percentage:.4f}% < 0.1%")
+            
+            print(f"[STEALTH DEBUG] spread_tightening result for {symbol}: active={active}, strength={strength:.3f}, spread_percentage={spread_percentage:.4f}%")
             return StealthSignal("bid_ask_spread_tightening", active, strength)
         except Exception as e:
-            symbol = token_data.get("symbol", "UNKNOWN") 
             print(f"[STEALTH DEBUG] spread_tightening error for {symbol}: {e}")
+            print(f"[STEALTH DEBUG] spread_tightening error details for {symbol}: bids_type={type(bids)}, asks_type={type(asks)}")
+            if hasattr(e, '__traceback__'):
+                import traceback
+                print(f"[STEALTH DEBUG] spread_tightening traceback for {symbol}: {traceback.format_exc()}")
             return StealthSignal("bid_ask_spread_tightening", False, 0.0)
     
     def check_liquidity_absorption(self, token_data: Dict) -> StealthSignal:
         """
         Wykryj absorpcję płynności (placeholder)
         """
+        symbol = token_data.get("symbol", "UNKNOWN")
         # Placeholder - wymaga analizy zmian w orderbook
         active = token_data.get("liquidity_absorbed", False)
+        
+        print(f"[STEALTH DEBUG] liquidity_absorption for {symbol}: liquidity_absorbed={active}")
+        print(f"[STEALTH DEBUG] liquidity_absorption result for {symbol}: active={active}, strength={1.0 if active else 0.0}")
+        
         return StealthSignal("liquidity_absorption", active, 1.0 if active else 0.0)
     
     def check_orderbook_anomaly(self, token_data: Dict) -> StealthSignal:
