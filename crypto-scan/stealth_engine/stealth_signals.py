@@ -195,6 +195,36 @@ class StealthSignalDetector:
                     print(f"[STEALTH DEBUG] whale_ping asks conversion error for {symbol}: {e}")
                     asks = []
             
+            # Handle case where bids is a list of dicts with 'price' and 'size' keys
+            if isinstance(bids, list) and len(bids) > 0 and isinstance(bids[0], dict):
+                try:
+                    bids_list = []
+                    for bid in bids:
+                        if isinstance(bid, dict) and 'price' in bid and 'size' in bid:
+                            bids_list.append([bid['price'], bid['size']])
+                        elif isinstance(bid, (list, tuple)) and len(bid) >= 2:
+                            bids_list.append(bid)
+                    bids = bids_list if bids_list else []
+                    print(f"[STEALTH DEBUG] whale_ping for {symbol}: converted dict format bids to list format, count: {len(bids)}")
+                except Exception as e:
+                    print(f"[STEALTH DEBUG] whale_ping bids dict-to-list conversion error for {symbol}: {e}")
+                    bids = []
+            
+            # Handle case where asks is a list of dicts with 'price' and 'size' keys
+            if isinstance(asks, list) and len(asks) > 0 and isinstance(asks[0], dict):
+                try:
+                    asks_list = []
+                    for ask in asks:
+                        if isinstance(ask, dict) and 'price' in ask and 'size' in ask:
+                            asks_list.append([ask['price'], ask['size']])
+                        elif isinstance(ask, (list, tuple)) and len(ask) >= 2:
+                            asks_list.append(ask)
+                    asks = asks_list if asks_list else []
+                    print(f"[STEALTH DEBUG] whale_ping for {symbol}: converted dict format asks to list format, count: {len(asks)}")
+                except Exception as e:
+                    print(f"[STEALTH DEBUG] whale_ping asks dict-to-list conversion error for {symbol}: {e}")
+                    asks = []
+            
             # Verify we have valid orderbook data after conversion
             if not bids or not asks:
                 print(f"[STEALTH DEBUG] whale_ping for {symbol}: no valid bids/asks after conversion")
@@ -433,6 +463,36 @@ class StealthSignalDetector:
                     print(f"[STEALTH DEBUG] orderbook_imbalance asks format for {symbol}: {type(asks)}, keys: {list(asks.keys()) if isinstance(asks, dict) else 'N/A'}")
                     asks = []
             
+            # Handle case where bids is a list of dicts with 'price' and 'size' keys
+            if isinstance(bids, list) and len(bids) > 0 and isinstance(bids[0], dict):
+                try:
+                    bids_list = []
+                    for bid in bids:
+                        if isinstance(bid, dict) and 'price' in bid and 'size' in bid:
+                            bids_list.append([bid['price'], bid['size']])
+                        elif isinstance(bid, (list, tuple)) and len(bid) >= 2:
+                            bids_list.append(bid)
+                    bids = bids_list if bids_list else []
+                    print(f"[STEALTH DEBUG] orderbook_imbalance for {symbol}: converted dict format bids to list format, count: {len(bids)}")
+                except Exception as e:
+                    print(f"[STEALTH DEBUG] orderbook_imbalance bids dict-to-list conversion error for {symbol}: {e}")
+                    bids = []
+            
+            # Handle case where asks is a list of dicts with 'price' and 'size' keys
+            if isinstance(asks, list) and len(asks) > 0 and isinstance(asks[0], dict):
+                try:
+                    asks_list = []
+                    for ask in asks:
+                        if isinstance(ask, dict) and 'price' in ask and 'size' in ask:
+                            asks_list.append([ask['price'], ask['size']])
+                        elif isinstance(ask, (list, tuple)) and len(ask) >= 2:
+                            asks_list.append(ask)
+                    asks = asks_list if asks_list else []
+                    print(f"[STEALTH DEBUG] orderbook_imbalance for {symbol}: converted dict format asks to list format, count: {len(asks)}")
+                except Exception as e:
+                    print(f"[STEALTH DEBUG] orderbook_imbalance asks dict-to-list conversion error for {symbol}: {e}")
+                    asks = []
+            
             # Verify we have valid data after conversion
             if not bids or not asks:
                 print(f"[STEALTH DEBUG] orderbook_imbalance for {symbol}: no valid bids/asks after conversion")
@@ -645,6 +705,36 @@ class StealthSignalDetector:
                     print(f"[STEALTH DEBUG] spread_tightening asks format for {symbol}: {type(asks)}, keys: {list(asks.keys()) if isinstance(asks, dict) else 'N/A'}")
                     asks = []
             
+            # Handle case where bids is a list of dicts with 'price' and 'size' keys
+            if isinstance(bids, list) and len(bids) > 0 and isinstance(bids[0], dict):
+                try:
+                    bids_list = []
+                    for bid in bids:
+                        if isinstance(bid, dict) and 'price' in bid and 'size' in bid:
+                            bids_list.append([bid['price'], bid['size']])
+                        elif isinstance(bid, (list, tuple)) and len(bid) >= 2:
+                            bids_list.append(bid)
+                    bids = bids_list if bids_list else []
+                    print(f"[STEALTH DEBUG] spread_tightening for {symbol}: converted dict format bids to list format, count: {len(bids)}")
+                except Exception as e:
+                    print(f"[STEALTH DEBUG] spread_tightening bids dict-to-list conversion error for {symbol}: {e}")
+                    bids = []
+            
+            # Handle case where asks is a list of dicts with 'price' and 'size' keys
+            if isinstance(asks, list) and len(asks) > 0 and isinstance(asks[0], dict):
+                try:
+                    asks_list = []
+                    for ask in asks:
+                        if isinstance(ask, dict) and 'price' in ask and 'size' in ask:
+                            asks_list.append([ask['price'], ask['size']])
+                        elif isinstance(ask, (list, tuple)) and len(ask) >= 2:
+                            asks_list.append(ask)
+                    asks = asks_list if asks_list else []
+                    print(f"[STEALTH DEBUG] spread_tightening for {symbol}: converted dict format asks to list format, count: {len(asks)}")
+                except Exception as e:
+                    print(f"[STEALTH DEBUG] spread_tightening asks dict-to-list conversion error for {symbol}: {e}")
+                    asks = []
+            
             # Verify we have valid data after conversion
             if not bids or not asks:
                 print(f"[STEALTH DEBUG] spread_tightening for {symbol}: no valid bids/asks after conversion")
@@ -736,6 +826,36 @@ class StealthSignalDetector:
                     asks = asks_list if asks_list else []
                 except Exception as e:
                     print(f"[STEALTH DEBUG] orderbook_anomaly asks conversion error for {symbol}: {e}")
+                    asks = []
+            
+            # Handle case where bids is a list of dicts with 'price' and 'size' keys
+            if isinstance(bids, list) and len(bids) > 0 and isinstance(bids[0], dict):
+                try:
+                    bids_list = []
+                    for bid in bids:
+                        if isinstance(bid, dict) and 'price' in bid and 'size' in bid:
+                            bids_list.append([bid['price'], bid['size']])
+                        elif isinstance(bid, (list, tuple)) and len(bid) >= 2:
+                            bids_list.append(bid)
+                    bids = bids_list if bids_list else []
+                    print(f"[STEALTH DEBUG] orderbook_anomaly for {symbol}: converted dict format bids to list format, count: {len(bids)}")
+                except Exception as e:
+                    print(f"[STEALTH DEBUG] orderbook_anomaly bids dict-to-list conversion error for {symbol}: {e}")
+                    bids = []
+            
+            # Handle case where asks is a list of dicts with 'price' and 'size' keys
+            if isinstance(asks, list) and len(asks) > 0 and isinstance(asks[0], dict):
+                try:
+                    asks_list = []
+                    for ask in asks:
+                        if isinstance(ask, dict) and 'price' in ask and 'size' in ask:
+                            asks_list.append([ask['price'], ask['size']])
+                        elif isinstance(ask, (list, tuple)) and len(ask) >= 2:
+                            asks_list.append(ask)
+                    asks = asks_list if asks_list else []
+                    print(f"[STEALTH DEBUG] orderbook_anomaly for {symbol}: converted dict format asks to list format, count: {len(asks)}")
+                except Exception as e:
+                    print(f"[STEALTH DEBUG] orderbook_anomaly asks dict-to-list conversion error for {symbol}: {e}")
                     asks = []
             
             # Verify we have valid data after conversion
