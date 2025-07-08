@@ -353,6 +353,117 @@ class AddressTracker:
             print(f"[ADDRESS TRACKER] Velocity analysis error: {e}")
             return 0.0, {"velocity_addresses": 0, "details": [], "error": str(e)}
 
+    def compute_inflow_momentum_boost(self, current_token: str, current_addresses: List[str], 
+                                     now: datetime = None) -> Tuple[float, Dict]:
+        """
+        🆕 PHASE 4/5: Momentum Inflow Booster
+        
+        Analizuje tempo przyspieszania aktywności adresów w różnych interwałach czasowych
+        Duży strumień w krótkim okresie = sygnał FOMO/akumulacji
+        
+        Args:
+            current_token: Token obecnie analizowany
+            current_addresses: Lista aktualnych adresów
+            now: Aktualny czas (domyślnie datetime.now())
+            
+        Returns:
+            Tuple[momentum_boost_score, momentum_details]
+        """
+        if now is None:
+            now = datetime.now()
+        
+        # Oblicz punkty odcięcia dla interwałów
+        cutoff_24h = (now - timedelta(hours=24)).isoformat()
+        cutoff_6h = (now - timedelta(hours=6)).isoformat()
+        cutoff_1h = (now - timedelta(hours=1)).isoformat()
+        
+        momentum_details = []
+        total_momentum_boost = 0.0
+        
+        for address in current_addresses:
+            if address not in self.address_history:
+                continue
+                
+            # Filtruj aktywności dla tego tokena w różnych interwałach
+            all_activities = [
+                activity for activity in self.address_history[address]
+                if activity.get("token") == current_token
+            ]
+            
+            activities_24h = [
+                activity for activity in all_activities
+                if activity["timestamp"] >= cutoff_24h
+            ]
+            
+            activities_6h = [
+                activity for activity in all_activities
+                if activity["timestamp"] >= cutoff_6h
+            ]
+            
+            activities_1h = [
+                activity for activity in all_activities
+                if activity["timestamp"] >= cutoff_1h
+            ]
+            
+            # Oblicz momentum ratio (aktywność w 1h vs 24h)
+            count_24h = len(activities_24h)
+            count_6h = len(activities_6h)
+            count_1h = len(activities_1h)
+            
+            if count_24h == 0:
+                continue
+                
+            # Momentum ratio = (aktywność w 1h / aktywność w 24h) * 24
+            # Normalizacja: jeśli w 1h mamy 1 transakcję, a w 24h też 1, ratio = 1.0
+            # Jeśli w 1h mamy 3 transakcje, a w 24h 5, ratio = (3/5) * 24 = 14.4
+            momentum_ratio = (count_1h / count_24h) * 24
+            
+            # Oblicz momentum boost według reguł
+            if momentum_ratio > 0.7:
+                address_momentum_boost = 0.30
+            elif momentum_ratio >= 0.4:
+                address_momentum_boost = 0.20
+            elif momentum_ratio >= 0.2:
+                address_momentum_boost = 0.10
+            else:
+                address_momentum_boost = 0.00
+            
+            # Oblicz wartość całkowitą dla tego adresu
+            total_value_24h = sum(a["usd_value"] for a in activities_24h)
+            total_value_1h = sum(a["usd_value"] for a in activities_1h)
+            
+            # Bonus za wysoką wartość w momentum
+            if total_value_1h > 100000:  # >$100k w 1h
+                address_momentum_boost *= 1.5
+            elif total_value_1h > 50000:  # >$50k w 1h
+                address_momentum_boost *= 1.2
+            
+            total_momentum_boost += address_momentum_boost
+            
+            momentum_details.append({
+                "address": address,
+                "activities_24h": count_24h,
+                "activities_6h": count_6h,
+                "activities_1h": count_1h,
+                "momentum_ratio": momentum_ratio,
+                "momentum_boost": address_momentum_boost,
+                "total_value_24h": total_value_24h,
+                "total_value_1h": total_value_1h,
+                "sources": list(set(a["source"] for a in activities_24h))
+            })
+        
+        # Cap całkowity boost na 0.8
+        total_momentum_boost = min(total_momentum_boost, 0.8)
+        
+        if total_momentum_boost > 0:
+            print(f"[ADDRESS TRACKER] Momentum inflow boost for {current_token}: +{total_momentum_boost:.2f} ({len(momentum_details)} addresses)")
+        
+        return total_momentum_boost, {
+            "momentum_addresses": len(momentum_details),
+            "details": momentum_details,
+            "total_momentum_boost": total_momentum_boost
+        }
+
     def get_address_statistics(self, token: str = None, days: int = 7) -> Dict:
         """
         Get statistics about address activities

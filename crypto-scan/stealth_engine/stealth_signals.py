@@ -116,6 +116,11 @@ class StealthSignalDetector:
                 'category': 'accumulation',
                 'weight_default': 0.18
             },
+            'inflow_momentum_boost': {
+                'description': 'Boost za przyspieszającą aktywność adresów (momentum inflow)',
+                'category': 'accumulation',
+                'weight_default': 0.15
+            },
             'cross_token_activity_boost': {
                 'description': 'Boost za korelację adresów między różnymi tokenami',
                 'category': 'accumulation',
@@ -150,6 +155,7 @@ class StealthSignalDetector:
             ("liquidity_absorption", self.check_liquidity_absorption),
             ("repeated_address_boost", self.check_repeated_address_boost),
             ("velocity_boost", self.check_velocity_boost),
+            ("inflow_momentum_boost", self.check_inflow_momentum_boost),
             ("cross_token_activity_boost", self.check_cross_token_activity_boost)
         ]
         
@@ -1776,6 +1782,103 @@ class StealthSignalDetector:
                 active=False,
                 strength=0.0
             )
+
+    def check_inflow_momentum_boost(self, token_data: Dict) -> StealthSignal:
+        """
+        🆕 PHASE 4/5: Momentum Inflow Booster
+        
+        Wykrywa przyspieszającą aktywność adresów - jak szybko adresy z dex_inflow 
+        lub whale_ping przesyłają środki w czasie. Duży strumień w krótkim okresie = sygnał FOMO/akumulacji
+        
+        Args:
+            token_data: Dane rynkowe tokena
+            
+        Returns:
+            StealthSignal z momentum boost score
+        """
+        try:
+            symbol = token_data.get("symbol", "UNKNOWN")
+            
+            # Identyfikacja aktywnych adresów
+            current_addresses = []
+            
+            # Sprawdź dex_inflow addresses
+            if "dex_inflow" in token_data and token_data["dex_inflow"] > 1000:
+                dex_value = token_data["dex_inflow"]
+                dex_address = f"dex_{symbol.lower().replace('usdt', '')}_{int(dex_value)}"
+                current_addresses.append(dex_address)
+                
+                # Rejestruj aktywność
+                self.address_tracker.record_address_activity(
+                    address=dex_address,
+                    token=symbol,
+                    usd_value=dex_value,
+                    source="dex_inflow"
+                )
+            
+            # Sprawdź whale_ping addresses na podstawie orderbook
+            orderbook = token_data.get("orderbook", {})
+            if orderbook.get("bids") and orderbook.get("asks"):
+                try:
+                    bids = orderbook.get("bids", [])
+                    asks = orderbook.get("asks", [])
+                    
+                    # Oblicz max order value
+                    all_orders = []
+                    for bid in bids[:3]:  # Sprawdź top 3 bids
+                        if isinstance(bid, (list, tuple)) and len(bid) >= 2:
+                            price = float(bid[0])
+                            size = float(bid[1])
+                            usd_value = price * size
+                            all_orders.append(usd_value)
+                    
+                    for ask in asks[:3]:  # Sprawdź top 3 asks
+                        if isinstance(ask, (list, tuple)) and len(ask) >= 2:
+                            price = float(ask[0])
+                            size = float(ask[1])
+                            usd_value = price * size
+                            all_orders.append(usd_value)
+                    
+                    max_order = max(all_orders, default=0)
+                    if max_order > 10000:  # Próg dla whale orders
+                        whale_address = f"whale_{symbol.lower().replace('usdt', '')}_{int(max_order)}"
+                        current_addresses.append(whale_address)
+                        
+                        # Rejestruj aktywność
+                        self.address_tracker.record_address_activity(
+                            address=whale_address,
+                            token=symbol,
+                            usd_value=max_order,
+                            source="whale_ping"
+                        )
+                        
+                except Exception as e:
+                    print(f"[STEALTH DEBUG] inflow_momentum_boost orderbook processing error for {symbol}: {e}")
+            
+            print(f"[STEALTH DEBUG] inflow_momentum_boost for {symbol}: checking momentum patterns...")
+            
+            if not current_addresses:
+                print(f"[STEALTH DEBUG] inflow_momentum_boost: no addresses found for {symbol}")
+                return StealthSignal("inflow_momentum_boost", False, 0.0)
+            
+            # Analiza momentum
+            momentum_boost, details = self.address_tracker.compute_inflow_momentum_boost(
+                current_token=symbol,
+                current_addresses=current_addresses
+            )
+            
+            active = momentum_boost > 0.0
+            strength = min(momentum_boost, 1.0)  # Normalizuj do 0-1
+            
+            print(f"[STEALTH DEBUG] inflow_momentum_boost: addresses={len(current_addresses)}, boost_score={momentum_boost:.2f}, active={active}")
+            if active:
+                print(f"[STEALTH DEBUG] inflow_momentum_boost DETECTED: {details['momentum_addresses']} momentum addresses, boost={momentum_boost:.2f}")
+                
+            return StealthSignal("inflow_momentum_boost", active, strength)
+            
+        except Exception as e:
+            print(f"[STEALTH DEBUG] inflow_momentum_boost error for {symbol}: {e}")
+            return StealthSignal("inflow_momentum_boost", False, 0.0)
 
     def check_cross_token_activity_boost(self, token_data: Dict) -> StealthSignal:
         """
