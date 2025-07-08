@@ -200,6 +200,15 @@ class StealthSignalDetector:
                 print(f"[STEALTH DEBUG] whale_ping for {symbol}: no valid bids/asks after conversion")
                 return StealthSignal("whale_ping", False, 0.0)
             
+            # Additional validation for data structure after conversion
+            if not isinstance(bids[0], (list, tuple)) or len(bids[0]) < 2:
+                print(f"[STEALTH DEBUG] whale_ping for {symbol}: invalid bid structure after conversion: {type(bids[0])}, content: {bids[0]}")
+                return StealthSignal("whale_ping", False, 0.0)
+            
+            if not isinstance(asks[0], (list, tuple)) or len(asks[0]) < 2:
+                print(f"[STEALTH DEBUG] whale_ping for {symbol}: invalid ask structure after conversion: {type(asks[0])}, content: {asks[0]}")
+                return StealthSignal("whale_ping", False, 0.0)
+            
             # Now process as list format - Oblicz max_bid_usd i max_ask_usd zgodnie ze specyfikacją
             best_bid_price = float(bids[0][0])
             best_bid_size = float(bids[0][1])
@@ -429,6 +438,15 @@ class StealthSignalDetector:
                 print(f"[STEALTH DEBUG] orderbook_imbalance for {symbol}: no valid bids/asks after conversion")
                 return StealthSignal("orderbook_imbalance", False, 0.0)
             
+            # Additional validation for data structure after conversion
+            if not isinstance(bids[0], (list, tuple)) or len(bids[0]) < 2:
+                print(f"[STEALTH DEBUG] orderbook_imbalance for {symbol}: invalid bid structure after conversion: {type(bids[0])}, content: {bids[0]}")
+                return StealthSignal("orderbook_imbalance", False, 0.0)
+            
+            if not isinstance(asks[0], (list, tuple)) or len(asks[0]) < 2:
+                print(f"[STEALTH DEBUG] orderbook_imbalance for {symbol}: invalid ask structure after conversion: {type(asks[0])}, content: {asks[0]}")
+                return StealthSignal("orderbook_imbalance", False, 0.0)
+            
             # Oblicz siłę bid vs ask
             bid_strength = sum(float(bid[1]) for bid in bids[:5])
             ask_strength = sum(float(ask[1]) for ask in asks[:5])
@@ -602,6 +620,15 @@ class StealthSignalDetector:
                 print(f"[STEALTH DEBUG] spread_tightening for {symbol}: no valid bids/asks after conversion")
                 return StealthSignal("bid_ask_spread_tightening", False, 0.0)
             
+            # Additional validation for data structure after conversion
+            if not isinstance(bids[0], (list, tuple)) or len(bids[0]) < 2:
+                print(f"[STEALTH DEBUG] spread_tightening for {symbol}: invalid bid structure after conversion: {type(bids[0])}, content: {bids[0]}")
+                return StealthSignal("bid_ask_spread_tightening", False, 0.0)
+            
+            if not isinstance(asks[0], (list, tuple)) or len(asks[0]) < 2:
+                print(f"[STEALTH DEBUG] spread_tightening for {symbol}: invalid ask structure after conversion: {type(asks[0])}, content: {asks[0]}")
+                return StealthSignal("bid_ask_spread_tightening", False, 0.0)
+            
             best_bid = float(bids[0][0])
             best_ask = float(asks[0][0])
             
@@ -684,6 +711,15 @@ class StealthSignalDetector:
             # Verify we have valid data after conversion
             if not bids or not asks:
                 print(f"[STEALTH DEBUG] orderbook_anomaly for {symbol}: no valid bids/asks after conversion")
+                return StealthSignal("orderbook_anomaly", False, 0.0)
+            
+            # Additional validation for data structure after conversion
+            if not isinstance(bids[0], (list, tuple)) or len(bids[0]) < 2:
+                print(f"[STEALTH DEBUG] orderbook_anomaly for {symbol}: invalid bid structure after conversion: {type(bids[0])}, content: {bids[0]}")
+                return StealthSignal("orderbook_anomaly", False, 0.0)
+            
+            if not isinstance(asks[0], (list, tuple)) or len(asks[0]) < 2:
+                print(f"[STEALTH DEBUG] orderbook_anomaly for {symbol}: invalid ask structure after conversion: {type(asks[0])}, content: {asks[0]}")
                 return StealthSignal("orderbook_anomaly", False, 0.0)
             
             # Oblicz spread_pct i imbalance_pct zgodnie ze specyfikacją
