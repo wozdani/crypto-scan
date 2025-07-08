@@ -151,22 +151,137 @@ class StealthSignalDetector:
     def check_whale_ping(self, token_data: Dict) -> StealthSignal:
         """
         Whale ping detector - wykrycie wielorybów przez duże zlecenia
-        Matematycznie precyzyjna implementacja zgodna z user specification v2
+        Dynamiczna wersja dopasowana do wolumenu tokena
         """
         symbol = token_data.get("symbol", "UNKNOWN")
-        orderbook = token_data.get("orderbook", {})
         
-        print(f"[STEALTH DEBUG] whale_ping for {symbol}: checking orderbook for large orders...")
-        
-        if not orderbook:
-            print(f"[STEALTH DEBUG] whale_ping for {symbol}: no orderbook data")
-            return StealthSignal("whale_ping", False, 0.0)
-        
-        bids = orderbook.get("bids", [])
-        asks = orderbook.get("asks", [])
-        
-        if not bids or not asks:
-            print(f"[STEALTH DEBUG] whale_ping for {symbol}: insufficient orderbook data")
+        try:
+            print(f"[STEALTH DEBUG] whale_ping for {symbol}: checking whale activity...")
+            
+            orderbook = token_data.get("orderbook", {})
+            bids = orderbook.get("bids", [])
+            asks = orderbook.get("asks", [])
+            
+            # Pobierz średni wolumen 15m dla dynamicznego progu
+            candles_15m = token_data.get("candles_15m", [])
+            if candles_15m and len(candles_15m) > 0:
+                # Oblicz średni wolumen z ostatnich 15m świec
+                volumes = []
+                for candle in candles_15m[-8:]:  # ostatnie 8 świec
+                    if isinstance(candle, dict) and "volume" in candle:
+                        volumes.append(float(candle["volume"]))
+                    elif isinstance(candle, (list, tuple)) and len(candle) >= 6:
+                        volumes.append(float(candle[5]))  # volume jest na pozycji 5
+                avg_volume_15m = sum(volumes) / len(volumes) if volumes else 0
+            else:
+                avg_volume_15m = 0
+            
+            if not bids or not asks:
+                print(f"[STEALTH DEBUG] whale_ping for {symbol}: insufficient orderbook data")
+                return StealthSignal("whale_ping", False, 0.0)
+            
+            # Handle different orderbook formats (list vs dict)
+            if isinstance(bids, dict):
+                try:
+                    bids_list = []
+                    for key in sorted(bids.keys(), key=lambda x: float(x) if str(x).replace('.','').isdigit() else 0, reverse=True):
+                        if isinstance(bids[key], list) and len(bids[key]) >= 2:
+                            bids_list.append(bids[key])
+                    bids = bids_list if bids_list else []
+                except Exception as e:
+                    print(f"[STEALTH DEBUG] whale_ping bids conversion error for {symbol}: {e}")
+                    bids = []
+            
+            if isinstance(asks, dict):
+                try:
+                    asks_list = []
+                    for key in sorted(asks.keys(), key=lambda x: float(x) if str(x).replace('.','').isdigit() else 0):
+                        if isinstance(asks[key], list) and len(asks[key]) >= 2:
+                            asks_list.append(asks[key])
+                    asks = asks_list if asks_list else []
+                except Exception as e:
+                    print(f"[STEALTH DEBUG] whale_ping asks conversion error for {symbol}: {e}")
+                    asks = []
+            
+            # Handle case where bids/asks are lists of dicts with 'price' and 'size' keys
+            if isinstance(bids, list) and len(bids) > 0 and isinstance(bids[0], dict):
+                try:
+                    bids_list = []
+                    for bid in bids:
+                        if isinstance(bid, dict) and 'price' in bid and 'size' in bid:
+                            bids_list.append([bid['price'], bid['size']])
+                        elif isinstance(bid, (list, tuple)) and len(bid) >= 2:
+                            bids_list.append(bid)
+                    bids = bids_list if bids_list else []
+                except Exception as e:
+                    print(f"[STEALTH DEBUG] whale_ping bids dict-to-list conversion error for {symbol}: {e}")
+                    bids = []
+            
+            if isinstance(asks, list) and len(asks) > 0 and isinstance(asks[0], dict):
+                try:
+                    asks_list = []
+                    for ask in asks:
+                        if isinstance(ask, dict) and 'price' in ask and 'size' in ask:
+                            asks_list.append([ask['price'], ask['size']])
+                        elif isinstance(ask, (list, tuple)) and len(ask) >= 2:
+                            asks_list.append(ask)
+                    asks = asks_list if asks_list else []
+                except Exception as e:
+                    print(f"[STEALTH DEBUG] whale_ping asks dict-to-list conversion error for {symbol}: {e}")
+                    asks = []
+            
+            # Verify we have valid orderbook data after conversion
+            if not bids or not asks:
+                print(f"[STEALTH DEBUG] whale_ping for {symbol}: no valid bids/asks after conversion")
+                return StealthSignal("whale_ping", False, 0.0)
+            
+            # Additional validation for data structure after conversion
+            if not isinstance(bids[0], (list, tuple)) or len(bids[0]) < 2:
+                print(f"[STEALTH DEBUG] whale_ping for {symbol}: invalid bid structure after conversion: {type(bids[0])}, content: {bids[0]}")
+                return StealthSignal("whale_ping", False, 0.0)
+            
+            if not isinstance(asks[0], (list, tuple)) or len(asks[0]) < 2:
+                print(f"[STEALTH DEBUG] whale_ping for {symbol}: invalid ask structure after conversion: {type(asks[0])}, content: {asks[0]}")
+                return StealthSignal("whale_ping", False, 0.0)
+            
+            # Oblicz wszystkie zlecenia USD
+            all_orders = []
+            for bid in bids:
+                try:
+                    price = float(bid[0])
+                    size = float(bid[1])
+                    all_orders.append({"price": price, "size": size})
+                except (ValueError, TypeError, IndexError):
+                    continue
+            
+            for ask in asks:
+                try:
+                    price = float(ask[0])
+                    size = float(ask[1])
+                    all_orders.append({"price": price, "size": size})
+                except (ValueError, TypeError, IndexError):
+                    continue
+            
+            # Oblicz USD wartości zleceń
+            usd_orders = [o["price"] * o["size"] for o in all_orders if "price" in o and "size" in o]
+            max_order = max(usd_orders, default=0)
+            
+            # Dynamiczny próg: 150% średniego wolumenu 15m
+            dynamic_threshold = avg_volume_15m * 1.5 if avg_volume_15m > 0 else 50000  # fallback 50k USD
+            
+            # Warunek aktywacji
+            active = max_order > dynamic_threshold
+            
+            # Strength: max_order / (dynamic_threshold * 2)
+            strength = min(max_order / (dynamic_threshold * 2), 1.0) if dynamic_threshold > 0 else 0.0
+            
+            print(f"[STEALTH DEBUG] whale_ping: max_order=${max_order:.0f}, dynamic_threshold=${dynamic_threshold:.0f}, active={active}")
+            if active:
+                print(f"[STEALTH DEBUG] whale_ping DETECTED: max_order=${max_order:.0f} > dynamic_threshold=${dynamic_threshold:.0f}")
+            return StealthSignal("whale_ping", active, strength)
+            
+        except Exception as e:
+            print(f"[STEALTH DEBUG] whale_ping error for {symbol}: {e}")
             return StealthSignal("whale_ping", False, 0.0)
         
         try:
@@ -382,34 +497,37 @@ class StealthSignalDetector:
     
     def check_dex_inflow(self, token_data: Dict) -> StealthSignal:
         """
-        DEX inflow detector - detekcja przepływu tokenów on-chain do CEX/DEX
-        Matematycznie precyzyjna implementacja zgodna z user specification v2
+        DEX inflow detector - detekcja nagłych napływów DEX względem historii
+        Dynamiczna wersja z kontekstem historycznym
         """
         symbol = token_data.get("symbol", "UNKNOWN")
-        inflow_value = token_data.get("dex_inflow", 0)
-        
-        print(f"[STEALTH DEBUG] dex_inflow for {symbol}: checking inflow value={inflow_value}")
-        
-        if inflow_value is None:
-            inflow_value = 0
         
         try:
-            inflow_usd = float(inflow_value)
-        except:
-            inflow_usd = 0.0
-        
-        # Warunek aktywacji: inflow_usd > 30_000
-        is_active = inflow_usd > 30_000
-        
-        # Strength: min(1.0, inflow_usd / 100_000)
-        strength = min(1.0, inflow_usd / 100_000) if is_active else 0.0
-        
-        print(f"[STEALTH DEBUG] dex_inflow: inflow_usd=${inflow_usd}")
-        if is_active:
-            print(f"[STEALTH DEBUG] dex_inflow DETECTED: inflow_usd=${inflow_usd:.0f} > $30,000")
-        
-        print(f"[STEALTH DEBUG] dex_inflow result for {symbol}: active={is_active}, strength={strength:.3f}, inflow_usd=${inflow_usd:,.0f}")
-        return StealthSignal("dex_inflow", is_active, strength)
+            print(f"[STEALTH DEBUG] dex_inflow for {symbol}: checking on-chain inflow...")
+            
+            # Pobierz wartość dex_inflow z token_data
+            inflow_usd = token_data.get("dex_inflow", 0)
+            
+            # Pobierz historię dex_inflow (ostatnie 8 wartości)
+            inflow_history = token_data.get("dex_inflow_history", [])[-8:]
+            
+            # Oblicz średnią z ostatnich wartości
+            avg_recent = sum(inflow_history) / len(inflow_history) if inflow_history else 0
+            
+            # Warunek aktywacji: inflow > avg_recent * 2 AND inflow > 1000
+            spike_detected = inflow_usd > avg_recent * 2 and inflow_usd > 1000
+            
+            # Strength: min(inflow_usd / (avg_recent * 3 + 1), 1.0)
+            strength = min(inflow_usd / (avg_recent * 3 + 1), 1.0) if avg_recent > 0 else 0.0
+            
+            print(f"[STEALTH DEBUG] dex_inflow: inflow=${inflow_usd}, avg_recent=${avg_recent:.0f}, spike_detected={spike_detected}")
+            if spike_detected:
+                print(f"[STEALTH DEBUG] dex_inflow DETECTED: inflow=${inflow_usd} > avg_recent*2=${avg_recent*2:.0f} AND inflow > 1000")
+            return StealthSignal("dex_inflow", spike_detected, strength)
+            
+        except Exception as e:
+            print(f"[STEALTH DEBUG] dex_inflow error for {symbol}: {e}")
+            return StealthSignal("dex_inflow", False, 0.0)
     
     def check_event_tag(self, token_data: Dict) -> StealthSignal:
         """

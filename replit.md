@@ -98,6 +98,17 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### July 8, 2025 - DYNAMIC STEALTH FUNCTIONS DEPLOYMENT COMPLETE - Context-Aware Whale & DEX Detection ✅
+Successfully implemented dynamic and contextual versions of whale_ping() and dex_inflow() functions providing adaptive detection based on token-specific market conditions:
+- **Dynamic Whale Ping**: Replaced static $100k threshold with dynamic threshold based on 150% of average 15m volume enabling context-aware whale detection for both high-volume (BTC-like) and low-volume (ALT-like) tokens
+- **Volume-Adaptive Detection**: Whale detection now adjusts to token characteristics - high-volume tokens require larger orders for detection while low-volume tokens trigger on smaller but proportionally significant orders
+- **Historical DEX Inflow Analysis**: Enhanced dex_inflow() with historical context using last 8 values to detect spikes (>2x average + >$1000) instead of static $30k threshold
+- **Context-Aware Strength Calculation**: Both functions now use dynamic strength calculation based on market conditions (whale: max_order/(threshold*2), dex: inflow/(avg*3+1))
+- **Comprehensive Debug Enhancement**: Both functions maintain standardized debug format showing dynamic thresholds, historical context, and activation conditions for transparent monitoring
+- **Fallback Safety Mechanisms**: Robust error handling with fallback values (whale: $50k USD, dex: strength=0.0) ensuring system stability when historical data unavailable
+- **Production-Ready Implementation**: Functions maintain full compatibility with existing StealthSignal architecture while providing enhanced detection accuracy through market-specific adaptation
+- **Real-Time Adaptation**: System automatically adjusts detection sensitivity based on token volume characteristics and historical patterns without manual threshold configuration
+
 ### July 8, 2025 - STANDARDIZED DEBUG PRINT SYSTEM COMPLETE - Enhanced Readability & Consistency ✅
 Successfully implemented standardized debug print system across all Stealth Engine functions providing improved readability and consistency for institutional-grade monitoring:
 - **Enhanced Print Consistency**: Standardized debug print format across all 12 stealth signal functions replacing verbose multi-line debug outputs with clean, informative single-line format
