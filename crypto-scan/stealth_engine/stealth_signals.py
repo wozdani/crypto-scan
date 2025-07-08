@@ -256,11 +256,12 @@ class StealthSignalDetector:
             if is_whale:
                 import math
                 strength = min(1.0, math.log10(max_order_usd / 10_000) / 2)
-                print(f"[STEALTH DEBUG] whale_ping DETECTED for {symbol}: max_order_usd=${max_order_usd:,.0f} > $100,000")
             else:
                 strength = 0.0
             
-            print(f"[STEALTH DEBUG] whale_ping result for {symbol}: active={is_whale}, strength={strength:.3f}, max_order_usd=${max_order_usd:,.0f}")
+            print(f"[STEALTH DEBUG] whale_ping: max_order_usd=${max_order_usd:.0f}")
+            if is_whale:
+                print(f"[STEALTH DEBUG] whale_ping DETECTED: max_order_usd=${max_order_usd:.0f} > $100,000")
             return StealthSignal("whale_ping", is_whale, strength)
             
         except Exception as e:
@@ -289,7 +290,7 @@ class StealthSignalDetector:
         asks = orderbook.get("asks", [])
         
         if len(bids) < 3 and len(asks) < 3:
-            print(f"[STEALTH DEBUG] spoofing_layers for {symbol}: insufficient layers")
+            print(f"[STEALTH DEBUG] spoofing_layers: insufficient levels")
             return StealthSignal("spoofing_layers", False, 0.0)
         
         try:
@@ -341,13 +342,18 @@ class StealthSignalDetector:
             # Wybierz wyższą strength
             strength = max(bid_strength, ask_strength)
             
+            if len(bids) >= 3 and len(asks) >= 3:
+                bid_layer_ratio = bids[0][1] / bids[1][1] if len(bids) > 1 and bids[1][1] > 0 else 0
+                ask_layer_ratio = asks[0][1] / asks[1][1] if len(asks) > 1 and asks[1][1] > 0 else 0
+                spoof_detected = bid_layer_ratio > 5 or ask_layer_ratio > 5
+                print(f"[STEALTH DEBUG] spoofing_layers: bid_ratio={bid_layer_ratio:.2f}, ask_ratio={ask_layer_ratio:.2f}, detected={spoof_detected}")
+            
             if is_active:
                 side_detected = "bids" if bid_spoofing else "asks"
                 layers_vol = bid_layers_vol if bid_spoofing else ask_layers_vol
                 total_vol = bid_total_vol if bid_spoofing else ask_total_vol
-                print(f"[STEALTH DEBUG] spoofing_layers DETECTED for {symbol}: {side_detected} layers_volume={layers_vol:.0f}, total_side_volume={total_vol:.0f}")
+                print(f"[STEALTH DEBUG] spoofing_layers DETECTED: {side_detected} layers_volume={layers_vol:.0f}, total_side_volume={total_vol:.0f}")
             
-            print(f"[STEALTH DEBUG] spoofing_layers result for {symbol}: active={is_active}, strength={strength:.3f}")
             return StealthSignal("spoofing_layers", is_active, strength)
             
         except Exception as e:
@@ -361,9 +367,7 @@ class StealthSignalDetector:
         symbol = token_data.get("symbol", "UNKNOWN")
         slope = token_data.get("volume_slope_up", False)
         
-        print(f"[STEALTH DEBUG] volume_slope for {symbol}: volume_slope_up={slope}")
-        print(f"[STEALTH DEBUG] volume_slope result for {symbol}: active={slope}, strength={1.0 if slope else 0.0}")
-        
+        print(f"[STEALTH DEBUG] volume_slope: volume_slope_up={slope}")
         return StealthSignal("volume_slope", slope, 1.0 if slope else 0.0)
     
     def check_ghost_orders(self, token_data: Dict) -> StealthSignal:
@@ -373,9 +377,7 @@ class StealthSignalDetector:
         symbol = token_data.get("symbol", "UNKNOWN")
         ghost = token_data.get("ghost_orders", False)
         
-        print(f"[STEALTH DEBUG] ghost_orders for {symbol}: ghost_orders={ghost}")
-        print(f"[STEALTH DEBUG] ghost_orders result for {symbol}: active={ghost}, strength={1.0 if ghost else 0.0}")
-        
+        print(f"[STEALTH DEBUG] ghost_orders: ghost_orders={ghost}")
         return StealthSignal("ghost_orders", ghost, 1.0 if ghost else 0.0)
     
     def check_dex_inflow(self, token_data: Dict) -> StealthSignal:
@@ -400,12 +402,11 @@ class StealthSignalDetector:
         is_active = inflow_usd > 30_000
         
         # Strength: min(1.0, inflow_usd / 100_000)
+        strength = min(1.0, inflow_usd / 100_000) if is_active else 0.0
+        
+        print(f"[STEALTH DEBUG] dex_inflow: inflow_usd=${inflow_usd}")
         if is_active:
-            strength = min(1.0, inflow_usd / 100_000)
-            print(f"[STEALTH DEBUG] dex_inflow DETECTED for {symbol}: inflow_usd=${inflow_usd:,.0f} > $30,000")
-        else:
-            strength = 0.0
-            print(f"[STEALTH DEBUG] dex_inflow BELOW THRESHOLD for {symbol}: inflow_usd=${inflow_usd:,.0f} <= $30,000")
+            print(f"[STEALTH DEBUG] dex_inflow DETECTED: inflow_usd=${inflow_usd:.0f} > $30,000")
         
         print(f"[STEALTH DEBUG] dex_inflow result for {symbol}: active={is_active}, strength={strength:.3f}, inflow_usd=${inflow_usd:,.0f}")
         return StealthSignal("dex_inflow", is_active, strength)
@@ -417,9 +418,7 @@ class StealthSignalDetector:
         symbol = token_data.get("symbol", "UNKNOWN")
         tag = token_data.get("event_tag", None)
         
-        print(f"[STEALTH DEBUG] event_tag for {symbol}: event_tag={tag}")
-        print(f"[STEALTH DEBUG] event_tag result for {symbol}: active={tag is not None}, strength={1.0 if tag else 0.0}")
-        
+        print(f"[STEALTH DEBUG] event_tag: event_tag={tag}")
         return StealthSignal("event_tag", tag is not None, 1.0 if tag else 0.0)
     
     def check_orderbook_imbalance_stealth(self, token_data: Dict) -> StealthSignal:
@@ -538,10 +537,9 @@ class StealthSignalDetector:
             active = imbalance_ratio > 0.6  # 60% threshold
             strength = min(imbalance_ratio, 1.0)
             
+            print(f"[STEALTH DEBUG] orderbook_imbalance_stealth: bid_strength={bid_strength:.0f}, ask_strength={ask_strength:.0f}, imbalance_ratio={imbalance_ratio:.3f}")
             if active:
-                print(f"[STEALTH DEBUG] orderbook_imbalance_stealth DETECTED for {symbol}: imbalance_ratio={imbalance_ratio:.3f} > 0.6")
-            
-            print(f"[STEALTH DEBUG] orderbook_imbalance_stealth result for {symbol}: active={active}, strength={strength:.3f}, bid_strength={bid_strength:.0f}, ask_strength={ask_strength:.0f}")
+                print(f"[STEALTH DEBUG] orderbook_imbalance_stealth DETECTED: imbalance_ratio={imbalance_ratio:.3f} > 0.6")
             return StealthSignal("orderbook_imbalance", active, strength)
         except Exception as e:
             print(f"[STEALTH DEBUG] orderbook_imbalance_stealth error for {symbol}: {e}")
@@ -556,10 +554,10 @@ class StealthSignalDetector:
         orderbook = token_data.get('orderbook', {})
         bids = orderbook.get('bids', [])
         
-        print(f"[STEALTH DEBUG] large_bid_walls for {symbol}: checking bid wall sizes...")
+        print(f"[STEALTH DEBUG] large_bid_walls: checking bid wall sizes...")
         
         if len(bids) < 3:
-            print(f"[STEALTH DEBUG] large_bid_walls for {symbol}: insufficient bid levels ({len(bids)} < 3)")
+            print(f"[STEALTH DEBUG] large_bid_walls: insufficient bid levels ({len(bids)} < 3)")
             return StealthSignal("large_bid_walls", False, 0.0)
         
         try:
@@ -595,9 +593,7 @@ class StealthSignalDetector:
         # Placeholder - w rzeczywistości potrzebne są dane historyczne orderbook
         active = token_data.get("ask_walls_removed", False)
         
-        print(f"[STEALTH DEBUG] ask_wall_removal for {symbol}: ask_walls_removed={active}")
-        print(f"[STEALTH DEBUG] ask_wall_removal result for {symbol}: active={active}, strength={1.0 if active else 0.0}")
-        
+        print(f"[STEALTH DEBUG] ask_wall_removal: ask_walls_removed={active}")
         return StealthSignal("ask_wall_removal", active, 1.0 if active else 0.0)
     
     def check_volume_spike_stealth(self, token_data: Dict) -> StealthSignal:
@@ -649,13 +645,11 @@ class StealthSignalDetector:
             is_active = vol_current > 2 * avg_volume
             
             # Strength: min(1.0, vol_current / avg_volume - 1)
+            strength = min(1.0, vol_current / avg_volume - 1) if is_active else 0.0
+            
+            print(f"[STEALTH DEBUG] volume_spike: vol_current={vol_current:.0f}, avg_volume={avg_volume:.0f}, ratio={vol_current/avg_volume:.2f}")
             if is_active:
-                strength = min(1.0, vol_current / avg_volume - 1)
-                print(f"[STEALTH DEBUG] volume_spike DETECTED for {symbol}: vol_current={vol_current:.0f} > 2×avg_volume={avg_volume:.0f}")
-            else:
-                strength = 0.0
-                
-            print(f"[STEALTH DEBUG] volume_spike result for {symbol}: active={is_active}, strength={strength:.3f}, vol_current={vol_current:.0f}, avg_volume={avg_volume:.0f}")
+                print(f"[STEALTH DEBUG] volume_spike DETECTED: vol_current={vol_current:.0f} > 2×avg_volume={avg_volume:.0f}")
             return StealthSignal("volume_spike", is_active, strength)
             
         except Exception as e:
@@ -761,10 +755,9 @@ class StealthSignalDetector:
             active = spread_percentage < 0.1
             strength = max(0.0, (0.1 - spread_percentage) / 0.1) if active else 0.0
             
+            print(f"[STEALTH DEBUG] spread_tightening: spread_percentage={spread_percentage:.4f}%")
             if active:
-                print(f"[STEALTH DEBUG] spread_tightening DETECTED for {symbol}: spread_percentage={spread_percentage:.4f}% < 0.1%")
-            
-            print(f"[STEALTH DEBUG] spread_tightening result for {symbol}: active={active}, strength={strength:.3f}, spread_percentage={spread_percentage:.4f}%")
+                print(f"[STEALTH DEBUG] spread_tightening DETECTED: spread_percentage={spread_percentage:.4f}% < 0.1%")
             return StealthSignal("bid_ask_spread_tightening", active, strength)
         except Exception as e:
             print(f"[STEALTH DEBUG] spread_tightening error for {symbol}: {e}")
@@ -782,9 +775,7 @@ class StealthSignalDetector:
         # Placeholder - wymaga analizy zmian w orderbook
         active = token_data.get("liquidity_absorbed", False)
         
-        print(f"[STEALTH DEBUG] liquidity_absorption for {symbol}: liquidity_absorbed={active}")
-        print(f"[STEALTH DEBUG] liquidity_absorption result for {symbol}: active={active}, strength={1.0 if active else 0.0}")
-        
+        print(f"[STEALTH DEBUG] liquidity_absorption: liquidity_absorbed={active}")
         return StealthSignal("liquidity_absorption", active, 1.0 if active else 0.0)
     
     def check_orderbook_anomaly(self, token_data: Dict) -> StealthSignal:
@@ -912,13 +903,11 @@ class StealthSignalDetector:
             is_active = spread_pct < 0.0005 and imbalance_pct > 0.85
             
             # Strength: min(1.0, imbalance_pct × 2)
-            if is_active:
-                strength = min(1.0, imbalance_pct * 2)
-                print(f"[STEALTH DEBUG] orderbook_anomaly DETECTED for {symbol}: spread_pct={spread_pct:.6f} < 0.0005, imbalance_pct={imbalance_pct:.3f} > 0.85")
-            else:
-                strength = 0.0
+            strength = min(1.0, imbalance_pct * 2) if is_active else 0.0
             
-            print(f"[STEALTH DEBUG] orderbook_anomaly result for {symbol}: active={is_active}, strength={strength:.3f}, spread_pct={spread_pct:.6f}, imbalance_pct={imbalance_pct:.3f}")
+            print(f"[STEALTH DEBUG] orderbook_anomaly: spread_pct={spread_pct:.6f}, imbalance_pct={imbalance_pct:.3f}")
+            if is_active:
+                print(f"[STEALTH DEBUG] orderbook_anomaly DETECTED: spread_pct={spread_pct:.6f} < 0.0005, imbalance_pct={imbalance_pct:.3f} > 0.85")
             return StealthSignal("orderbook_anomaly", is_active, strength)
             
         except Exception as e:
