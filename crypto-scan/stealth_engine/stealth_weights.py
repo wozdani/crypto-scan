@@ -37,7 +37,12 @@ DEFAULT_WEIGHTS = {
     
     # Negatywne sygnały
     "spoofing_detected": -0.25,
-    "ask_wall_removal": 0.14
+    "ask_wall_removal": 0.14,
+    
+    # Sygnały akumulacji - Phase 1-3 Address Tracking
+    "repeated_address_boost": 0.25,
+    "cross_token_activity_boost": 0.12,
+    "velocity_boost": 0.18
 }
 
 def load_weights():

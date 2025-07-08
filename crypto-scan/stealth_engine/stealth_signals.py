@@ -35,6 +35,9 @@ class StealthSignalDetector:
     
     def __init__(self):
         """Inicjalizacja detektora sygnałów"""
+        from .address_tracker import AddressTracker
+        self.address_tracker = AddressTracker()
+        
         self.signal_definitions = {
             # ORDERBOOK SIGNALS
             'orderbook_imbalance': {
@@ -107,6 +110,16 @@ class StealthSignalDetector:
                 'description': 'Boost za powtarzające się adresy w sygnałach (+0.2 per adres, max +0.6)',
                 'category': 'accumulation',
                 'weight_default': 0.25
+            },
+            'velocity_boost': {
+                'description': 'Boost za szybkie sekwencje aktywności adresów (velocity tracking)',
+                'category': 'accumulation',
+                'weight_default': 0.18
+            },
+            'cross_token_activity_boost': {
+                'description': 'Boost za korelację adresów między różnymi tokenami',
+                'category': 'accumulation',
+                'weight_default': 0.12
             }
         }
         
@@ -135,7 +148,9 @@ class StealthSignalDetector:
             ("volume_spike_stealth", self.check_volume_spike_stealth),
             ("bid_ask_spread_tightening_stealth", self.check_bid_ask_spread_tightening_stealth),
             ("liquidity_absorption", self.check_liquidity_absorption),
-            ("repeated_address_boost", self.check_repeated_address_boost)
+            ("repeated_address_boost", self.check_repeated_address_boost),
+            ("velocity_boost", self.check_velocity_boost),
+            ("cross_token_activity_boost", self.check_cross_token_activity_boost)
         ]
         
         # Sprawdź każdy sygnał z obsługą błędów
@@ -287,7 +302,7 @@ class StealthSignalDetector:
                     from .address_tracker import address_tracker
                     # Symulujemy adres na podstawie whale order (w rzeczywistości byłby to prawdziwy adres z orderbook)
                     mock_address = f"whale_{symbol.lower()}_{int(max_order)}"[:42]  # Symulacja adresu
-                    address_tracker.record_address_activity(
+                    self.address_tracker.record_address_activity(
                         token=symbol,
                         address=mock_address,
                         usd_value=max_order,
@@ -547,7 +562,7 @@ class StealthSignalDetector:
                     from .address_tracker import address_tracker
                     # Symulujemy adres na podstawie danych DEX inflow (w rzeczywistości byłby to prawdziwy adres z blockchain)
                     mock_address = f"dex_{symbol.lower()}_{int(inflow_usd)}"[:42]  # Symulacja adresu
-                    address_tracker.record_address_activity(
+                    self.address_tracker.record_address_activity(
                         token=symbol,
                         address=mock_address,
                         usd_value=inflow_usd,
@@ -1604,7 +1619,7 @@ class StealthSignalDetector:
         try:
             print(f"[STEALTH DEBUG] repeated_address_boost for {symbol}: checking address patterns...")
             
-            from .address_tracker import address_tracker
+            # Użyj istniejącej instancji self.address_tracker
             
             # Pobierz aktywne adresy z ostatnich sygnałów (symulowane na podstawie aktualnych wartości)
             current_addresses = []
@@ -1615,7 +1630,7 @@ class StealthSignalDetector:
                 address = f"dex_{symbol.lower()}_{int(inflow_usd)}"[:42]
                 current_addresses.append(address)
                 # Zapisz aktywność adresu w historii
-                address_tracker.record_address_activity(
+                self.address_tracker.record_address_activity(
                     token=symbol,
                     address=address,
                     usd_value=inflow_usd,
@@ -1650,7 +1665,7 @@ class StealthSignalDetector:
                         address = f"whale_{symbol.lower()}_{int(max_order)}"[:42]
                         current_addresses.append(address)
                         # Zapisz aktywność adresu w historii
-                        address_tracker.record_address_activity(
+                        self.address_tracker.record_address_activity(
                             token=symbol,
                             address=address,
                             usd_value=max_order,
@@ -1664,7 +1679,7 @@ class StealthSignalDetector:
                 return StealthSignal("repeated_address_boost", False, 0.0)
             
             # Oblicz boost na podstawie powtarzających się adresów
-            boost_score, details = address_tracker.get_repeated_addresses_boost(
+            boost_score, details = self.address_tracker.get_repeated_addresses_boost(
                 token=symbol,
                 current_addresses=current_addresses,
                 history_days=7
@@ -1682,6 +1697,196 @@ class StealthSignalDetector:
         except Exception as e:
             print(f"[STEALTH DEBUG] repeated_address_boost error for {symbol}: {e}")
             return StealthSignal("repeated_address_boost", False, 0.0)
+    
+    def check_velocity_boost(self, token_data: Dict) -> StealthSignal:
+        """
+        🆕 PHASE 3/5: Time-Based Velocity Tracking
+        
+        Wykrywa szybkie sekwencje aktywności adresów w czasie - im szybsza
+        akumulacja przez te same adresy, tym wyższy boost velocity
+        
+        Args:
+            token_data: Dane rynkowe tokena
+            
+        Returns:
+            StealthSignal z velocity boost score
+        """
+        try:
+            symbol = token_data.get("symbol", "UNKNOWN")
+            
+            # Identyfikacja aktywnych adresów
+            current_addresses = []
+            
+            # Sprawdź dex_inflow addresses
+            if "dex_inflow" in token_data and token_data["dex_inflow"] > 1000:
+                dex_value = token_data["dex_inflow"]
+                dex_address = f"dex_{symbol.lower().replace('usdt', '')}_{int(dex_value)}"
+                current_addresses.append(dex_address)
+                
+                # Rejestruj aktywność
+                self.address_tracker.record_address_activity(
+                    address=dex_address,
+                    token=symbol,
+                    usd_value=dex_value,
+                    source="dex_inflow"
+                )
+            
+            # Sprawdź whale_ping addresses
+            if "volume_24h" in token_data and token_data["volume_24h"] > 10000:
+                whale_value = token_data["volume_24h"] * 0.05  # 5% volume jako whale ping
+                whale_address = f"whale_{symbol.lower().replace('usdt', '')}_{int(whale_value)}"
+                current_addresses.append(whale_address)
+                
+                # Rejestruj aktywność
+                self.address_tracker.record_address_activity(
+                    address=whale_address,
+                    token=symbol,
+                    usd_value=whale_value,
+                    source="whale_ping"
+                )
+            
+            print(f"[STEALTH DEBUG] velocity_boost for {symbol}: checking velocity patterns...")
+            
+            # Analiza velocity
+            velocity_boost, velocity_details = self.address_tracker.get_velocity_analysis(
+                current_token=symbol,
+                current_addresses=current_addresses,
+                window_minutes=60
+            )
+            
+            # Próg aktywacji: velocity_boost > 0.1
+            is_active = velocity_boost > 0.1
+            strength = min(velocity_boost, 1.0)  # Normalizuj do 0-1
+            
+            print(f"[STEALTH DEBUG] velocity_boost: addresses={len(current_addresses)}, boost_score={velocity_boost:.2f}, active={is_active}")
+            
+            if is_active:
+                print(f"[STEALTH DEBUG] velocity_boost DETECTED: {velocity_details['velocity_addresses']} velocity addresses, boost={velocity_boost:.2f}")
+            
+            return StealthSignal(
+                name="velocity_boost",
+                active=is_active,
+                strength=strength
+            )
+            
+        except Exception as e:
+            print(f"[STEALTH DEBUG] velocity_boost error: {e}")
+            return StealthSignal(
+                name="velocity_boost",
+                active=False,
+                strength=0.0
+            )
+
+    def check_cross_token_activity_boost(self, token_data: Dict) -> StealthSignal:
+        """
+        🆕 PUNKT 2/5: Cross-Token Activity Boost
+        
+        Wykrywa aktywność tych samych adresów na różnych tokenach w krótkim czasie
+        Sugeruje szeroką akcję akumulacyjną przez tego samego gracza
+        
+        Args:
+            token_data: Dane rynkowe tokena
+            
+        Returns:
+            StealthSignal z cross-token boost score
+        """
+        try:
+            from .address_tracker import AddressTracker
+            
+            symbol = token_data.get("symbol", "UNKNOWN")
+            
+            print(f"[STEALTH DEBUG] cross_token_activity_boost for {symbol}: checking cross-token patterns...")
+            
+            # Inicjalizuj tracker
+            address_tracker = AddressTracker()
+            
+            # Pobierz aktywne adresy z obecnego skanu
+            current_addresses = []
+            
+            # Dodaj adresy z dex_inflow jeśli był aktywny
+            inflow_usd = token_data.get("dex_inflow", 0)
+            if inflow_usd > 1000:
+                address = f"dex_{symbol.lower()}_{int(inflow_usd)}"[:42]
+                current_addresses.append(address)
+                # Zapisz aktywność adresu w historii
+                self.address_tracker.record_address_activity(
+                    token=symbol,
+                    address=address,
+                    usd_value=inflow_usd,
+                    source="dex_inflow"
+                )
+            
+            # Dodaj adresy z whale_ping jeśli był aktywny
+            orderbook = token_data.get("orderbook", {})
+            if orderbook:
+                try:
+                    bids = orderbook.get("bids", [])
+                    asks = orderbook.get("asks", [])
+                    
+                    all_orders = []
+                    
+                    # Sprawdź bidy
+                    for bid in bids[:5]:  # Top 5 levels
+                        if isinstance(bid, list) and len(bid) >= 2:
+                            price = float(bid[0])
+                            size = float(bid[1])
+                            usd_value = price * size
+                            all_orders.append(usd_value)
+                    
+                    # Sprawdź aski
+                    for ask in asks[:5]:  # Top 5 levels
+                        if isinstance(ask, list) and len(ask) >= 2:
+                            price = float(ask[0])
+                            size = float(ask[1])
+                            usd_value = price * size
+                            all_orders.append(usd_value)
+                    
+                    max_order = max(all_orders, default=0)
+                    if max_order > 10000:  # Próg dla whale orders
+                        address = f"whale_{symbol.lower()}_{int(max_order)}"[:42]
+                        current_addresses.append(address)
+                        # Zapisz aktywność adresu w historii
+                        self.address_tracker.record_address_activity(
+                            token=symbol,
+                            address=address,
+                            usd_value=max_order,
+                            source="whale_ping"
+                        )
+                        
+                except Exception as e:
+                    print(f"[STEALTH DEBUG] cross_token_activity_boost orderbook error: {e}")
+            
+            # 🎯 KLUCZOWA FUNKCJA: Sprawdź aktywność cross-tokenową
+            boost_score, details = address_tracker.get_cross_token_activity_boost(
+                current_token=symbol,
+                current_addresses=current_addresses,
+                history_days=7,
+                window_hours=48  # 48h okno korelacji
+            )
+            
+            # Przelicz boost score na strength (0-1)
+            strength = min(boost_score / 0.6, 1.0)  # Max boost 0.6 → strength 1.0
+            
+            is_active = boost_score > 0
+            
+            print(f"[STEALTH DEBUG] cross_token_activity_boost: addresses={len(current_addresses)}, boost_score={boost_score:.2f}, active={is_active}")
+            
+            if is_active:
+                print(f"[STEALTH DEBUG] cross_token_activity_boost DETECTED: {details['cross_token_addresses']} cross-token addresses, boost={boost_score:.2f}")
+            
+            return StealthSignal(
+                name="cross_token_activity_boost",
+                active=is_active,
+                strength=strength
+            )
+            
+        except Exception as e:
+            print(f"[STEALTH DEBUG] cross_token_activity_boost error: {e}")
+            return StealthSignal(
+                name="cross_token_activity_boost",
+                active=False,
+                strength=0.0
+            )
     
     def get_signal_definitions(self) -> Dict:
         """Pobierz definicje wszystkich sygnałów"""
