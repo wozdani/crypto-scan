@@ -464,6 +464,139 @@ class AddressTracker:
             "total_momentum_boost": total_momentum_boost
         }
 
+    def compute_reputation_boost(self, current_token: str, current_addresses: List[str]) -> Tuple[float, Dict]:
+        """
+        🆕 PHASE 5/5: Dynamic Source Reliability
+        
+        Oblicza boost na podstawie reputacji adresów - adresy które wcześniej dały trafne sygnały
+        otrzymują wyższe współczynniki wagowe dla przyszłych sygnałów
+        
+        Args:
+            current_token: Token obecnie analizowany
+            current_addresses: Lista aktualnych adresów
+            
+        Returns:
+            Tuple[reputation_boost_score, reputation_details]
+        """
+        try:
+            # Załaduj cache reputacji
+            reputation_cache = self._load_reputation_cache()
+            
+            reputation_details = []
+            total_reputation_boost = 0.0
+            
+            for address in current_addresses:
+                # Sprawdź reputację adresu
+                reputation = reputation_cache.get(address, 0)
+                
+                # Oblicz boost na podstawie reputacji
+                if reputation >= 5:
+                    address_boost = 0.25
+                elif reputation >= 3:
+                    address_boost = 0.15
+                elif reputation >= 1:
+                    address_boost = 0.05
+                else:
+                    address_boost = 0.0
+                
+                total_reputation_boost += address_boost
+                
+                reputation_details.append({
+                    "address": address,
+                    "reputation_score": reputation,
+                    "reputation_boost": address_boost,
+                    "reliability_tier": self._get_reliability_tier(reputation)
+                })
+            
+            # Cap na 0.30 zgodnie z wymaganiami
+            total_reputation_boost = min(total_reputation_boost, 0.30)
+            
+            if total_reputation_boost > 0:
+                print(f"[ADDRESS TRACKER] Reputation boost for {current_token}: +{total_reputation_boost:.2f} ({len(reputation_details)} addresses)")
+            
+            return total_reputation_boost, {
+                "reputation_addresses": len(reputation_details),
+                "details": reputation_details,
+                "total_reputation_boost": total_reputation_boost
+            }
+            
+        except Exception as e:
+            print(f"[ADDRESS TRACKER] Reputation boost error: {e}")
+            return 0.0, {"reputation_addresses": 0, "details": [], "error": str(e)}
+    
+    def _load_reputation_cache(self) -> Dict:
+        """Załaduj cache reputacji adresów"""
+        reputation_file = "feedback_loop/reputation_cache.json"
+        
+        try:
+            # Utwórz katalog jeśli nie istnieje
+            os.makedirs("feedback_loop", exist_ok=True)
+            
+            if os.path.exists(reputation_file):
+                with open(reputation_file, 'r') as f:
+                    return json.load(f)
+            else:
+                # Utwórz pusty cache
+                return {}
+                
+        except Exception as e:
+            print(f"[ADDRESS TRACKER] Error loading reputation cache: {e}")
+            return {}
+    
+    def _save_reputation_cache(self, reputation_cache: Dict):
+        """Zapisz cache reputacji adresów"""
+        reputation_file = "feedback_loop/reputation_cache.json"
+        
+        try:
+            os.makedirs("feedback_loop", exist_ok=True)
+            
+            with open(reputation_file, 'w') as f:
+                json.dump(reputation_cache, f, indent=2)
+                
+        except Exception as e:
+            print(f"[ADDRESS TRACKER] Error saving reputation cache: {e}")
+    
+    def _get_reliability_tier(self, reputation: int) -> str:
+        """Określ tier wiarygodności na podstawie reputacji"""
+        if reputation >= 5:
+            return "high_reliability"
+        elif reputation >= 3:
+            return "medium_reliability"
+        elif reputation >= 1:
+            return "low_reliability"
+        else:
+            return "unproven"
+    
+    def update_address_reputation(self, token: str, addresses: List[str], price_change: float, 
+                                 threshold: float = 0.05):
+        """
+        Aktualizuj reputację adresów na podstawie skuteczności sygnału
+        
+        Args:
+            token: Token symbol
+            addresses: Lista adresów które dały sygnał
+            price_change: Procentowa zmiana ceny (np. 0.05 = +5%)
+            threshold: Próg dla uznania sygnału za trafny (domyślnie 5%)
+        """
+        try:
+            reputation_cache = self._load_reputation_cache()
+            
+            if price_change >= threshold:
+                # Sygnał był trafny - zwiększ reputację
+                for address in addresses:
+                    current_rep = reputation_cache.get(address, 0)
+                    reputation_cache[address] = current_rep + 1
+                    
+                    print(f"[ADDRESS TRACKER] Reputation +1 for {address} (token: {token}, price_change: +{price_change:.1%})")
+                    
+                self._save_reputation_cache(reputation_cache)
+                
+            else:
+                print(f"[ADDRESS TRACKER] No reputation update for {token} (price_change: {price_change:.1%} < {threshold:.1%})")
+                
+        except Exception as e:
+            print(f"[ADDRESS TRACKER] Error updating reputation: {e}")
+
     def get_address_statistics(self, token: str = None, days: int = 7) -> Dict:
         """
         Get statistics about address activities

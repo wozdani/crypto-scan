@@ -121,6 +121,11 @@ class StealthSignalDetector:
                 'category': 'accumulation',
                 'weight_default': 0.15
             },
+            'source_reliability_boost': {
+                'description': 'Boost za adresy o wysokiej reputacji (smart money)',
+                'category': 'accumulation',
+                'weight_default': 0.12
+            },
             'cross_token_activity_boost': {
                 'description': 'Boost za korelację adresów między różnymi tokenami',
                 'category': 'accumulation',
@@ -156,6 +161,7 @@ class StealthSignalDetector:
             ("repeated_address_boost", self.check_repeated_address_boost),
             ("velocity_boost", self.check_velocity_boost),
             ("inflow_momentum_boost", self.check_inflow_momentum_boost),
+            ("source_reliability_boost", self.check_source_reliability_boost),
             ("cross_token_activity_boost", self.check_cross_token_activity_boost)
         ]
         
@@ -1879,6 +1885,87 @@ class StealthSignalDetector:
         except Exception as e:
             print(f"[STEALTH DEBUG] inflow_momentum_boost error for {symbol}: {e}")
             return StealthSignal("inflow_momentum_boost", False, 0.0)
+
+    def check_source_reliability_boost(self, token_data: Dict) -> StealthSignal:
+        """
+        🆕 PHASE 5/5: Dynamic Source Reliability
+        
+        Wykrywa adresy o wysokiej reputacji (smart money) które wcześniej dały trafne sygnały
+        Adresy z historycznie trafnymi sygnałami otrzymują wyższe współczynniki wagowe
+        
+        Args:
+            token_data: Dane rynkowe tokena
+            
+        Returns:
+            StealthSignal z source reliability boost score
+        """
+        try:
+            symbol = token_data.get("symbol", "UNKNOWN")
+            
+            # Identyfikacja aktywnych adresów
+            current_addresses = []
+            
+            # Sprawdź dex_inflow addresses
+            if "dex_inflow" in token_data and token_data["dex_inflow"] > 1000:
+                dex_value = token_data["dex_inflow"]
+                dex_address = f"dex_{symbol.lower().replace('usdt', '')}_{int(dex_value)}"
+                current_addresses.append(dex_address)
+            
+            # Sprawdź whale_ping addresses na podstawie orderbook
+            orderbook = token_data.get("orderbook", {})
+            if orderbook.get("bids") and orderbook.get("asks"):
+                try:
+                    bids = orderbook.get("bids", [])
+                    asks = orderbook.get("asks", [])
+                    
+                    # Oblicz max order value
+                    all_orders = []
+                    for bid in bids[:3]:  # Sprawdź top 3 bids
+                        if isinstance(bid, (list, tuple)) and len(bid) >= 2:
+                            price = float(bid[0])
+                            size = float(bid[1])
+                            usd_value = price * size
+                            all_orders.append(usd_value)
+                    
+                    for ask in asks[:3]:  # Sprawdź top 3 asks
+                        if isinstance(ask, (list, tuple)) and len(ask) >= 2:
+                            price = float(ask[0])
+                            size = float(ask[1])
+                            usd_value = price * size
+                            all_orders.append(usd_value)
+                    
+                    max_order = max(all_orders, default=0)
+                    if max_order > 10000:  # Próg dla whale orders
+                        whale_address = f"whale_{symbol.lower().replace('usdt', '')}_{int(max_order)}"
+                        current_addresses.append(whale_address)
+                        
+                except Exception as e:
+                    print(f"[STEALTH DEBUG] source_reliability_boost orderbook processing error for {symbol}: {e}")
+            
+            print(f"[STEALTH DEBUG] source_reliability_boost for {symbol}: checking address reputation...")
+            
+            if not current_addresses:
+                print(f"[STEALTH DEBUG] source_reliability_boost: no addresses found for {symbol}")
+                return StealthSignal("source_reliability_boost", False, 0.0)
+            
+            # Analiza reputacji adresów
+            reputation_boost, details = self.address_tracker.compute_reputation_boost(
+                current_token=symbol,
+                current_addresses=current_addresses
+            )
+            
+            active = reputation_boost > 0.0
+            strength = min(reputation_boost / 0.30, 1.0)  # Normalizuj do 0-1 (max boost 0.30)
+            
+            print(f"[STEALTH DEBUG] source_reliability_boost: addresses={len(current_addresses)}, boost_score={reputation_boost:.2f}, active={active}")
+            if active:
+                print(f"[STEALTH DEBUG] source_reliability_boost DETECTED: {details['reputation_addresses']} reputation addresses, boost={reputation_boost:.2f}")
+                
+            return StealthSignal("source_reliability_boost", active, strength)
+            
+        except Exception as e:
+            print(f"[STEALTH DEBUG] source_reliability_boost error for {symbol}: {e}")
+            return StealthSignal("source_reliability_boost", False, 0.0)
 
     def check_cross_token_activity_boost(self, token_data: Dict) -> StealthSignal:
         """
