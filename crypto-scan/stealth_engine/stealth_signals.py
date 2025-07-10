@@ -399,6 +399,7 @@ class StealthSignalDetector:
                     if parent_dir not in sys.path:
                         sys.path.insert(0, parent_dir)
                     from utils.whale_memory import update_whale_memory, is_repeat_whale, get_repeat_whale_boost
+                    from stealth_engine.address_trust_manager import record_address_prediction, get_address_boost
                     mock_address = f"whale_{symbol.lower()}_{int(max_order_usd)}"[:42]
                     
                     # Aktualizuj pamięć wieloryba
@@ -432,6 +433,20 @@ class StealthSignalDetector:
                         print(f"[MULTI-ADDRESS] Recorded whale_ping activity for {symbol}: {mock_address}")
                     except Exception as multi_e:
                         print(f"[MULTI-ADDRESS ERROR] whale_ping for {symbol}: {multi_e}")
+                    
+                    # Etap 6: Trust Scoring - rejestruj predykcję i oblicz boost
+                    try:
+                        # Rejestruj predykcję adresu dla feedback loop
+                        record_address_prediction(symbol, mock_address)
+                        
+                        # Pobierz trust boost na podstawie historycznej skuteczności
+                        trust_boost = get_address_boost(mock_address)
+                        if trust_boost > 0:
+                            strength = min(1.0, strength + trust_boost)
+                            print(f"[TRUST BOOST] {symbol} whale_ping: Applied +{trust_boost:.3f} trust boost → strength: {strength:.3f}")
+                        
+                    except Exception as trust_e:
+                        print(f"[TRUST BOOST ERROR] whale_ping for {symbol}: {trust_e}")
                     
                 except Exception as memory_e:
                     print(f"[WHALE MEMORY] Error for {symbol}: {memory_e}")
@@ -603,6 +618,7 @@ class StealthSignalDetector:
                     if parent_dir not in sys.path:
                         sys.path.insert(0, parent_dir)
                     from utils.whale_memory import update_whale_memory, is_repeat_whale, get_repeat_whale_boost
+                    from stealth_engine.address_trust_manager import record_address_prediction, get_address_boost
                     mock_address = f"dex_{symbol.lower()}_{int(inflow_usd)}"[:42]
                     
                     # Aktualizuj pamięć wieloryba
@@ -632,6 +648,20 @@ class StealthSignalDetector:
                         print(f"[MULTI-ADDRESS] Recorded dex_inflow activity for {symbol}: {mock_address}")
                     except Exception as multi_e:
                         print(f"[MULTI-ADDRESS ERROR] dex_inflow for {symbol}: {multi_e}")
+                    
+                    # Etap 6: Trust Scoring - rejestruj predykcję i oblicz boost
+                    try:
+                        # Rejestruj predykcję adresu dla feedback loop
+                        record_address_prediction(symbol, mock_address)
+                        
+                        # Pobierz trust boost na podstawie historycznej skuteczności
+                        trust_boost = get_address_boost(mock_address)
+                        if trust_boost > 0:
+                            strength = min(1.0, strength + trust_boost)
+                            print(f"[TRUST BOOST] {symbol} dex_inflow: Applied +{trust_boost:.3f} trust boost → strength: {strength:.3f}")
+                        
+                    except Exception as trust_e:
+                        print(f"[TRUST BOOST ERROR] dex_inflow for {symbol}: {trust_e}")
                     
                 except Exception as memory_e:
                     print(f"[WHALE MEMORY] DEX error for {symbol}: {memory_e}")
