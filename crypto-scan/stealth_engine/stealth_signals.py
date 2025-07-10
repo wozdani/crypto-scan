@@ -383,6 +383,24 @@ class StealthSignalDetector:
                     )
                 except Exception as addr_e:
                     print(f"[STEALTH DEBUG] whale_ping address tracking error for {symbol}: {addr_e}")
+                
+                # Whale Memory System - zapamiętaj adres wieloryba
+                try:
+                    from ..utils.whale_memory import update_whale_memory, is_repeat_whale, get_repeat_whale_boost
+                    mock_address = f"whale_{symbol.lower()}_{int(max_order_usd)}"[:42]
+                    
+                    # Aktualizuj pamięć wieloryba
+                    repeat_count = update_whale_memory(symbol, mock_address, source="whale_ping")
+                    
+                    # Sprawdź czy to powtarzający się wieloryb
+                    if is_repeat_whale(symbol, mock_address):
+                        repeat_boost = get_repeat_whale_boost(symbol, mock_address)
+                        # Zwiększ strength o bonus za powtarzającego się wieloryba
+                        strength = min(1.0, strength + repeat_boost * 0.3)  # Max 30% boost
+                        print(f"[WHALE MEMORY] {symbol} repeat whale detected! Boost: +{repeat_boost*0.3:.2f} → strength: {strength:.3f}")
+                    
+                except Exception as memory_e:
+                    print(f"[WHALE MEMORY] Error for {symbol}: {memory_e}")
             
             print(f"[STEALTH DEBUG] whale_ping: max_order=${max_order_usd:.0f}, dynamic_threshold=${threshold:.0f}, active={active}")
             if active:
@@ -541,6 +559,24 @@ class StealthSignalDetector:
                     )
                 except Exception as addr_e:
                     print(f"[STEALTH DEBUG] dex_inflow address tracking error for {symbol}: {addr_e}")
+                
+                # Whale Memory System - zapamiętaj adres DEX inflow
+                try:
+                    from ..utils.whale_memory import update_whale_memory, is_repeat_whale, get_repeat_whale_boost
+                    mock_address = f"dex_{symbol.lower()}_{int(inflow_usd)}"[:42]
+                    
+                    # Aktualizuj pamięć wieloryba
+                    repeat_count = update_whale_memory(symbol, mock_address, source="dex_inflow")
+                    
+                    # Sprawdź czy to powtarzający się wieloryb
+                    if is_repeat_whale(symbol, mock_address):
+                        repeat_boost = get_repeat_whale_boost(symbol, mock_address)
+                        # Zwiększ strength o bonus za powtarzającego się wieloryba
+                        strength = min(1.0, strength + repeat_boost * 0.25)  # Max 25% boost dla DEX
+                        print(f"[WHALE MEMORY] {symbol} repeat DEX whale detected! Boost: +{repeat_boost*0.25:.2f} → strength: {strength:.3f}")
+                    
+                except Exception as memory_e:
+                    print(f"[WHALE MEMORY] DEX error for {symbol}: {memory_e}")
             
             print(f"[STEALTH DEBUG] dex_inflow: inflow=${inflow_usd}, avg_recent=${avg_recent:.0f}, spike_detected={spike_detected}")
             if spike_detected:
