@@ -448,6 +448,26 @@ class StealthSignalDetector:
                     except Exception as trust_e:
                         print(f"[TRUST BOOST ERROR] whale_ping for {symbol}: {trust_e}")
                     
+                    # Stage 13: Token Trust Score - aktualizuj trust i oblicz boost
+                    try:
+                        from stealth_engine.utils.trust_tracker import update_token_trust, compute_trust_boost
+                        
+                        # Lista adresów dla tego tokena (mock dla whale_ping)
+                        detected_addresses = [mock_address]
+                        
+                        # Oblicz trust boost na podstawie historii adresów dla tego tokena
+                        token_trust_boost = compute_trust_boost(symbol, detected_addresses)
+                        if token_trust_boost > 0:
+                            # Dodaj token trust boost do scoring
+                            strength = min(1.0, strength + token_trust_boost)
+                            print(f"[TOKEN TRUST] {symbol} whale_ping: Applied +{token_trust_boost:.3f} token trust boost → strength: {strength:.3f}")
+                        
+                        # Aktualizuj historię trust dla tego tokena
+                        update_token_trust(symbol, detected_addresses, "whale_ping")
+                        
+                    except Exception as token_trust_e:
+                        print(f"[TOKEN TRUST ERROR] whale_ping for {symbol}: {token_trust_e}")
+                    
                     # Etap 7: Trigger Alert System - smart money detection
                     try:
                         from stealth_engine.trigger_alert_system import check_smart_money_trigger, apply_smart_money_boost
@@ -619,10 +639,11 @@ class StealthSignalDetector:
             # Address tracking dla DEX inflow
             if spike_detected and inflow_usd > 0:
                 try:
-                    from .address_tracker import address_tracker
+                    from .address_tracker import AddressTracker
                     # Symulujemy adres na podstawie danych DEX inflow (w rzeczywistości byłby to prawdziwy adres z blockchain)
                     mock_address = f"dex_{symbol.lower()}_{int(inflow_usd)}"[:42]  # Symulacja adresu
-                    self.address_tracker.record_address_activity(
+                    tracker = AddressTracker()
+                    tracker.record_address_activity(
                         token=symbol,
                         address=mock_address,
                         usd_value=inflow_usd,
@@ -684,6 +705,26 @@ class StealthSignalDetector:
                         
                     except Exception as trust_e:
                         print(f"[TRUST BOOST ERROR] dex_inflow for {symbol}: {trust_e}")
+                    
+                    # Stage 13: Token Trust Score - aktualizuj trust i oblicz boost
+                    try:
+                        from stealth_engine.utils.trust_tracker import update_token_trust, compute_trust_boost
+                        
+                        # Lista adresów dla tego tokena (mock dla dex_inflow)
+                        detected_addresses = [mock_address]
+                        
+                        # Oblicz trust boost na podstawie historii adresów dla tego tokena
+                        token_trust_boost = compute_trust_boost(symbol, detected_addresses)
+                        if token_trust_boost > 0:
+                            # Dodaj token trust boost do scoring
+                            strength = min(1.0, strength + token_trust_boost)
+                            print(f"[TOKEN TRUST] {symbol} dex_inflow: Applied +{token_trust_boost:.3f} token trust boost → strength: {strength:.3f}")
+                        
+                        # Aktualizuj historię trust dla tego tokena
+                        update_token_trust(symbol, detected_addresses, "dex_inflow")
+                        
+                    except Exception as token_trust_e:
+                        print(f"[TOKEN TRUST ERROR] dex_inflow for {symbol}: {token_trust_e}")
                     
                     # Etap 7: Trigger Alert System - smart money detection
                     try:
