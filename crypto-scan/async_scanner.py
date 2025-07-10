@@ -44,6 +44,19 @@ except ImportError as e:
     print(f"[PRIORITY LEARNING] Not available: {e}")
     PRIORITY_LEARNING_AVAILABLE = False
 
+# Import Stage 15 Alert Prioritization
+try:
+    from stealth_engine.priority_scheduler import (
+        get_priority_scanning_queue,
+        update_stealth_scores,
+        get_queue_statistics
+    )
+    ALERT_PRIORITIZATION_AVAILABLE = True
+    print("[ALERT PRIORITIZATION] Stage 15 system available")
+except ImportError as e:
+    print(f"[ALERT PRIORITIZATION] Not available: {e}")
+    ALERT_PRIORITIZATION_AVAILABLE = False
+
 class AsyncCryptoScanner:
     """Async crypto scanner with aiohttp for I/O parallelism"""
     
@@ -403,6 +416,27 @@ class AsyncCryptoScanner:
                 
                 scan_time = time.time() - start_time
                 
+                # 🎯 STAGE 15 - UPDATE STEALTH SCORES dla kolejnych skanów
+                if ALERT_PRIORITIZATION_AVAILABLE:
+                    try:
+                        # Przygotuj dane stealth dla priority scheduler
+                        stealth_result = {
+                            "score": final_score / 100.0,  # Normalizuj do 0-1
+                            "dex_inflow": signals.get("dex_inflow", 0.0),
+                            "whale_ping": signals.get("whale_ping", 0.0),
+                            "identity_boost": signals.get("identity_boost", 0.0),
+                            "trust_boost": signals.get("trust_boost", 0.0),
+                            "tjde_score": tjde_score,
+                            "scan_time": scan_time
+                        }
+                        
+                        # Aktualizuj stealth scores dla następnego cyklu
+                        update_stealth_scores(symbol, stealth_result)
+                        
+                    except Exception as e:
+                        if not self.fast_mode:
+                            print(f"[STAGE 15 ERROR] {symbol}: Failed to update stealth scores: {e}")
+                
                 result_data = {
                     "symbol": symbol,
                     "ppwcs_score": final_score,
@@ -438,16 +472,26 @@ class AsyncCryptoScanner:
     async def scan_all_tokens(self, symbols: List[str], priority_info: Dict = None) -> List[Dict]:
         """High-performance scan targeting 752 tokens in <15s"""
         
-        # 🧠 ETAP 11 - PRIORITY LEARNING INTEGRATION: Sort tokens by learning bias
+        # 🎯 STAGE 15 - ALERT PRIORITIZATION: Sort tokens by early_score first
+        if ALERT_PRIORITIZATION_AVAILABLE:
+            try:
+                priority_symbols = get_priority_scanning_queue(symbols)
+                print(f"[STAGE 15 ALERT PRIORITIZATION] Sorted {len(symbols)} tokens by early_score")
+                print(f"[PRIORITY QUEUE] Top 5 priority tokens: {priority_symbols[:5]}")
+                symbols = priority_symbols
+            except Exception as e:
+                print(f"[STAGE 15 ERROR] Alert prioritization failed: {e}")
+        
+        # 🧠 ETAP 11 - PRIORITY LEARNING INTEGRATION: Additional learning bias
         if PRIORITY_LEARNING_AVAILABLE:
             try:
-                # Get priority queue with learning bias
+                # Apply learning bias to already prioritized tokens
                 priority_symbols = get_priority_scan_queue(symbols, limit=len(symbols))
-                print(f"[PRIORITY LEARNING] Applied learning bias to {len(symbols)} tokens")
+                print(f"[PRIORITY LEARNING] Applied learning bias to priority-sorted tokens")
                 symbols = priority_symbols
             except Exception as e:
                 print(f"[PRIORITY LEARNING ERROR] Failed to apply learning bias: {e}")
-                # Continue with original order if priority learning fails
+                # Continue with Stage 15 priority order if learning fails
         
         print(f"🚀 Starting HIGH-SPEED async scan of {len(symbols)} tokens (max {self.max_concurrent} concurrent)")
         
