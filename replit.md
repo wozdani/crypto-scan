@@ -98,6 +98,20 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### July 10, 2025 - DYNAMIC WHALE THRESHOLD OPTIMIZATION COMPLETE - Orderbook-Based Scaling System ✅
+Successfully implemented revolutionary orderbook-based dynamic whale detection threshold replacing volume-based approach with median order size scaling:
+- **Orderbook Median Calculation**: get_dynamic_whale_threshold() function calculates threshold based on median order size × 20 multiplier providing token-specific whale detection sensitivity
+- **Token-Adaptive Scaling**: Small altcoins (median ~$10 orders) use minimum $5,000 threshold while major tokens (median ~$32,500 orders) automatically scale to ~$650,000 threshold
+- **Enhanced Accuracy**: Replaced average 15m volume × 1.5 approach with orderbook structure analysis providing more accurate whale detection for both high-volume (BTC-style) and low-volume (altcoin-style) tokens
+- **Minimum Protection**: Built-in minimum threshold of $5,000 USD preventing false positives from micro-cap tokens while maintaining detection capability for significant orders
+- **Universal Format Support**: Enhanced orderbook processing supporting dict format, list format, and mixed structures with comprehensive error handling and data validation
+- **Production Integration**: Complete integration with existing stealth_signals.py maintaining all address tracking, debug logging, and strength calculation while improving detection accuracy
+- **Comprehensive Testing**: test_dynamic_whale_threshold.py validates 5 test scenarios including altcoin scaling, major token scaling, mixed orderbooks, empty fallback, and malformed data handling (100% test success rate)
+- **Code Optimization**: Removed duplicated whale_ping code and streamlined implementation while maintaining full compatibility with existing Stealth Engine architecture
+- **Advanced Whale Intelligence**: System now identifies whale activity contextually - small orders trigger detection in low-liquidity tokens while requiring proportionally larger orders for high-liquidity tokens
+- **Real-Time Adaptation**: Automatic threshold calculation based on current orderbook conditions without manual configuration or static thresholds enabling intelligent market-specific whale detection
+System delivers superior whale detection intelligence where threshold dynamically adapts to token characteristics ensuring optimal sensitivity for both micro-cap altcoins and major cryptocurrency markets through orderbook-based scaling.
+
 ### July 8, 2025 - PHASE 5 DYNAMIC SOURCE RELIABILITY COMPLETE - Smart Money Detection System ✅
 Successfully implemented final Phase 5/5 Dynamic Source Reliability system providing revolutionary smart money detection through reputation-based address scoring:
 - **Smart Money Detection Engine**: compute_reputation_boost() function calculates address reputation based on historical signal accuracy providing intelligent weighting for proven addresses

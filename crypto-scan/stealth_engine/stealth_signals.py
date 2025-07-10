@@ -181,6 +181,66 @@ class StealthSignalDetector:
         
         return signals
     
+    def get_dynamic_whale_threshold(self, orderbook: dict) -> float:
+        """
+        Oblicza dynamiczny próg detekcji whale_ping w USD
+        na podstawie mediany wielkości zleceń w orderbooku.
+        
+        Returns:
+            float: Dynamiczny próg w USD (mediana_wielkości_zlecenia × 20)
+        """
+        try:
+            bids = orderbook.get("bids", [])
+            asks = orderbook.get("asks", [])
+            
+            # Zbierz wszystkie wielkości zleceń (size w USD)
+            sizes_usd = []
+            
+            # Extract sizes from bids (convert to USD value)
+            for bid in bids:
+                try:
+                    if isinstance(bid, dict) and 'price' in bid and 'size' in bid:
+                        price = float(bid['price'])
+                        size = float(bid['size'])
+                        sizes_usd.append(price * size)
+                    elif isinstance(bid, (list, tuple)) and len(bid) >= 2:
+                        price = float(bid[0])
+                        size = float(bid[1])
+                        sizes_usd.append(price * size)
+                except (ValueError, TypeError, IndexError):
+                    continue
+            
+            # Extract sizes from asks (convert to USD value)
+            for ask in asks:
+                try:
+                    if isinstance(ask, dict) and 'price' in ask and 'size' in ask:
+                        price = float(ask['price'])
+                        size = float(ask['size'])
+                        sizes_usd.append(price * size)
+                    elif isinstance(ask, (list, tuple)) and len(ask) >= 2:
+                        price = float(ask[0])
+                        size = float(ask[1])
+                        sizes_usd.append(price * size)
+                except (ValueError, TypeError, IndexError):
+                    continue
+            
+            if not sizes_usd:
+                return 50_000  # fallback na 50k USD
+            
+            # Oblicz medianę wielkości zleceń w USD
+            sorted_sizes = sorted(sizes_usd)
+            median_size_usd = sorted_sizes[len(sorted_sizes) // 2]
+            
+            # Próg = mediana × 20 (mnożnik do wykrycia dużych zleceń)
+            dynamic_threshold = median_size_usd * 20
+            
+            # Minimalne zabezpieczenie - nie mniej niż $5k
+            return max(dynamic_threshold, 5_000)
+            
+        except Exception as e:
+            print(f"[STEALTH DEBUG] get_dynamic_whale_threshold error: {e}")
+            return 50_000
+
     def check_whale_ping(self, token_data: Dict) -> StealthSignal:
         """
         Whale ping detector - wykrycie wielorybów przez duże zlecenia
@@ -277,13 +337,17 @@ class StealthSignalDetector:
                 print(f"[STEALTH DEBUG] whale_ping for {symbol}: invalid ask structure after conversion: {type(asks[0])}, content: {asks[0]}")
                 return StealthSignal("whale_ping", False, 0.0)
             
+            # Oblicz dynamiczny próg na podstawie mediany wielkości zleceń
+            threshold = self.get_dynamic_whale_threshold(orderbook)
+            
             # Oblicz wszystkie zlecenia USD
             all_orders = []
             for bid in bids:
                 try:
                     price = float(bid[0])
                     size = float(bid[1])
-                    all_orders.append({"price": price, "size": size})
+                    usd_value = price * size
+                    all_orders.append({"price": price, "size": size, "usd_value": usd_value})
                 except (ValueError, TypeError, IndexError):
                     continue
             
@@ -291,149 +355,44 @@ class StealthSignalDetector:
                 try:
                     price = float(ask[0])
                     size = float(ask[1])
-                    all_orders.append({"price": price, "size": size})
+                    usd_value = price * size
+                    all_orders.append({"price": price, "size": size, "usd_value": usd_value})
                 except (ValueError, TypeError, IndexError):
                     continue
             
-            # Oblicz USD wartości zleceń
-            usd_orders = [o["price"] * o["size"] for o in all_orders if "price" in o and "size" in o]
-            max_order = max(usd_orders, default=0)
+            # Znajdź największe zlecenie w USD
+            max_order_usd = max([o["usd_value"] for o in all_orders], default=0)
             
-            # Dynamiczny próg: 150% średniego wolumenu 15m
-            dynamic_threshold = avg_volume_15m * 1.5 if avg_volume_15m > 0 else 50000  # fallback 50k USD
+            # Warunek aktywacji z dynamicznym progiem
+            active = max_order_usd > threshold
             
-            # Warunek aktywacji
-            active = max_order > dynamic_threshold
-            
-            # Strength: max_order / (dynamic_threshold * 2)
-            strength = min(max_order / (dynamic_threshold * 2), 1.0) if dynamic_threshold > 0 else 0.0
+            # Strength: max_order / (threshold * 2)
+            strength = min(max_order_usd / (threshold * 2), 1.0) if threshold > 0 else 0.0
             
             # Address tracking dla whale ping
-            if active and max_order > 0:
+            if active and max_order_usd > 0:
                 try:
                     from .address_tracker import address_tracker
                     # Symulujemy adres na podstawie whale order (w rzeczywistości byłby to prawdziwy adres z orderbook)
-                    mock_address = f"whale_{symbol.lower()}_{int(max_order)}"[:42]  # Symulacja adresu
+                    mock_address = f"whale_{symbol.lower()}_{int(max_order_usd)}"[:42]  # Symulacja adresu
                     self.address_tracker.record_address_activity(
                         token=symbol,
                         address=mock_address,
-                        usd_value=max_order,
+                        usd_value=max_order_usd,
                         source="whale_ping"
                     )
                 except Exception as addr_e:
                     print(f"[STEALTH DEBUG] whale_ping address tracking error for {symbol}: {addr_e}")
             
-            print(f"[STEALTH DEBUG] whale_ping: max_order=${max_order:.0f}, dynamic_threshold=${dynamic_threshold:.0f}, active={active}")
+            print(f"[STEALTH DEBUG] whale_ping: max_order=${max_order_usd:.0f}, dynamic_threshold=${threshold:.0f}, active={active}")
             if active:
-                print(f"[STEALTH DEBUG] whale_ping DETECTED: max_order=${max_order:.0f} > dynamic_threshold=${dynamic_threshold:.0f}")
+                print(f"[STEALTH DEBUG] whale_ping DETECTED: max_order=${max_order_usd:.0f} > dynamic_threshold=${threshold:.0f}")
             return StealthSignal("whale_ping", active, strength)
             
         except Exception as e:
             print(f"[STEALTH DEBUG] whale_ping error for {symbol}: {e}")
             return StealthSignal("whale_ping", False, 0.0)
-        
-        try:
-            # Handle different orderbook formats (list vs dict)
-            if isinstance(bids, dict):
-                # Convert dict format to list format with safe key processing
-                try:
-                    bids_list = []
-                    for key in sorted(bids.keys(), key=lambda x: float(x) if str(x).replace('.','').isdigit() else 0, reverse=True):
-                        if isinstance(bids[key], list) and len(bids[key]) >= 2:
-                            bids_list.append(bids[key])
-                    bids = bids_list if bids_list else []
-                except Exception as e:
-                    print(f"[STEALTH DEBUG] whale_ping bids conversion error for {symbol}: {e}")
-                    bids = []
-            
-            if isinstance(asks, dict):
-                # Convert dict format to list format with safe key processing
-                try:
-                    asks_list = []
-                    for key in sorted(asks.keys(), key=lambda x: float(x) if str(x).replace('.','').isdigit() else 0):
-                        if isinstance(asks[key], list) and len(asks[key]) >= 2:
-                            asks_list.append(asks[key])
-                    asks = asks_list if asks_list else []
-                except Exception as e:
-                    print(f"[STEALTH DEBUG] whale_ping asks conversion error for {symbol}: {e}")
-                    asks = []
-            
-            # Handle case where bids is a list of dicts with 'price' and 'size' keys
-            if isinstance(bids, list) and len(bids) > 0 and isinstance(bids[0], dict):
-                try:
-                    bids_list = []
-                    for bid in bids:
-                        if isinstance(bid, dict) and 'price' in bid and 'size' in bid:
-                            bids_list.append([bid['price'], bid['size']])
-                        elif isinstance(bid, (list, tuple)) and len(bid) >= 2:
-                            bids_list.append(bid)
-                    bids = bids_list if bids_list else []
-                    print(f"[STEALTH DEBUG] whale_ping for {symbol}: converted dict format bids to list format, count: {len(bids)}")
-                except Exception as e:
-                    print(f"[STEALTH DEBUG] whale_ping bids dict-to-list conversion error for {symbol}: {e}")
-                    bids = []
-            
-            # Handle case where asks is a list of dicts with 'price' and 'size' keys
-            if isinstance(asks, list) and len(asks) > 0 and isinstance(asks[0], dict):
-                try:
-                    asks_list = []
-                    for ask in asks:
-                        if isinstance(ask, dict) and 'price' in ask and 'size' in ask:
-                            asks_list.append([ask['price'], ask['size']])
-                        elif isinstance(ask, (list, tuple)) and len(ask) >= 2:
-                            asks_list.append(ask)
-                    asks = asks_list if asks_list else []
-                    print(f"[STEALTH DEBUG] whale_ping for {symbol}: converted dict format asks to list format, count: {len(asks)}")
-                except Exception as e:
-                    print(f"[STEALTH DEBUG] whale_ping asks dict-to-list conversion error for {symbol}: {e}")
-                    asks = []
-            
-            # Verify we have valid orderbook data after conversion
-            if not bids or not asks:
-                print(f"[STEALTH DEBUG] whale_ping for {symbol}: no valid bids/asks after conversion")
-                return StealthSignal("whale_ping", False, 0.0)
-            
-            # Additional validation for data structure after conversion
-            if not isinstance(bids[0], (list, tuple)) or len(bids[0]) < 2:
-                print(f"[STEALTH DEBUG] whale_ping for {symbol}: invalid bid structure after conversion: {type(bids[0])}, content: {bids[0]}")
-                return StealthSignal("whale_ping", False, 0.0)
-            
-            if not isinstance(asks[0], (list, tuple)) or len(asks[0]) < 2:
-                print(f"[STEALTH DEBUG] whale_ping for {symbol}: invalid ask structure after conversion: {type(asks[0])}, content: {asks[0]}")
-                return StealthSignal("whale_ping", False, 0.0)
-            
-            # Now process as list format - Oblicz max_bid_usd i max_ask_usd zgodnie ze specyfikacją
-            best_bid_price = float(bids[0][0])
-            best_bid_size = float(bids[0][1])
-            max_bid_usd = best_bid_price * best_bid_size
-            
-            best_ask_price = float(asks[0][0])
-            best_ask_size = float(asks[0][1])
-            max_ask_usd = best_ask_price * best_ask_size
-            
-            # Warunek aktywacji: max(max_bid_usd, max_ask_usd) > 100_000
-            max_order_usd = max(max_bid_usd, max_ask_usd)
-            is_whale = max_order_usd > 100_000
-            
-            # Strength: logarytmicznie min(1.0, log10(max_order_usd / 10_000) / 2)
-            if is_whale:
-                import math
-                strength = min(1.0, math.log10(max_order_usd / 10_000) / 2)
-            else:
-                strength = 0.0
-            
-            print(f"[STEALTH DEBUG] whale_ping: max_order_usd=${max_order_usd:.0f}")
-            if is_whale:
-                print(f"[STEALTH DEBUG] whale_ping DETECTED: max_order_usd=${max_order_usd:.0f} > $100,000")
-            return StealthSignal("whale_ping", is_whale, strength)
-            
-        except Exception as e:
-            print(f"[STEALTH DEBUG] whale_ping error for {symbol}: {e}")
-            print(f"[STEALTH DEBUG] whale_ping error details for {symbol}: bids_type={type(bids)}, asks_type={type(asks)}")
-            if hasattr(e, '__traceback__'):
-                import traceback
-                print(f"[STEALTH DEBUG] whale_ping traceback for {symbol}: {traceback.format_exc()}")
-            return StealthSignal("whale_ping", False, 0.0)
+
     
     def check_spoofing_layers(self, token_data: Dict) -> StealthSignal:
         """
