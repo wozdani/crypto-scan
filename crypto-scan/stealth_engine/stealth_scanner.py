@@ -21,6 +21,15 @@ from .priority_learning import (
     get_priority_tokens
 )
 
+# Stage 12: Satellite Scanner Integration
+try:
+    from .satellite_scanner import handle_stealth_alert, get_satellite_status
+    SATELLITE_SCANNER_AVAILABLE = True
+    print("[STAGE 12] Satellite Scanner system loaded successfully")
+except ImportError:
+    SATELLITE_SCANNER_AVAILABLE = False
+    print("[STAGE 12] Satellite Scanner not available")
+
 class StealthScannerManager:
     """
     🔍 Manager skanowania z priority learning integration
@@ -239,6 +248,56 @@ class StealthScannerManager:
             print(f"[STEALTH FEEDBACK ERROR] Batch processing failed: {e}")
             return 0
     
+    async def handle_stealth_alert_with_satellite(self, symbol: str, stealth_score: float, 
+                                                alert_data: Dict = None) -> Dict:
+        """
+        🛰️ Handle stealth alert i uruchom satelitarny skan jeśli potrzeba (Stage 12)
+        
+        Args:
+            symbol: Symbol tokenu, który wygenerował alert
+            stealth_score: Score stealth
+            alert_data: Dodatkowe dane alertu
+            
+        Returns:
+            Dict: Wynik obsługi alertu z informacją o satelitarnym skanie
+        """
+        result = {
+            "symbol": symbol,
+            "stealth_score": stealth_score,
+            "satellite_scan_triggered": False,
+            "satellite_twins": [],
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+        try:
+            # Stage 12: Satellite Scanner Integration
+            if SATELLITE_SCANNER_AVAILABLE:
+                satellite_triggered = await handle_stealth_alert(symbol, stealth_score, alert_data)
+                
+                if satellite_triggered:
+                    # Pobierz listę twins dla informacji
+                    from .token_clusters import get_stealth_twins
+                    twins = get_stealth_twins(symbol)
+                    
+                    result.update({
+                        "satellite_scan_triggered": True,
+                        "satellite_twins": twins,
+                        "satellite_twins_count": len(twins)
+                    })
+                    
+                    print(f"[STAGE 12 ALERT] {symbol} triggered satellite scan for {len(twins)} twins")
+                else:
+                    print(f"[STAGE 12 SKIP] {symbol} doesn't qualify for satellite scan")
+            else:
+                print(f"[STAGE 12 UNAVAILABLE] Satellite scanner not available for {symbol}")
+            
+            return result
+            
+        except Exception as e:
+            print(f"[STAGE 12 ERROR] Satellite alert handling failed for {symbol}: {e}")
+            result["error"] = str(e)
+            return result
+    
     def get_stealth_scanner_statistics(self) -> Dict:
         """
         📊 Pobierz statystyki stealth scanner
@@ -250,7 +309,7 @@ class StealthScannerManager:
             learning_stats = self.priority_memory.get_learning_statistics()
             priority_tokens = get_priority_tokens(10)
             
-            return {
+            base_stats = {
                 'stealth_scanner_status': 'active',
                 'learning_enabled': self.learning_enabled,
                 'stealth_ready_threshold': self.stealth_ready_threshold,
@@ -258,6 +317,25 @@ class StealthScannerManager:
                 'top_priority_tokens': priority_tokens,
                 'memory_cache_file': self.priority_memory.cache_file
             }
+            
+            # Stage 12: Add satellite scanner stats if available
+            if SATELLITE_SCANNER_AVAILABLE:
+                try:
+                    from .token_clusters import get_satellite_statistics
+                    satellite_stats = get_satellite_statistics()
+                    base_stats['satellite_scanner'] = {
+                        'available': True,
+                        'statistics': satellite_stats
+                    }
+                except Exception as e:
+                    base_stats['satellite_scanner'] = {
+                        'available': True,
+                        'error': str(e)
+                    }
+            else:
+                base_stats['satellite_scanner'] = {'available': False}
+            
+            return base_stats
             
         except Exception as e:
             print(f"[STEALTH SCANNER ERROR] Statistics failed: {e}")
@@ -307,3 +385,11 @@ def get_scanner_stats() -> Dict:
     """
     scanner = get_stealth_scanner()
     return scanner.get_stealth_scanner_statistics()
+
+async def handle_stealth_alert_with_satellite(symbol: str, stealth_score: float, 
+                                            alert_data: Dict = None) -> Dict:
+    """
+    🛰️ STAGE 12 Convenience function: Handle stealth alert with satellite scan
+    """
+    scanner = get_stealth_scanner()
+    return await scanner.handle_stealth_alert_with_satellite(symbol, stealth_score, alert_data)

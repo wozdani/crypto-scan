@@ -153,6 +153,39 @@ async def send_stealth_alert(symbol: str, stealth_score: float, active_signals: 
             if success:
                 stealth_alert_manager.record_alert(symbol, stealth_score, active_signals, alert_type)
                 print(f"[STEALTH ALERT] ✅ {symbol} → Complete alert with utilities sent successfully (Label: {stealth_label})")
+                
+                # 🛰️ STAGE 12: SATELLITE SCANNER INTEGRATION
+                try:
+                    from stealth_engine.stealth_scanner import handle_stealth_alert_with_satellite
+                    
+                    # Przygotuj dane alertu dla satelitarnego skanera
+                    alert_data = {
+                        "active_signals": active_signals,
+                        "alert_type": alert_type,
+                        "stealth_label": stealth_label,
+                        "processing_time": processing_time,
+                        "timestamp": datetime.now().isoformat()
+                    }
+                    
+                    # Uruchom satelitarny skan asynchronicznie
+                    import asyncio
+                    satellite_result = await handle_stealth_alert_with_satellite(
+                        symbol=symbol,
+                        stealth_score=stealth_score,
+                        alert_data=alert_data
+                    )
+                    
+                    if satellite_result.get("satellite_scan_triggered", False):
+                        twins = satellite_result.get("satellite_twins", [])
+                        print(f"[STAGE 12 SUCCESS] {symbol} → Satellite scan triggered for {len(twins)} twin tokens: {twins}")
+                    else:
+                        print(f"[STAGE 12 INFO] {symbol} → No satellite scan triggered (threshold/twins not met)")
+                        
+                except ImportError:
+                    print(f"[STAGE 12 WARNING] {symbol} → Satellite scanner module not available")
+                except Exception as satellite_error:
+                    print(f"[STAGE 12 ERROR] {symbol} → Satellite scan failed: {satellite_error}")
+                    
             else:
                 print(f"[STEALTH ALERT] ❌ {symbol} → Failed to send alert")
                 
@@ -182,6 +215,38 @@ async def send_stealth_alert(symbol: str, stealth_score: float, active_signals: 
         if success:
             stealth_alert_manager.record_alert(symbol, stealth_score, active_signals, alert_type)
             print(f"[STEALTH ALERT] ✅ {symbol} → Basic alert sent successfully")
+            
+            # 🛰️ STAGE 12: SATELLITE SCANNER INTEGRATION (fallback mode)
+            try:
+                from stealth_engine.stealth_scanner import handle_stealth_alert_with_satellite
+                
+                # Przygotuj podstawowe dane alertu
+                alert_data = {
+                    "active_signals": active_signals,
+                    "alert_type": alert_type,
+                    "fallback_mode": True,
+                    "timestamp": datetime.now().isoformat()
+                }
+                
+                # Uruchom satelitarny skan asynchronicznie
+                import asyncio
+                satellite_result = await handle_stealth_alert_with_satellite(
+                    symbol=symbol,
+                    stealth_score=stealth_score,
+                    alert_data=alert_data
+                )
+                
+                if satellite_result.get("satellite_scan_triggered", False):
+                    twins = satellite_result.get("satellite_twins", [])
+                    print(f"[STAGE 12 FALLBACK] {symbol} → Satellite scan triggered for {len(twins)} twin tokens")
+                else:
+                    print(f"[STAGE 12 FALLBACK] {symbol} → No satellite scan triggered")
+                    
+            except ImportError:
+                print(f"[STAGE 12 WARNING] {symbol} → Satellite scanner not available in fallback mode")
+            except Exception as satellite_error:
+                print(f"[STAGE 12 ERROR] {symbol} → Fallback satellite scan failed: {satellite_error}")
+                
         else:
             print(f"[STEALTH ALERT] ❌ {symbol} → Failed to send alert")
         
