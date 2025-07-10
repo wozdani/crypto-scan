@@ -386,7 +386,13 @@ class StealthSignalDetector:
                 
                 # Whale Memory System - zapamiętaj adres wieloryba
                 try:
-                    from ..utils.whale_memory import update_whale_memory, is_repeat_whale, get_repeat_whale_boost
+                    import sys
+                    import os
+                    current_dir = os.path.dirname(os.path.abspath(__file__))
+                    parent_dir = os.path.dirname(current_dir)
+                    if parent_dir not in sys.path:
+                        sys.path.insert(0, parent_dir)
+                    from utils.whale_memory import update_whale_memory, is_repeat_whale, get_repeat_whale_boost
                     mock_address = f"whale_{symbol.lower()}_{int(max_order_usd)}"[:42]
                     
                     # Aktualizuj pamięć wieloryba
@@ -542,8 +548,8 @@ class StealthSignalDetector:
             # Warunek aktywacji: inflow > avg_recent * 2 AND inflow > 1000
             spike_detected = inflow_usd > avg_recent * 2 and inflow_usd > 1000
             
-            # Strength: min(inflow_usd / (avg_recent * 3 + 1), 1.0)
-            strength = min(inflow_usd / (avg_recent * 3 + 1), 1.0) if avg_recent > 0 else 0.0
+            # Strength: min(inflow_usd / (avg_recent * 5 + 1), 1.0) - zmniejszona by zostawić miejsce na boost
+            strength = min(inflow_usd / (avg_recent * 5 + 1), 0.8) if avg_recent > 0 else 0.0
             
             # Address tracking dla DEX inflow
             if spike_detected and inflow_usd > 0:
@@ -562,7 +568,13 @@ class StealthSignalDetector:
                 
                 # Whale Memory System - zapamiętaj adres DEX inflow
                 try:
-                    from ..utils.whale_memory import update_whale_memory, is_repeat_whale, get_repeat_whale_boost
+                    import sys
+                    import os
+                    current_dir = os.path.dirname(os.path.abspath(__file__))
+                    parent_dir = os.path.dirname(current_dir)
+                    if parent_dir not in sys.path:
+                        sys.path.insert(0, parent_dir)
+                    from utils.whale_memory import update_whale_memory, is_repeat_whale, get_repeat_whale_boost
                     mock_address = f"dex_{symbol.lower()}_{int(inflow_usd)}"[:42]
                     
                     # Aktualizuj pamięć wieloryba
