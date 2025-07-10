@@ -362,6 +362,30 @@ class AsyncCryptoScanner:
                 alert_level = get_alert_level(final_score, checklist_score)
                 if alert_level >= 2:
                     process_alert(symbol, final_score, signals, None)
+                    
+                    # 🎯 ETAP 10 - INTEGRACJA Z PRIORITY ALERT QUEUE DLA PPWCS
+                    try:
+                        from stealth_engine.telegram_alert_manager import queue_priority_alert
+                        
+                        # Queue PPWCS alert with priority scoring
+                        ppwcs_queued = queue_priority_alert(
+                            symbol=symbol,
+                            score=final_score,
+                            market_data=market_data,
+                            stealth_signals=[],
+                            trust_score=0.0,
+                            trigger_detected=False
+                        )
+                        
+                        if ppwcs_queued:
+                            print(f"[STAGE 10 SUCCESS] {symbol} → PPWCS alert queued with priority scoring")
+                        else:
+                            print(f"[STAGE 10 WARNING] {symbol} → PPWCS alert queue failed")
+                            
+                    except ImportError:
+                        print(f"[STAGE 10 INFO] {symbol} → Priority alert system not available")
+                    except Exception as queue_error:
+                        print(f"[STAGE 10 ERROR] {symbol} → PPWCS priority queue error: {queue_error}")
                 
                 scan_time = time.time() - start_time
                 
@@ -541,6 +565,17 @@ def wait_for_next_candle():
 async def main():
     """Main async loop"""
     print("Starting Async Crypto Scanner with aiohttp")
+    
+    # 🎯 ETAP 10 - URUCHOMIENIE TELEGRAM ALERT MANAGER
+    try:
+        from stealth_engine.telegram_alert_manager import get_telegram_manager
+        telegram_manager = get_telegram_manager()
+        telegram_manager.start_processing_loop(interval=10)
+        print("✅ [STAGE 10] Telegram Alert Manager uruchomiony w async scanner")
+    except ImportError:
+        print("ℹ️ [STAGE 10] Telegram Alert Manager niedostępny w async scanner")
+    except Exception as telegram_error:
+        print(f"⚠️ [STAGE 10] Błąd uruchamiania Telegram Alert Manager: {telegram_error}")
     
     try:
         while True:

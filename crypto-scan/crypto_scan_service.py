@@ -467,6 +467,17 @@ def main():
     """Main scanning loop with integrated feedback evaluation"""
     print("Starting Crypto Scanner Service (Enhanced with Feedback Loop)")
     
+    # 🎯 ETAP 10 - URUCHOMIENIE TELEGRAM ALERT MANAGER
+    try:
+        from stealth_engine.telegram_alert_manager import get_telegram_manager
+        telegram_manager = get_telegram_manager()
+        telegram_manager.start_processing_loop(interval=10)
+        print("✅ [STAGE 10] Telegram Alert Manager uruchomiony - kolejka alertów aktywna")
+    except ImportError:
+        print("ℹ️ [STAGE 10] Telegram Alert Manager niedostępny")
+    except Exception as telegram_error:
+        print(f"⚠️ [STAGE 10] Błąd uruchamiania Telegram Alert Manager: {telegram_error}")
+    
     # Licznik cykli dla harmonogramowania feedback
     cycle_count = 0
     

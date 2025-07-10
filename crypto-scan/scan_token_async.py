@@ -432,6 +432,31 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     try:
                         await send_stealth_alert(symbol, stealth_score, active_signals, alert_type)
                         print(f"[STEALTH ALERT SENT] {symbol} → Alert dispatched successfully")
+                        
+                        # 🎯 ETAP 10 - INTEGRACJA Z PRIORITY ALERT QUEUE
+                        try:
+                            from stealth_engine.telegram_alert_manager import queue_priority_alert
+                            
+                            # Queue Stealth alert with priority scoring
+                            stealth_queued = queue_priority_alert(
+                                symbol=symbol,
+                                score=stealth_score,
+                                market_data=market_data,
+                                stealth_signals=active_signals,
+                                trust_score=market_data.get("trust_score", 0.0),
+                                trigger_detected=market_data.get("trigger_detected", False)
+                            )
+                            
+                            if stealth_queued:
+                                print(f"[STAGE 10 SUCCESS] {symbol} → Stealth alert queued with priority scoring")
+                            else:
+                                print(f"[STAGE 10 WARNING] {symbol} → Stealth alert queue failed")
+                                
+                        except ImportError:
+                            print(f"[STAGE 10 INFO] {symbol} → Priority alert system not available")
+                        except Exception as queue_error:
+                            print(f"[STAGE 10 ERROR] {symbol} → Priority queue error: {queue_error}")
+                            
                     except Exception as alert_error:
                         print(f"[STEALTH ALERT ERROR] {symbol} → Failed to send alert: {alert_error}")
                 else:
@@ -1107,6 +1132,31 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 if tjde_alert_success:
                     print(f"[TJDE ALERT SUCCESS] {symbol} → Level {alert_level} alert sent with cooldown")
                     alert_sent = True
+                    
+                    # 🎯 ETAP 10 - INTEGRACJA Z PRIORITY ALERT QUEUE DLA TJDE
+                    try:
+                        from stealth_engine.telegram_alert_manager import queue_priority_alert
+                        
+                        # Queue TJDE alert with priority scoring
+                        tjde_queued = queue_priority_alert(
+                            symbol=symbol,
+                            score=tjde_score,
+                            market_data=market_data,
+                            stealth_signals=market_data.get("stealth_signals", []),
+                            trust_score=market_data.get("trust_score", 0.0),
+                            trigger_detected=market_data.get("trigger_detected", False)
+                        )
+                        
+                        if tjde_queued:
+                            print(f"[STAGE 10 SUCCESS] {symbol} → TJDE alert queued with priority scoring")
+                        else:
+                            print(f"[STAGE 10 WARNING] {symbol} → TJDE alert queue failed")
+                            
+                    except ImportError:
+                        print(f"[STAGE 10 INFO] {symbol} → Priority alert system not available")
+                    except Exception as queue_error:
+                        print(f"[STAGE 10 ERROR] {symbol} → TJDE priority queue error: {queue_error}")
+                        
                 else:
                     print(f"[TJDE ALERT FAILED] {symbol} → Failed to send alert or in cooldown")
                     
