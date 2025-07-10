@@ -146,6 +146,7 @@ class StealthSignalDetector:
         Zgodnie ze specyfikacją użytkownika
         """
         symbol = token_data.get("symbol", "UNKNOWN")
+        print(f"[DEBUG FLOW] {symbol} - get_active_stealth_signals() starting signal detection...")
         signals = []
         
         # Lista funkcji sygnałów do sprawdzenia z error handling
@@ -171,20 +172,23 @@ class StealthSignalDetector:
             ("multi_address_group_activity", self.check_multi_address_group_activity)
         ]
         
-        # Sprawdź każdy sygnał z obsługą błędów
-        for signal_name, signal_func in signal_functions:
+        print(f"[DEBUG FLOW] {symbol} - processing {len(signal_functions)} signal functions...")
+        
+        # PERFORMANCE OPTIMIZED: Sprawdź każdy sygnał z obsługą błędów i ograniczonymi logami
+        for i, (signal_name, signal_func) in enumerate(signal_functions):
             try:
                 signal = signal_func(token_data)
+                
                 if signal is not None:
                     signals.append(signal)
                 else:
-                    print(f"[STEALTH WARNING] {symbol}: {signal_name} returned None, creating empty signal")
                     signals.append(StealthSignal(signal_name, False, 0.0))
             except Exception as e:
                 print(f"[STEALTH ERROR] {symbol}: Failed to check {signal_name}: {e}")
                 # Dodaj pustý sygnał aby utrzymać spójność
                 signals.append(StealthSignal(signal_name, False, 0.0))
         
+        print(f"[DEBUG FLOW] {symbol} - get_active_stealth_signals() completed with {len(signals)} signals")
         return signals
     
     def get_dynamic_whale_threshold(self, orderbook: dict) -> float:
@@ -880,19 +884,25 @@ class StealthSignalDetector:
                             print(f"[IDENTITY BOOST] {symbol} dex_inflow: Applied +{identity_boost:.3f} identity boost from real wallets → strength: {strength:.3f}")
                         
                         print(f"[DEBUG DEX_INFLOW] {symbol} - Identity boost calculation completed")
+                        print(f"[DEBUG FLOW] {symbol} - After identity_boost, proceeding to Trigger Alert System...")
                         
                     except Exception as identity_e:
                         print(f"[IDENTITY BOOST ERROR] dex_inflow for {symbol}: {identity_e}")
                         print(f"[DEBUG DEX_INFLOW] {symbol} - Identity boost calculation failed, continuing...")
+                        print(f"[DEBUG FLOW] {symbol} - After identity_boost ERROR, proceeding to Trigger Alert System...")
                     
                     # Etap 7: Trigger Alert System z RZECZYWISTYMI adresami
                     try:
+                        print(f"[DEBUG FLOW] {symbol} - Starting Trigger Alert System...")
                         from stealth_engine.trigger_alert_system import check_smart_money_trigger, apply_smart_money_boost
                         from stealth_engine.address_trust_manager import get_trust_manager
+                        print(f"[DEBUG FLOW] {symbol} - Trigger imports successful")
                         
                         # Sprawdź czy wykryto trigger addresses (smart money) wśród RZECZYWISTYCH adresów
                         trust_manager = get_trust_manager()
+                        print(f"[DEBUG FLOW] {symbol} - Trust manager loaded")
                         is_trigger, trigger_addresses = check_smart_money_trigger(real_addresses[:10], trust_manager)
+                        print(f"[DEBUG FLOW] {symbol} - Smart money check completed: {is_trigger}")
                         
                         if is_trigger:
                             # Zastosuj trigger boost - minimum score 3.0 dla instant alert
@@ -904,14 +914,21 @@ class StealthSignalDetector:
                             print(f"[TRIGGER ALERT] 🚨 {symbol} DEX INFLOW: Smart money detected! "
                                   f"Strength boosted to {strength:.3f} (priority alert: {priority_alert})")
                         
+                        print(f"[DEBUG FLOW] {symbol} - Trigger Alert System completed")
+                        
                     except Exception as trigger_e:
                         print(f"[TRIGGER ALERT ERROR] dex_inflow for {symbol}: {trigger_e}")
+                        print(f"[DEBUG FLOW] {symbol} - Trigger Alert System ERROR, continuing...")
                     
                 except Exception as memory_e:
                     print(f"[WHALE MEMORY] DEX error for {symbol}: {memory_e}")
+                    print(f"[DEBUG FLOW] {symbol} - Whale memory ERROR, continuing to result...")
+            
+            print(f"[DEBUG FLOW] {symbol} - All DEX inflow processing completed, preparing result...")
             
             # RESULT LOG - końcowa decyzja i siła sygnału
             print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] RESULT → active={spike_detected}, strength={strength:.3f}")
+            print(f"[DEBUG FLOW] {symbol} - DEX inflow function returning signal")
             
             return StealthSignal("dex_inflow", spike_detected, strength)
             

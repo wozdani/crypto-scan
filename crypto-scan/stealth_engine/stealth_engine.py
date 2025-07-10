@@ -533,10 +533,13 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 total_bids = total_asks = imbalance_pct = 0
         
         # Pobierz aktywne sygnały z detektorów (zgodnie z user specification)
+        print(f"[DEBUG FLOW] {symbol} - Starting get_active_stealth_signals() call...")
         try:
             signals = detector.get_active_stealth_signals(token_data)
+            print(f"[DEBUG FLOW] {symbol} - get_active_stealth_signals() completed successfully")
             print(f"[STEALTH DEBUG] {symbol}: Successfully got {len(signals)} signals from detector")
         except Exception as e:
+            print(f"[DEBUG FLOW] {symbol} - get_active_stealth_signals() FAILED")
             print(f"[STEALTH ERROR] {symbol}: Failed to get signals from detector: {e}")
             return {
                 "score": 0.0,

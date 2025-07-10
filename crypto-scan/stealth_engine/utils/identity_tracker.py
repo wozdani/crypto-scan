@@ -105,42 +105,31 @@ class PersistentIdentityTracker:
         """
         🔢 Oblicz identity boost dla portfeli
         
+        PERFORMANCE OPTIMIZED: Zmniejszone logi debug dla szybszego przetwarzania
+        
         Args:
             wallets: Lista adresów portfeli
             
         Returns:
             float: Identity boost (0.0 - 0.2)
         """
-        print(f"[DEBUG IDENTITY] Entering get_identity_boost with {len(wallets) if wallets else 0} wallets")
-        
         if not wallets:
-            print(f"[DEBUG IDENTITY] No wallets provided, returning 0.0")
             return 0.0
         
-        # TIMEOUT SAFETY: Limit do 50 adresów - zapobiega zawieszeniu
-        if len(wallets) > 50:
-            print(f"[DEBUG IDENTITY] WARNING: Too many wallets ({len(wallets)}), limiting to 50")
-            wallets = wallets[:50]
+        # PERFORMANCE BOOST: Limit do 20 adresów dla szybszego przetwarzania
+        if len(wallets) > 20:
+            wallets = wallets[:20]
         
         total_score = 0
         recognized_wallets = 0
         
-        print(f"[DEBUG IDENTITY] Processing {len(wallets)} wallets for identity scoring")
-        
-        for i, wallet in enumerate(wallets):
-            if i > 0 and i % 10 == 0:  # Log co 10 portfeli
-                print(f"[DEBUG IDENTITY] Processed {i}/{len(wallets)} wallets...")
-            
+        for wallet in wallets:
             if wallet in self.identity_scores:
                 score = self.identity_scores[wallet]["score"]
                 total_score += score
                 recognized_wallets += 1
-                print(f"[DEBUG IDENTITY] Wallet {wallet[:10]}... recognized with score {score}")
-        
-        print(f"[DEBUG IDENTITY] Found {recognized_wallets} recognized wallets out of {len(wallets)}")
         
         if recognized_wallets == 0:
-            print(f"[DEBUG IDENTITY] No recognized wallets, returning 0.0")
             return 0.0
         
         # Oblicz średni identity score
@@ -149,14 +138,6 @@ class PersistentIdentityTracker:
         # Boost formula: min(avg_score * 0.05, 0.2) - max +0.2 boost
         identity_boost = min(avg_score * 0.05, 0.2)
         
-        print(f"[DEBUG IDENTITY] Calculated boost: {identity_boost:.3f} (avg_score: {avg_score:.1f})")
-        
-        if identity_boost > 0:
-            recognition_ratio = recognized_wallets / len(wallets)
-            print(f"[IDENTITY BOOST] {recognized_wallets}/{len(wallets)} wallets recognized "
-                  f"(avg_score: {avg_score:.1f}) → boost: {identity_boost:.3f}")
-        
-        print(f"[DEBUG IDENTITY] Completed get_identity_boost, returning {identity_boost:.3f}")
         return identity_boost
     
     def get_wallet_identity_stats(self, wallet: str) -> Dict:
