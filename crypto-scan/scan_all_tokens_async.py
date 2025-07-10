@@ -246,6 +246,32 @@ async def async_scan_cycle():
         log_global_error("Whale Priority", f"Priority calculation failed: {e}")
         priority_info = {}
     
+    # Etap 4: Dynamic Token Priority Sorting - Tokeny z repeat whales skanowane jako pierwsze
+    try:
+        from utils.token_priority_manager import sort_tokens_by_priority, get_priority_statistics
+        
+        # Pobierz statystyki przed sortowaniem
+        priority_stats = get_priority_statistics()
+        
+        if priority_stats.get('total_tokens', 0) > 0:
+            print(f"[TOKEN PRIORITY] Sorting {len(symbols)} tokens by priority...")
+            print(f"[TOKEN PRIORITY] High priority tokens: {priority_stats['high_priority_tokens']}")
+            print(f"[TOKEN PRIORITY] Max priority: {priority_stats['max_priority']:.1f}")
+            
+            # Pokaż TOP 5 priorytetowych tokenów
+            for i, (token, priority) in enumerate(priority_stats['top_tokens'][:5]):
+                print(f"[TOKEN PRIORITY]   {i+1}. {token}: {priority:.1f}")
+            
+            # Sortuj tokeny według priorytetu (najwyższy priorytet pierwszy)
+            symbols = sort_tokens_by_priority(symbols)
+            print(f"[TOKEN PRIORITY] ✅ Tokens sorted - high priority tokens will be scanned first")
+        else:
+            print(f"[TOKEN PRIORITY] No priority data available - using default order")
+            
+    except Exception as e:
+        log_global_error("Token Priority", f"Priority sorting failed: {e}")
+        print(f"[TOKEN PRIORITY] Error sorting tokens - using default order")
+    
     # Apply performance optimization
     try:
         from utils.performance_optimizer import optimize_scan_performance

@@ -404,6 +404,20 @@ class StealthSignalDetector:
                         # Zwiększ strength o bonus za powtarzającego się wieloryba
                         strength = min(1.0, strength + repeat_boost * 0.3)  # Max 30% boost
                         print(f"[WHALE MEMORY] {symbol} repeat whale detected! Boost: +{repeat_boost*0.3:.2f} → strength: {strength:.3f}")
+                        
+                        # Etap 4: Zwiększ priorytet tokena w kolejce skanowania
+                        try:
+                            current_dir = os.path.dirname(os.path.abspath(__file__))
+                            parent_dir = os.path.dirname(current_dir)
+                            if parent_dir not in sys.path:
+                                sys.path.insert(0, parent_dir)
+                            from utils.token_priority_manager import update_token_priority
+                            
+                            # Boost priorytetu w zależności od repeat_boost (0.2-1.0 → 10-20 priority)
+                            priority_boost = 10 + (repeat_boost * 10)  # 10-20 boost range
+                            update_token_priority(symbol, priority_boost, "whale_ping_repeat")
+                        except Exception as priority_e:
+                            print(f"[TOKEN PRIORITY] Error updating whale_ping priority for {symbol}: {priority_e}")
                     
                 except Exception as memory_e:
                     print(f"[WHALE MEMORY] Error for {symbol}: {memory_e}")
@@ -586,6 +600,16 @@ class StealthSignalDetector:
                         # Zwiększ strength o bonus za powtarzającego się wieloryba
                         strength = min(1.0, strength + repeat_boost * 0.25)  # Max 25% boost dla DEX
                         print(f"[WHALE MEMORY] {symbol} repeat DEX whale detected! Boost: +{repeat_boost*0.25:.2f} → strength: {strength:.3f}")
+                        
+                        # Etap 4: Zwiększ priorytet tokena w kolejce skanowania
+                        try:
+                            from utils.token_priority_manager import update_token_priority
+                            
+                            # Boost priorytetu w zależności od repeat_boost (0.2-1.0 → 8-16 priority dla DEX)
+                            priority_boost = 8 + (repeat_boost * 8)  # 8-16 boost range (nieco mniej niż whale_ping)
+                            update_token_priority(symbol, priority_boost, "dex_inflow_repeat")
+                        except Exception as priority_e:
+                            print(f"[TOKEN PRIORITY] Error updating dex_inflow priority for {symbol}: {priority_e}")
                     
                 except Exception as memory_e:
                     print(f"[WHALE MEMORY] DEX error for {symbol}: {memory_e}")
