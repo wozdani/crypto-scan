@@ -252,11 +252,10 @@ class StealthSignalDetector:
         Whale ping detector - wykrycie wielorybów przez duże zlecenia
         Dynamiczna wersja dopasowana do wolumenu tokena
         """
+        FUNC_NAME = "whale_ping"
         symbol = token_data.get("symbol", "UNKNOWN")
         
         try:
-            print(f"[STEALTH DEBUG] whale_ping for {symbol}: checking whale activity...")
-            
             orderbook = token_data.get("orderbook", {})
             bids = orderbook.get("bids", [])
             asks = orderbook.get("asks", [])
@@ -276,7 +275,7 @@ class StealthSignalDetector:
                 avg_volume_15m = 0
             
             if not bids or not asks:
-                print(f"[STEALTH DEBUG] whale_ping for {symbol}: insufficient orderbook data")
+                print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] INPUT → bids={len(bids)}, asks={len(asks)}, insufficient_data=True")
                 return StealthSignal("whale_ping", False, 0.0)
             
             # Handle different orderbook formats (list vs dict)
@@ -369,11 +368,17 @@ class StealthSignalDetector:
             # Znajdź największe zlecenie w USD
             max_order_usd = max([o["usd_value"] for o in all_orders], default=0)
             
+            # INPUT LOG - wszystkie dane wejściowe
+            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] INPUT → max_order_usd=${max_order_usd:.2f}, threshold=${threshold:.2f}, bids={len(bids)}, asks={len(asks)}")
+            
             # Warunek aktywacji z dynamicznym progiem
             active = max_order_usd > threshold
             
             # Strength: max_order / (threshold * 2)
             strength = min(max_order_usd / (threshold * 2), 1.0) if threshold > 0 else 0.0
+            
+            # MID LOG - kluczowe obliczenia pośrednie
+            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MID → ratio={max_order_usd/threshold:.3f}, initial_strength={strength:.3f}")
             
             # Address tracking dla whale ping
             if active and max_order_usd > 0:
@@ -512,13 +517,13 @@ class StealthSignalDetector:
                 except Exception as memory_e:
                     print(f"[WHALE MEMORY] Error for {symbol}: {memory_e}")
             
-            print(f"[STEALTH DEBUG] whale_ping: max_order=${max_order_usd:.0f}, dynamic_threshold=${threshold:.0f}, active={active}")
-            if active:
-                print(f"[STEALTH DEBUG] whale_ping DETECTED: max_order=${max_order_usd:.0f} > dynamic_threshold=${threshold:.0f}")
+            # RESULT LOG - końcowa decyzja i siła sygnału
+            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] RESULT → active={active}, strength={strength:.3f}")
+            
             return StealthSignal("whale_ping", active, strength)
             
         except Exception as e:
-            print(f"[STEALTH DEBUG] whale_ping error for {symbol}: {e}")
+            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] ERROR → {type(e).__name__}: {e}")
             return StealthSignal("whale_ping", False, 0.0)
 
     
@@ -527,20 +532,22 @@ class StealthSignalDetector:
         Spoofing layers detector - detekcja warstwowania zleceń
         Matematycznie precyzyjna implementacja zgodna z user specification v2
         """
+        FUNC_NAME = "spoofing_layers"
         symbol = token_data.get("symbol", "UNKNOWN")
         orderbook = token_data.get("orderbook", {})
         
-        print(f"[STEALTH DEBUG] spoofing_layers for {symbol}: checking layered orders...")
-        
         if not orderbook:
-            print(f"[STEALTH DEBUG] spoofing_layers for {symbol}: no orderbook data")
+            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] INPUT → orderbook=None, insufficient_data=True")
             return StealthSignal("spoofing_layers", False, 0.0)
         
         bids = orderbook.get("bids", [])
         asks = orderbook.get("asks", [])
         
+        # INPUT LOG - dane wejściowe
+        print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] INPUT → bids={len(bids)}, asks={len(asks)}")
+        
         if len(bids) < 3 and len(asks) < 3:
-            print(f"[STEALTH DEBUG] spoofing_layers: insufficient levels")
+            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] RESULT → active=False, strength=0.000 (insufficient_levels)")
             return StealthSignal("spoofing_layers", False, 0.0)
         
         try:
@@ -586,60 +593,69 @@ class StealthSignalDetector:
             bid_spoofing, bid_strength, bid_layers_vol, bid_total_vol = analyze_side_spoofing(bids, "bids")
             ask_spoofing, ask_strength, ask_layers_vol, ask_total_vol = analyze_side_spoofing(asks, "asks")
             
+            # MID LOG - kluczowe obliczenia pośrednie
+            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MID → bid_spoofing={bid_spoofing}, ask_spoofing={ask_spoofing}, bid_strength={bid_strength:.3f}, ask_strength={ask_strength:.3f}")
+            
             # Aktywacja jeśli którakolwiek strona ma spoofing
             is_active = bid_spoofing or ask_spoofing
             
             # Wybierz wyższą strength
             strength = max(bid_strength, ask_strength)
             
-            if len(bids) >= 3 and len(asks) >= 3:
-                bid_layer_ratio = bids[0][1] / bids[1][1] if len(bids) > 1 and bids[1][1] > 0 else 0
-                ask_layer_ratio = asks[0][1] / asks[1][1] if len(asks) > 1 and asks[1][1] > 0 else 0
-                spoof_detected = bid_layer_ratio > 5 or ask_layer_ratio > 5
-                print(f"[STEALTH DEBUG] spoofing_layers: bid_ratio={bid_layer_ratio:.2f}, ask_ratio={ask_layer_ratio:.2f}, detected={spoof_detected}")
-            
-            if is_active:
-                side_detected = "bids" if bid_spoofing else "asks"
-                layers_vol = bid_layers_vol if bid_spoofing else ask_layers_vol
-                total_vol = bid_total_vol if bid_spoofing else ask_total_vol
-                print(f"[STEALTH DEBUG] spoofing_layers DETECTED: {side_detected} layers_volume={layers_vol:.0f}, total_side_volume={total_vol:.0f}")
+            # RESULT LOG - końcowa decyzja i siła sygnału
+            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] RESULT → active={is_active}, strength={strength:.3f}")
             
             return StealthSignal("spoofing_layers", is_active, strength)
             
         except Exception as e:
-            print(f"[STEALTH DEBUG] spoofing_layers error for {symbol}: {e}")
+            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] ERROR → {type(e).__name__}: {e}")
             return StealthSignal("spoofing_layers", False, 0.0)
     
     def check_volume_slope(self, token_data: Dict) -> StealthSignal:
         """
         Wolumen rosnący bez zmiany ceny
         """
+        FUNC_NAME = "volume_slope"
         symbol = token_data.get("symbol", "UNKNOWN")
         slope = token_data.get("volume_slope_up", False)
         
-        print(f"[STEALTH DEBUG] volume_slope: volume_slope_up={slope}")
-        return StealthSignal("volume_slope", slope, 1.0 if slope else 0.0)
+        # INPUT LOG
+        print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] INPUT → volume_slope_up={slope}")
+        
+        strength = 1.0 if slope else 0.0
+        
+        # RESULT LOG
+        print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] RESULT → active={slope}, strength={strength:.3f}")
+        
+        return StealthSignal("volume_slope", slope, strength)
     
     def check_ghost_orders(self, token_data: Dict) -> StealthSignal:
         """
         Martwe poziomy z nietypową aktywnością
         """
+        FUNC_NAME = "ghost_orders"
         symbol = token_data.get("symbol", "UNKNOWN")
         ghost = token_data.get("ghost_orders", False)
         
-        print(f"[STEALTH DEBUG] ghost_orders: ghost_orders={ghost}")
-        return StealthSignal("ghost_orders", ghost, 1.0 if ghost else 0.0)
+        # INPUT LOG
+        print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] INPUT → ghost_orders={ghost}")
+        
+        strength = 1.0 if ghost else 0.0
+        
+        # RESULT LOG
+        print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] RESULT → active={ghost}, strength={strength:.3f}")
+        
+        return StealthSignal("ghost_orders", ghost, strength)
     
     def check_dex_inflow(self, token_data: Dict) -> StealthSignal:
         """
         DEX inflow detector - detekcja nagłych napływów DEX względem historii
         Dynamiczna wersja z kontekstem historycznym + tracking adresów
         """
+        FUNC_NAME = "dex_inflow"
         symbol = token_data.get("symbol", "UNKNOWN")
         
         try:
-            print(f"[STEALTH DEBUG] dex_inflow for {symbol}: checking on-chain inflow...")
-            
             # Pobierz wartość dex_inflow z token_data
             inflow_usd = token_data.get("dex_inflow", 0)
             
@@ -649,11 +665,18 @@ class StealthSignalDetector:
             # Oblicz średnią z ostatnich wartości
             avg_recent = sum(inflow_history) / len(inflow_history) if inflow_history else 0
             
+            # INPUT LOG - dane wejściowe
+            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] INPUT → inflow_usd=${inflow_usd:.2f}, avg_recent=${avg_recent:.2f}, history_count={len(inflow_history)}")
+            
             # Warunek aktywacji: inflow > avg_recent * 2 AND inflow > 1000
             spike_detected = inflow_usd > avg_recent * 2 and inflow_usd > 1000
             
             # Strength: min(inflow_usd / (avg_recent * 5 + 1), 1.0) - zmniejszona by zostawić miejsce na boost
             strength = min(inflow_usd / (avg_recent * 5 + 1), 0.8) if avg_recent > 0 else 0.0
+            
+            # MID LOG - kluczowe obliczenia pośrednie
+            ratio = inflow_usd / (avg_recent * 2) if avg_recent > 0 else 0
+            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MID → spike_ratio={ratio:.3f}, min_threshold=$1000, initial_strength={strength:.3f}")
             
             # Address tracking dla DEX inflow
             if spike_detected and inflow_usd > 0:
@@ -789,24 +812,33 @@ class StealthSignalDetector:
                 except Exception as memory_e:
                     print(f"[WHALE MEMORY] DEX error for {symbol}: {memory_e}")
             
-            print(f"[STEALTH DEBUG] dex_inflow: inflow=${inflow_usd}, avg_recent=${avg_recent:.0f}, spike_detected={spike_detected}")
-            if spike_detected:
-                print(f"[STEALTH DEBUG] dex_inflow DETECTED: inflow=${inflow_usd} > avg_recent*2=${avg_recent*2:.0f} AND inflow > 1000")
+            # RESULT LOG - końcowa decyzja i siła sygnału
+            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] RESULT → active={spike_detected}, strength={strength:.3f}")
+            
             return StealthSignal("dex_inflow", spike_detected, strength)
             
         except Exception as e:
-            print(f"[STEALTH DEBUG] dex_inflow error for {symbol}: {e}")
+            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] ERROR → {type(e).__name__}: {e}")
             return StealthSignal("dex_inflow", False, 0.0)
     
     def check_event_tag(self, token_data: Dict) -> StealthSignal:
         """
         Event tag detection - unlock tokenów / airdrop
         """
+        FUNC_NAME = "event_tag"
         symbol = token_data.get("symbol", "UNKNOWN")
         tag = token_data.get("event_tag", None)
         
-        print(f"[STEALTH DEBUG] event_tag: event_tag={tag}")
-        return StealthSignal("event_tag", tag is not None, 1.0 if tag else 0.0)
+        # INPUT LOG
+        print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] INPUT → event_tag={tag}")
+        
+        active = tag is not None
+        strength = 1.0 if active else 0.0
+        
+        # RESULT LOG
+        print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] RESULT → active={active}, strength={strength:.3f}")
+        
+        return StealthSignal("event_tag", active, strength)
     
     def check_orderbook_imbalance_stealth(self, token_data: Dict) -> StealthSignal:
         """
@@ -976,12 +1008,20 @@ class StealthSignalDetector:
         """
         Wykryj usunięcie murów ask (placeholder - wymaga historycznych danych)
         """
+        FUNC_NAME = "ask_wall_removal"
         symbol = token_data.get("symbol", "UNKNOWN")
         # Placeholder - w rzeczywistości potrzebne są dane historyczne orderbook
         active = token_data.get("ask_walls_removed", False)
         
-        print(f"[STEALTH DEBUG] ask_wall_removal: ask_walls_removed={active}")
-        return StealthSignal("ask_wall_removal", active, 1.0 if active else 0.0)
+        # INPUT LOG
+        print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] INPUT → ask_walls_removed={active}")
+        
+        strength = 1.0 if active else 0.0
+        
+        # RESULT LOG
+        print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] RESULT → active={active}, strength={strength:.3f}")
+        
+        return StealthSignal("ask_wall_removal", active, strength)
     
     def check_volume_spike_stealth(self, token_data: Dict) -> StealthSignal:
         """
@@ -1158,12 +1198,20 @@ class StealthSignalDetector:
         """
         Wykryj absorpcję płynności (placeholder)
         """
+        FUNC_NAME = "liquidity_absorption"
         symbol = token_data.get("symbol", "UNKNOWN")
         # Placeholder - wymaga analizy zmian w orderbook
         active = token_data.get("liquidity_absorbed", False)
         
-        print(f"[STEALTH DEBUG] liquidity_absorption: liquidity_absorbed={active}")
-        return StealthSignal("liquidity_absorption", active, 1.0 if active else 0.0)
+        # INPUT LOG
+        print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] INPUT → liquidity_absorbed={active}")
+        
+        strength = 1.0 if active else 0.0
+        
+        # RESULT LOG
+        print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] RESULT → active={active}, strength={strength:.3f}")
+        
+        return StealthSignal("liquidity_absorption", active, strength)
     
     def check_orderbook_anomaly(self, token_data: Dict) -> StealthSignal:
         """
