@@ -468,6 +468,25 @@ class StealthSignalDetector:
                     except Exception as token_trust_e:
                         print(f"[TOKEN TRUST ERROR] whale_ping for {symbol}: {token_trust_e}")
                     
+                    # Stage 14: Persistent Identity Scoring - permanentna reputacja portfeli
+                    try:
+                        from stealth_engine.utils.identity_tracker import get_identity_boost, update_wallet_identity
+                        
+                        # Lista wykrytych adresów dla tego tokena
+                        detected_wallets = [mock_address]
+                        
+                        # Oblicz identity boost na podstawie permanentnej reputacji portfeli
+                        identity_boost = get_identity_boost(detected_wallets)
+                        if identity_boost > 0:
+                            # Dodaj identity boost do scoring
+                            strength = min(1.0, strength + identity_boost)
+                            print(f"[IDENTITY BOOST] {symbol} whale_ping: Applied +{identity_boost:.3f} identity boost → strength: {strength:.3f}")
+                        
+                        # Note: update_wallet_identity() będzie wywołane przez feedback loop po potwierdzeniu skuteczności
+                        
+                    except Exception as identity_e:
+                        print(f"[IDENTITY BOOST ERROR] whale_ping for {symbol}: {identity_e}")
+                    
                     # Etap 7: Trigger Alert System - smart money detection
                     try:
                         from stealth_engine.trigger_alert_system import check_smart_money_trigger, apply_smart_money_boost
@@ -725,6 +744,25 @@ class StealthSignalDetector:
                         
                     except Exception as token_trust_e:
                         print(f"[TOKEN TRUST ERROR] dex_inflow for {symbol}: {token_trust_e}")
+                    
+                    # Stage 14: Persistent Identity Scoring - permanentna reputacja portfeli
+                    try:
+                        from stealth_engine.utils.identity_tracker import get_identity_boost, update_wallet_identity
+                        
+                        # Lista wykrytych adresów dla tego tokena
+                        detected_wallets = [mock_address]
+                        
+                        # Oblicz identity boost na podstawie permanentnej reputacji portfeli
+                        identity_boost = get_identity_boost(detected_wallets)
+                        if identity_boost > 0:
+                            # Dodaj identity boost do scoring
+                            strength = min(1.0, strength + identity_boost)
+                            print(f"[IDENTITY BOOST] {symbol} dex_inflow: Applied +{identity_boost:.3f} identity boost → strength: {strength:.3f}")
+                        
+                        # Note: update_wallet_identity() będzie wywołane przez feedback loop po potwierdzeniu skuteczności
+                        
+                    except Exception as identity_e:
+                        print(f"[IDENTITY BOOST ERROR] dex_inflow for {symbol}: {identity_e}")
                     
                     # Etap 7: Trigger Alert System - smart money detection
                     try:
