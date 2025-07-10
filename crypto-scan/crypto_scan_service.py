@@ -478,6 +478,26 @@ def main():
     except Exception as telegram_error:
         print(f"⚠️ [STAGE 10] Błąd uruchamiania Telegram Alert Manager: {telegram_error}")
     
+    # 🧠 ETAP 11 - URUCHOMIENIE PRIORITY LEARNING MEMORY SYSTEM
+    try:
+        from stealth_engine.priority_learning import get_priority_learning_memory
+        from stealth_engine.stealth_scanner import get_stealth_scanner
+        
+        priority_memory = get_priority_learning_memory()
+        stealth_scanner = get_stealth_scanner()
+        
+        print("✅ [STAGE 11] Priority Learning Memory system uruchomiony - inteligentne priorytetowanie tokenów aktywne")
+        
+        # Pokaż statystyki uczenia
+        learning_stats = priority_memory.get_learning_statistics()
+        print(f"ℹ️ [STAGE 11] Pamięć uczenia: {learning_stats['total_entries']} wpisów, "
+              f"{learning_stats['success_rate']:.1%} skuteczność")
+              
+    except ImportError:
+        print("ℹ️ [STAGE 11] Priority Learning Memory system niedostępny")
+    except Exception as learning_error:
+        print(f"⚠️ [STAGE 11] Błąd uruchamiania Priority Learning: {learning_error}")
+    
     # Licznik cykli dla harmonogramowania feedback
     cycle_count = 0
     
@@ -492,6 +512,23 @@ def main():
                 cycle_count += 1
                 if cycle_count % 4 == 0:
                     run_feedback_evaluation_if_needed()
+                    
+                    # 🧠 ETAP 11 - PRIORITY LEARNING FEEDBACK PROCESSING
+                    try:
+                        from stealth_engine.stealth_scanner import process_stealth_learning_feedback
+                        import asyncio
+                        
+                        # Process stealth-ready tokens dla learning memory (6h evaluation)
+                        processed_tokens = asyncio.run(process_stealth_learning_feedback([], hours=6))
+                        if processed_tokens > 0:
+                            print(f"[STAGE 11] ✅ Processed {processed_tokens} stealth-ready tokens for priority learning")
+                        else:
+                            print("[STAGE 11] ℹ️ No stealth-ready tokens pending evaluation")
+                            
+                    except ImportError:
+                        print("[STAGE 11] ℹ️ Priority learning feedback system not available")
+                    except Exception as learning_feedback_error:
+                        print(f"[STAGE 11 ERROR] Priority learning feedback: {learning_feedback_error}")
                     
                     # 🎯 ADAPTIVE THRESHOLD MAINTENANCE
                     if ADAPTIVE_LEARNING_AVAILABLE:

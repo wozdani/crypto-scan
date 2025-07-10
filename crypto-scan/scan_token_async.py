@@ -37,6 +37,22 @@ except ImportError:
     print("[ADAPTIVE LEARNING] Adaptive threshold learning not available")
     ADAPTIVE_LEARNING_AVAILABLE = False
 
+# 🧠 ETAP 11 - PRIORITY LEARNING MEMORY INTEGRATION
+try:
+    from stealth_engine.priority_learning import (
+        update_stealth_learning,
+        get_token_learning_bias
+    )
+    from stealth_engine.stealth_scanner import (
+        identify_stealth_ready,
+        get_stealth_scanner
+    )
+    PRIORITY_LEARNING_AVAILABLE = True
+    print("[PRIORITY LEARNING] Stage 11 Priority Learning Memory system loaded")
+except ImportError as e:
+    print(f"[PRIORITY LEARNING] Stage 11 system not available: {e}")
+    PRIORITY_LEARNING_AVAILABLE = False
+
 # PPWCS SYSTEM REMOVED - Using TJDE v2 only
 print("[SYSTEM] PPWCS system completely removed - using TJDE v2 exclusively")
 
@@ -1205,6 +1221,54 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 print(f"[ADAPTIVE LEARNING] {symbol}: Logged for threshold learning (ID: {entry_id[:8]}...)")
             except Exception as adaptive_error:
                 print(f"[ADAPTIVE LEARNING ERROR] {symbol}: {adaptive_error}")
+        
+        # 🧠 ETAP 11 - PRIORITY LEARNING MEMORY INTEGRATION: Identify stealth-ready tokens
+        if PRIORITY_LEARNING_AVAILABLE:
+            try:
+                # Identify if token is stealth-ready for learning
+                stealth_score = market_data.get("stealth_score", 0.0)
+                stealth_signals = market_data.get("stealth_signals", [])
+                
+                # Generate alert tags for this result
+                alert_tags = []
+                if stealth_score >= 3.0:
+                    alert_tags.append("stealth_ready")
+                if tjde_score >= 0.7:
+                    alert_tags.append("high_tjde")
+                if market_data.get("trust_score", 0.0) >= 0.8:
+                    alert_tags.append("smart_money")
+                    alert_tags.append("trusted")
+                if market_data.get("trigger_detected", False):
+                    alert_tags.append("priority")
+                
+                # Check if this token qualifies for stealth-ready identification
+                token_result = {
+                    "symbol": symbol,
+                    "tjde_score": tjde_score,
+                    "stealth_score": stealth_score,
+                    "tags": alert_tags,
+                    "confidence": market_data.get("confidence", 0.0),
+                    "trust_score": market_data.get("trust_score", 0.0),
+                    "timestamp": datetime.now().isoformat()
+                }
+                
+                stealth_ready_tokens = identify_stealth_ready([token_result])
+                
+                if stealth_ready_tokens:
+                    print(f"[PRIORITY LEARNING] {symbol}: Identified as stealth-ready for learning memory")
+                    
+                    # Log current priority bias for this token
+                    current_bias = get_token_learning_bias(symbol)
+                    print(f"[PRIORITY LEARNING] {symbol}: Current learning bias: {current_bias:.3f}")
+                    
+                    # This will be evaluated later through the stealth feedback system
+                    # to update learning memory based on actual price performance
+                    
+                else:
+                    print(f"[PRIORITY LEARNING] {symbol}: Not stealth-ready (stealth_score: {stealth_score:.3f}, tjde_score: {tjde_score:.3f})")
+                
+            except Exception as learning_error:
+                print(f"[PRIORITY LEARNING ERROR] {symbol}: {learning_error}")
         
         # Check if scores are suspicious (identical fallback values)
         if tjde_score == 0.4:

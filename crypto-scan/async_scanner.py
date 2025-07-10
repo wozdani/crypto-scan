@@ -30,6 +30,20 @@ from utils.enhanced_error_logging import log_api_error
 from utils.async_data_processor import process_async_data_enhanced
 # Enhanced data validation for partial validity support
 
+# Import Priority Learning System
+try:
+    from stealth_engine.stealth_scanner import (
+        get_stealth_scanner, 
+        get_priority_scan_queue,
+        identify_stealth_ready,
+        process_stealth_learning_feedback
+    )
+    PRIORITY_LEARNING_AVAILABLE = True
+    print("[PRIORITY LEARNING] System available for async scanner")
+except ImportError as e:
+    print(f"[PRIORITY LEARNING] Not available: {e}")
+    PRIORITY_LEARNING_AVAILABLE = False
+
 class AsyncCryptoScanner:
     """Async crypto scanner with aiohttp for I/O parallelism"""
     
@@ -423,6 +437,18 @@ class AsyncCryptoScanner:
     
     async def scan_all_tokens(self, symbols: List[str], priority_info: Dict = None) -> List[Dict]:
         """High-performance scan targeting 752 tokens in <15s"""
+        
+        # 🧠 ETAP 11 - PRIORITY LEARNING INTEGRATION: Sort tokens by learning bias
+        if PRIORITY_LEARNING_AVAILABLE:
+            try:
+                # Get priority queue with learning bias
+                priority_symbols = get_priority_scan_queue(symbols, limit=len(symbols))
+                print(f"[PRIORITY LEARNING] Applied learning bias to {len(symbols)} tokens")
+                symbols = priority_symbols
+            except Exception as e:
+                print(f"[PRIORITY LEARNING ERROR] Failed to apply learning bias: {e}")
+                # Continue with original order if priority learning fails
+        
         print(f"🚀 Starting HIGH-SPEED async scan of {len(symbols)} tokens (max {self.max_concurrent} concurrent)")
         
         # Performance optimization: larger batches, shorter timeouts
