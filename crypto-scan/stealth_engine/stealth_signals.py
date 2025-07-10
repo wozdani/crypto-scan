@@ -507,16 +507,26 @@ class StealthSignalDetector:
                     
                     # Stage 14: Persistent Identity Scoring z RZECZYWISTYMI portfelami
                     try:
+                        print(f"[DEBUG WHALE_PING] {symbol} - Starting identity boost calculation...")
                         from stealth_engine.utils.identity_tracker import get_identity_boost, update_wallet_identity
                         
+                        # SAFETY LIMIT: Maksymalnie 10 adresów aby zapobiec zawieszeniu
+                        safe_addresses = addresses_to_process[:10]
+                        print(f"[DEBUG WHALE_PING] {symbol} - Processing {len(safe_addresses)} addresses for identity boost")
+                        
                         # Oblicz identity boost na podstawie RZECZYWISTYCH portfeli
-                        identity_boost = get_identity_boost(addresses_to_process[:10])
+                        identity_boost = get_identity_boost(safe_addresses)
+                        print(f"[DEBUG WHALE_PING] {symbol} - Identity boost calculated: {identity_boost:.3f}")
+                        
                         if identity_boost > 0:
                             strength = min(1.0, strength + identity_boost)
                             print(f"[IDENTITY BOOST] {symbol} whale_ping: Applied +{identity_boost:.3f} identity boost from real wallets → strength: {strength:.3f}")
                         
+                        print(f"[DEBUG WHALE_PING] {symbol} - Identity boost calculation completed")
+                        
                     except Exception as identity_e:
                         print(f"[IDENTITY BOOST ERROR] whale_ping for {symbol}: {identity_e}")
+                        print(f"[DEBUG WHALE_PING] {symbol} - Identity boost calculation failed, continuing...")
                     
                     # Etap 7: Trigger Alert System z RZECZYWISTYMI adresami
                     try:
@@ -854,16 +864,26 @@ class StealthSignalDetector:
                     
                     # Stage 14: Persistent Identity Scoring z RZECZYWISTYMI portfelami
                     try:
+                        print(f"[DEBUG DEX_INFLOW] {symbol} - Starting identity boost calculation...")
                         from stealth_engine.utils.identity_tracker import get_identity_boost, update_wallet_identity
                         
+                        # SAFETY LIMIT: Maksymalnie 10 adresów aby zapobiec zawieszeniu
+                        safe_addresses = real_addresses[:10]
+                        print(f"[DEBUG DEX_INFLOW] {symbol} - Processing {len(safe_addresses)} addresses for identity boost")
+                        
                         # Oblicz identity boost na podstawie RZECZYWISTYCH portfeli
-                        identity_boost = get_identity_boost(real_addresses[:10])
+                        identity_boost = get_identity_boost(safe_addresses)
+                        print(f"[DEBUG DEX_INFLOW] {symbol} - Identity boost calculated: {identity_boost:.3f}")
+                        
                         if identity_boost > 0:
                             strength = min(1.0, strength + identity_boost)
                             print(f"[IDENTITY BOOST] {symbol} dex_inflow: Applied +{identity_boost:.3f} identity boost from real wallets → strength: {strength:.3f}")
                         
+                        print(f"[DEBUG DEX_INFLOW] {symbol} - Identity boost calculation completed")
+                        
                     except Exception as identity_e:
                         print(f"[IDENTITY BOOST ERROR] dex_inflow for {symbol}: {identity_e}")
+                        print(f"[DEBUG DEX_INFLOW] {symbol} - Identity boost calculation failed, continuing...")
                     
                     # Etap 7: Trigger Alert System z RZECZYWISTYMI adresami
                     try:
