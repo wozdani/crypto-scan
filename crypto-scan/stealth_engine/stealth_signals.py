@@ -380,131 +380,157 @@ class StealthSignalDetector:
             # MID LOG - kluczowe obliczenia pośrednie
             print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MID → ratio={max_order_usd/threshold:.3f}, initial_strength={strength:.3f}")
             
-            # Address tracking dla whale ping
+            # REAL WHALE ADDRESS DETECTION - blockchain-based whale identification
             if active and max_order_usd > 0:
                 try:
-                    from .address_tracker import address_tracker
-                    # Symulujemy adres na podstawie whale order (w rzeczywistości byłby to prawdziwy adres z orderbook)
-                    mock_address = f"whale_{symbol.lower()}_{int(max_order_usd)}"[:42]  # Symulacja adresu
-                    self.address_tracker.record_address_activity(
-                        token=symbol,
-                        address=mock_address,
-                        usd_value=max_order_usd,
-                        source="whale_ping"
-                    )
-                except Exception as addr_e:
-                    print(f"[STEALTH DEBUG] whale_ping address tracking error for {symbol}: {addr_e}")
-                
-                # Whale Memory System - zapamiętaj adres wieloryba
-                try:
+                    # Import real blockchain scanner for whale detection
                     import sys
                     import os
                     current_dir = os.path.dirname(os.path.abspath(__file__))
                     parent_dir = os.path.dirname(current_dir)
                     if parent_dir not in sys.path:
                         sys.path.insert(0, parent_dir)
+                    
+                    from utils.blockchain_scanners import get_whale_transfers
+                    from utils.contracts import get_contract
+                    from .address_tracker import AddressTracker
+                    
+                    # Get real whale transfers from blockchain
+                    contract_info = get_contract(symbol)
+                    real_whale_addresses = []
+                    
+                    if contract_info:
+                        # Get real whale transfers using blockchain API
+                        whale_transfers = get_whale_transfers(symbol, min_usd=threshold)
+                        real_whale_addresses = [t['from'] for t in whale_transfers if t['value_usd'] >= threshold][:10]
+                        
+                        # Track REAL addresses from blockchain
+                        tracker = AddressTracker()
+                        for real_address in real_whale_addresses:
+                            tracker.record_address_activity(
+                                token=symbol,
+                                address=real_address,  # REAL ADDRESS from blockchain
+                                usd_value=max_order_usd,
+                                source="whale_ping_real"
+                            )
+                        
+                        print(f"[STEALTH DEBUG] whale_ping real address tracking for {symbol}: {len(real_whale_addresses)} real whale addresses")
+                    
+                    # If no real addresses found, skip advanced tracking
+                    if not real_whale_addresses:
+                        print(f"[STEALTH DEBUG] whale_ping for {symbol}: no real whale addresses found, using orderbook detection only")
+                
+                except Exception as addr_e:
+                    print(f"[STEALTH DEBUG] whale_ping real address tracking error for {symbol}: {addr_e}")
+                    real_whale_addresses = []
+                
+                # REAL WHALE MEMORY SYSTEM - using blockchain addresses
+                try:
                     from utils.whale_memory import update_whale_memory, is_repeat_whale, get_repeat_whale_boost
                     from stealth_engine.address_trust_manager import record_address_prediction, get_address_boost
-                    mock_address = f"whale_{symbol.lower()}_{int(max_order_usd)}"[:42]
                     
-                    # Aktualizuj pamięć wieloryba
-                    repeat_count = update_whale_memory(symbol, mock_address, source="whale_ping")
+                    # Use real addresses if available, otherwise fall back to orderbook-based detection
+                    addresses_to_process = real_whale_addresses if real_whale_addresses else []
                     
-                    # Sprawdź czy to powtarzający się wieloryb
-                    if is_repeat_whale(symbol, mock_address):
-                        repeat_boost = get_repeat_whale_boost(symbol, mock_address)
-                        # Zwiększ strength o bonus za powtarzającego się wieloryba
-                        strength = min(1.0, strength + repeat_boost * 0.3)  # Max 30% boost
-                        print(f"[WHALE MEMORY] {symbol} repeat whale detected! Boost: +{repeat_boost*0.3:.2f} → strength: {strength:.3f}")
+                    total_repeat_boost = 0.0
+                    repeat_whales_found = 0
+                    
+                    # Process real whale addresses from blockchain
+                    for real_address in addresses_to_process[:5]:  # Top 5 real addresses
+                        # Aktualizuj pamięć wieloryba z RZECZYWISTYM adresem
+                        repeat_count = update_whale_memory(symbol, real_address, source="whale_ping_real")
+                        
+                        # Sprawdź czy to powtarzający się wieloryb
+                        if is_repeat_whale(symbol, real_address):
+                            repeat_boost = get_repeat_whale_boost(symbol, real_address)
+                            total_repeat_boost += repeat_boost * 0.3  # Max 30% boost per address
+                            repeat_whales_found += 1
+                    
+                    # Apply combined boost (limited to 0.8 max)
+                    if total_repeat_boost > 0:
+                        final_repeat_boost = min(0.8, total_repeat_boost)
+                        strength = min(1.0, strength + final_repeat_boost)
+                        print(f"[WHALE MEMORY] {symbol} repeat whales detected! Count: {repeat_whales_found}, Total boost: +{final_repeat_boost:.3f} → strength: {strength:.3f}")
                         
                         # Etap 4: Zwiększ priorytet tokena w kolejce skanowania
                         try:
-                            current_dir = os.path.dirname(os.path.abspath(__file__))
-                            parent_dir = os.path.dirname(current_dir)
-                            if parent_dir not in sys.path:
-                                sys.path.insert(0, parent_dir)
                             from utils.token_priority_manager import update_token_priority
-                            
-                            # Boost priorytetu w zależności od repeat_boost (0.2-1.0 → 10-20 priority)
-                            priority_boost = 10 + (repeat_boost * 10)  # 10-20 boost range
-                            update_token_priority(symbol, priority_boost, "whale_ping_repeat")
+                            priority_boost = 10 + (final_repeat_boost * 25)  # Enhanced priority for real addresses
+                            update_token_priority(symbol, priority_boost, "whale_ping_real_repeat")
                         except Exception as priority_e:
                             print(f"[TOKEN PRIORITY] Error updating whale_ping priority for {symbol}: {priority_e}")
                     
                     # Etap 5: Rejestruj aktywność adresu dla multi-address detection
                     try:
                         from stealth_engine.multi_address_detector import record_address_activity
-                        record_address_activity(symbol, mock_address)
-                        print(f"[MULTI-ADDRESS] Recorded whale_ping activity for {symbol}: {mock_address}")
+                        for real_address in addresses_to_process[:10]:
+                            record_address_activity(symbol, real_address)
+                        print(f"[MULTI-ADDRESS] Recorded whale_ping activity for {symbol}: {len(addresses_to_process)} real addresses")
                     except Exception as multi_e:
                         print(f"[MULTI-ADDRESS ERROR] whale_ping for {symbol}: {multi_e}")
                     
-                    # Etap 6: Trust Scoring - rejestruj predykcję i oblicz boost
+                    # Etap 6: Trust Scoring z RZECZYWISTYMI adresami
                     try:
-                        # Rejestruj predykcję adresu dla feedback loop
-                        record_address_prediction(symbol, mock_address)
+                        total_trust_boost = 0.0
+                        for real_address in addresses_to_process[:5]:
+                            # Rejestruj predykcję rzeczywistego adresu
+                            record_address_prediction(symbol, real_address)
+                            
+                            # Pobierz trust boost na podstawie historycznej skuteczności
+                            trust_boost = get_address_boost(real_address)
+                            if trust_boost > 0:
+                                total_trust_boost += trust_boost
                         
-                        # Pobierz trust boost na podstawie historycznej skuteczności
-                        trust_boost = get_address_boost(mock_address)
-                        if trust_boost > 0:
-                            strength = min(1.0, strength + trust_boost)
-                            print(f"[TRUST BOOST] {symbol} whale_ping: Applied +{trust_boost:.3f} trust boost → strength: {strength:.3f}")
+                        if total_trust_boost > 0:
+                            final_trust_boost = min(0.5, total_trust_boost)  # Cap at 0.5
+                            strength = min(1.0, strength + final_trust_boost)
+                            print(f"[TRUST BOOST] {symbol} whale_ping: Applied +{final_trust_boost:.3f} trust boost from real addresses → strength: {strength:.3f}")
                         
                     except Exception as trust_e:
                         print(f"[TRUST BOOST ERROR] whale_ping for {symbol}: {trust_e}")
                     
-                    # Stage 13: Token Trust Score - aktualizuj trust i oblicz boost
+                    # Stage 13: Token Trust Score z RZECZYWISTYMI adresami
                     try:
                         from stealth_engine.utils.trust_tracker import update_token_trust, compute_trust_boost
                         
-                        # Lista adresów dla tego tokena (mock dla whale_ping)
-                        detected_addresses = [mock_address]
-                        
-                        # Oblicz trust boost na podstawie historii adresów dla tego tokena
-                        token_trust_boost = compute_trust_boost(symbol, detected_addresses)
+                        # Oblicz trust boost na podstawie historii RZECZYWISTYCH adresów
+                        token_trust_boost = compute_trust_boost(symbol, addresses_to_process[:10])
                         if token_trust_boost > 0:
-                            # Dodaj token trust boost do scoring
                             strength = min(1.0, strength + token_trust_boost)
-                            print(f"[TOKEN TRUST] {symbol} whale_ping: Applied +{token_trust_boost:.3f} token trust boost → strength: {strength:.3f}")
+                            print(f"[TOKEN TRUST] {symbol} whale_ping: Applied +{token_trust_boost:.3f} token trust boost from real addresses → strength: {strength:.3f}")
                         
-                        # Aktualizuj historię trust dla tego tokena
-                        update_token_trust(symbol, detected_addresses, "whale_ping")
+                        # Aktualizuj historię trust z RZECZYWISTYMI adresami
+                        update_token_trust(symbol, addresses_to_process[:10], "whale_ping_real")
                         
                     except Exception as token_trust_e:
                         print(f"[TOKEN TRUST ERROR] whale_ping for {symbol}: {token_trust_e}")
                     
-                    # Stage 14: Persistent Identity Scoring - permanentna reputacja portfeli
+                    # Stage 14: Persistent Identity Scoring z RZECZYWISTYMI portfelami
                     try:
                         from stealth_engine.utils.identity_tracker import get_identity_boost, update_wallet_identity
                         
-                        # Lista wykrytych adresów dla tego tokena
-                        detected_wallets = [mock_address]
-                        
-                        # Oblicz identity boost na podstawie permanentnej reputacji portfeli
-                        identity_boost = get_identity_boost(detected_wallets)
+                        # Oblicz identity boost na podstawie RZECZYWISTYCH portfeli
+                        identity_boost = get_identity_boost(addresses_to_process[:10])
                         if identity_boost > 0:
-                            # Dodaj identity boost do scoring
                             strength = min(1.0, strength + identity_boost)
-                            print(f"[IDENTITY BOOST] {symbol} whale_ping: Applied +{identity_boost:.3f} identity boost → strength: {strength:.3f}")
-                        
-                        # Note: update_wallet_identity() będzie wywołane przez feedback loop po potwierdzeniu skuteczności
+                            print(f"[IDENTITY BOOST] {symbol} whale_ping: Applied +{identity_boost:.3f} identity boost from real wallets → strength: {strength:.3f}")
                         
                     except Exception as identity_e:
                         print(f"[IDENTITY BOOST ERROR] whale_ping for {symbol}: {identity_e}")
                     
-                    # Etap 7: Trigger Alert System - smart money detection
+                    # Etap 7: Trigger Alert System z RZECZYWISTYMI adresami
                     try:
                         from stealth_engine.trigger_alert_system import check_smart_money_trigger, apply_smart_money_boost
                         from stealth_engine.address_trust_manager import get_trust_manager
                         
-                        # Sprawdź czy wykryto trigger addresses (smart money)
+                        # Sprawdź czy wykryto trigger addresses (smart money) wśród RZECZYWISTYCH adresów
                         trust_manager = get_trust_manager()
-                        is_trigger, trigger_addresses = check_smart_money_trigger([mock_address], trust_manager)
+                        is_trigger, trigger_addresses = check_smart_money_trigger(addresses_to_process[:10], trust_manager)
                         
                         if is_trigger:
                             # Zastosuj trigger boost - minimum score 3.0 dla instant alert
                             boosted_strength, priority_alert = apply_smart_money_boost(
-                                symbol, strength, trigger_addresses, "whale_ping"
+                                symbol, strength, trigger_addresses, "whale_ping_real"
                             )
                             strength = boosted_strength
                             
@@ -649,152 +675,204 @@ class StealthSignalDetector:
     
     def check_dex_inflow(self, token_data: Dict) -> StealthSignal:
         """
-        DEX inflow detector - detekcja nagłych napływów DEX względem historii
-        Dynamiczna wersja z kontekstem historycznym + tracking adresów
+        DEX inflow detector - REAL BLOCKCHAIN DATA detection of DEX inflows
+        Uses authentic blockchain transfer data instead of mock addresses
         """
         FUNC_NAME = "dex_inflow"
         symbol = token_data.get("symbol", "UNKNOWN")
         
         try:
-            # Pobierz wartość dex_inflow z token_data
-            inflow_usd = token_data.get("dex_inflow", 0)
+            # Import real blockchain scanner
+            import sys
+            import os
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            parent_dir = os.path.dirname(current_dir)
+            if parent_dir not in sys.path:
+                sys.path.insert(0, parent_dir)
             
-            # Pobierz historię dex_inflow (ostatnie 8 wartości)
-            inflow_history = token_data.get("dex_inflow_history", [])[-8:]
+            from utils.blockchain_scanners import get_token_transfers_last_24h, load_known_exchange_addresses
+            from utils.contracts import get_contract
             
-            # Oblicz średnią z ostatnich wartości
-            avg_recent = sum(inflow_history) / len(inflow_history) if inflow_history else 0
+            # Get real contract info for the token
+            contract_info = get_contract(symbol)
+            if not contract_info:
+                # Fallback to legacy inflow data if no contract found
+                inflow_usd = token_data.get("dex_inflow", 0)
+                inflow_history = token_data.get("dex_inflow_history", [])[-8:]
+                avg_recent = sum(inflow_history) / len(inflow_history) if inflow_history else 0
+                
+                print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] INPUT → fallback_mode, inflow_usd=${inflow_usd:.2f}, avg_recent=${avg_recent:.2f}")
+                
+                spike_detected = inflow_usd > avg_recent * 2 and inflow_usd > 1000
+                strength = min(inflow_usd / (avg_recent * 5 + 1), 0.8) if avg_recent > 0 else 0.0
+                
+                print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] RESULT → active={spike_detected}, strength={strength:.3f} (fallback)")
+                return StealthSignal("dex_inflow", spike_detected, strength)
             
-            # INPUT LOG - dane wejściowe
-            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] INPUT → inflow_usd=${inflow_usd:.2f}, avg_recent=${avg_recent:.2f}, history_count={len(inflow_history)}")
+            # Get real blockchain transfers in last 24h
+            real_transfers = get_token_transfers_last_24h(
+                symbol=symbol,
+                chain=contract_info['chain'],
+                contract_address=contract_info['address']
+            )
             
-            # Warunek aktywacji: inflow > avg_recent * 2 AND inflow > 1000
-            spike_detected = inflow_usd > avg_recent * 2 and inflow_usd > 1000
+            # Load known exchange addresses
+            known_exchanges = load_known_exchange_addresses()
+            exchange_addresses = known_exchanges.get(contract_info['chain'], [])
+            dex_routers = known_exchanges.get('dex_routers', {}).get(contract_info['chain'], [])
+            all_known_addresses = set(addr.lower() for addr in exchange_addresses + dex_routers)
             
-            # Strength: min(inflow_usd / (avg_recent * 5 + 1), 1.0) - zmniejszona by zostawić miejsce na boost
-            strength = min(inflow_usd / (avg_recent * 5 + 1), 0.8) if avg_recent > 0 else 0.0
+            # Calculate real DEX inflow from blockchain data
+            total_inflow_usd = 0
+            real_addresses = []
             
-            # MID LOG - kluczowe obliczenia pośrednie
-            ratio = inflow_usd / (avg_recent * 2) if avg_recent > 0 else 0
-            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MID → spike_ratio={ratio:.3f}, min_threshold=$1000, initial_strength={strength:.3f}")
+            for transfer in real_transfers:
+                # Check if transfer is TO a known exchange/DEX address
+                if transfer['to'] in all_known_addresses:
+                    total_inflow_usd += transfer['value_usd']
+                    if transfer['from'] not in real_addresses:
+                        real_addresses.append(transfer['from'])
             
-            # Address tracking dla DEX inflow
-            if spike_detected and inflow_usd > 0:
+            # Calculate historical average (use recent data as baseline)
+            historical_baseline = token_data.get("dex_inflow_history", [])[-8:]
+            avg_recent = sum(historical_baseline) / len(historical_baseline) if historical_baseline else 1000
+            
+            # INPUT LOG - real blockchain data
+            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] INPUT → real_transfers={len(real_transfers)}, total_inflow_usd=${total_inflow_usd:.2f}, unique_addresses={len(real_addresses)}, avg_baseline=${avg_recent:.2f}")
+            
+            # Enhanced detection logic with real data
+            spike_detected = total_inflow_usd > max(avg_recent * 2, 2000) and len(real_addresses) >= 2
+            
+            # Strength calculation based on real inflow magnitude
+            strength = min(total_inflow_usd / (avg_recent * 3 + 1), 0.8) if avg_recent > 0 else 0.0
+            
+            # Bonus for multiple unique addresses (sign of coordinated activity)
+            if len(real_addresses) >= 5:
+                strength = min(1.0, strength + 0.2)
+            elif len(real_addresses) >= 3:
+                strength = min(1.0, strength + 0.1)
+            
+            # MID LOG - calculation details
+            ratio = total_inflow_usd / (avg_recent * 2) if avg_recent > 0 else 0
+            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MID → spike_ratio={ratio:.3f}, address_count={len(real_addresses)}, enhanced_strength={strength:.3f}")
+            
+            # Address tracking with REAL addresses from blockchain
+            if spike_detected and real_addresses:
                 try:
                     from .address_tracker import AddressTracker
-                    # Symulujemy adres na podstawie danych DEX inflow (w rzeczywistości byłby to prawdziwy adres z blockchain)
-                    mock_address = f"dex_{symbol.lower()}_{int(inflow_usd)}"[:42]  # Symulacja adresu
                     tracker = AddressTracker()
-                    tracker.record_address_activity(
-                        token=symbol,
-                        address=mock_address,
-                        usd_value=inflow_usd,
-                        source="dex_inflow"
-                    )
+                    
+                    # Record each real address that contributed to the inflow
+                    for real_address in real_addresses[:10]:  # Limit to top 10 addresses
+                        tracker.record_address_activity(
+                            token=symbol,
+                            address=real_address,  # REAL ADDRESS from blockchain
+                            usd_value=total_inflow_usd / len(real_addresses),  # Distributed value
+                            source="dex_inflow_real"
+                        )
+                        
                 except Exception as addr_e:
-                    print(f"[STEALTH DEBUG] dex_inflow address tracking error for {symbol}: {addr_e}")
+                    print(f"[STEALTH DEBUG] dex_inflow real address tracking error for {symbol}: {addr_e}")
                 
-                # Whale Memory System - zapamiętaj adres DEX inflow
+                # REAL WHALE MEMORY SYSTEM - używamy prawdziwych adresów z blockchain
                 try:
-                    import sys
-                    import os
-                    current_dir = os.path.dirname(os.path.abspath(__file__))
-                    parent_dir = os.path.dirname(current_dir)
-                    if parent_dir not in sys.path:
-                        sys.path.insert(0, parent_dir)
                     from utils.whale_memory import update_whale_memory, is_repeat_whale, get_repeat_whale_boost
                     from stealth_engine.address_trust_manager import record_address_prediction, get_address_boost
-                    mock_address = f"dex_{symbol.lower()}_{int(inflow_usd)}"[:42]
                     
-                    # Aktualizuj pamięć wieloryba
-                    repeat_count = update_whale_memory(symbol, mock_address, source="dex_inflow")
+                    total_repeat_boost = 0.0
+                    repeat_whales_found = 0
                     
-                    # Sprawdź czy to powtarzający się wieloryb
-                    if is_repeat_whale(symbol, mock_address):
-                        repeat_boost = get_repeat_whale_boost(symbol, mock_address)
-                        # Zwiększ strength o bonus za powtarzającego się wieloryba
-                        strength = min(1.0, strength + repeat_boost * 0.25)  # Max 25% boost dla DEX
-                        print(f"[WHALE MEMORY] {symbol} repeat DEX whale detected! Boost: +{repeat_boost*0.25:.2f} → strength: {strength:.3f}")
+                    # Analizuj każdy rzeczywisty adres z blockchain
+                    for real_address in real_addresses[:5]:  # Top 5 addresses
+                        # Aktualizuj pamięć wieloryba z RZECZYWISTYM adresem
+                        repeat_count = update_whale_memory(symbol, real_address, source="dex_inflow_real")
+                        
+                        # Sprawdź czy to powtarzający się wieloryb
+                        if is_repeat_whale(symbol, real_address):
+                            repeat_boost = get_repeat_whale_boost(symbol, real_address)
+                            total_repeat_boost += repeat_boost * 0.25  # Max 25% boost dla DEX per address
+                            repeat_whales_found += 1
+                    
+                    # Zastosuj łączny boost (ale ograniczony do 0.6 max)
+                    if total_repeat_boost > 0:
+                        final_repeat_boost = min(0.6, total_repeat_boost)
+                        strength = min(1.0, strength + final_repeat_boost)
+                        print(f"[WHALE MEMORY] {symbol} repeat DEX whales detected! Count: {repeat_whales_found}, Total boost: +{final_repeat_boost:.3f} → strength: {strength:.3f}")
                         
                         # Etap 4: Zwiększ priorytet tokena w kolejce skanowania
                         try:
                             from utils.token_priority_manager import update_token_priority
-                            
-                            # Boost priorytetu w zależności od repeat_boost (0.2-1.0 → 8-16 priority dla DEX)
-                            priority_boost = 8 + (repeat_boost * 8)  # 8-16 boost range (nieco mniej niż whale_ping)
-                            update_token_priority(symbol, priority_boost, "dex_inflow_repeat")
+                            priority_boost = 8 + (final_repeat_boost * 20)  # Enhanced priority for real addresses
+                            update_token_priority(symbol, priority_boost, "dex_inflow_real_repeat")
                         except Exception as priority_e:
                             print(f"[TOKEN PRIORITY] Error updating dex_inflow priority for {symbol}: {priority_e}")
                     
                     # Etap 5: Rejestruj aktywność adresu dla multi-address detection
                     try:
                         from stealth_engine.multi_address_detector import record_address_activity
-                        record_address_activity(symbol, mock_address)
-                        print(f"[MULTI-ADDRESS] Recorded dex_inflow activity for {symbol}: {mock_address}")
+                        for real_address in real_addresses[:10]:
+                            record_address_activity(symbol, real_address)
+                        print(f"[MULTI-ADDRESS] Recorded dex_inflow activity for {symbol}: {len(real_addresses)} real addresses")
                     except Exception as multi_e:
                         print(f"[MULTI-ADDRESS ERROR] dex_inflow for {symbol}: {multi_e}")
                     
-                    # Etap 6: Trust Scoring - rejestruj predykcję i oblicz boost
+                    # Etap 6: Trust Scoring z RZECZYWISTYMI adresami
                     try:
-                        # Rejestruj predykcję adresu dla feedback loop
-                        record_address_prediction(symbol, mock_address)
+                        total_trust_boost = 0.0
+                        for real_address in real_addresses[:5]:
+                            # Rejestruj predykcję rzeczywistego adresu
+                            record_address_prediction(symbol, real_address)
+                            
+                            # Pobierz trust boost na podstawie historycznej skuteczności
+                            trust_boost = get_address_boost(real_address)
+                            if trust_boost > 0:
+                                total_trust_boost += trust_boost
                         
-                        # Pobierz trust boost na podstawie historycznej skuteczności
-                        trust_boost = get_address_boost(mock_address)
-                        if trust_boost > 0:
-                            strength = min(1.0, strength + trust_boost)
-                            print(f"[TRUST BOOST] {symbol} dex_inflow: Applied +{trust_boost:.3f} trust boost → strength: {strength:.3f}")
+                        if total_trust_boost > 0:
+                            final_trust_boost = min(0.4, total_trust_boost)  # Cap at 0.4
+                            strength = min(1.0, strength + final_trust_boost)
+                            print(f"[TRUST BOOST] {symbol} dex_inflow: Applied +{final_trust_boost:.3f} trust boost from real addresses → strength: {strength:.3f}")
                         
                     except Exception as trust_e:
                         print(f"[TRUST BOOST ERROR] dex_inflow for {symbol}: {trust_e}")
                     
-                    # Stage 13: Token Trust Score - aktualizuj trust i oblicz boost
+                    # Stage 13: Token Trust Score z RZECZYWISTYMI adresami
                     try:
                         from stealth_engine.utils.trust_tracker import update_token_trust, compute_trust_boost
                         
-                        # Lista adresów dla tego tokena (mock dla dex_inflow)
-                        detected_addresses = [mock_address]
-                        
-                        # Oblicz trust boost na podstawie historii adresów dla tego tokena
-                        token_trust_boost = compute_trust_boost(symbol, detected_addresses)
+                        # Oblicz trust boost na podstawie historii RZECZYWISTYCH adresów
+                        token_trust_boost = compute_trust_boost(symbol, real_addresses[:10])
                         if token_trust_boost > 0:
-                            # Dodaj token trust boost do scoring
                             strength = min(1.0, strength + token_trust_boost)
-                            print(f"[TOKEN TRUST] {symbol} dex_inflow: Applied +{token_trust_boost:.3f} token trust boost → strength: {strength:.3f}")
+                            print(f"[TOKEN TRUST] {symbol} dex_inflow: Applied +{token_trust_boost:.3f} token trust boost from real addresses → strength: {strength:.3f}")
                         
-                        # Aktualizuj historię trust dla tego tokena
-                        update_token_trust(symbol, detected_addresses, "dex_inflow")
+                        # Aktualizuj historię trust z RZECZYWISTYMI adresami
+                        update_token_trust(symbol, real_addresses[:10], "dex_inflow_real")
                         
                     except Exception as token_trust_e:
                         print(f"[TOKEN TRUST ERROR] dex_inflow for {symbol}: {token_trust_e}")
                     
-                    # Stage 14: Persistent Identity Scoring - permanentna reputacja portfeli
+                    # Stage 14: Persistent Identity Scoring z RZECZYWISTYMI portfelami
                     try:
                         from stealth_engine.utils.identity_tracker import get_identity_boost, update_wallet_identity
                         
-                        # Lista wykrytych adresów dla tego tokena
-                        detected_wallets = [mock_address]
-                        
-                        # Oblicz identity boost na podstawie permanentnej reputacji portfeli
-                        identity_boost = get_identity_boost(detected_wallets)
+                        # Oblicz identity boost na podstawie RZECZYWISTYCH portfeli
+                        identity_boost = get_identity_boost(real_addresses[:10])
                         if identity_boost > 0:
-                            # Dodaj identity boost do scoring
                             strength = min(1.0, strength + identity_boost)
-                            print(f"[IDENTITY BOOST] {symbol} dex_inflow: Applied +{identity_boost:.3f} identity boost → strength: {strength:.3f}")
-                        
-                        # Note: update_wallet_identity() będzie wywołane przez feedback loop po potwierdzeniu skuteczności
+                            print(f"[IDENTITY BOOST] {symbol} dex_inflow: Applied +{identity_boost:.3f} identity boost from real wallets → strength: {strength:.3f}")
                         
                     except Exception as identity_e:
                         print(f"[IDENTITY BOOST ERROR] dex_inflow for {symbol}: {identity_e}")
                     
-                    # Etap 7: Trigger Alert System - smart money detection
+                    # Etap 7: Trigger Alert System z RZECZYWISTYMI adresami
                     try:
                         from stealth_engine.trigger_alert_system import check_smart_money_trigger, apply_smart_money_boost
                         from stealth_engine.address_trust_manager import get_trust_manager
                         
-                        # Sprawdź czy wykryto trigger addresses (smart money)
+                        # Sprawdź czy wykryto trigger addresses (smart money) wśród RZECZYWISTYCH adresów
                         trust_manager = get_trust_manager()
-                        is_trigger, trigger_addresses = check_smart_money_trigger([mock_address], trust_manager)
+                        is_trigger, trigger_addresses = check_smart_money_trigger(real_addresses[:10], trust_manager)
                         
                         if is_trigger:
                             # Zastosuj trigger boost - minimum score 3.0 dla instant alert
