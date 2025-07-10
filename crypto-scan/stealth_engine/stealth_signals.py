@@ -130,6 +130,11 @@ class StealthSignalDetector:
                 'description': 'Boost za korelację adresów między różnymi tokenami',
                 'category': 'accumulation',
                 'weight_default': 0.12
+            },
+            'multi_address_group_activity': {
+                'description': 'Detekcja skoordynowanej aktywności grup adresów (3+ adresy w 72h)',
+                'category': 'accumulation',
+                'weight_default': 0.15
             }
         }
         
@@ -162,7 +167,8 @@ class StealthSignalDetector:
             ("velocity_boost", self.check_velocity_boost),
             ("inflow_momentum_boost", self.check_inflow_momentum_boost),
             ("source_reliability_boost", self.check_source_reliability_boost),
-            ("cross_token_activity_boost", self.check_cross_token_activity_boost)
+            ("cross_token_activity_boost", self.check_cross_token_activity_boost),
+            ("multi_address_group_activity", self.check_multi_address_group_activity)
         ]
         
         # Sprawdź każdy sygnał z obsługą błędów
@@ -419,6 +425,14 @@ class StealthSignalDetector:
                         except Exception as priority_e:
                             print(f"[TOKEN PRIORITY] Error updating whale_ping priority for {symbol}: {priority_e}")
                     
+                    # Etap 5: Rejestruj aktywność adresu dla multi-address detection
+                    try:
+                        from stealth_engine.multi_address_detector import record_address_activity
+                        record_address_activity(symbol, mock_address)
+                        print(f"[MULTI-ADDRESS] Recorded whale_ping activity for {symbol}: {mock_address}")
+                    except Exception as multi_e:
+                        print(f"[MULTI-ADDRESS ERROR] whale_ping for {symbol}: {multi_e}")
+                    
                 except Exception as memory_e:
                     print(f"[WHALE MEMORY] Error for {symbol}: {memory_e}")
             
@@ -610,6 +624,14 @@ class StealthSignalDetector:
                             update_token_priority(symbol, priority_boost, "dex_inflow_repeat")
                         except Exception as priority_e:
                             print(f"[TOKEN PRIORITY] Error updating dex_inflow priority for {symbol}: {priority_e}")
+                    
+                    # Etap 5: Rejestruj aktywność adresu dla multi-address detection
+                    try:
+                        from stealth_engine.multi_address_detector import record_address_activity
+                        record_address_activity(symbol, mock_address)
+                        print(f"[MULTI-ADDRESS] Recorded dex_inflow activity for {symbol}: {mock_address}")
+                    except Exception as multi_e:
+                        print(f"[MULTI-ADDRESS ERROR] dex_inflow for {symbol}: {multi_e}")
                     
                 except Exception as memory_e:
                     print(f"[WHALE MEMORY] DEX error for {symbol}: {memory_e}")
@@ -2109,6 +2131,60 @@ class StealthSignalDetector:
                 strength=0.0
             )
     
+    def check_multi_address_group_activity(self, token_data: Dict) -> StealthSignal:
+        """
+        🆕 STAGE 5: Multi-Address Group Activity Detection
+        
+        Wykrywa skoordynowaną aktywność grup adresów na tym samym tokenie.
+        Jeśli 3+ różnych adresów pojawia się w transakcjach na ten sam token 
+        więcej niż X razy w 72 godzinach, system traktuje to jako "koordynowaną aktywność"
+        lub wzór akumulacji przez większą grupę (fundusz, market maker, whale consortium).
+        
+        Args:
+            token_data: Dane rynkowe tokena
+            
+        Returns:
+            StealthSignal z oceną intensywności grup adresów
+        """
+        symbol = token_data.get("symbol", "UNKNOWN")
+        
+        try:
+            print(f"[MULTI-ADDRESS DEBUG] Checking group activity for {symbol}...")
+            
+            # Import detektor multi-address z error handling
+            try:
+                from stealth_engine.multi_address_detector import detect_group_activity, get_group_statistics
+            except ImportError as e:
+                print(f"[MULTI-ADDRESS ERROR] Import failed for {symbol}: {e}")
+                return StealthSignal("multi_address_group_activity", False, 0.0)
+            
+            # Wykryj grupową aktywność dla tego tokena
+            active_group, unique_addresses, total_events, group_intensity = detect_group_activity(symbol)
+            
+            # Dodatkowe statystyki dla debugowania
+            try:
+                stats = get_group_statistics(symbol)
+                print(f"[MULTI-ADDRESS DEBUG] {symbol} group stats: unique_addresses={unique_addresses}, total_events={total_events}, group_intensity={group_intensity:.3f}")
+                print(f"[MULTI-ADDRESS DEBUG] {symbol} detailed stats: {stats}")
+            except Exception as stats_e:
+                print(f"[MULTI-ADDRESS ERROR] Stats error for {symbol}: {stats_e}")
+            
+            # Strength based na intensywność grupowej aktywności
+            # group_intensity jest już w zakresie 0.0-1.0 
+            strength = min(group_intensity, 1.0)
+            
+            # Debug output
+            if active_group:
+                print(f"[MULTI-ADDRESS DETECTED] {symbol}: {unique_addresses} addresses, {total_events} events, intensity={group_intensity:.3f}")
+            else:
+                print(f"[MULTI-ADDRESS DEBUG] {symbol}: No coordinated group activity detected")
+            
+            return StealthSignal("multi_address_group_activity", active_group, strength)
+            
+        except Exception as e:
+            print(f"[MULTI-ADDRESS ERROR] Group activity check failed for {symbol}: {e}")
+            return StealthSignal("multi_address_group_activity", False, 0.0)
+
     def get_signal_definitions(self) -> Dict:
         """Pobierz definicje wszystkich sygnałów"""
         return self.signal_definitions
