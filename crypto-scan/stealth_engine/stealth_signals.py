@@ -448,6 +448,28 @@ class StealthSignalDetector:
                     except Exception as trust_e:
                         print(f"[TRUST BOOST ERROR] whale_ping for {symbol}: {trust_e}")
                     
+                    # Etap 7: Trigger Alert System - smart money detection
+                    try:
+                        from stealth_engine.trigger_alert_system import check_smart_money_trigger, apply_smart_money_boost
+                        from stealth_engine.address_trust_manager import get_trust_manager
+                        
+                        # Sprawdź czy wykryto trigger addresses (smart money)
+                        trust_manager = get_trust_manager()
+                        is_trigger, trigger_addresses = check_smart_money_trigger([mock_address], trust_manager)
+                        
+                        if is_trigger:
+                            # Zastosuj trigger boost - minimum score 3.0 dla instant alert
+                            boosted_strength, priority_alert = apply_smart_money_boost(
+                                symbol, strength, trigger_addresses, "whale_ping"
+                            )
+                            strength = boosted_strength
+                            
+                            print(f"[TRIGGER ALERT] 🚨 {symbol} WHALE PING: Smart money detected! "
+                                  f"Strength boosted to {strength:.3f} (priority alert: {priority_alert})")
+                        
+                    except Exception as trigger_e:
+                        print(f"[TRIGGER ALERT ERROR] whale_ping for {symbol}: {trigger_e}")
+                    
                 except Exception as memory_e:
                     print(f"[WHALE MEMORY] Error for {symbol}: {memory_e}")
             
@@ -662,6 +684,28 @@ class StealthSignalDetector:
                         
                     except Exception as trust_e:
                         print(f"[TRUST BOOST ERROR] dex_inflow for {symbol}: {trust_e}")
+                    
+                    # Etap 7: Trigger Alert System - smart money detection
+                    try:
+                        from stealth_engine.trigger_alert_system import check_smart_money_trigger, apply_smart_money_boost
+                        from stealth_engine.address_trust_manager import get_trust_manager
+                        
+                        # Sprawdź czy wykryto trigger addresses (smart money)
+                        trust_manager = get_trust_manager()
+                        is_trigger, trigger_addresses = check_smart_money_trigger([mock_address], trust_manager)
+                        
+                        if is_trigger:
+                            # Zastosuj trigger boost - minimum score 3.0 dla instant alert
+                            boosted_strength, priority_alert = apply_smart_money_boost(
+                                symbol, strength, trigger_addresses, "dex_inflow"
+                            )
+                            strength = boosted_strength
+                            
+                            print(f"[TRIGGER ALERT] 🚨 {symbol} DEX INFLOW: Smart money detected! "
+                                  f"Strength boosted to {strength:.3f} (priority alert: {priority_alert})")
+                        
+                    except Exception as trigger_e:
+                        print(f"[TRIGGER ALERT ERROR] dex_inflow for {symbol}: {trigger_e}")
                     
                 except Exception as memory_e:
                     print(f"[WHALE MEMORY] DEX error for {symbol}: {memory_e}")
