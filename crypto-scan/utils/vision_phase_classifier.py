@@ -259,11 +259,10 @@ class VisionPhaseClassifier:
             Vision analysis result or None if failed
         """
         try:
-            # Generate mock candles if not provided
+            # Real data only - no mock candles generated
             if not candles:
-                from utils.mock_data_generator import generate_realistic_candles
-                candles = generate_realistic_candles(symbol, 96, pattern="trending_up")
-                print(f"[VISION] Generated mock data for {symbol}")
+                print(f"[VISION] ❌ No candle data provided for {symbol} - authentic data required")
+                return None
             
             # Generate chart image for vision analysis
             image_path = self.generate_chart_image(symbol, candles, style="vision")

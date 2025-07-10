@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict
 from utils.chart_generator import create_pattern_chart
-from utils.mock_data_generator import generate_realistic_candles
+# Mock data generator removed - using authentic market data only
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
@@ -56,9 +56,10 @@ def generate_chart_snapshot(
         filename = f"{symbol}_{timestamp}.png"
         chart_path = CHARTS_DIR / filename
         
-        # Generate candles if not provided
+        # Real data only - no mock candles generated
         if not candles:
-            candles = generate_realistic_candles(symbol, 96, pattern="trending_up")
+            print(f"[SNAPSHOT] ❌ No candle data provided for {symbol} - authentic data required")
+            return None
         
         if not candles or len(candles) < 20:
             print(f"[SNAPSHOT] ❌ Insufficient candle data for {symbol}")
@@ -226,9 +227,9 @@ def generate_training_batch(
             symbol = symbols[i % len(symbols)]
             
             try:
-                # Generate pattern-specific candles
-                from utils.mock_data_generator import generate_pattern_specific_data
-                candles = generate_pattern_specific_data(pattern, symbol)
+                # Real data only - no pattern-specific generation
+                print(f"[BATCH] ❌ {symbol}_{pattern}_{i}: Mock data generation disabled - authentic data required")
+                candles = None
                 
                 # Create market features based on pattern
                 features = _create_pattern_features(pattern, i)
