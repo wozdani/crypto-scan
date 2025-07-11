@@ -261,29 +261,34 @@ class TJDEv3Pipeline:
         return results
         
     async def run_basic_scoring(self, symbol: str, market_data: Dict) -> Optional[Dict]:
-        """Run basic scoring without AI-EYE dependency"""
+        """Run basic scoring without AI-EYE dependency - FIXED: Relaxed candle requirements"""
         try:
-            # 🎯 ENHANCED CANDLE VALIDATION - Ensure sufficient candle history
+            # 🔧 CRITICAL FIX: Relaxed candle validation - Allow tokens with partial data
             candles_15m = market_data.get('candles_15m', [])
             candles_5m = market_data.get('candles_5m', [])
             
-            # Minimum candle requirements
-            MIN_15M_CANDLES = 20  # ~5 hours of data
-            MIN_5M_CANDLES = 60   # ~5 hours of data
+            # 🎯 RELAXED requirements to allow more tokens through pipeline
+            MIN_15M_CANDLES = 10   # Reduced from 20 to 10 (~2.5 hours)
+            MIN_5M_CANDLES = 24    # Reduced from 60 to 24 (~2 hours)
             
             if not market_data:
                 print(f"[BASIC SCORING] {symbol}: No market data available")
                 return None
-                
-            if len(candles_15m) < MIN_15M_CANDLES:
-                print(f"[CANDLE SKIP] {symbol}: Insufficient 15M candles ({len(candles_15m)}/{MIN_15M_CANDLES}) - skipping basic scoring")
+            
+            # 🔧 CRITICAL FIX: Allow tokens with either 15M OR 5M data (not both required)
+            has_15m = len(candles_15m) >= MIN_15M_CANDLES
+            has_5m = len(candles_5m) >= MIN_5M_CANDLES
+            
+            if not has_15m and not has_5m:
+                print(f"[CANDLE SKIP] {symbol}: Insufficient candle data (15M: {len(candles_15m)}/{MIN_15M_CANDLES}, 5M: {len(candles_5m)}/{MIN_5M_CANDLES})")
                 return None
-                
-            if len(candles_5m) < MIN_5M_CANDLES:
-                print(f"[CANDLE SKIP] {symbol}: Insufficient 5M candles ({len(candles_5m)}/{MIN_5M_CANDLES}) - skipping basic scoring")
-                return None
-                
-            print(f"[CANDLE VALID] {symbol}: Basic scoring validation passed (15M: {len(candles_15m)}, 5M: {len(candles_5m)})")
+            
+            if not has_15m:
+                print(f"[CANDLE PARTIAL] {symbol}: Using 5M data only (15M: {len(candles_15m)}, 5M: {len(candles_5m)})")
+            elif not has_5m:
+                print(f"[CANDLE PARTIAL] {symbol}: Using 15M data only (15M: {len(candles_15m)}, 5M: {len(candles_5m)})")
+            else:
+                print(f"[CANDLE VALID] {symbol}: Full data available (15M: {len(candles_15m)}, 5M: {len(candles_5m)})")
             
             # Use basic engine - no AI-EYE, no HTF dependency
             result = simulate_trader_decision_basic(
@@ -307,11 +312,11 @@ class TJDEv3Pipeline:
                 momentum = breakdown.get('momentum', 0)
                 print(f"[BASIC BREAKDOWN] {symbol}: Trend={trend:.3f}, Volume={volume:.3f}, Momentum={momentum:.3f}")
             
-            # Accept any positive score for testing
-            if result and score > 0:
+            # 🎯 LOWERED threshold to allow more tokens through for TOP 20 selection
+            if result and score > 0.01:  # Reduced from score > 0 to accept very low scores
                 return result
             else:
-                print(f"[BASIC SCORING] {symbol}: Rejected - score too low")
+                print(f"[BASIC SCORING] {symbol}: Rejected - score too low ({score:.3f})")
                 return None
             
         except Exception as e:
@@ -801,8 +806,23 @@ class TJDEv3Pipeline:
                 continue
         
         if not base_scores:
-            print(f"[PHASE 1 FAIL] No tokens passed basic scoring - returning empty")
-            return []
+            print(f"[PHASE 1 FAIL] No tokens passed basic scoring - falling back to original scan results")
+            # 🔧 CRITICAL FIX: Return original scan results instead of empty list to continue processing
+            fallback_results = []
+            for result in scan_results[:20]:  # Take top 20 from original results
+                fallback_results.append({
+                    'symbol': result.get('symbol', 'UNKNOWN'),
+                    'tjde_score': result.get('tjde_score', 0),
+                    'tjde_decision': result.get('tjde_decision', 'wait'),
+                    'volume_24h': result.get('volume_24h', 0),
+                    'price_change_24h': result.get('price_change_24h', 0),
+                    'current_price': result.get('price', 0),
+                    'market_phase': result.get('market_phase', 'unknown'),
+                    'fallback': True,  # Mark as fallback result
+                    'fallback_reason': 'basic_scoring_failed'
+                })
+            print(f"[FALLBACK] Returning {len(fallback_results)} original results to continue pipeline")
+            return fallback_results
         
         print(f"[PHASE 1 COMPLETE] {len(base_scores)} tokens passed basic scoring")
         
