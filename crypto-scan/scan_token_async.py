@@ -227,7 +227,7 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         ticker_task = get_ticker_async(symbol, session)
         candles_15m_task = get_candles_async(symbol, "15", session, 96)
         candles_5m_task = get_candles_async(symbol, "5", session, 288)  # Increased 5M limit for better coverage
-        orderbook_task = get_orderbook_async(symbol, session, 25)
+        orderbook_task = get_orderbook_async(symbol, session, 200)
         
         ticker, candles_15m, candles_5m, orderbook = await asyncio.gather(
             ticker_task, candles_15m_task, candles_5m_task, orderbook_task,

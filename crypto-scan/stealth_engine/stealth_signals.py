@@ -2137,14 +2137,14 @@ class StealthSignalDetector:
                     
                     # Oblicz max order value
                     all_orders = []
-                    for bid in bids[:3]:  # Sprawdź top 3 bids
+                    for bid in bids[:10]:  # Sprawdź top 10 bids for better whale detection
                         if isinstance(bid, (list, tuple)) and len(bid) >= 2:
                             price = float(bid[0])
                             size = float(bid[1])
                             usd_value = price * size
                             all_orders.append(usd_value)
                     
-                    for ask in asks[:3]:  # Sprawdź top 3 asks
+                    for ask in asks[:10]:  # Sprawdź top 10 asks for better whale detection
                         if isinstance(ask, (list, tuple)) and len(ask) >= 2:
                             price = float(ask[0])
                             size = float(ask[1])
@@ -2310,14 +2310,14 @@ class StealthSignalDetector:
                     
                     # Oblicz max order value
                     all_orders = []
-                    for bid in bids[:3]:  # Sprawdź top 3 bids
+                    for bid in bids[:10]:  # Sprawdź top 10 bids for better whale detection
                         if isinstance(bid, (list, tuple)) and len(bid) >= 2:
                             price = float(bid[0])
                             size = float(bid[1])
                             usd_value = price * size
                             all_orders.append(usd_value)
                     
-                    for ask in asks[:3]:  # Sprawdź top 3 asks
+                    for ask in asks[:10]:  # Sprawdź top 10 asks for better whale detection
                         if isinstance(ask, (list, tuple)) and len(ask) >= 2:
                             price = float(ask[0])
                             size = float(ask[1])
@@ -2399,14 +2399,14 @@ class StealthSignalDetector:
                     
                     # Oblicz max order value
                     all_orders = []
-                    for bid in bids[:3]:  # Sprawdź top 3 bids
+                    for bid in bids[:10]:  # Sprawdź top 10 bids for better whale detection
                         if isinstance(bid, (list, tuple)) and len(bid) >= 2:
                             price = float(bid[0])
                             size = float(bid[1])
                             usd_value = price * size
                             all_orders.append(usd_value)
                     
-                    for ask in asks[:3]:  # Sprawdź top 3 asks
+                    for ask in asks[:10]:  # Sprawdź top 10 asks for better whale detection
                         if isinstance(ask, (list, tuple)) and len(ask) >= 2:
                             price = float(ask[0])
                             size = float(ask[1])

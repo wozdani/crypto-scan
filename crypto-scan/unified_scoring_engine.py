@@ -1074,9 +1074,9 @@ def score_from_orderbook_pressure(orderbook: Dict) -> float:
             print(f"[LEGACY OB DEBUG] Missing bids or asks")
             return 0.0
         
-        # Calculate top 5 levels pressure
-        bid_volume = sum(float(bid[1]) for bid in bids[:5])
-        ask_volume = sum(float(ask[1]) for ask in asks[:5])
+        # Calculate comprehensive levels pressure (all available levels)
+        bid_volume = sum(float(bid[1]) for bid in bids)
+        ask_volume = sum(float(ask[1]) for ask in asks)
         
         print(f"[LEGACY OB DEBUG] Bid volume: {bid_volume}, Ask volume: {ask_volume}")
         

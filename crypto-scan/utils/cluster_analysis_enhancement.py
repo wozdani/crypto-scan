@@ -154,7 +154,7 @@ def cluster_analysis_enhancement(symbol, market_data, debug=False):
         support_levels = []
         
         if orderbook_data and 'bids' in orderbook_data:
-            support_levels = [bid['price'] for bid in orderbook_data['bids'][:3]]
+            support_levels = [bid['price'] for bid in orderbook_data['bids'][:10]]  # Enhanced from 3 to 10 levels
             
             if debug:
                 print(f"- Support levels from orderbook: {len(support_levels)}")

@@ -32,9 +32,9 @@ def detect_one_sided_pressure(orderbook: Dict) -> Tuple[bool, str, Dict]:
                 "dominance_type": "insufficient_data"
             }
         
-        # Analizuj top 5 poziomów
-        top_bids = bids[:5]
-        top_asks = asks[:5]
+        # Analizuj wszystkie dostępne poziomy (enhanced depth)
+        top_bids = bids  # Use all bid levels
+        top_asks = asks  # Use all ask levels
         
         # Oblicz całkowity wolumen
         total_bid_vol = sum([float(bid[1]) for bid in top_bids if len(bid) >= 2])

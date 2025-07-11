@@ -113,17 +113,17 @@ def process_async_data_enhanced_with_5m(symbol: str, ticker_data: Optional[Dict]
     else:
         print(f"[5M FALLBACK] {symbol} → No 5M candles, using 15M-only mode")
     
-    # PRIORITY 4: Process orderbook if available
+    # PRIORITY 4: Process orderbook if available - FULL DEPTH (200 levels)
     if orderbook_data and orderbook_data.get("result"):
         result = orderbook_data["result"]
         if result.get("b"):
-            for bid in result["b"][:5]:
+            for bid in result["b"]:  # Removed [:5] limitation
                 try:
                     bids.append({"price": float(bid[0]), "size": float(bid[1])})
                 except (ValueError, IndexError):
                     continue
         if result.get("a"):
-            for ask in result["a"][:5]:
+            for ask in result["a"]:  # Removed [:5] limitation
                 try:
                     asks.append({"price": float(ask[0]), "size": float(ask[1])})
                 except (ValueError, IndexError):
@@ -306,17 +306,17 @@ def process_async_data_enhanced(symbol: str, ticker_data: Optional[Dict], candle
             print(f"[CANDLE FALLBACK SUCCESS] {symbol}: Price ${price_usd} from {len(candles)} candles")
             ticker_success = True  # Mark as success since fallback worked
     
-    # PRIORITY 3: Process orderbook if available
+    # PRIORITY 3: Process orderbook if available - FULL DEPTH (200 levels)
     if orderbook_data and orderbook_data.get("result"):
         result = orderbook_data["result"]
         if result.get("b"):
-            for bid in result["b"][:5]:
+            for bid in result["b"]:  # Removed [:5] limitation for full depth
                 try:
                     bids.append({"price": float(bid[0]), "size": float(bid[1])})
                 except (ValueError, IndexError):
                     continue
         if result.get("a"):
-            for ask in result["a"][:5]:
+            for ask in result["a"]:  # Removed [:5] limitation for full depth
                 try:
                     asks.append({"price": float(ask[0]), "size": float(ask[1])})
                 except (ValueError, IndexError):
