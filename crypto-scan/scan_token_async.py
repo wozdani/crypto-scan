@@ -870,8 +870,51 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                             final_score += emergency_modifier
                             print(f"[MODIFIER EMERGENCY] {symbol}: basic_screening + trend_strength emergency: +{emergency_modifier:.3f}")
                     
-                    tjde_score = final_score
-                    tjde_decision = decision
+                    # === DUAL ENGINE DECISION SYSTEM ===
+                    # Replace single TJDE scoring with separated engines
+                    print(f"[DUAL ENGINE] {symbol}: Implementing TJDE + Stealth separation")
+                    
+                    # Prepare TJDE result for dual engine
+                    tjde_engine_result = {
+                        'final_score': final_score,
+                        'decision': decision,
+                        'confidence': tjde_result.get('confidence', 0.0),
+                        'score_breakdown': tjde_result.get('score_breakdown', {}),
+                        'market_phase': market_phase,
+                        'setup_type': tjde_result.get('setup_type', 'unknown')
+                    }
+                    
+                    # Stealth result already available from stealth_analysis_result
+                    stealth_engine_result = stealth_analysis_result
+                    
+                    # Apply dual engine decision logic
+                    try:
+                        from dual_engine_decision import compute_dual_engine_decision
+                        
+                        dual_decision = compute_dual_engine_decision(
+                            symbol=symbol,
+                            market_data=market_data,
+                            tjde_result=tjde_engine_result,
+                            stealth_result=stealth_engine_result
+                        )
+                        
+                        # Extract separated scores for legacy compatibility
+                        tjde_score = dual_decision.get('tjde_score', final_score)
+                        tjde_decision = dual_decision.get('tjde_decision', decision)
+                        stealth_score = dual_decision.get('stealth_score', 0.0)
+                        stealth_decision = dual_decision.get('stealth_decision', 'none')
+                        final_engine_decision = dual_decision.get('final_decision', 'wait')
+                        
+                        print(f"[DUAL ENGINE SUCCESS] {symbol}: TJDE={tjde_score:.3f}, Stealth={stealth_score:.3f}, Final={final_engine_decision}")
+                        
+                    except Exception as dual_e:
+                        print(f"[DUAL ENGINE ERROR] {symbol}: Failed to apply dual engine: {dual_e}")
+                        # Fallback to individual results
+                        tjde_score = final_score
+                        tjde_decision = decision
+                        stealth_score = stealth_analysis_result.get('stealth_score', 0.0)
+                        stealth_decision = 'fallback'
+                        final_engine_decision = 'engine_error'
                     
                     print(f"[TJDE FINAL] {symbol}: score={final_score:.2f}, decision={decision}")
                     
@@ -1172,10 +1215,25 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         print(f"[CHART SKIP] {symbol}: Individual chart generation disabled - TOP 5 TJDE charts generated in batch")
         training_chart_saved = False
 
+        # === DUAL ENGINE RESULT STRUCTURE ===
+        # New separated scoring format for TJDE + Stealth engines
         result = {
             "symbol": symbol,
+            
+            # TJDE Engine Results
             "tjde_score": tjde_score,
             "tjde_decision": tjde_decision,
+            
+            # Stealth Engine Results  
+            "stealth_score": locals().get('stealth_score', stealth_analysis_result.get('stealth_score', 0.0)),
+            "stealth_decision": locals().get('stealth_decision', stealth_analysis_result.get('stealth_decision', 'none')),
+            
+            # Dual Engine Final Decision
+            "final_decision": locals().get('final_engine_decision', 'wait'),
+            "alert_type": f"[🎯 {locals().get('final_engine_decision', 'WAIT').upper()}]",
+            "combined_priority": locals().get('combined_priority', 'low'),
+            
+            # Market Data
             "price": price,
             "volume_24h": volume_24h,
             "alert_sent": alert_sent,
@@ -1258,17 +1316,33 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         processing_time = time.time() - start_time if 'start_time' in locals() else 0.0
         
         print(f"✅ {symbol}: TJDE {tjde_score:.3f} ({tjde_decision}), {len(candles_15m)}x15M, {len(candles_5m)}x5M")
+        # === DUAL ENGINE FINAL RESULT ===
+        # Complete separated scoring structure
         result = {
             "symbol": symbol,
+            
+            # TJDE Engine Results
             "tjde_score": tjde_score,
             "tjde_decision": tjde_decision,
+            
+            # Stealth Engine Results
+            "stealth_score": locals().get('stealth_score', stealth_analysis_result.get('stealth_score', 0.0)),
+            "stealth_decision": locals().get('stealth_decision', stealth_analysis_result.get('stealth_decision', 'none')),
+            
+            # Dual Engine Decision
+            "final_decision": locals().get('final_engine_decision', 'wait'),
+            "alert_type": f"[🎯 {locals().get('final_engine_decision', 'WAIT').upper()}]",
+            "combined_priority": locals().get('combined_priority', 'low'),
+            
+            # Legacy & Market Data
             "price": price,
             "volume_24h": volume_24h,
             "alert_sent": alert_sent,
             "training_chart_saved": training_chart_saved,
             "timestamp": datetime.now().isoformat(),
             "processing_time": processing_time,
-            # 🎯 CRITICAL FIX: Include market_data for chart generation
+            
+            # Market data for downstream processing
             "market_data": {
                 "symbol": symbol,
                 "price_usd": price,

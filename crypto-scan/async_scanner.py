@@ -553,6 +553,30 @@ class AsyncCryptoScanner:
         total_time = time.time() - scan_start
         final_rate = total_processed / total_time if total_time > 0 else 0
         
+        # === DUAL ENGINE RESULTS PROCESSING ===
+        # Process dual engine alerts from scan results
+        try:
+            from dual_engine_alert_builder import process_dual_engine_alert
+            
+            # Count different alert types
+            hybrid_alerts = sum(1 for r in self.results if r.get('final_decision') == 'hybrid_alert')
+            trend_alerts = sum(1 for r in self.results if r.get('final_decision') == 'trend_alert')
+            stealth_alerts = sum(1 for r in self.results if r.get('final_decision') == 'stealth_alert')
+            watch_alerts = sum(1 for r in self.results if 'watch' in r.get('final_decision', ''))
+            
+            # Process dual engine alerts for top results
+            dual_alerts_sent = 0
+            for result in self.results[:20]:  # Process top 20 for alerts
+                if process_dual_engine_alert(result):
+                    dual_alerts_sent += 1
+            
+            print(f"🎯 [DUAL ENGINE SUMMARY]")
+            print(f"   Hybrid: {hybrid_alerts} | Trend: {trend_alerts} | Stealth: {stealth_alerts} | Watch: {watch_alerts}")
+            print(f"   Dual alerts sent: {dual_alerts_sent}")
+            
+        except Exception as e:
+            print(f"[DUAL ENGINE ERROR] Alert processing failed: {e}")
+
         print(f"🎯 ASYNC SCAN RESULTS:")
         print(f"- Processed: {total_processed}/{len(symbols)} tokens")
         print(f"- Total time: {total_time:.1f}s (TARGET: <15s)")

@@ -98,6 +98,20 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### July 11, 2025 - DUAL ENGINE ARCHITECTURE COMPLETE - Revolutionary TJDE + Stealth Separation ✅
+Successfully implemented comprehensive dual engine architecture separating TJDE Trend Mode and Stealth Engine into independent decision systems providing enhanced modularity and specialized analysis:
+- **ARCHITECTURAL SEPARATION COMPLETE**: Created `dual_engine_decision.py` implementing complete independence between TJDE (trend analysis) and Stealth (smart money detection) engines with hybrid decision logic for combined alerts
+- **HYBRID ALERT SYSTEM DEPLOYED**: Implemented `dual_engine_alert_builder.py` with sophisticated alert prioritization supporting hybrid alerts (both engines active), trend alerts (TJDE dominant), stealth alerts (Stealth dominant), and various watch modes
+- **INDEPENDENT ENGINE PROCESSING**: Updated `scan_token_async.py` to use dual engine system with separate TJDE trend analysis and Stealth smart money detection, solving timing issues with contextual data and enabling specialized analysis
+- **ENHANCED DECISION LOGIC**: Implemented hybrid decision computing with priority boost calculations (hybrid: +0.3, trend: +0.15, stealth: +0.2), alert type classification, and combined priority scoring for optimal market signal detection
+- **PRODUCTION ARCHITECTURE READY**: All architectural components completed for production batch processing with modular engine separation enabling precise decision making across different market phases
+- **DUAL ENGINE ALERT PROCESSING**: Enhanced `async_scanner.py` with dual engine results processing, alert type counting (hybrid, trend, stealth, watch), and specialized alert routing for top 20 results
+- **COMPLETE SCORING SEPARATION**: Results now include separated tjde_score, stealth_score, final_decision, alert_type, and combined_priority enabling independent engine evaluation and hybrid decision analysis
+- **SPECIALIZED ALERT ROUTING**: New alert system routes hybrid alerts immediately (0s delay), trend/stealth alerts with high priority (5s delay), and watch alerts with medium priority (30s delay) based on engine combinations
+- **ENHANCED DEBUGGING TRANSPARENCY**: Dual engine system provides complete transparency with independent engine logging, hybrid logic debugging, and separated score tracking for institutional-grade monitoring
+- **REVOLUTIONARY MARKET COVERAGE**: System now handles trend-following opportunities (TJDE) and smart money detection (Stealth) independently enabling comprehensive market analysis covering both technical patterns and institutional activity
+System delivers complete architectural modernization where independent TJDE and Stealth engines operate with specialized analysis capabilities while hybrid logic combines insights for superior market signal detection providing institutional-grade cryptocurrency analysis with enhanced precision and modular processing architecture.
+
 ### July 11, 2025 - PHASE 2 OPTIMIZATION FIXES COMPLETE - 3 Additional Performance Issues Resolved ✅
 Successfully completed Phase 2 optimization fixes resolving 3 additional critical performance issues identified by user providing comprehensive production-ready enhancement:
 - **PHASE MODIFIER ENHANCEMENT**: Added +0.05 neutral boost for basic_screening/unknown phases preventing score suppression in Phase 2 analysis with smart trend_strength fallback mapping (0.03-0.20 range)
