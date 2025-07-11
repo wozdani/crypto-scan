@@ -899,7 +899,7 @@ class StealthSignalDetector:
                             signal.signal(signal.SIGALRM, token_trust_timeout_handler)
                             signal.alarm(1)
                             
-                            from stealth_engine.token_trust_tracker import update_token_trust, compute_trust_boost
+                            from .token_trust_tracker import update_token_trust, compute_trust_boost
                             trust_boost = compute_trust_boost(symbol, real_addresses[:3])  # Top 3 addresses only
                             
                             signal.alarm(0)  # Cancel timeout
@@ -934,7 +934,7 @@ class StealthSignalDetector:
                             signal.signal(signal.SIGALRM, identity_timeout_handler) 
                             signal.alarm(1)
                             
-                            from stealth_engine.persistent_identity_tracker import get_identity_boost
+                            from .persistent_identity_tracker import get_identity_boost
                             identity_boost = get_identity_boost(real_addresses[:3])  # Top 3 addresses only
                             
                             signal.alarm(0)  # Cancel timeout
