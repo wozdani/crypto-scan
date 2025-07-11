@@ -2467,21 +2467,20 @@ class StealthSignalDetector:
     def check_multi_address_group_activity(self, token_data: Dict) -> StealthSignal:
         """
         🆕 STAGE 5: Multi-Address Group Activity Detection
-        
-        Wykrywa skoordynowaną aktywność grup adresów na tym samym tokenie.
-        Jeśli 3+ różnych adresów pojawia się w transakcjach na ten sam token 
-        więcej niż X razy w 72 godzinach, system traktuje to jako "koordynowaną aktywność"
-        lub wzór akumulacji przez większą grupę (fundusz, market maker, whale consortium).
-        
-        Args:
-            token_data: Dane rynkowe tokena
-            
-        Returns:
-            StealthSignal z oceną intensywności grup adresów
+        CRITICAL FIX: Add timeout protection to prevent hanging
         """
         symbol = token_data.get("symbol", "UNKNOWN")
         
+        import signal
+        
+        def timeout_handler(signum, frame):
+            raise TimeoutError(f"multi_address_group_activity timeout for {symbol}")
+        
         try:
+            # EMERGENCY TIMEOUT: 2-second timeout for multi-address operations
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(2)
+            
             print(f"[MULTI-ADDRESS DEBUG] Checking group activity for {symbol}...")
             
             # Import detektor multi-address z error handling
@@ -2489,21 +2488,13 @@ class StealthSignalDetector:
                 from stealth_engine.multi_address_detector import detect_group_activity, get_group_statistics
             except ImportError as e:
                 print(f"[MULTI-ADDRESS ERROR] Import failed for {symbol}: {e}")
+                signal.alarm(0)
                 return StealthSignal("multi_address_group_activity", False, 0.0)
             
-            # Wykryj grupową aktywność dla tego tokena
+            # Wykryj grupową aktywność dla tego tokena z timeout protection
             active_group, unique_addresses, total_events, group_intensity = detect_group_activity(symbol)
             
-            # Dodatkowe statystyki dla debugowania
-            try:
-                stats = get_group_statistics(symbol)
-                print(f"[MULTI-ADDRESS DEBUG] {symbol} group stats: unique_addresses={unique_addresses}, total_events={total_events}, group_intensity={group_intensity:.3f}")
-                print(f"[MULTI-ADDRESS DEBUG] {symbol} detailed stats: {stats}")
-            except Exception as stats_e:
-                print(f"[MULTI-ADDRESS ERROR] Stats error for {symbol}: {stats_e}")
-            
             # Strength based na intensywność grupowej aktywności
-            # group_intensity jest już w zakresie 0.0-1.0 
             strength = min(group_intensity, 1.0)
             
             # Debug output
@@ -2512,9 +2503,15 @@ class StealthSignalDetector:
             else:
                 print(f"[MULTI-ADDRESS DEBUG] {symbol}: No coordinated group activity detected")
             
+            signal.alarm(0)  # Cancel timeout
             return StealthSignal("multi_address_group_activity", active_group, strength)
             
+        except TimeoutError:
+            signal.alarm(0)
+            print(f"[MULTI-ADDRESS TIMEOUT] {symbol} - group activity check timed out, returning fallback")
+            return StealthSignal("multi_address_group_activity", False, 0.0)
         except Exception as e:
+            signal.alarm(0)
             print(f"[MULTI-ADDRESS ERROR] Group activity check failed for {symbol}: {e}")
             return StealthSignal("multi_address_group_activity", False, 0.0)
 
