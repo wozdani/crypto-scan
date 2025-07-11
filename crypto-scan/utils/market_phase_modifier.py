@@ -304,19 +304,27 @@ def market_phase_modifier(market_phase: str, trend_strength: float = 0.0) -> flo
         print(f"[PHASE MODIFIER] Input: market_phase={market_phase}, trend_strength={trend_strength:.3f}")
         
         # CRITICAL FIX: Add basic_screening → pullback fallback mapping  
-        if market_phase == "basic_screening":
+        if market_phase in ["basic_screening", "unknown", "undefined", None]:
+            # ENHANCED: Always provide minimum boost for basic_screening tokens
+            base_boost = 0.05  # Neutral base boost to prevent zero modifier
+            
             # Use trend_strength to enhance basic_screening with smart fallback
             if trend_strength >= 0.7:
-                fallback_modifier = 0.2  # Strong trend gets pullback-like boost
+                fallback_modifier = base_boost + 0.15  # Strong trend gets pullback-like boost (0.20 total)
                 print(f"[PHASE FALLBACK] basic_screening + strong trend ({trend_strength:.3f}) → pullback-like modifier: +{fallback_modifier}")
                 return fallback_modifier
             elif trend_strength >= 0.5:
-                fallback_modifier = 0.1  # Medium trend gets moderate boost
+                fallback_modifier = base_boost + 0.05  # Medium trend gets moderate boost (0.10 total)
                 print(f"[PHASE FALLBACK] basic_screening + medium trend ({trend_strength:.3f}) → moderate modifier: +{fallback_modifier}")
                 return fallback_modifier
+            elif trend_strength >= 0.1:
+                fallback_modifier = base_boost  # Weak but present trend gets base boost (0.05)
+                print(f"[PHASE FALLBACK] basic_screening + weak trend ({trend_strength:.3f}) → base modifier: +{fallback_modifier}")
+                return fallback_modifier
             else:
-                fallback_modifier = 0.05  # Low trend gets small boost to prevent zero
-                print(f"[PHASE FALLBACK] basic_screening + weak trend ({trend_strength:.3f}) → small modifier: +{fallback_modifier}")
+                # ZERO trend still gets small boost to prevent complete zero
+                fallback_modifier = 0.03  # Minimum viable modifier
+                print(f"[PHASE FALLBACK] basic_screening + zero trend ({trend_strength:.3f}) → minimum modifier: +{fallback_modifier}")
                 return fallback_modifier
         
         # Regular phase modifiers

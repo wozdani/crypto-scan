@@ -1155,25 +1155,36 @@ class StealthSignalDetector:
         
         print(f"[STEALTH DEBUG] large_bid_walls: checking bid wall sizes...")
         
-        if len(bids) < 3:
-            print(f"[STEALTH DEBUG] large_bid_walls: insufficient bid levels ({len(bids)} < 3)")
+        # ENHANCED: Adaptive logic for low-liquidity tokens
+        token_price = token_data.get("price_usd", 1.0)
+        is_microcap = token_price < 1.0  # Tokens under $1 are considered microcap
+        
+        min_levels_required = 1 if is_microcap else 3  # Relaxed requirement for microcap
+        
+        if len(bids) < min_levels_required:
+            print(f"[STEALTH DEBUG] large_bid_walls: insufficient bid levels ({len(bids)} < {min_levels_required}) for {'microcap' if is_microcap else 'regular'} token")
             return StealthSignal("large_bid_walls", False, 0.0)
         
         try:
-            # Sprawdź czy są duże bidy w top 3 poziomach z enhanced validation
+            # Sprawdź czy są duże bidy z adaptive threshold based on token type
+            volume_threshold = 5.0 if is_microcap else 10.0  # Lower threshold for microcap
+            max_levels_to_check = min(len(bids), 3 if not is_microcap else 1)  # Check fewer levels for microcap
+            
             large_bids = 0
-            for i, bid in enumerate(bids[:3]):
+            for i, bid in enumerate(bids[:max_levels_to_check]):
                 if isinstance(bid, (list, tuple)) and len(bid) >= 2:
                     try:
-                        if float(bid[1]) > 10.0:
+                        if float(bid[1]) > volume_threshold:
                             large_bids += 1
                     except (ValueError, TypeError) as e:
                         print(f"[STEALTH DEBUG] large_bid_walls for {symbol}: invalid bid[{i}][1] value: {bid[1]}")
                 else:
                     print(f"[STEALTH DEBUG] large_bid_walls for {symbol}: invalid bid[{i}] structure: {type(bid)}, content: {bid}")
             
-            active = large_bids >= 2
-            strength = large_bids / 3.0
+            # Adaptive activation criteria
+            required_large_bids = 1 if is_microcap else 2
+            active = large_bids >= required_large_bids
+            strength = large_bids / max_levels_to_check
             
             if active:
                 print(f"[STEALTH DEBUG] large_bid_walls DETECTED for {symbol}: {large_bids}/3 large bids (>10.0 volume)")

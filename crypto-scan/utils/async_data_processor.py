@@ -181,12 +181,18 @@ def process_async_data_enhanced_with_5m(symbol: str, ticker_data: Optional[Dict]
     else:
         print(f"[DATA QUALITY] {symbol}: ✅ COMPLETE - 15M + 5M candles available")
     
-    # FIX 1: Load AI-EYE label from Vision-AI labeling system
+    # FIX 1: Load AI-EYE label from Vision-AI labeling system (SINGLE LOAD)
     ai_label_data = load_ai_label_for_symbol(symbol)
     
-    # FIX 2: Generate HTF candles from 15M candles if not available separately
+    # FIX 2: Generate HTF candles from 15M candles if not available separately  
     htf_candles = generate_htf_candles_from_15m(candles_15m)
-    print(f"[AI LABEL] {symbol}: {ai_label_data.get('label', 'No existing AI label found') if ai_label_data else 'No existing AI label found'}")
+    
+    # SINGLE AI LABEL LOG - prevent duplicate loading messages
+    if ai_label_data:
+        print(f"[AI LABEL] {symbol}: {ai_label_data.get('label', 'No existing AI label found')}")
+    else:
+        # Only log once here, no double loading in load_ai_label_for_symbol
+        print(f"[AI LABEL] {symbol}: No existing AI label found")
     print(f"[HTF GEN] Generated {len(htf_candles)} HTF candles from {len(candles_15m)} 15M candles")
     
     # Return enhanced market data with both timeframes
@@ -471,7 +477,7 @@ def load_ai_label_for_symbol(symbol: str) -> Optional[Dict]:
                 if symbol in cache:
                     return cache[symbol]
         
-        print(f"[AI LABEL] {symbol}: No existing AI label found")
+        # Remove duplicate log - handled in main function
         return None
         
     except Exception as e:
