@@ -179,6 +179,9 @@ def simulate_trader_decision_advanced(ctx: Dict) -> Dict:
     Returns:
         dict: Context z decision i reasons
     """
+    symbol = ctx.get('symbol', 'UNKNOWN')
+    print(f"[TJDE DEBUG] {symbol} - simulate_trader_decision_advanced() called")
+    
     try:
         # 🚫 CRITICAL: Block scoring for tokens without TradingView charts
         chart_path = ctx.get('chart_path')

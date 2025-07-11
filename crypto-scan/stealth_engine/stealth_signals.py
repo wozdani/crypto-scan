@@ -891,7 +891,7 @@ class StealthSignalDetector:
                         print(f"[DEBUG DEX_INFLOW] {symbol} - Identity boost calculation failed, continuing...")
                         print(f"[DEBUG FLOW] {symbol} - After identity_boost ERROR, proceeding to Trigger Alert System...")
                     
-                    # Etap 7: Trigger Alert System z RZECZYWISTYMI adresami
+                    # Etap 7: Trigger Alert System z RZECZYWISTYMI adresami - ENHANCED ERROR HANDLING
                     try:
                         print(f"[DEBUG FLOW] {symbol} - Starting Trigger Alert System...")
                         from stealth_engine.trigger_alert_system import check_smart_money_trigger, apply_smart_money_boost
@@ -901,23 +901,37 @@ class StealthSignalDetector:
                         # Sprawdź czy wykryto trigger addresses (smart money) wśród RZECZYWISTYCH adresów
                         trust_manager = get_trust_manager()
                         print(f"[DEBUG FLOW] {symbol} - Trust manager loaded")
-                        is_trigger, trigger_addresses = check_smart_money_trigger(real_addresses[:10], trust_manager)
-                        print(f"[DEBUG FLOW] {symbol} - Smart money check completed: {is_trigger}")
                         
-                        if is_trigger:
-                            # Zastosuj trigger boost - minimum score 3.0 dla instant alert
-                            boosted_strength, priority_alert = apply_smart_money_boost(
-                                symbol, strength, trigger_addresses, "dex_inflow"
-                            )
-                            strength = boosted_strength
+                        # CRITICAL FIX: Add comprehensive exception handling around check_smart_money_trigger
+                        try:
+                            print(f"[DEBUG FLOW] {symbol} - Calling check_smart_money_trigger with {len(real_addresses[:10])} addresses...")
+                            is_trigger, trigger_addresses = check_smart_money_trigger(real_addresses[:10], trust_manager)
+                            print(f"[DEBUG FLOW] {symbol} - Smart money check completed: {is_trigger}")
                             
-                            print(f"[TRIGGER ALERT] 🚨 {symbol} DEX INFLOW: Smart money detected! "
-                                  f"Strength boosted to {strength:.3f} (priority alert: {priority_alert})")
+                            if is_trigger:
+                                # Zastosuj trigger boost - minimum score 3.0 dla instant alert
+                                print(f"[DEBUG FLOW] {symbol} - Applying smart money boost...")
+                                boosted_strength, priority_alert = apply_smart_money_boost(
+                                    symbol, strength, trigger_addresses, "dex_inflow"
+                                )
+                                strength = boosted_strength
+                                
+                                print(f"[TRIGGER ALERT] 🚨 {symbol} DEX INFLOW: Smart money detected! "
+                                      f"Strength boosted to {strength:.3f} (priority alert: {priority_alert})")
+                            else:
+                                print(f"[DEBUG FLOW] {symbol} - No smart money trigger detected")
+                                
+                        except Exception as smart_money_e:
+                            print(f"[SMART_MONEY ERROR] {symbol} - check_smart_money_trigger failed: {smart_money_e}")
+                            import traceback
+                            traceback.print_exc()
                         
                         print(f"[DEBUG FLOW] {symbol} - Trigger Alert System completed")
                         
                     except Exception as trigger_e:
                         print(f"[TRIGGER ALERT ERROR] dex_inflow for {symbol}: {trigger_e}")
+                        import traceback
+                        traceback.print_exc()
                         print(f"[DEBUG FLOW] {symbol} - Trigger Alert System ERROR, continuing...")
                     
                 except Exception as memory_e:
