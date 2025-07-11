@@ -884,7 +884,16 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         'setup_type': tjde_result.get('setup_type', 'unknown')
                     }
                     
-                    # Stealth result already available from stealth_analysis_result
+                    # Ensure stealth_analysis_result exists
+                    if 'stealth_analysis_result' not in locals() or stealth_analysis_result is None:
+                        stealth_analysis_result = {
+                            'stealth_score': 0.0,
+                            'active_signals': [],
+                            'stealth_decision': 'none',
+                            'signal_details': {}
+                        }
+                    
+                    # Stealth result ready for dual engine
                     stealth_engine_result = stealth_analysis_result
                     
                     # Apply dual engine decision logic
@@ -912,7 +921,11 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         # Fallback to individual results
                         tjde_score = final_score
                         tjde_decision = decision
-                        stealth_score = stealth_analysis_result.get('stealth_score', 0.0)
+                        # Ensure stealth_analysis_result exists
+                        if 'stealth_analysis_result' in locals():
+                            stealth_score = stealth_analysis_result.get('stealth_score', 0.0)
+                        else:
+                            stealth_score = 0.0
                         stealth_decision = 'fallback'
                         final_engine_decision = 'engine_error'
                     
@@ -1225,8 +1238,8 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             "tjde_decision": tjde_decision,
             
             # Stealth Engine Results  
-            "stealth_score": locals().get('stealth_score', stealth_analysis_result.get('stealth_score', 0.0)),
-            "stealth_decision": locals().get('stealth_decision', stealth_analysis_result.get('stealth_decision', 'none')),
+            "stealth_score": locals().get('stealth_score', locals().get('stealth_analysis_result', {}).get('stealth_score', 0.0)),
+            "stealth_decision": locals().get('stealth_decision', locals().get('stealth_analysis_result', {}).get('stealth_decision', 'none')),
             
             # Dual Engine Final Decision
             "final_decision": locals().get('final_engine_decision', 'wait'),
@@ -1326,8 +1339,8 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             "tjde_decision": tjde_decision,
             
             # Stealth Engine Results
-            "stealth_score": locals().get('stealth_score', stealth_analysis_result.get('stealth_score', 0.0)),
-            "stealth_decision": locals().get('stealth_decision', stealth_analysis_result.get('stealth_decision', 'none')),
+            "stealth_score": locals().get('stealth_score', locals().get('stealth_analysis_result', {}).get('stealth_score', 0.0)),
+            "stealth_decision": locals().get('stealth_decision', locals().get('stealth_analysis_result', {}).get('stealth_decision', 'none')),
             
             # Dual Engine Decision
             "final_decision": locals().get('final_engine_decision', 'wait'),

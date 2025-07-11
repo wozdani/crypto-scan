@@ -349,6 +349,32 @@ class StealthSignalDetector:
             # Oblicz dynamiczny próg na podstawie mediany wielkości zleceń
             threshold = self.get_dynamic_whale_threshold(orderbook)
             
+            # === MICROCAP ADAPTATION ===
+            # For tokens with very small max orders, adapt threshold
+            max_order_check = 0
+            for bid in bids:
+                try:
+                    price = float(bid[0])
+                    size = float(bid[1])
+                    usd_value = price * size
+                    max_order_check = max(max_order_check, usd_value)
+                except:
+                    pass
+            for ask in asks:
+                try:
+                    price = float(ask[0])
+                    size = float(ask[1])
+                    usd_value = price * size
+                    max_order_check = max(max_order_check, usd_value)
+                except:
+                    pass
+            
+            if max_order_check < 200:  # Microcap token detection
+                # Use proportional threshold for micro tokens
+                adapted_threshold = max(50, max_order_check * 4)
+                print(f"[MICROCAP THRESHOLD] {symbol}: max_order=${max_order_check:.2f} → adapted threshold=${adapted_threshold:.2f} (was ${threshold:.2f})")
+                threshold = adapted_threshold
+            
             # Oblicz wszystkie zlecenia USD
             all_orders = []
             for bid in bids:
@@ -586,7 +612,11 @@ class StealthSignalDetector:
         # INPUT LOG - dane wejściowe
         print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] INPUT → bids={len(bids)}, asks={len(asks)}")
         
-        if len(bids) < 3 and len(asks) < 3:
+        # === MICROCAP ADAPTATION ===
+        # For microcap tokens, use relaxed requirements
+        min_levels_required = 1 if len(bids) <= 1 and len(asks) <= 1 else 3
+        
+        if len(bids) < min_levels_required and len(asks) < min_levels_required:
             print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] RESULT → active=False, strength=0.000 (insufficient_levels)")
             return StealthSignal("spoofing_layers", False, 0.0)
         
@@ -1154,6 +1184,10 @@ class StealthSignalDetector:
         bids = orderbook.get('bids', [])
         
         print(f"[STEALTH DEBUG] large_bid_walls: checking bid wall sizes...")
+        
+        # === MICROCAP ADAPTATION ===
+        # For tokens with minimal orderbook, use dynamic thresholds
+        volume_threshold = 5.0 if len(bids) <= 1 else 10.0  # Lower for microcap tokens
         
         # ENHANCED: Adaptive logic for low-liquidity tokens
         token_price = token_data.get("price_usd", 1.0)

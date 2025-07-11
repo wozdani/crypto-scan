@@ -532,6 +532,35 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 max_order_usd = spread_pct = total_volume = 0
                 total_bids = total_asks = imbalance_pct = 0
         
+        # === MIKROSKOPIJNY ORDERBOOK CHECK ===
+        # Sprawdź czy token ma bardzo niską płynność (1 bid + 1 ask)
+        bids = token_data.get('bids', [])
+        asks = token_data.get('asks', [])
+        
+        if len(bids) <= 1 and len(asks) <= 1:
+            print(f"[ILLIQUID SKIP] {symbol}: Orderbook too small (bids={len(bids)}, asks={len(asks)}) - applying fallback scoring")
+            
+            # Sprawdź czy możemy zastosować fallback scoring dla "quiet microcap"
+            spread_pct = getattr(token_data, 'spread_pct', 0.0)
+            if spread_pct > 0 and spread_pct < 0.3:  # Tight spread + mały orderbook = potencjalna cicha akumulacja
+                return {
+                    "score": 0.25,
+                    "stealth_score": 0.25, 
+                    "active_signals": ["quiet_microcap"],
+                    "stealth_decision": "stealth_watch",
+                    "partial_scoring": True,
+                    "reason": "quiet_microcap_detected"
+                }
+            else:
+                return {
+                    "score": 0.0,
+                    "stealth_score": 0.0,
+                    "active_signals": [],
+                    "stealth_decision": "none",
+                    "partial_scoring": True,
+                    "reason": "illiquid_orderbook_skipped"
+                }
+
         # Pobierz aktywne sygnały z detektorów (zgodnie z user specification)
         print(f"[DEBUG FLOW] {symbol} - Starting get_active_stealth_signals() call...")
         try:
@@ -543,7 +572,9 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             print(f"[STEALTH ERROR] {symbol}: Failed to get signals from detector: {e}")
             return {
                 "score": 0.0,
+                "stealth_score": 0.0,
                 "active_signals": [],
+                "stealth_decision": "none",
                 "error": f"signal_detection_failed: {e}"
             }
         
