@@ -353,6 +353,10 @@ async def analyze_token_stealth(symbol: str, market_data: Dict) -> Optional[Stea
     Returns:
         StealthResult lub None
     """
+    # ⛔ Hard-filter: Skip tokens with too low daily volume
+    if market_data.get("volume_24h", 0) < 500_000:
+        return None  # silently skip without logs
+    
     engine = get_stealth_engine()
     return await engine.analyze_token(symbol, market_data)
 
@@ -380,12 +384,20 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         
         symbol = token_data.get("symbol", "UNKNOWN")
         
+        # ⛔ Hard-filter: Skip tokens with too low daily volume
+        volume_24h = token_data.get("volume_24h", 0)
+        if volume_24h < 500_000:
+            return {
+                "score": 0.0,
+                "active_signals": [],
+                "skipped": "low_volume"
+            }
+        
         # LOG: Rozpoczęcie analizy Stealth Engine
         print(f"[STEALTH] Checking token: {symbol}...")
         
         # Walidacja tickera - zablokuj STEALTH jeśli ticker nieprawidłowy
         price = token_data.get("price_usd", 0)
-        volume_24h = token_data.get("volume_24h", 0)
         
         if price == 0 or volume_24h == 0:
             print(f"[STEALTH SKIPPED] {symbol}: Invalid ticker data (price_usd={price}, volume_24h={volume_24h}) - blocking STEALTH analysis")

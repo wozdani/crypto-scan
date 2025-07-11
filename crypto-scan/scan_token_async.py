@@ -346,9 +346,8 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             print(f"[FILTER FAIL] {symbol} → Invalid price: ${price}")
             return None
             
-        if volume_24h < 10_000:  # Lowered for testing - was 500,000
-            print(f"[FILTER FAIL] {symbol} → Low volume: {volume_24h} < 10,000")
-            return None
+        if volume_24h < 500_000:  # Hard filter - anti-trash tokens
+            return None  # silently skip without logs
         
         # market_data is already properly structured from enhanced processor
         print(f"[MARKET DATA SUCCESS] {symbol} → Price: ${price}, Volume: {volume_24h}")
