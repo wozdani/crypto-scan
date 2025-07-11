@@ -738,6 +738,7 @@ class StealthSignalDetector:
             
             # Calculate real DEX inflow from blockchain data
             total_inflow_usd = 0
+            inflow_usd = 0  # CRITICAL FIX: Initialize inflow_usd variable
             real_addresses = []
             
             for transfer in real_transfers:
@@ -753,6 +754,9 @@ class StealthSignalDetector:
             
             # INPUT LOG - real blockchain data
             print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] INPUT → real_transfers={len(real_transfers)}, total_inflow_usd=${total_inflow_usd:.2f}, unique_addresses={len(real_addresses)}, avg_baseline=${avg_recent:.2f}")
+            
+            # CRITICAL FIX: Set inflow_usd for metadata consistency
+            inflow_usd = total_inflow_usd
             
             # Enhanced detection logic with real data
             spike_detected = total_inflow_usd > max(avg_recent * 2, 2000) and len(real_addresses) >= 2
@@ -937,14 +941,7 @@ class StealthSignalDetector:
             result = StealthSignal(
                 name=FUNC_NAME,
                 active=spike_detected,
-                strength=strength,
-                addresses=real_addresses[:10] if real_addresses else [],
-                metadata={
-                    'inflow_usd': inflow_usd,
-                    'unique_addresses': len(real_addresses) if real_addresses else 0,
-                    'avg_recent': avg_recent,
-                    'spike_ratio': inflow_usd / (avg_recent + 1) if avg_recent > 0 else 0
-                }
+                strength=strength
             )
             print(f"[SCAN END] {symbol} - DEX inflow function completed successfully")
             return result
