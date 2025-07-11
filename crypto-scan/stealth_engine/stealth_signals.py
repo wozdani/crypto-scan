@@ -854,24 +854,72 @@ class StealthSignalDetector:
                     except Exception as trust_e:
                         print(f"[TRUST BOOST ERROR] dex_inflow for {symbol}: {trust_e}")
                     
-                    # Stage 13: Token Trust Score - TIMEOUT PROTECTED
+                    # Stage 13: Token Trust Score - WITH TIMEOUT PROTECTION
                     try:
-                        print(f"[DEBUG TOKEN_TRUST] {symbol} - Starting token trust calculation...")
+                        print(f"[DEBUG TOKEN_TRUST] {symbol} - Starting token trust calculation with timeout...")
                         
-                        # CRITICAL: Skip token trust for now to test trigger system
-                        print(f"[DEBUG TOKEN_TRUST] {symbol} - SKIPPING token trust calculation to prevent hanging")
-                        print(f"[DEBUG FLOW] {symbol} - Token trust SKIPPED, continuing...")
+                        # Import with timeout protection
+                        import signal
+                        
+                        def token_trust_timeout_handler(signum, frame):
+                            raise TimeoutError("token_trust timeout")
+                        
+                        try:
+                            # Set 1-second timeout for token trust
+                            signal.signal(signal.SIGALRM, token_trust_timeout_handler)
+                            signal.alarm(1)
+                            
+                            from stealth_engine.token_trust_tracker import update_token_trust, compute_trust_boost
+                            trust_boost = compute_trust_boost(symbol, real_addresses[:3])  # Top 3 addresses only
+                            
+                            signal.alarm(0)  # Cancel timeout
+                            
+                            if trust_boost > 0:
+                                strength = min(1.0, strength + trust_boost)
+                                print(f"[TOKEN TRUST] {symbol} → trust boost +{trust_boost:.3f} → strength: {strength:.3f}")
+                            else:
+                                print(f"[TOKEN TRUST] {symbol} → no trust boost applied")
+                                
+                        except TimeoutError:
+                            signal.alarm(0)
+                            print(f"[TOKEN TRUST TIMEOUT] {symbol} - using emergency skip (1s timeout)")
+                        
+                        print(f"[DEBUG FLOW] {symbol} - Token trust completed, proceeding...")
                         
                     except Exception as token_trust_e:
                         print(f"[TOKEN TRUST ERROR] dex_inflow for {symbol}: {token_trust_e}")
                     
-                    # Stage 14: Persistent Identity Scoring - TIMEOUT PROTECTED
+                    # Stage 14: Persistent Identity Scoring - WITH TIMEOUT PROTECTION  
                     try:
                         print(f"[DEBUG DEX_INFLOW] {symbol} - Starting identity boost calculation with timeout protection...")
                         
-                        # CRITICAL: Skip identity boost for now to test trigger system
-                        print(f"[DEBUG DEX_INFLOW] {symbol} - SKIPPING identity boost calculation to prevent hanging")
-                        print(f"[DEBUG FLOW] {symbol} - Identity boost SKIPPED, proceeding to Trigger Alert System...")
+                        # Import with timeout protection
+                        import signal
+                        
+                        def identity_timeout_handler(signum, frame):
+                            raise TimeoutError("identity_boost timeout")
+                        
+                        try:
+                            # Set 1-second timeout for identity boost
+                            signal.signal(signal.SIGALRM, identity_timeout_handler) 
+                            signal.alarm(1)
+                            
+                            from stealth_engine.persistent_identity_tracker import get_identity_boost
+                            identity_boost = get_identity_boost(real_addresses[:3])  # Top 3 addresses only
+                            
+                            signal.alarm(0)  # Cancel timeout
+                            
+                            if identity_boost > 0:
+                                strength = min(1.0, strength + identity_boost)
+                                print(f"[IDENTITY BOOST] {symbol} → identity boost +{identity_boost:.3f} → strength: {strength:.3f}")
+                            else:
+                                print(f"[IDENTITY BOOST] {symbol} → no identity boost applied")
+                                
+                        except TimeoutError:
+                            signal.alarm(0)
+                            print(f"[IDENTITY TIMEOUT] {symbol} - using emergency skip (1s timeout)")
+                        
+                        print(f"[DEBUG FLOW] {symbol} - Identity boost completed, proceeding to Trigger Alert System...")
                         
                     except Exception as identity_e:
                         print(f"[IDENTITY BOOST ERROR] dex_inflow for {symbol}: {identity_e}")

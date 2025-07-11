@@ -289,6 +289,68 @@ def analyze_market_context(market_data: Dict, candles_15m: list, candles_5m: lis
         }
 
 
+def market_phase_modifier(market_phase: str, trend_strength: float = 0.0) -> float:
+    """
+    Simple market phase modifier function called from scan_token_async.py
+    
+    Args:
+        market_phase: Market phase string (basic_screening, pullback, etc.)
+        trend_strength: Trend strength for fallback enhancement
+        
+    Returns:
+        float: Phase modifier
+    """
+    try:
+        print(f"[PHASE MODIFIER] Input: market_phase={market_phase}, trend_strength={trend_strength:.3f}")
+        
+        # CRITICAL FIX: Add basic_screening → pullback fallback mapping  
+        if market_phase == "basic_screening":
+            # Use trend_strength to enhance basic_screening with smart fallback
+            if trend_strength >= 0.7:
+                fallback_modifier = 0.2  # Strong trend gets pullback-like boost
+                print(f"[PHASE FALLBACK] basic_screening + strong trend ({trend_strength:.3f}) → pullback-like modifier: +{fallback_modifier}")
+                return fallback_modifier
+            elif trend_strength >= 0.5:
+                fallback_modifier = 0.1  # Medium trend gets moderate boost
+                print(f"[PHASE FALLBACK] basic_screening + medium trend ({trend_strength:.3f}) → moderate modifier: +{fallback_modifier}")
+                return fallback_modifier
+            else:
+                fallback_modifier = 0.05  # Low trend gets small boost to prevent zero
+                print(f"[PHASE FALLBACK] basic_screening + weak trend ({trend_strength:.3f}) → small modifier: +{fallback_modifier}")
+                return fallback_modifier
+        
+        # Regular phase modifiers
+        phase_modifiers = {
+            "pre-breakout": 0.15,
+            "pullback": 0.12,
+            "neutral-pullback": 0.08,  # New fallback phase  
+            "breakout-continuation": 0.10,
+            "retest-confirmation": 0.08,
+            "exhaustion-pullback": -0.05,
+            "range-accumulation": 0.03,
+            "uptrend": 0.12,
+            "downtrend": -0.10,
+            "consolidation": 0.02,
+            "accumulation": 0.08,
+            "distribution": -0.08,
+            "sideways": 0.0,
+            "unknown": 0.0
+        }
+        
+        modifier = phase_modifiers.get(market_phase, 0.0)
+        print(f"[PHASE MODIFIER] {market_phase} → modifier: {modifier}")
+        return modifier
+        
+    except Exception as e:
+        print(f"[PHASE MODIFIER ERROR] {e}")
+        # Emergency fallback for basic_screening
+        if market_phase == "basic_screening":
+            emergency_modifier = max(0.05, trend_strength * 0.3)  # Minimum 0.05, up to 0.3
+            print(f"[PHASE EMERGENCY] basic_screening emergency fallback: +{emergency_modifier}")
+            return emergency_modifier
+        return 0.0
+
+
 def apply_market_phase_modifier(base_score: float, market_context: Dict) -> tuple:
     """
     Aplikuje modyfikator fazy rynku do bazowego score

@@ -205,7 +205,7 @@ class AddressTrustManager:
     
     def get_trust_statistics(self, address: str = None) -> Dict:
         """
-        Pobierz statystyki trust score
+        Pobierz statystyki trust score z ENHANCED timeout protection
         
         Args:
             address: Konkretny adres lub None dla wszystkich
@@ -215,27 +215,46 @@ class AddressTrustManager:
         """
         print(f"[TRUST STATS] Called get_trust_statistics for {address[:12] if address else 'ALL'}...")
         
-        # CRITICAL FIX: Add timeout to prevent deadlock - INCREASED TO MATCH EMERGENCY TIMEOUT
-        lock_acquired = self.lock.acquire(timeout=2.0)  # 2.0 second timeout (higher than 1s emergency)
-        if not lock_acquired:
-            print(f"[TRUST STATS ERROR] Failed to acquire lock for {address[:12] if address else 'ALL'} - timeout")
-            # Return safe fallback data
+        # ENHANCED FIX: Add JSON decode error protection and faster lock timeout
+        try:
+            # Faster lock timeout (0.5s) for better responsiveness
+            lock_acquired = self.lock.acquire(timeout=0.5) 
+            if not lock_acquired:
+                print(f"[TRUST STATS EMERGENCY] Lock timeout for {address[:12] if address else 'ALL'} - using emergency fallback")
+                # Return safe fallback data IMMEDIATELY
+                if address:
+                    return {
+                        'address': address,
+                        'hits': 0,
+                        'misses': 0,
+                        'total_predictions': 0,
+                        'trust_score': 0.0,
+                        'boost_value': 0.0,
+                        'last_updated': None,
+                        'fallback_reason': 'lock_timeout'
+                    }
+                else:
+                    return {
+                        'total_addresses': 0,
+                        'trusted_addresses': 0,
+                        'trust_ratio': 0.0,
+                        'top_trusted': [],
+                        'fallback_reason': 'lock_timeout'
+                    }
+        except Exception as lock_e:
+            print(f"[TRUST STATS CRITICAL] Lock acquisition failed for {address[:12] if address else 'ALL'}: {lock_e}")
+            # Emergency fallback for any lock errors
             if address:
                 return {
                     'address': address,
-                    'hits': 0,
-                    'misses': 0,
-                    'total_predictions': 0,
-                    'trust_score': 0.0,
-                    'boost_value': 0.0,
-                    'last_updated': None
+                    'hits': 0, 'misses': 0, 'total_predictions': 0,
+                    'trust_score': 0.0, 'boost_value': 0.0, 'last_updated': None,
+                    'fallback_reason': 'lock_error'
                 }
             else:
                 return {
-                    'total_addresses': 0,
-                    'trusted_addresses': 0,
-                    'trust_ratio': 0.0,
-                    'top_trusted': []
+                    'total_addresses': 0, 'trusted_addresses': 0, 'trust_ratio': 0.0,
+                    'top_trusted': [], 'fallback_reason': 'lock_error'
                 }
         
         try:

@@ -437,6 +437,19 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         print(f"[STEALTH ALERT ERROR] {symbol} → Failed to send alert: {alert_error}")
                 else:
                     print(f"[STEALTH MONITOR] {symbol} → Score {stealth_score:.3f} below threshold 3.0")
+                    
+                    # 🎯 SOFT ALERT LOGIC dla wysokich scores z dex_inflow
+                    if stealth_score >= 0.75 and any(sig.startswith("dex_inflow") for sig in active_signals):
+                        print(f"[SOFT ALERT TRIGGERED] {symbol} → SOFT DEX ALERT score {stealth_score:.3f}")
+                        try:
+                            # Soft alert z niższym priorytetem  
+                            await send_stealth_alert(symbol, stealth_score, active_signals, "soft-dex")
+                            print(f"[SOFT ALERT SENT] {symbol} → Soft DEX alert dispatched")
+                        except Exception as soft_e:
+                            print(f"[SOFT ALERT ERROR] {symbol} → {soft_e}")
+                    
+                    elif stealth_score >= 0.60:
+                        print(f"[STEALTH WATCHLIST] {symbol} → High score {stealth_score:.3f} - monitoring for patterns")
                 
                 # Zapisz wyniki w market_data dla przyszłej analizy/feedbacku  
                 market_data["stealth_score"] = stealth_score
@@ -840,15 +853,22 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     
                     # Market phase modifier with trend_strength fallback
                     try:
-                        from utils.market_phase import market_phase_modifier
+                        from utils.market_phase_modifier import market_phase_modifier
                         # Pass trend_strength for basic_screening fallback enhancement
                         modifier = market_phase_modifier(market_phase, trend_strength)
                         if modifier != 0.0:
                             print(f"[MODIFIER] market_phase={market_phase}, modifier=+{modifier:.3f}")
                             final_score += modifier
                             print(f"[TJDE ENHANCED] {symbol}: {final_score:.2f} (with phase modifier)")
+                        else:
+                            print(f"[MODIFIER] market_phase={market_phase}, no modifier applied")
                     except Exception as phase_e:
                         print(f"[MODIFIER ERROR] {symbol}: {phase_e}")
+                        # Emergency fallback for basic_screening without modifier
+                        if market_phase == "basic_screening" and trend_strength > 0:
+                            emergency_modifier = min(0.1, trend_strength * 0.2)
+                            final_score += emergency_modifier
+                            print(f"[MODIFIER EMERGENCY] {symbol}: basic_screening + trend_strength emergency: +{emergency_modifier:.3f}")
                     
                     tjde_score = final_score
                     tjde_decision = decision
