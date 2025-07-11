@@ -83,12 +83,19 @@ def is_screen_processed(screen_filename: str) -> bool:
     for metadata_file in metadata_patterns:
         metadata_path = Path("training_data/charts") / metadata_file
         if metadata_path.exists():
+            # Skip if this is actually a PNG file (binary), not JSON metadata
+            if metadata_file.endswith('.png') or metadata_file.endswith('.webp') or metadata_file.endswith('.jpg'):
+                continue
+            
             try:
                 with open(metadata_path, "r", encoding="utf-8") as f:
                     metadata = json.load(f)
                     # If metadata exists and has training flags, consider it processed
                     if metadata.get("used_in_training", False) or metadata.get("embedding_generated", False):
                         return True
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                # Skip binary files that aren't actually JSON metadata
+                continue
             except Exception as e:
                 log_cleanup(f"Error reading metadata {metadata_file}: {e}")
     

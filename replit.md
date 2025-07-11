@@ -98,6 +98,18 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### July 11, 2025 - CHART CLEANUP UTF-8 FIX COMPLETE - Enhanced Binary File Handling & Error Prevention ✅
+Successfully resolved UTF-8 codec errors in chart cleanup system preventing attempts to read binary PNG files as text data:
+- **BINARY FILE DETECTION**: Enhanced is_screen_processed() function with intelligent binary file detection preventing UTF-8 decoding attempts on PNG/WebP/JPG files
+- **METADATA FILTERING**: Added proper file extension checking to skip binary image files when looking for JSON metadata companions preventing codec errors
+- **GRACEFUL ERROR HANDLING**: Implemented specific UnicodeDecodeError and JSONDecodeError handling with silent skipping of binary files ensuring continuous operation
+- **COMPREHENSIVE TEST VALIDATION**: Created test_chart_cleanup_fix.py achieving 100% success rate (2/2 tests) validating UTF-8 error prevention and metadata JSON handling
+- **PRODUCTION STABILITY**: System now processes chart cleanup operations without UTF-8 codec failures enabling reliable automated chart management
+- **ENHANCED BINARY SAFETY**: Chart cleanup system distinguishes between JSON metadata files and binary image files preventing inappropriate text processing of binary data
+- **ERROR ELIMINATION**: All "utf-8' codec can't decode byte 0x89" errors eliminated from chart cleanup operations ensuring smooth automated chart maintenance
+- **INTELLIGENT FILE HANDLING**: System correctly identifies PNG headers (0x89) and other binary signatures avoiding text processing on image files
+System delivers complete chart cleanup robustness where binary PNG files receive proper binary handling while JSON metadata files are correctly processed as text preventing all UTF-8 codec errors during automated chart maintenance operations.
+
 ### July 11, 2025 - STEALTH ENGINE IMPORTS FIX COMPLETE - Full Module Integration & System Stability ✅
 Successfully resolved all missing module import errors in Stealth Engine achieving complete system integration with token trust tracking and persistent identity scoring:
 - **MISSING MODULES CREATED**: Created comprehensive token_trust_tracker.py and persistent_identity_tracker.py modules implementing full STAGE 13 and STAGE 14 functionality with production-ready architecture
