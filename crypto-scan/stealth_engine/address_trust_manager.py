@@ -213,7 +213,32 @@ class AddressTrustManager:
         Returns:
             Dict ze statystykami
         """
-        with self.lock:
+        print(f"[TRUST STATS] Called get_trust_statistics for {address[:12] if address else 'ALL'}...")
+        
+        # CRITICAL FIX: Add timeout to prevent deadlock
+        lock_acquired = self.lock.acquire(timeout=0.5)  # 0.5 second timeout
+        if not lock_acquired:
+            print(f"[TRUST STATS ERROR] Failed to acquire lock for {address[:12] if address else 'ALL'} - timeout")
+            # Return safe fallback data
+            if address:
+                return {
+                    'address': address,
+                    'hits': 0,
+                    'misses': 0,
+                    'total_predictions': 0,
+                    'trust_score': 0.0,
+                    'boost_value': 0.0,
+                    'last_updated': None
+                }
+            else:
+                return {
+                    'total_addresses': 0,
+                    'trusted_addresses': 0,
+                    'trust_ratio': 0.0,
+                    'top_trusted': []
+                }
+        
+        try:
             if address:
                 # Statystyki dla konkretnego adresu
                 if address not in self.address_performance:
@@ -264,6 +289,10 @@ class AddressTrustManager:
                     'trust_ratio': trusted_addresses / total_addresses if total_addresses > 0 else 0.0,
                     'top_trusted': trusted_list[:10]  # Top 10 najbardziej zaufanych
                 }
+        finally:
+            if lock_acquired:
+                self.lock.release()
+                print(f"[TRUST STATS] Released lock for {address[:12] if address else 'ALL'}")
     
     def evaluate_pending_predictions(self, price_fetcher_callback=None):
         """

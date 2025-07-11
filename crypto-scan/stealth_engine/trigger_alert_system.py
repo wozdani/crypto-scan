@@ -88,30 +88,66 @@ class TriggerAlertSystem:
         Returns:
             Tuple[bool, List[Dict]]: (czy_trigger, lista_trigger_addresses)
         """
+        print(f"[TRIGGER DEBUG] check_trigger_addresses called with {len(detected_addresses)} addresses")
         trigger_addresses = []
         
-        for addr in detected_addresses:
-            # Pobierz statystyki adresu
-            stats = address_trust_manager.get_trust_statistics(addr)
-            
-            # Sprawdź czy spełnia kryteria trigger
-            if (stats['trust_score'] >= self.trust_threshold and 
-                stats['total_predictions'] >= self.min_predictions):
+        for i, addr in enumerate(detected_addresses):
+            try:
+                print(f"[TRIGGER DEBUG] Processing address {i+1}/{len(detected_addresses)}: {addr[:12]}...")
                 
-                trigger_info = {
-                    'address': addr,
-                    'trust_score': stats['trust_score'],
-                    'total_predictions': stats['total_predictions'],
-                    'hits': stats['hits'],
-                    'boost_value': stats['boost_value'],
-                    'trigger_timestamp': time.time()
-                }
+                # EMERGENCY TIMEOUT PROTECTION: Prevent hanging in get_trust_statistics
+                try:
+                    print(f"[TRIGGER DEBUG] Calling get_trust_statistics for {addr[:12]} with emergency timeout...")
+                    
+                    # Import signal for timeout
+                    import signal
+                    
+                    def timeout_handler(signum, frame):
+                        raise TimeoutError("get_trust_statistics emergency timeout")
+                    
+                    # Set 1-second emergency timeout
+                    signal.signal(signal.SIGALRM, timeout_handler)
+                    signal.alarm(1)
+                    
+                    try:
+                        stats = address_trust_manager.get_trust_statistics(addr)
+                        signal.alarm(0)  # Cancel timeout
+                        print(f"[TRIGGER DEBUG] Got stats for {addr[:12]}: trust={stats.get('trust_score', 0):.3f}")
+                        
+                        # Sprawdź czy spełnia kryteria trigger
+                        if (stats['trust_score'] >= self.trust_threshold and 
+                            stats['total_predictions'] >= self.min_predictions):
+                            
+                            trigger_info = {
+                                'address': addr,
+                                'trust_score': stats['trust_score'],
+                                'total_predictions': stats['total_predictions'],
+                                'hits': stats['hits'],
+                                'boost_value': stats['boost_value'],
+                                'trigger_timestamp': time.time()
+                            }
+                            
+                            trigger_addresses.append(trigger_info)
+                            
+                            print(f"[TRIGGER ALERT] 🚨 Smart money detected: {addr[:12]}... "
+                                  f"(trust={stats['trust_score']:.1%}, {stats['hits']}/{stats['total_predictions']})")
+                        else:
+                            print(f"[TRIGGER DEBUG] Address {addr[:12]}... doesn't meet criteria: trust={stats['trust_score']:.3f} < {self.trust_threshold} or predictions={stats['total_predictions']} < {self.min_predictions}")
+                    
+                    except TimeoutError:
+                        signal.alarm(0)  # Cancel timeout
+                        print(f"[TRIGGER EMERGENCY] TIMEOUT for {addr[:12]}... - using emergency fallback (no trigger)")
+                        continue
+                        
+                except Exception as stats_e:
+                    print(f"[TRIGGER ERROR] get_trust_statistics failed for {addr[:12]}...: {stats_e}")
+                    continue
                 
-                trigger_addresses.append(trigger_info)
-                
-                print(f"[TRIGGER ALERT] 🚨 Smart money detected: {addr[:12]}... "
-                      f"(trust={stats['trust_score']:.1%}, {stats['hits']}/{stats['total_predictions']})")
+            except Exception as addr_e:
+                print(f"[TRIGGER ERROR] Failed processing address {addr[:12]}...: {addr_e}")
+                continue
         
+        print(f"[TRIGGER DEBUG] check_trigger_addresses completed: {len(trigger_addresses)} trigger addresses found")
         return len(trigger_addresses) > 0, trigger_addresses
     
     def apply_trigger_boost(self, symbol: str, base_score: float, 
