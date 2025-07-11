@@ -335,10 +335,27 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             print(f"[DATA VALIDATION FAILED] {symbol} → Enhanced processor rejected data")
             return None
         
-        # Basic filtering using processed market data
+        # Basic filtering using processed market data with price fallback
         price = market_data["price_usd"]
         volume_24h = market_data["volume_24h"]
         price_change_24h = market_data.get("price_change_24h", 0.0)  # Add missing variable
+        
+        # 🔧 PRICE FALLBACK: Use candles_15m close price if ticker price_usd == 0
+        if price == 0:
+            try:
+                candles_15m = market_data.get("candles_15m", [])
+                if candles_15m and len(candles_15m) > 0:
+                    last_candle = candles_15m[-1]
+                    if isinstance(last_candle, dict) and "close" in last_candle:
+                        price = float(last_candle["close"])
+                        market_data["price_usd"] = price  # Update market_data
+                        print(f"[PRICE FALLBACK] {symbol} → Using candle price: ${price}")
+                    elif isinstance(last_candle, (list, tuple)) and len(last_candle) >= 5:
+                        price = float(last_candle[4])  # close price in OHLCV format
+                        market_data["price_usd"] = price  # Update market_data
+                        print(f"[PRICE FALLBACK] {symbol} → Using candle price: ${price}")
+            except Exception as e:
+                print(f"[PRICE FALLBACK ERROR] {symbol} → Cannot extract fallback price: {e}")
         
         print(f"[FILTER CHECK] {symbol} → Price: ${price}, Volume: {volume_24h}, Change 24h: {price_change_24h}%")
         

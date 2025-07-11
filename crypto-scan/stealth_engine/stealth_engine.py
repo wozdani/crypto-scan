@@ -396,16 +396,35 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         # LOG: Rozpoczęcie analizy Stealth Engine
         print(f"[STEALTH] Checking token: {symbol}...")
         
-        # Walidacja tickera - zablokuj STEALTH jeśli ticker nieprawidłowy
+        # Walidacja tickera z fallback na cenę ze świeczek
         price = token_data.get("price_usd", 0)
         
-        if price == 0 or volume_24h == 0:
-            print(f"[STEALTH SKIPPED] {symbol}: Invalid ticker data (price_usd={price}, volume_24h={volume_24h}) - blocking STEALTH analysis")
+        # 🔧 PRICE FALLBACK: Use candles_15m close price if ticker price_usd == 0
+        if price == 0:
+            try:
+                candles_15m = token_data.get("candles_15m", [])
+                if candles_15m and len(candles_15m) > 0:
+                    last_candle = candles_15m[-1]
+                    if isinstance(last_candle, dict) and "close" in last_candle:
+                        price = float(last_candle["close"])
+                        print(f"[STEALTH PRICE FALLBACK] {symbol} → Using candle price: ${price}")
+                    elif isinstance(last_candle, (list, tuple)) and len(last_candle) >= 5:
+                        price = float(last_candle[4])  # close price in OHLCV format
+                        print(f"[STEALTH PRICE FALLBACK] {symbol} → Using candle price: ${price}")
+            except Exception as e:
+                print(f"[STEALTH PRICE FALLBACK ERROR] {symbol} → Cannot extract fallback price: {e}")
+        
+        if price == 0:
+            print(f"[STEALTH SKIPPED] {symbol}: No valid price data (ticker and candles both failed) - blocking STEALTH analysis")
             return {
                 "score": 0.0,
                 "active_signals": [],
-                "skipped": "invalid_ticker"
+                "skipped": "no_price_data"
             }
+        
+        if volume_24h == 0:
+            print(f"[STEALTH VOLUME WARNING] {symbol}: 24h volume is 0 - possible data issue")
+            # Continue analysis despite volume warning - may still have useful signals
         
         # Załaduj wagi dynamiczne i wyloguj
         weights = load_weights()

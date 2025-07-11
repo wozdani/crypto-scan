@@ -68,18 +68,42 @@ def process_async_data_enhanced_with_5m(symbol: str, ticker_data: Optional[Dict]
                 ticker_invalid = False
     
     # PRIORITY 2: Process 15M candles (should always be available from async scanner)
-    if candles_data and candles_data.get("result", {}).get("list"):
-        candle_list = candles_data["result"]["list"]
+    if candles_data:
+        candle_list = []
+        
+        # Handle different candles_data formats
+        if candles_data.get("result", {}).get("list"):
+            # Standard async scanner format
+            candle_list = candles_data["result"]["list"]
+        elif isinstance(candles_data.get("result"), list):
+            # Direct list format for tests
+            candle_list = candles_data["result"]
+        elif isinstance(candles_data, list):
+            # Direct list format
+            candle_list = candles_data
+        
         for candle in candle_list:
             try:
-                candles_15m.append({
-                    "timestamp": int(candle[0]),
-                    "open": float(candle[1]),
-                    "high": float(candle[2]), 
-                    "low": float(candle[3]),
-                    "close": float(candle[4]),
-                    "volume": float(candle[5])
-                })
+                if isinstance(candle, dict):
+                    # Dict format: {"open": 1.20, "high": 1.25, ...}
+                    candles_15m.append({
+                        "timestamp": candle.get("timestamp", 0),
+                        "open": float(candle.get("open", 0)),
+                        "high": float(candle.get("high", 0)), 
+                        "low": float(candle.get("low", 0)),
+                        "close": float(candle.get("close", 0)),
+                        "volume": float(candle.get("volume", 0))
+                    })
+                elif isinstance(candle, (list, tuple)) and len(candle) >= 6:
+                    # Array format: [timestamp, open, high, low, close, volume]
+                    candles_15m.append({
+                        "timestamp": int(candle[0]),
+                        "open": float(candle[1]),
+                        "high": float(candle[2]), 
+                        "low": float(candle[3]),
+                        "close": float(candle[4]),
+                        "volume": float(candle[5])
+                    })
             except (ValueError, IndexError, TypeError):
                 continue
         
@@ -156,12 +180,34 @@ def process_async_data_enhanced_with_5m(symbol: str, ticker_data: Optional[Dict]
     
     # If no price but we have candles, try final price extraction
     if not has_price and has_15m_candles:
-        # Try to extract from any candle
-        for candle in candles_15m:
-            if candle.get("close", 0) > 0:
-                price_usd = candle["close"]
-                print(f"[PRICE RECOVERY] {symbol}: Extracted ${price_usd} from candle fallback")
-                break
+        # Try to extract from last candle first (most recent)
+        try:
+            last_candle = candles_15m[-1]
+            if isinstance(last_candle, dict) and "close" in last_candle and last_candle["close"] > 0:
+                price_usd = float(last_candle["close"])
+                print(f"[PRICE RECOVERY] {symbol}: Extracted ${price_usd} from last candle fallback")
+            elif isinstance(last_candle, (list, tuple)) and len(last_candle) >= 5 and last_candle[4] > 0:
+                price_usd = float(last_candle[4])  # close price in OHLCV format
+                print(f"[PRICE RECOVERY] {symbol}: Extracted ${price_usd} from last candle fallback")
+            else:
+                # Fallback to any candle with valid price
+                for candle in candles_15m:
+                    if isinstance(candle, dict) and candle.get("close", 0) > 0:
+                        price_usd = float(candle["close"])
+                        print(f"[PRICE RECOVERY] {symbol}: Extracted ${price_usd} from candle fallback")
+                        break
+                    elif isinstance(candle, (list, tuple)) and len(candle) >= 5 and candle[4] > 0:
+                        price_usd = float(candle[4])
+                        print(f"[PRICE RECOVERY] {symbol}: Extracted ${price_usd} from candle fallback")
+                        break
+        except Exception as e:
+            print(f"[PRICE RECOVERY ERROR] {symbol}: {e}")
+            # Fallback to original logic
+            for candle in candles_15m:
+                if candle.get("close", 0) > 0:
+                    price_usd = candle["close"]
+                    print(f"[PRICE RECOVERY] {symbol}: Extracted ${price_usd} from candle fallback")
+                    break
         
     # Final price validation 
     if price_usd <= 0:

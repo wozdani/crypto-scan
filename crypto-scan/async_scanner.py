@@ -315,7 +315,22 @@ class AsyncCryptoScanner:
                     
                     print(f"[CANDLE VALID] {symbol}: Candle validation passed (15M: {len(candles_15m)}, 5M: {len(candles_5m)})")
                 
-                # Basic validation
+                # Basic validation with price fallback  
+                if not price_usd or price_usd <= 0:
+                    # 🔧 PRICE FALLBACK: Try to extract from candles_15m
+                    try:
+                        candles_15m = market_data.get("candles_15m", [])
+                        if candles_15m and len(candles_15m) > 0:
+                            last_candle = candles_15m[-1]
+                            if isinstance(last_candle, dict) and "close" in last_candle:
+                                price_usd = float(last_candle["close"])
+                                print(f"[ASYNC PRICE FALLBACK] {symbol} → Using candle price: ${price_usd}")
+                            elif isinstance(last_candle, (list, tuple)) and len(last_candle) >= 5:
+                                price_usd = float(last_candle[4])  # close price in OHLCV format
+                                print(f"[ASYNC PRICE FALLBACK] {symbol} → Using candle price: ${price_usd}")
+                    except Exception as e:
+                        print(f"[ASYNC PRICE FALLBACK ERROR] {symbol} → {e}")
+                
                 if not price_usd or price_usd <= 0 or volume_24h < 100_000:
                     return None
                 
