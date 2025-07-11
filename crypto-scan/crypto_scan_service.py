@@ -53,6 +53,82 @@ def report_scan_warnings():
     else:
         print("\n✅ No errors during scan cycle")
 
+def display_top5_stealth_tokens():
+    """Wyświetl TOP 5 tokenów z najwyższymi stealth score na końcu skanu"""
+    try:
+        # Import stealth priority scheduler do pobierania stealth scores
+        from stealth_engine.priority_scheduler import AlertQueueManager
+        
+        priority_manager = AlertQueueManager()
+        
+        # Pobierz TOP 5 tokenów z najwyższymi stealth scores
+        top_tokens = priority_manager.get_top_priority_tokens(limit=5)
+        
+        if top_tokens and len(top_tokens) > 0:
+            print("\n🎯 TOP 5 STEALTH SCORE TOKENS:")
+            print("=" * 60)
+            
+            for i, token_data in enumerate(top_tokens, 1):
+                token = token_data['token']
+                stealth_score = token_data.get('base_score', 0.0)
+                early_score = token_data.get('early_score', 0.0)
+                dex_inflow = token_data.get('dex_inflow', 0.0)
+                whale_ping = token_data.get('whale_ping', 0.0)
+                identity_boost = token_data.get('identity_boost', 0.0)
+                trust_boost = token_data.get('trust_boost', 0.0)
+                timestamp = token_data.get('timestamp', '')
+                
+                print(f"{i:2d}. {token:12} | Stealth: {stealth_score:6.3f} | Early: {early_score:6.3f}")
+                print(f"     DEX: {dex_inflow:6.3f} | Whale: {whale_ping:6.3f} | Trust: {trust_boost:6.3f} | ID: {identity_boost:6.3f}")
+                
+                if i < len(top_tokens):  # Don't add separator after last item
+                    print("    " + "-" * 56)
+            
+            print("=" * 60)
+            
+        else:
+            print("\n⚠️ TOP 5 STEALTH TOKENS: Brak danych stealth score")
+            
+            # Fallback: sprawdź bezpośrednio cache file
+            try:
+                import json
+                from pathlib import Path
+                
+                stealth_cache_file = Path("cache/stealth_last_scores.json")
+                if stealth_cache_file.exists():
+                    with open(stealth_cache_file, 'r') as f:
+                        stealth_scores = json.load(f)
+                    
+                    if stealth_scores:
+                        # Sort by stealth score
+                        sorted_tokens = sorted(
+                            stealth_scores.items(), 
+                            key=lambda x: x[1].get('score', 0.0), 
+                            reverse=True
+                        )[:5]
+                        
+                        print("\n🎯 TOP 5 STEALTH SCORE TOKENS (from cache):")
+                        print("=" * 50)
+                        
+                        for i, (token, data) in enumerate(sorted_tokens, 1):
+                            score = data.get('score', 0.0)
+                            timestamp = data.get('timestamp', 'unknown')
+                            print(f"{i:2d}. {token:12} | Score: {score:6.3f} | {timestamp}")
+                        
+                        print("=" * 50)
+                    else:
+                        print("⚠️ Cache stealth scores pusty")
+                else:
+                    print("⚠️ Brak cache file stealth scores")
+                    
+            except Exception as cache_error:
+                print(f"⚠️ Błąd odczytu cache stealth scores: {cache_error}")
+        
+    except ImportError:
+        print("⚠️ TOP 5 STEALTH TOKENS: Stealth Engine niedostępny")
+    except Exception as e:
+        print(f"⚠️ TOP 5 STEALTH TOKENS ERROR: {e}")
+
 # Import only essential modules
 from utils.bybit_cache_manager import get_bybit_symbols_cached
 from stages.stage_minus2_1 import detect_stage_minus2_1
@@ -236,6 +312,9 @@ def scan_cycle():
     
     # Report all warnings collected during scan
     report_scan_warnings()
+    
+    # Display TOP 5 stealth score tokens at end of scan
+    display_top5_stealth_tokens()
     
     # Run memory feedback evaluation periodically
     try:
