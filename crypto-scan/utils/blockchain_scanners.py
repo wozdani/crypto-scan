@@ -231,11 +231,18 @@ class BlockchainScanner:
 def load_known_exchange_addresses() -> Dict[str, List[str]]:
     """Load known exchange and DEX addresses"""
     try:
-        with open('data/known_exchange_addresses.json', 'r') as f:
-            return json.load(f)
+        # FIXED: Use absolute path to handle different working directories
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        project_dir = os.path.dirname(script_dir)  # Go up one level from utils/
+        json_path = os.path.join(project_dir, 'data', 'known_exchange_addresses.json')
+        
+        with open(json_path, 'r') as f:
+            exchange_data = json.load(f)
+            print(f"[EXCHANGE] Successfully loaded exchange addresses from {json_path}")
+            return exchange_data
     except Exception as e:
         print(f"[EXCHANGE] Could not load exchange addresses: {e}")
-        # Return basic known addresses
+        # Return basic known addresses as fallback
         return {
             'ethereum': [
                 '0x28c6c06298d514db089934071355e5743bf21d60',  # Binance
@@ -247,7 +254,17 @@ def load_known_exchange_addresses() -> Dict[str, List[str]]:
             'bsc': [
                 '0x8894e0a0c962cb723c1976a4421c95949be2d4e3',  # Binance BSC
                 '0x0d0707963952f2fba59dd06f2b425ace40b492fe',  # Gate.io BSC
-            ]
+            ],
+            'dex_routers': {
+                'ethereum': [
+                    '0x7a250d5630b4cf539739df2c5dacb4c659f2488d',  # Uniswap V2
+                    '0xd9e1ce17f2641f24ae83637ab66a2cca9c378b9f',  # Sushiswap
+                    '0xe592427a0aece92de3edee1f18e0157c05861564'   # Uniswap V3
+                ],
+                'bsc': [
+                    '0x10ed43c718714eb63d5aa57b78b54704e256024e',  # PancakeSwap
+                ]
+            }
         }
 
 def get_token_transfers_last_24h(symbol: str, chain: str = None, 
