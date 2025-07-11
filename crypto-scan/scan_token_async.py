@@ -1166,6 +1166,7 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         
         # Final result summary
         print(f"[FINAL RESULT] {symbol} → TJDE: {tjde_score:.3f} ({tjde_decision})")
+        print(f"[SCAN END] {symbol} → Main scan_token_async completed successfully")
         
         # 🎯 LOG TO ADAPTIVE THRESHOLD LEARNING SYSTEM
         if ADAPTIVE_LEARNING_AVAILABLE and 'basic_score' in locals():

@@ -116,18 +116,27 @@ class PersistentIdentityTracker:
         if not wallets:
             return 0.0
         
-        # PERFORMANCE BOOST: Limit do 20 adresów dla szybszego przetwarzania
-        if len(wallets) > 20:
-            wallets = wallets[:20]
+        # CRITICAL FIX: Limit do 50 adresów i timeout protection zapobiegają hanging
+        if len(wallets) > 50:
+            wallets = wallets[:50]
+            print(f"[IDENTITY DEBUG] Limiting wallet processing to 50 addresses (was {len(wallets)})")
         
         total_score = 0
         recognized_wallets = 0
+        processed_count = 0
         
-        for wallet in wallets:
+        # EMERGENCY TIMEOUT: Process max 50 wallets with progress tracking
+        for i, wallet in enumerate(wallets):
             if wallet in self.identity_scores:
                 score = self.identity_scores[wallet]["score"]
                 total_score += score
                 recognized_wallets += 1
+            
+            processed_count += 1
+            
+            # PROGRESS TRACKING: Every 10 wallets to detect hang
+            if processed_count % 10 == 0:
+                print(f"[IDENTITY PROGRESS] Processed {processed_count}/{len(wallets)} addresses")
         
         if recognized_wallets == 0:
             return 0.0

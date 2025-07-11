@@ -20,12 +20,36 @@ def load_coingecko_cache():
         return {}
 
 def get_contract(symbol):
-    cache = load_coingecko_cache()
-    normalized = normalize_token_name(symbol, cache)
-    token_data = cache.get(normalized)
+    """
+    CRITICAL FIX: Add timeout protection to prevent hanging on cache operations
+    """
+    import signal
+    
+    def timeout_handler(signum, frame):
+        raise TimeoutError("get_contract cache operation timeout")
+    
+    try:
+        # EMERGENCY TIMEOUT: 2-second timeout for cache operations
+        signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(2)
+        
+        cache = load_coingecko_cache()
+        normalized = normalize_token_name(symbol, cache)
+        token_data = cache.get(normalized)
+        
+        signal.alarm(0)  # Cancel timeout
+    except TimeoutError:
+        signal.alarm(0)
+        print(f"[CONTRACT TIMEOUT] {symbol} - cache operation timed out, returning None")
+        return None
+    except Exception as e:
+        signal.alarm(0)
+        print(f"[CONTRACT ERROR] {symbol} - cache error: {e}")
+        return None
 
     if token_data:
         platforms = token_data.get("platforms", {})
+        signal.alarm(0)  # Cancel timeout for platform processing
         for cg_chain, address in platforms.items():
             chain = CHAIN_ALIASES.get(cg_chain)
             if chain and address:

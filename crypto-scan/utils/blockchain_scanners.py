@@ -71,6 +71,15 @@ class BlockchainScanner:
             # Calculate 24h ago timestamp
             yesterday = int((datetime.now() - timedelta(days=1)).timestamp())
             
+            # CRITICAL FIX: Emergency timeout protection for API calls
+            import signal
+            
+            def timeout_handler(signum, frame):
+                raise TimeoutError("blockchain_scanner API call timeout")
+            
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(3)  # 3-second timeout for API calls
+            
             params = {
                 'module': 'account',
                 'action': 'tokentx',
@@ -83,7 +92,8 @@ class BlockchainScanner:
                 'apikey': self.api_keys[chain]
             }
             
-            response = requests.get(self.api_endpoints[chain], params=params, timeout=10)
+            response = requests.get(self.api_endpoints[chain], params=params, timeout=2)
+            signal.alarm(0)  # Cancel timeout on success
             
             if response.status_code != 200:
                 print(f"[BLOCKCHAIN] HTTP {response.status_code} for {chain}")
@@ -127,7 +137,12 @@ class BlockchainScanner:
             print(f"[BLOCKCHAIN] Found {len(transfers)} real transfers for {contract_address} on {chain}")
             return transfers
             
+        except TimeoutError:
+            signal.alarm(0)  # Cancel timeout
+            print(f"[BLOCKCHAIN] TIMEOUT fetching transfers for {chain} - using emergency fallback")
+            return []
         except Exception as e:
+            signal.alarm(0)  # Cancel timeout 
             print(f"[BLOCKCHAIN] Error fetching transfers for {chain}: {e}")
             return []
     

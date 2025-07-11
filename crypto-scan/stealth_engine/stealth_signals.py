@@ -874,48 +874,8 @@ class StealthSignalDetector:
                         print(f"[DEBUG DEX_INFLOW] {symbol} - Identity boost calculation failed, continuing...")
                         print(f"[DEBUG FLOW] {symbol} - After identity_boost ERROR, proceeding to Trigger Alert System...")
                     
-                    # Etap 7: Trigger Alert System z RZECZYWISTYMI adresami - ENHANCED ERROR HANDLING
-                    try:
-                        print(f"[DEBUG FLOW] {symbol} - Starting Trigger Alert System...")
-                        from stealth_engine.trigger_alert_system import check_smart_money_trigger, apply_smart_money_boost
-                        from stealth_engine.address_trust_manager import get_trust_manager
-                        print(f"[DEBUG FLOW] {symbol} - Trigger imports successful")
-                        
-                        # Sprawdź czy wykryto trigger addresses (smart money) wśród RZECZYWISTYCH adresów
-                        trust_manager = get_trust_manager()
-                        print(f"[DEBUG FLOW] {symbol} - Trust manager loaded")
-                        
-                        # CRITICAL FIX: Add comprehensive exception handling around check_smart_money_trigger
-                        try:
-                            print(f"[DEBUG FLOW] {symbol} - Calling check_smart_money_trigger with {len(real_addresses[:10])} addresses...")
-                            is_trigger, trigger_addresses = check_smart_money_trigger(real_addresses[:10], trust_manager)
-                            print(f"[DEBUG FLOW] {symbol} - Smart money check completed: {is_trigger}")
-                            
-                            if is_trigger:
-                                # Zastosuj trigger boost - minimum score 3.0 dla instant alert
-                                print(f"[DEBUG FLOW] {symbol} - Applying smart money boost...")
-                                boosted_strength, priority_alert = apply_smart_money_boost(
-                                    symbol, strength, trigger_addresses, "dex_inflow"
-                                )
-                                strength = boosted_strength
-                                
-                                print(f"[TRIGGER ALERT] 🚨 {symbol} DEX INFLOW: Smart money detected! "
-                                      f"Strength boosted to {strength:.3f} (priority alert: {priority_alert})")
-                            else:
-                                print(f"[DEBUG FLOW] {symbol} - No smart money trigger detected")
-                                
-                        except Exception as smart_money_e:
-                            print(f"[SMART_MONEY ERROR] {symbol} - check_smart_money_trigger failed: {smart_money_e}")
-                            import traceback
-                            traceback.print_exc()
-                        
-                        print(f"[DEBUG FLOW] {symbol} - Trigger Alert System completed")
-                        
-                    except Exception as trigger_e:
-                        print(f"[TRIGGER ALERT ERROR] dex_inflow for {symbol}: {trigger_e}")
-                        import traceback
-                        traceback.print_exc()
-                        print(f"[DEBUG FLOW] {symbol} - Trigger Alert System ERROR, continuing...")
+                    # Etap 7: Trigger Alert System - WILL BE HANDLED BY UNIVERSAL SYSTEM BELOW
+                    print(f"[DEBUG FLOW] {symbol} - Trigger Alert System will be handled by UNIVERSAL system below")
                     
                 except Exception as memory_e:
                     print(f"[WHALE MEMORY] DEX error for {symbol}: {memory_e}")
@@ -973,10 +933,27 @@ class StealthSignalDetector:
             print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] RESULT → active={spike_detected}, strength={strength:.3f}")
             print(f"[DEBUG FLOW] {symbol} - DEX inflow function returning signal")
             
-            return StealthSignal("dex_inflow", spike_detected, strength)
-            
+            # CRITICAL FIX: Return StealthSignal object (was missing!)
+            result = StealthSignal(
+                name=FUNC_NAME,
+                active=spike_detected,
+                strength=strength,
+                addresses=real_addresses[:10] if real_addresses else [],
+                metadata={
+                    'inflow_usd': inflow_usd,
+                    'unique_addresses': len(real_addresses) if real_addresses else 0,
+                    'avg_recent': avg_recent,
+                    'spike_ratio': inflow_usd / (avg_recent + 1) if avg_recent > 0 else 0
+                }
+            )
+            print(f"[SCAN END] {symbol} - DEX inflow function completed successfully")
+            return result
+        
         except Exception as e:
-            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] ERROR → {type(e).__name__}: {e}")
+            print(f"[STEALTH ERROR] DEX inflow for {symbol}: {e}")
+            import traceback
+            traceback.print_exc()
+            print(f"[SCAN END] {symbol} - DEX inflow function failed with exception")
             return StealthSignal("dex_inflow", False, 0.0)
     
     def check_event_tag(self, token_data: Dict) -> StealthSignal:

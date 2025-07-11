@@ -215,8 +215,8 @@ class AddressTrustManager:
         """
         print(f"[TRUST STATS] Called get_trust_statistics for {address[:12] if address else 'ALL'}...")
         
-        # CRITICAL FIX: Add timeout to prevent deadlock
-        lock_acquired = self.lock.acquire(timeout=0.5)  # 0.5 second timeout
+        # CRITICAL FIX: Add timeout to prevent deadlock - INCREASED TO MATCH EMERGENCY TIMEOUT
+        lock_acquired = self.lock.acquire(timeout=2.0)  # 2.0 second timeout (higher than 1s emergency)
         if not lock_acquired:
             print(f"[TRUST STATS ERROR] Failed to acquire lock for {address[:12] if address else 'ALL'} - timeout")
             # Return safe fallback data
