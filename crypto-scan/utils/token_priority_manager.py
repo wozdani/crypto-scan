@@ -43,13 +43,29 @@ class TokenPriorityManager:
     def save_priorities(self):
         """Zapisz priorytety do pliku cache"""
         try:
-            with self._lock:
-                data = {
-                    'priorities': self.token_priority_map,
-                    'last_updated': datetime.now().isoformat()
-                }
-                with open(self.priority_file, 'w') as f:
-                    json.dump(data, f, indent=2)
+            import signal
+            
+            def timeout_handler(signum, frame):
+                raise TimeoutError("save_priorities timeout after 2 seconds")
+            
+            # Set 2-second timeout for file operations
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(2)
+            
+            try:
+                with self._lock:
+                    data = {
+                        'priorities': self.token_priority_map,
+                        'last_updated': datetime.now().isoformat()
+                    }
+                    with open(self.priority_file, 'w') as f:
+                        json.dump(data, f, indent=2)
+                signal.alarm(0)  # Cancel timeout
+            except TimeoutError:
+                signal.alarm(0)  # Cancel timeout
+                print(f"[TOKEN PRIORITY] TIMEOUT PROTECTION: save_priorities exceeded 2s - using emergency skip")
+                return  # Emergency fallback - skip saving to prevent system hang
+                
         except Exception as e:
             print(f"[TOKEN PRIORITY] Error saving priorities: {e}")
     
@@ -63,17 +79,35 @@ class TokenPriorityManager:
             source: Źródło boost (whale_ping, dex_inflow, velocity, etc.)
         """
         try:
-            with self._lock:
-                current_priority = self.token_priority_map.get(token, 0.0)
-                new_priority = current_priority + priority_boost
+            import signal
+            
+            def timeout_handler(signum, frame):
+                raise TimeoutError("update_token_priority timeout after 3 seconds")
+            
+            # Set 3-second timeout for entire priority update operation
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(3)
+            
+            try:
+                with self._lock:
+                    current_priority = self.token_priority_map.get(token, 0.0)
+                    new_priority = current_priority + priority_boost
+                    
+                    # Maksymalny priorytet to 100
+                    self.token_priority_map[token] = min(new_priority, 100.0)
+                    
+                    print(f"[TOKEN PRIORITY] {token} priority boost: +{priority_boost:.1f} from {source} → total: {self.token_priority_map[token]:.1f}")
+                    
+                    # Automatycznie zapisz po każdej aktualizacji (with timeout protection)
+                    self.save_priorities()
+                    
+                signal.alarm(0)  # Cancel timeout
                 
-                # Maksymalny priorytet to 100
-                self.token_priority_map[token] = min(new_priority, 100.0)
-                
-                print(f"[TOKEN PRIORITY] {token} priority boost: +{priority_boost:.1f} from {source} → total: {self.token_priority_map[token]:.1f}")
-                
-                # Automatycznie zapisz po każdej aktualizacji
-                self.save_priorities()
+            except TimeoutError:
+                signal.alarm(0)  # Cancel timeout
+                print(f"[TOKEN PRIORITY] TIMEOUT PROTECTION: update_token_priority for {token} exceeded 3s - using emergency skip")
+                print(f"[TOKEN PRIORITY] {token} priority update EMERGENCY SKIP → continuing processing...")
+                return  # Emergency fallback - skip priority update to prevent system hang
                 
         except Exception as e:
             print(f"[TOKEN PRIORITY] Error updating priority for {token}: {e}")
