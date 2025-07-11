@@ -367,6 +367,31 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 print(f"[STEALTH DATA PREP] {symbol} → candles_15m in market_data: {len(market_data.get('candles_15m', []))}")
                 print(f"[STEALTH DATA PREP] {symbol} → candles_5m in market_data: {len(market_data.get('candles_5m', []))}")
                 
+                # ENHANCED: Calculate real dex_inflow for metadata consistency
+                real_dex_inflow = 0
+                try:
+                    from utils.contracts import get_contract
+                    from utils.blockchain_scanners import get_token_transfers_last_24h, load_known_exchange_addresses
+                    
+                    contract_info = get_contract(symbol)
+                    if contract_info:
+                        real_transfers = get_token_transfers_last_24h(
+                            symbol=symbol,
+                            chain=contract_info['chain'],
+                            contract_address=contract_info['address']
+                        )
+                        known_exchanges = load_known_exchange_addresses()
+                        exchange_addresses = known_exchanges.get(contract_info['chain'], [])
+                        dex_routers = known_exchanges.get('dex_routers', {}).get(contract_info['chain'], [])
+                        all_known_addresses = set(addr.lower() for addr in exchange_addresses + dex_routers)
+                        
+                        # Calculate actual DEX inflow
+                        for transfer in real_transfers:
+                            if transfer['to'] in all_known_addresses:
+                                real_dex_inflow += transfer['value_usd']
+                except:
+                    real_dex_inflow = market_data.get("dex_inflow", 0)  # Fallback to existing value
+
                 # Przygotuj dane dla Stealth Engine zgodnie z checklistą + FIX: dodaj candles
                 stealth_token_data = {
                     "symbol": symbol,
@@ -377,7 +402,7 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     "candles_15m": market_data.get("candles_15m", []),  # FIX: Dodane brakujące pole
                     "candles_5m": market_data.get("candles_5m", []),    # FIX: Dodane brakujące pole
                     "recent_volumes": market_data.get("recent_volumes", []),
-                    "dex_inflow": market_data.get("dex_inflow", 0),
+                    "dex_inflow": real_dex_inflow,  # ENHANCED: Use calculated real DEX inflow
                     "spread": market_data.get("spread", 0),
                     "bid_ask_data": market_data.get("bid_ask_data", {}),
                     "volume_profile": market_data.get("volume_profile", [])
