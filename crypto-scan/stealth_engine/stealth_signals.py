@@ -410,6 +410,22 @@ class StealthSignalDetector:
             # MID LOG - kluczowe obliczenia pośrednie
             print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MID → ratio={max_order_usd/threshold:.3f}, initial_strength={strength:.3f}")
             
+            # 🔧 FIX: Microcap bonus przy niskim spread
+            # Dla tokenów z bardzo niskim spread (<0.3%) i małym max_order_usd, daj bonus aktywacyjny
+            if max_order_usd < 50 and len(bids) > 0 and len(asks) > 0:
+                try:
+                    best_bid = float(bids[0][0])
+                    best_ask = float(asks[0][0])
+                    spread_pct = (best_ask - best_bid) / best_bid * 100
+                    
+                    if spread_pct < 0.3:  # Bardzo niski spread
+                        # Aktywuj whale_ping z bonusem
+                        active = True
+                        strength = max(strength, 0.15)  # Minimum strength dla tight spread
+                        print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MICROCAP BONUS → spread={spread_pct:.3f}% <0.3%, activated with strength={strength:.3f}")
+                except:
+                    pass
+            
             # REAL WHALE ADDRESS DETECTION - blockchain-based whale identification
             if active and max_order_usd > 0:
                 try:
@@ -622,22 +638,45 @@ class StealthSignalDetector:
         
         try:
             def analyze_side_spoofing(orders, side_name):
-                if len(orders) < 3:
+                if len(orders) < 1:
+                    return False, 0.0, 0.0, 0.0
+                
+                # === SAFE ORDERBOOK PARSING ===
+                # Handle different orderbook formats (list vs dict)
+                parsed_orders = []
+                
+                for order in orders:
+                    try:
+                        if isinstance(order, list) and len(order) >= 2:
+                            # Format: [price, volume]
+                            price = float(order[0])
+                            volume = float(order[1])
+                            parsed_orders.append((price, volume))
+                        elif isinstance(order, dict):
+                            # Format: {'price': X, 'size': Y}
+                            price = float(order.get('price', 0))
+                            volume = float(order.get('size', 0))
+                            parsed_orders.append((price, volume))
+                        else:
+                            continue
+                    except (ValueError, TypeError, KeyError, IndexError):
+                        continue
+                
+                if len(parsed_orders) < 3:
                     return False, 0.0, 0.0, 0.0
                 
                 # Oblicz total volume dla tej strony
-                total_side_volume = sum(float(order[1]) for order in orders)
+                total_side_volume = sum(volume for price, volume in parsed_orders)
                 layers_volume = 0.0
                 layer_count = 0
                 
                 # Sprawdź pierwsze 10 poziomów
-                for i in range(min(len(orders), 10)):
+                for i in range(min(len(parsed_orders), 10)):
                     if i == 0:
                         continue  # Skip first level
                     
-                    base_price = float(orders[0][0])
-                    current_price = float(orders[i][0])
-                    current_volume = float(orders[i][1])
+                    base_price, _ = parsed_orders[0]
+                    current_price, current_volume = parsed_orders[i]
                     
                     # Sprawdź odległość <0.2% między sobą
                     price_diff_pct = abs(current_price - base_price) / base_price * 100
@@ -2176,7 +2215,12 @@ class StealthSignalDetector:
                 history_days=7
             )
             
-            active = boost_score > 0
+            # 🔧 FIX: Obniż próg aktywacji - aktywuj przy 1+ adresach
+            # Jeśli mamy jakiekolwiek adresy, daj minimum boost 0.05
+            if len(current_addresses) >= 1 and boost_score == 0:
+                boost_score = 0.05 * len(current_addresses)  # Minimum boost za obecność adresów
+            
+            active = boost_score > 0 or len(current_addresses) >= 1  # Aktywuj jeśli są adresy
             strength = min(boost_score / 0.6, 1.0)  # Normalizuj do 0-1 (max boost 0.6)
             
             print(f"[STEALTH DEBUG] repeated_address_boost: addresses={len(current_addresses)}, boost_score={boost_score:.2f}, active={active}")
@@ -2245,8 +2289,13 @@ class StealthSignalDetector:
                 window_minutes=60
             )
             
-            # Próg aktywacji: velocity_boost > 0.1
-            is_active = velocity_boost > 0.1
+            # 🔧 FIX: Dodaj minimum boost dla 2+ adresów w krótkim czasie
+            if len(current_addresses) >= 2 and velocity_boost == 0:
+                velocity_boost = 0.05 * len(current_addresses)  # Minimum boost za szybką aktywność
+                print(f"[STEALTH DEBUG] velocity_boost: Added minimum boost for {len(current_addresses)} addresses: +{velocity_boost:.2f}")
+            
+            # Próg aktywacji: velocity_boost > 0.05 (obniżony z 0.1)
+            is_active = velocity_boost > 0.05
             strength = min(velocity_boost, 1.0)  # Normalizuj do 0-1
             
             print(f"[STEALTH DEBUG] velocity_boost: addresses={len(current_addresses)}, boost_score={velocity_boost:.2f}, active={is_active}")
@@ -2432,6 +2481,26 @@ class StealthSignalDetector:
                 current_token=symbol,
                 current_addresses=current_addresses
             )
+            
+            # 🔧 FIX: Sprawdzenie trafnych predykcji w ostatnich 24h
+            if len(current_addresses) >= 1 and reputation_boost == 0:
+                # Sprawdź czy jakieś adresy miały trafne predykcje w ostatnich 24h
+                try:
+                    from .address_trust_manager import AddressTrustManager
+                    trust_manager = AddressTrustManager()
+                    
+                    successful_predictions = 0
+                    for address in current_addresses:
+                        # Sprawdź statystyki zaufania dla adresu
+                        trust_stats = trust_manager.get_trust_statistics(address)
+                        if trust_stats and trust_stats.get('success_rate', 0) > 0.5:  # >50% success rate
+                            successful_predictions += 1
+                    
+                    if successful_predictions > 0:
+                        reputation_boost = 0.1 * successful_predictions  # Bonus za trafne predykcje
+                        print(f"[STEALTH DEBUG] source_reliability_boost: Found {successful_predictions} addresses with successful predictions → boost={reputation_boost:.2f}")
+                except Exception as e:
+                    print(f"[STEALTH DEBUG] source_reliability_boost: Trust check error: {e}")
             
             active = reputation_boost > 0.0
             strength = min(reputation_boost / 0.30, 1.0)  # Normalizuj do 0-1 (max boost 0.30)

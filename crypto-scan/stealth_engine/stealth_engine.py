@@ -384,11 +384,11 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         print(f"[STEALTH] Checking token: {symbol}...")
         
         # Walidacja tickera - zablokuj STEALTH jeśli ticker nieprawidłowy
-        price = token_data.get("price", 0)
+        price = token_data.get("price_usd", 0)
         volume_24h = token_data.get("volume_24h", 0)
         
         if price == 0 or volume_24h == 0:
-            print(f"[STEALTH SKIPPED] {symbol}: Invalid ticker data (price={price}, volume={volume_24h}) - blocking STEALTH analysis")
+            print(f"[STEALTH SKIPPED] {symbol}: Invalid ticker data (price_usd={price}, volume_24h={volume_24h}) - blocking STEALTH analysis")
             return {
                 "score": 0.0,
                 "active_signals": [],
