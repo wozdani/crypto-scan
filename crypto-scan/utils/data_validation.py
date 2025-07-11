@@ -408,8 +408,8 @@ class EnhancedDataValidator:
         return None
     
     def _fetch_orderbook_standard(self, symbol: str, result: DataValidationResult, retry_count: int) -> Optional[Dict]:
-        """Fetch orderbook from standard endpoint"""
-        url = f"https://api.bybit.com/v5/market/orderbook?category=spot&symbol={symbol}&limit=25"
+        """Fetch orderbook from standard endpoint - ENHANCED DEPTH"""
+        url = f"https://api.bybit.com/v5/market/orderbook?category=spot&symbol={symbol}&limit=200"
         
         for attempt in range(retry_count + 1):
             try:
@@ -425,8 +425,8 @@ class EnhancedDataValidator:
                         
                         if bids and asks:
                             orderbook = {
-                                "bids": [[float(bid[0]), float(bid[1])] for bid in bids[:10]],
-                                "asks": [[float(ask[0]), float(ask[1])] for ask in asks[:10]]
+                                "bids": [[float(bid[0]), float(bid[1])] for bid in bids],
+                                "asks": [[float(ask[0]), float(ask[1])] for ask in asks]
                             }
                             print(f"[ORDERBOOK OK] {symbol}: Got {len(bids)} bids, {len(asks)} asks")
                             return orderbook
@@ -444,7 +444,7 @@ class EnhancedDataValidator:
     
     def _fetch_orderbook_reduced(self, symbol: str, result: DataValidationResult, retry_count: int) -> Optional[Dict]:
         """Fetch orderbook with reduced limit"""
-        url = f"https://api.bybit.com/v5/market/orderbook?category=spot&symbol={symbol}&limit=5"
+        url = f"https://api.bybit.com/v5/market/orderbook?category=spot&symbol={symbol}&limit=50"
         
         try:
             response = requests.get(url, timeout=10)

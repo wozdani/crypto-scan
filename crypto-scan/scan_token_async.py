@@ -178,8 +178,8 @@ async def get_ticker_async(symbol: str, session: aiohttp.ClientSession) -> Optio
             raise e
         return None
 
-async def get_orderbook_async(symbol: str, session: aiohttp.ClientSession, depth: int = 25) -> Optional[Dict]:
-    """Async orderbook fetch with production diagnostics"""
+async def get_orderbook_async(symbol: str, session: aiohttp.ClientSession, depth: int = 200) -> Optional[Dict]:
+    """Async orderbook fetch with production diagnostics - ENHANCED DEPTH"""
     try:
         url = "https://api.bybit.com/v5/market/orderbook"
         params = {

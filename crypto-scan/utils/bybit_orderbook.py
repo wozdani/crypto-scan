@@ -40,7 +40,7 @@ def get_bybit_headers(params_str=""):
         "Content-Type": "application/json"
     }
 
-def get_orderbook_from_bybit(symbol, limit=25):
+def get_orderbook_from_bybit(symbol, limit=200):
     """
     Pobiera orderbook z Bybit API dla określonego symbolu
     

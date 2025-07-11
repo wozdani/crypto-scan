@@ -4,7 +4,7 @@ import os
 import hmac
 import hashlib
 
-ORDERBOOK_DEPTH = 3
+ORDERBOOK_DEPTH = 200
 BID_MULTIPLIER = 2.0      # jeśli suma bidów wzrosła 2x
 ASK_DROP_THRESHOLD = 0.5  # jeśli suma asków spadła o 50%
 

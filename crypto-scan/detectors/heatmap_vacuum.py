@@ -9,7 +9,7 @@ import json
 import time
 from datetime import datetime, timezone
 
-def get_orderbook_heatmap_bybit(symbol: str, depth: int = 25) -> dict:
+def get_orderbook_heatmap_bybit(symbol: str, depth: int = 200) -> dict:
     """
     Pobiera głęboki orderbook z Bybit API dla analizy heatmap
     
@@ -67,7 +67,7 @@ def collect_heatmap_snapshots(symbol: str, count: int = 3, interval: int = 300) 
     snapshots = []
     
     for i in range(count):
-        snapshot = get_orderbook_heatmap_bybit(symbol, depth=25)
+        snapshot = get_orderbook_heatmap_bybit(symbol, depth=200)
         if snapshot:
             snapshots.append(snapshot)
             print(f"🗺️ Collected heatmap snapshot {i+1}/{count} for {symbol}")

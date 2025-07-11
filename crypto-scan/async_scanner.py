@@ -118,7 +118,7 @@ class AsyncCryptoScanner:
                 
                 # Try orderbook (can fail without blocking)
                 try:
-                    orderbook_url = f"https://api.bybit.com/v5/market/orderbook?category=spot&symbol={symbol}&limit=25"
+                    orderbook_url = f"https://api.bybit.com/v5/market/orderbook?category=spot&symbol={symbol}&limit=200"
                     async with session.get(orderbook_url) as response:
                         if response.status == 200:
                             orderbook_data = await response.json()
@@ -159,7 +159,7 @@ class AsyncCryptoScanner:
             
             params_ticker = {"category": category, "symbol": symbol}
             params_candles = {"category": category, "symbol": symbol, "interval": "15", "limit": "20"}
-            params_orderbook = {"category": category, "symbol": symbol, "limit": "10"}
+            params_orderbook = {"category": category, "symbol": symbol, "limit": "200"}
             
             ticker_data = None
             candles_data = None
@@ -245,9 +245,9 @@ class AsyncCryptoScanner:
         asks = []
         if validation_result.orderbook_data:
             ob = validation_result.orderbook_data
-            for bid in ob.get("bids", [])[:5]:
+            for bid in ob.get("bids", []):
                 bids.append({"price": bid[0], "size": bid[1]})
-            for ask in ob.get("asks", [])[:5]:
+            for ask in ob.get("asks", []):
                 asks.append({"price": ask[0], "size": ask[1]})
         
         # Estimate volume from ticker or candles
