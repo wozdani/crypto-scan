@@ -534,11 +534,15 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         
         # === MIKROSKOPIJNY ORDERBOOK CHECK ===
         # Sprawdź czy token ma bardzo niską płynność (1 bid + 1 ask)
-        bids = token_data.get('bids', [])
-        asks = token_data.get('asks', [])
+        # Użyj już sparsowanych bids/asks z orderbook, nie raw token_data
+        orderbook_bids = orderbook.get('bids', []) if orderbook else []
+        orderbook_asks = orderbook.get('asks', []) if orderbook else []
         
-        if len(bids) <= 1 and len(asks) <= 1:
-            print(f"[ILLIQUID SKIP] {symbol}: Orderbook too small (bids={len(bids)}, asks={len(asks)}) - applying fallback scoring")
+        # Debug orderbook check to verify proper data usage
+        print(f"[FALLBACK DEBUG] {symbol}: orderbook_bids={len(orderbook_bids) if orderbook_bids else 0}, orderbook_asks={len(orderbook_asks) if orderbook_asks else 0}")
+        
+        if len(orderbook_bids) <= 1 and len(orderbook_asks) <= 1:
+            print(f"[ILLIQUID SKIP] {symbol}: Orderbook too small (bids={len(orderbook_bids)}, asks={len(orderbook_asks)}) - applying fallback scoring")
             
             # Sprawdź czy możemy zastosować fallback scoring dla "quiet microcap"
             spread_pct = getattr(token_data, 'spread_pct', 0.0)
