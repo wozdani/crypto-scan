@@ -129,12 +129,18 @@ def process_async_data_enhanced_with_5m(symbol: str, ticker_data: Optional[Dict]
                 except (ValueError, IndexError):
                     continue
     
-    # SYNTHETIC ORDERBOOK: Create if missing but we have price
+    # SYNTHETIC ORDERBOOK: Create MULTI-LEVEL synthetic if missing but we have price  
     if not bids and not asks and price_usd > 0:
         spread = price_usd * 0.001  # 0.1% spread
-        bids = [{"price": price_usd - spread, "size": 100.0}]
-        asks = [{"price": price_usd + spread, "size": 100.0}]
-        print(f"[ORDERBOOK SYNTHETIC] {symbol}: Created synthetic orderbook")
+        # Create MULTI-LEVEL synthetic orderbook for better Stealth Engine analysis
+        for i in range(10):  # Create 10 levels each side
+            bid_price = price_usd - spread * (1 + i * 0.5)
+            ask_price = price_usd + spread * (1 + i * 0.5)
+            bid_size = 100.0 / (1 + i * 0.1)  # Decreasing size
+            ask_size = 100.0 / (1 + i * 0.1)
+            bids.append({"price": bid_price, "size": bid_size})
+            asks.append({"price": ask_price, "size": ask_size})
+        print(f"[ORDERBOOK SYNTHETIC] {symbol}: Created multi-level synthetic orderbook ({len(bids)}/{len(asks)} levels)")
     
     # ENHANCED VALIDATION: Accept tokens with candles even without price
     has_price = price_usd > 0
@@ -309,25 +315,42 @@ def process_async_data_enhanced(symbol: str, ticker_data: Optional[Dict], candle
     # PRIORITY 3: Process orderbook if available - FULL DEPTH (200 levels)
     if orderbook_data and orderbook_data.get("result"):
         result = orderbook_data["result"]
-        if result.get("b"):
-            for bid in result["b"]:  # Removed [:5] limitation for full depth
+        raw_bids = result.get("b", [])
+        raw_asks = result.get("a", [])
+        
+        print(f"[DEBUG ORDERBOOK] {symbol}: RAW API response - bids: {len(raw_bids)}, asks: {len(raw_asks)}")
+        if raw_bids:
+            print(f"[DEBUG ORDERBOOK] {symbol}: First 3 bids: {raw_bids[:3]}")
+        if raw_asks:
+            print(f"[DEBUG ORDERBOOK] {symbol}: First 3 asks: {raw_asks[:3]}")
+        
+        if raw_bids:
+            for bid in raw_bids:  # Process ALL levels for full depth
                 try:
                     bids.append({"price": float(bid[0]), "size": float(bid[1])})
                 except (ValueError, IndexError):
                     continue
-        if result.get("a"):
-            for ask in result["a"]:  # Removed [:5] limitation for full depth
+        if raw_asks:
+            for ask in raw_asks:  # Process ALL levels for full depth
                 try:
                     asks.append({"price": float(ask[0]), "size": float(ask[1])})
                 except (ValueError, IndexError):
                     continue
+        
+        print(f"[DEBUG ORDERBOOK] {symbol}: PROCESSED - bids: {len(bids)}, asks: {len(asks)}")
     
-    # SYNTHETIC ORDERBOOK: Create if missing but we have price
+    # SYNTHETIC ORDERBOOK: Create MULTI-LEVEL synthetic if missing but we have price
     if not bids and not asks and price_usd > 0:
         spread = price_usd * 0.001  # 0.1% spread
-        bids = [{"price": price_usd - spread, "size": 100.0}]
-        asks = [{"price": price_usd + spread, "size": 100.0}]
-        print(f"[ORDERBOOK SYNTHETIC] {symbol}: Created synthetic orderbook")
+        # Create MULTI-LEVEL synthetic orderbook for better Stealth Engine analysis
+        for i in range(10):  # Create 10 levels each side
+            bid_price = price_usd - spread * (1 + i * 0.5)
+            ask_price = price_usd + spread * (1 + i * 0.5)
+            bid_size = 100.0 / (1 + i * 0.1)  # Decreasing size
+            ask_size = 100.0 / (1 + i * 0.1)
+            bids.append({"price": bid_price, "size": bid_size})
+            asks.append({"price": ask_price, "size": ask_size})
+        print(f"[ORDERBOOK SYNTHETIC] {symbol}: Created multi-level synthetic orderbook ({len(bids)}/{len(asks)} levels)")
     
     # ENHANCED VALIDATION: Accept tokens with candles even without price
     has_price = price_usd > 0

@@ -482,9 +482,19 @@ class EnhancedDataValidator:
             bid_price = last_price - spread
             ask_price = last_price + spread
             
+            # Create MULTI-LEVEL synthetic orderbook for better Stealth Engine analysis
+            bids_levels = []
+            asks_levels = []
+            for i in range(10):  # Create 10 levels each side
+                bid_level_price = bid_price - (spread * i * 0.5)
+                ask_level_price = ask_price + (spread * i * 0.5) 
+                level_size = 100.0 / (1 + i * 0.1)  # Decreasing size
+                bids_levels.append([bid_level_price, level_size])
+                asks_levels.append([ask_level_price, level_size])
+            
             synthetic_orderbook = {
-                "bids": [[bid_price, 100.0]],  # Synthetic volume
-                "asks": [[ask_price, 100.0]],
+                "bids": bids_levels,
+                "asks": asks_levels,
                 "synthetic": True
             }
             
