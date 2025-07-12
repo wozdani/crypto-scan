@@ -441,14 +441,26 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 
                 print(f"[STEALTH RESULT] {symbol} → Score: {stealth_score:.3f}, Signals: {len(active_signals)}, Alert: {alert_type}")
                 
-                # 🚨 STEALTH ALERT SYSTEM - Alert zgodnie z progiem 3.0 (checklist)
-                if stealth_score >= 3.0:
-                    print(f"[STEALTH ALERT TRIGGERED] {symbol} → SCORE {stealth_score:.3f} | Active signals: {len(active_signals)}")
+                # 🚨 NOWY SYSTEM PROGÓW ALERTOWYCH - Dynamiczne progi 0.30-0.40
+                from stealth_engine.stealth_engine import simulate_stealth_decision, log_stealth_decision
+                
+                # Pobierz TJDE phase dla progów
+                tjde_phase = market_data.get("tjde_phase", None)
+                volume_24h = market_data.get("volume_24h", 0)
+                
+                # Sprawdź czy powinien być alert z nowymi progami
+                should_alert = simulate_stealth_decision(stealth_score, volume_24h, tjde_phase)
+                
+                if should_alert:
+                    print(f"[STEALTH ALERT TRIGGERED] {symbol} → DYNAMIC THRESHOLD ALERT score={stealth_score:.3f}, volume=${volume_24h/1_000_000:.1f}M")
+                    
+                    # Log szczegółowej decyzji
+                    log_stealth_decision(symbol, stealth_score, volume_24h, tjde_phase, "alert")
                     
                     # Wywołaj system alertów z metadata
                     try:
                         await send_stealth_alert(symbol, stealth_score, active_signals, alert_type)
-                        print(f"[STEALTH ALERT SENT] {symbol} → Alert dispatched successfully")
+                        print(f"[STEALTH ALERT SENT] {symbol} → Dynamic threshold alert dispatched successfully")
                         
                         # 🎯 ETAP 10 - INTEGRACJA Z PRIORITY ALERT QUEUE
                         try:
@@ -477,20 +489,14 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     except Exception as alert_error:
                         print(f"[STEALTH ALERT ERROR] {symbol} → Failed to send alert: {alert_error}")
                 else:
-                    print(f"[STEALTH MONITOR] {symbol} → Score {stealth_score:.3f} below threshold 3.0")
+                    # Log decyzji o braku alertu z progami
+                    log_stealth_decision(symbol, stealth_score, volume_24h, tjde_phase, "no_alert")
                     
-                    # 🎯 SOFT ALERT LOGIC dla wysokich scores z dex_inflow
-                    if stealth_score >= 0.75 and any(sig.startswith("dex_inflow") for sig in active_signals):
-                        print(f"[SOFT ALERT TRIGGERED] {symbol} → SOFT DEX ALERT score {stealth_score:.3f}")
-                        try:
-                            # Soft alert z niższym priorytetem  
-                            await send_stealth_alert(symbol, stealth_score, active_signals, "soft-dex")
-                            print(f"[SOFT ALERT SENT] {symbol} → Soft DEX alert dispatched")
-                        except Exception as soft_e:
-                            print(f"[SOFT ALERT ERROR] {symbol} → {soft_e}")
-                    
-                    elif stealth_score >= 0.60:
-                        print(f"[STEALTH WATCHLIST] {symbol} → High score {stealth_score:.3f} - monitoring for patterns")
+                    # Sprawdź różne poziomy monitorowania
+                    if stealth_score >= 0.20:
+                        print(f"[STEALTH WATCHLIST] {symbol} → Significant score {stealth_score:.3f} - monitoring for threshold patterns")
+                    else:
+                        print(f"[STEALTH MONITOR] {symbol} → Low score {stealth_score:.3f} - minimal activity")
                 
                 # Zapisz wyniki w market_data dla przyszłej analizy/feedbacku  
                 market_data["stealth_score"] = stealth_score

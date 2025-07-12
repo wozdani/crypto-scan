@@ -22,6 +22,41 @@ from .stealth_weights import StealthWeightManager
 from .stealth_feedback import StealthFeedbackSystem
 
 
+def simulate_stealth_decision(score: float, volume_24h: float, tjde_phase: str = None) -> bool:
+    """
+    Zwraca True jeśli powinien być wygenerowany alert Stealth.
+    Uwzględnia dynamiczne progi w zależności od płynności i fazy rynku.
+
+    Args:
+        score: final stealth score
+        volume_24h: 24-godzinny wolumen tokena  
+        tjde_phase: opcjonalna faza rynku z Trend Mode (np. 'accumulation', 'momentum')
+        
+    Returns:
+        bool: True jeśli alert powinien być aktywowany
+        
+    Logic:
+        - Podstawowy próg: 0.35
+        - Duży volume (>$10M): próg 0.40
+        - Mały volume (<$1M): próg 0.30  
+        - Bonus TJDE: accumulation/momentum + score >0.25 = aktywacja
+    """
+    # Podstawowy próg
+    threshold = 0.35
+
+    # Dostosowanie progu do wolumenu
+    if volume_24h > 10_000_000:
+        threshold = 0.40
+    elif volume_24h < 1_000_000:
+        threshold = 0.30
+
+    # Bonus: jeśli TJDE potwierdza fazę akumulacji lub momentum
+    if tjde_phase in ["accumulation", "momentum"] and score > 0.25:
+        return True
+
+    return score >= threshold
+
+
 @dataclass
 class StealthResult:
     """Wynik analizy Stealth Engine"""
@@ -97,8 +132,8 @@ class StealthEngine:
             # KROK 2: Obliczenie stealth_score z wagami
             stealth_score, signal_breakdown = self.calculate_stealth_score(signals)
             
-            # KROK 3: Decyzja na podstawie score i confidence
-            decision, confidence = self.make_decision(stealth_score, signals)
+            # KROK 3: Decyzja na podstawie score i confidence z dynamicznymi progami
+            decision, confidence = self.make_decision(stealth_score, signals, market_data)
             
             # KROK 4: Ocena ryzyka
             risk_assessment = self.assess_risk(signals, stealth_score)
@@ -162,13 +197,14 @@ class StealthEngine:
             
         return stealth_score, signal_breakdown
     
-    def make_decision(self, stealth_score: float, signals: List[Dict]) -> Tuple[str, float]:
+    def make_decision(self, stealth_score: float, signals: List[Dict], market_data: Dict = None) -> Tuple[str, float]:
         """
-        Podejmij decyzję handlową na podstawie stealth_score
+        Podejmij decyzję handlową na podstawie stealth_score z dynamicznymi progami
         
         Args:
             stealth_score: Obliczony wynik stealth
             signals: Lista sygnałów (do oceny confidence)
+            market_data: Dane rynkowe (volume_24h, tjde_phase) dla progów
             
         Returns:
             Tuple (decision, confidence)
@@ -180,16 +216,26 @@ class StealthEngine:
         # Base confidence na podstawie liczby sygnałów
         base_confidence = min(1.0, signal_count / 5.0)  # Max confidence przy 5+ sygnałach
         
-        # Decyzja na podstawie stealth_score
-        if stealth_score >= 0.7:
+        # NOWA LOGIKA: Użyj simulate_stealth_decision dla progów alertowych
+        volume_24h = market_data.get('volume_24h', 0) if market_data else 0
+        tjde_phase = market_data.get('tjde_phase') if market_data else None
+        
+        # Sprawdź czy powinien być alert według dynamicznych progów
+        should_alert = simulate_stealth_decision(stealth_score, volume_24h, tjde_phase)
+        
+        # Decyzja na podstawie progów alertowych + tradycyjnych poziomów
+        if should_alert and stealth_score >= 0.5:
             decision = 'enter'
-            confidence = base_confidence * 0.9  # Wysokie confidence dla strong signals
-        elif stealth_score >= 0.4:
+            confidence = base_confidence * 0.9  # Wysokie confidence dla qualified alerts
+        elif should_alert:
+            decision = 'watch'  # Alert ale niższy score
+            confidence = base_confidence * 0.8  # Średnie-wysokie confidence dla threshold alerts
+        elif stealth_score >= 0.25:
             decision = 'wait'
-            confidence = base_confidence * 0.7  # Średnie confidence dla medium signals
+            confidence = base_confidence * 0.6  # Średnie confidence dla sub-threshold
         else:
             decision = 'avoid'
-            confidence = base_confidence * 0.5  # Niskie confidence dla weak signals
+            confidence = base_confidence * 0.4  # Niskie confidence dla weak signals
             
         return decision, confidence
     
@@ -287,8 +333,8 @@ class StealthEngine:
             # Oblicz stealth score
             stealth_score, signal_breakdown = self.calculate_stealth_score(signals_dict)
             
-            # Podejmij decyzję
-            decision, confidence = self.make_decision(stealth_score, signals_dict)
+            # Podejmij decyzję z dynamicznymi progami
+            decision, confidence = self.make_decision(stealth_score, signals_dict, market_data)
             
             # Risk assessment
             risk_assessment = self.assess_risk(signals_dict, stealth_score)
@@ -329,6 +375,52 @@ class StealthEngine:
             'feedback_predictions': self.feedback_system.get_stats(),
             'config_path': self.config_path
         }
+
+
+def log_stealth_decision(symbol: str, stealth_score: float, volume_24h: float, tjde_phase: str, final_decision: str) -> None:
+    """
+    Loguje szczegóły decyzji Stealth Engine z progami alertowymi
+    
+    Args:
+        symbol: Symbol tokena
+        stealth_score: Obliczony stealth score
+        volume_24h: Wolumen 24h tokena
+        tjde_phase: Faza rynku z TJDE
+        final_decision: Finalna decyzja systemu
+    """
+    # Oblicz dynamiczny próg
+    threshold = 0.35
+    if volume_24h > 10_000_000:
+        threshold = 0.40
+    elif volume_24h < 1_000_000:
+        threshold = 0.30
+    
+    # Sprawdź bonus TJDE
+    tjde_bonus = tjde_phase in ["accumulation", "momentum"] and stealth_score > 0.25
+    should_alert = simulate_stealth_decision(stealth_score, volume_24h, tjde_phase)
+    
+    # Szczegółowy log
+    volume_str = f"${volume_24h/1_000_000:.1f}M" if volume_24h >= 1_000_000 else f"${volume_24h/1_000:.0f}k"
+    print(f"[STEALTH DECISION] {symbol}: score={stealth_score:.3f}, threshold={threshold:.2f}, volume={volume_str}")
+    print(f"[STEALTH DECISION] {symbol}: tjde_phase={tjde_phase}, tjde_bonus={tjde_bonus}, alert={should_alert} → {final_decision}")
+
+
+def get_stealth_alert_threshold(volume_24h: float) -> float:
+    """
+    Pobierz dynamiczny próg alertowy dla danego wolumenu
+    
+    Args:
+        volume_24h: Wolumen 24h tokena
+        
+    Returns:
+        float: Próg alertowy stealth_score
+    """
+    if volume_24h > 10_000_000:
+        return 0.40  # Duży token - wyższy próg
+    elif volume_24h < 1_000_000:
+        return 0.30  # Mały token - niższy próg
+    else:
+        return 0.35  # Standardowy próg
 
 
 # Global instance dla łatwego importu
