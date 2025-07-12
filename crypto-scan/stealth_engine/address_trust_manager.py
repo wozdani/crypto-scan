@@ -217,8 +217,8 @@ class AddressTrustManager:
         
         # ENHANCED FIX: Add JSON decode error protection and faster lock timeout
         try:
-            # Faster lock timeout (0.5s) for better responsiveness
-            lock_acquired = self.lock.acquire(timeout=0.5) 
+            # 🔧 MOCAUSDT FIX 4: Dramatically reduced lock timeout to prevent hanging
+            lock_acquired = self.lock.acquire(timeout=0.1)  # Super fast timeout
             if not lock_acquired:
                 print(f"[TRUST STATS EMERGENCY] Lock timeout for {address[:12] if address else 'ALL'} - using emergency fallback")
                 # Return safe fallback data IMMEDIATELY

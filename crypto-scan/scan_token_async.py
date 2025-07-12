@@ -498,10 +498,25 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     else:
                         print(f"[STEALTH MONITOR] {symbol} → Low score {stealth_score:.3f} - minimal activity")
                 
-                # Zapisz wyniki w market_data dla przyszłej analizy/feedbacku  
+                # 🔧 MOCAUSDT FIX 1: Zapisz wyniki w market_data dla przyszłej analizy/feedbacku + stealth_alert_type  
                 market_data["stealth_score"] = stealth_score
                 market_data["stealth_signals"] = active_signals
+                
+                # 🔧 MOCAUSDT FIX 7: Dodaj stealth_alert_type na podstawie score
+                if stealth_score >= 0.70:
+                    alert_type = "stealth_alert"
+                elif stealth_score >= 0.50:
+                    alert_type = "stealth_warning" 
+                elif stealth_score >= 0.20:
+                    alert_type = "stealth_watchlist"
+                else:
+                    alert_type = "stealth_hold"
+                    
                 market_data["stealth_alert_type"] = alert_type
+                
+                # 🔧 MOCAUSDT FIX 1: DEBUG - Potwierdzenie przechowania score dla DUAL ENGINE
+                print(f"[MOCAUSDT FIX] {symbol} → market_data['stealth_score'] set to {market_data['stealth_score']:.3f}")
+                print(f"[MOCAUSDT FIX] {symbol} → market_data['stealth_alert_type'] set to {market_data['stealth_alert_type']}")
                 
             except Exception as stealth_error:
                 import traceback

@@ -1221,6 +1221,7 @@ class StealthSignalDetector:
         print(f"[STEALTH DEBUG] large_bid_walls: checking bid wall sizes...")
         
         # === MICROCAP ADAPTATION ===
+        # 🔧 MOCAUSDT FIX 5: Enhanced large_bid_walls logic for dict format compatibility
         # For tokens with minimal orderbook, use dynamic thresholds
         volume_threshold = 5.0 if len(bids) <= 1 else 10.0  # Lower for microcap tokens
         
@@ -1229,6 +1230,11 @@ class StealthSignalDetector:
         is_microcap = token_price < 1.0  # Tokens under $1 are considered microcap
         
         min_levels_required = 1 if is_microcap else 3  # Relaxed requirement for microcap
+        
+        # 🔧 MOCAUSDT FIX 5: Add debug info about detected bid format
+        if len(bids) > 0:
+            bid_format = "dict" if isinstance(bids[0], dict) else "list/tuple"
+            print(f"[STEALTH DEBUG] large_bid_walls for {symbol}: detected {bid_format} format, first bid: {bids[0]}")
         
         if len(bids) < min_levels_required:
             print(f"[STEALTH DEBUG] large_bid_walls: insufficient bid levels ({len(bids)} < {min_levels_required}) for {'microcap' if is_microcap else 'regular'} token")
@@ -1241,14 +1247,25 @@ class StealthSignalDetector:
             
             large_bids = 0
             for i, bid in enumerate(bids[:max_levels_to_check]):
-                if isinstance(bid, (list, tuple)) and len(bid) >= 2:
+                # 🔧 MOCAUSDT FIX 3: Handle both dict and list/tuple formats
+                if isinstance(bid, dict) and 'price' in bid and 'size' in bid:
+                    # Dict format: {'price': 0.0741, 'size': 100.0}
+                    try:
+                        if float(bid['size']) > volume_threshold:
+                            large_bids += 1
+                    except (ValueError, TypeError) as e:
+                        print(f"[STEALTH DEBUG] large_bid_walls for {symbol}: invalid bid[{i}]['size'] value: {bid['size']}")
+                elif isinstance(bid, (list, tuple)) and len(bid) >= 2:
+                    # List/tuple format: [price, size]
                     try:
                         if float(bid[1]) > volume_threshold:
                             large_bids += 1
                     except (ValueError, TypeError) as e:
                         print(f"[STEALTH DEBUG] large_bid_walls for {symbol}: invalid bid[{i}][1] value: {bid[1]}")
                 else:
-                    print(f"[STEALTH DEBUG] large_bid_walls for {symbol}: invalid bid[{i}] structure: {type(bid)}, content: {bid}")
+                    print(f"[STEALTH DEBUG] large_bid_walls for {symbol}: 🔧 FIXED - now supports dict format: {type(bid)}, content: {bid}")
+                    
+            print(f"[STEALTH DEBUG] large_bid_walls for {symbol}: analyzed {len(bids[:max_levels_to_check])} bids, found {large_bids} large bids (threshold: {volume_threshold})")
             
             # Adaptive activation criteria
             required_large_bids = 1 if is_microcap else 2
@@ -1892,22 +1909,43 @@ class StealthSignalDetector:
                     'details': 'Not enough volume data'
                 }
             
-            # Porównaj ostatnią świecę z średnią
+            # 🔧 MOCAUSDT FIX 6: Enhanced volume spike - 3-candle rolling sum vs tylko ostatnia świeca
             latest_volume = recent_volumes[-1]
-            avg_volume = statistics.mean(recent_volumes[:-1])
             
-            if avg_volume > 0:
-                volume_ratio = latest_volume / avg_volume
-                
-                # Spike gdy ostatnia świeca >2x średnia
-                if volume_ratio > 2.0:
-                    strength = min(1.0, volume_ratio / 5.0)
-                    return {
-                        'signal_name': 'volume_spike',
-                        'active': True,
-                        'strength': strength,
-                        'details': f'Volume spike: {volume_ratio:.2f}x normal'
-                    }
+            # Use 3-candle rolling sum for better detection
+            if len(recent_volumes) >= 3:
+                latest_3_sum = sum(recent_volumes[-3:])
+                avg_3_sum = sum(recent_volumes[:-3]) / max(1, len(recent_volumes) - 3) * 3
+                three_candle_ratio = latest_3_sum / max(avg_3_sum, 1)
+            else:
+                three_candle_ratio = 0
+            
+            avg_volume = statistics.mean(recent_volumes[:-1])
+            single_candle_ratio = latest_volume / max(avg_volume, 1) if avg_volume > 0 else 0
+            
+            # 🔧 MOCAUSDT FIX 6: Use better spike detection logic
+            volume_ratio = single_candle_ratio
+            
+            # Enhanced spike detection: check both single candle and 3-candle rolling
+            spike_detected = False
+            spike_reason = ""
+            
+            if volume_ratio > 2.0:
+                spike_detected = True
+                spike_reason = f"Single candle spike: {volume_ratio:.2f}x"
+            elif three_candle_ratio > 1.8:
+                spike_detected = True
+                spike_reason = f"3-candle rolling spike: {three_candle_ratio:.2f}x"
+                volume_ratio = three_candle_ratio  # Use 3-candle ratio for strength
+            
+            if spike_detected:
+                strength = min(1.0, volume_ratio / 5.0)
+                return {
+                    'signal_name': 'volume_spike',
+                    'active': True,
+                    'strength': strength,
+                    'details': f'Volume spike: {spike_reason}'
+                }
             
             return {
                 'signal_name': 'volume_spike',

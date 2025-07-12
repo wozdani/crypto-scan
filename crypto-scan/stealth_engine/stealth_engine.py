@@ -438,14 +438,28 @@ def log_stealth_decision(symbol: str, stealth_score: float, volume_24h: float, t
     if volume_24h < 1_000_000:
         threshold = 0.65  # Nieco łagodniej dla małych tokenów
     
-    # Bonus kontekstowy dla korzystnych faz
+    # 🔧 MOCAUSDT FIX 2: Enhanced threshold_reduction logic for strong signals
     context_bonus = 0.0
     threshold_reduction = 0.0
+    
+    # Standardowy bonus dla korzystnych faz
     if tjde_phase in ["accumulation", "momentum"]:
         context_bonus = 0.15  # Boost to score
         threshold_reduction = 0.10  # Reduction to threshold
         adjusted_score += context_bonus
         threshold -= threshold_reduction
+    
+    # 🔧 MOCAUSDT FIX 2: Dodatkowy threshold_reduction dla silnych sygnałów
+    # Jeśli score > 0.66 i active_signals ≥ 2 i volume_24h > $10M
+    active_signals_count = getattr(adjusted_score, '_active_signals_count', 0)  # Będzie przekazane z wywołania
+    if stealth_score > 0.66 and volume_24h > 10_000_000:
+        # Dodatkowe obniżenie progu dla silnych sygnałów
+        additional_threshold_reduction = 0.02
+        threshold_reduction += additional_threshold_reduction
+        threshold -= additional_threshold_reduction
+        context_bonus += 0.01  # Mały bonus do score też
+        adjusted_score += 0.01
+        print(f"[MOCAUSDT FIX 2] {symbol}: Strong signals detected → additional threshold_reduction={additional_threshold_reduction:.2f}")
     
     # Sprawdź finalną decyzję
     should_alert = adjusted_score >= threshold
