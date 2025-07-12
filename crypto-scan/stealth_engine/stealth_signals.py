@@ -366,8 +366,7 @@ class StealthSignalDetector:
             # 🚀 ADAPTIVE THRESHOLD: Replace old dynamic threshold with volume-based calculation
             threshold = adaptive_threshold
             
-            # === FILTR MAŁYCH ZLECEŃ ===
-            # Sprawdź maksymalne zlecenie przed dalszą analizą
+            # === OBLICZ MAX ORDER USD ===
             max_order_check = 0
             for bid in bids:
                 try:
@@ -386,70 +385,86 @@ class StealthSignalDetector:
                 except:
                     pass
             
-            # 🚀 ENHANCED FILTER: Adaptive threshold pre-filter (50% minimum)
-            if max_order_check < threshold * 0.5:
-                print(f"[STEALTH] whale_ping skipped for {symbol} – order size too small for threshold (${threshold:.2f})")
-                return StealthSignal("whale_ping", False, 0.0)
-            
-            # max_order_usd już obliczone powyżej
             max_order_usd = max_order_check
             
             # INPUT LOG - wszystkie dane wejściowe
             print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] INPUT → max_order_usd=${max_order_usd:.2f}, volume_24h=${volume_24h:.2f}, threshold=${threshold:.2f}, bids={len(bids)}, asks={len(asks)}")
             
-            # Warunek aktywacji z adaptacyjnym progiem
-            active = max_order_usd >= threshold
+            # 🚀 CRITICAL FIX: NAJPIERW sprawdź prawdziwe adresy whale z blockchain
+            # POTEM zastosuj adaptacyjne progi jako dodatkowy filtr
+            real_whale_addresses = []
+            has_real_whales = False
             
-            # Strength: proporcjonalny do przekroczenia progu
-            strength = min(max_order_usd / (threshold * 2), 1.0) if threshold > 0 else 0.0
-            
-            # MID LOG - kluczowe obliczenia pośrednie
-            ratio = max_order_usd / threshold if threshold > 0 else 0
-            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MID → ratio={ratio:.3f}, active={active}, strength={strength:.3f}")
-            
-            # REAL WHALE ADDRESS DETECTION - blockchain-based whale identification
-            if active and max_order_usd > 0:
+            try:
+                # Import real blockchain scanner for whale detection
+                import sys
+                import os
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                parent_dir = os.path.dirname(current_dir)
+                if parent_dir not in sys.path:
+                    sys.path.insert(0, parent_dir)
+                
+                from utils.blockchain_scanners import get_whale_transfers
+                from utils.contracts import get_contract
+                from .address_tracker import AddressTracker
+                
+                # Get real whale transfers from blockchain - ENHANCED with fallback
+                contract_info = get_contract(symbol)
+                
+                # ALWAYS try blockchain detection, even without explicit contract
                 try:
-                    # Import real blockchain scanner for whale detection
-                    import sys
-                    import os
-                    current_dir = os.path.dirname(os.path.abspath(__file__))
-                    parent_dir = os.path.dirname(current_dir)
-                    if parent_dir not in sys.path:
-                        sys.path.insert(0, parent_dir)
+                    # Get real whale transfers using blockchain API (with fallback for unknown contracts)
+                    whale_transfers = get_whale_transfers(symbol, min_usd=threshold)
+                    real_whale_addresses = [t['from'] for t in whale_transfers if t['value_usd'] >= threshold][:10]
+                    has_real_whales = len(real_whale_addresses) > 0
                     
-                    from utils.blockchain_scanners import get_whale_transfers
-                    from utils.contracts import get_contract
-                    from .address_tracker import AddressTracker
+                    print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MID → contract_found={bool(contract_info)}, whale_transfers={len(whale_transfers)}, real_whale_addresses_found={len(real_whale_addresses)}, has_real_whales={has_real_whales}")
                     
-                    # Get real whale transfers from blockchain
-                    contract_info = get_contract(symbol)
-                    real_whale_addresses = []
-                    
-                    if contract_info:
-                        # Get real whale transfers using blockchain API
-                        whale_transfers = get_whale_transfers(symbol, min_usd=threshold)
-                        real_whale_addresses = [t['from'] for t in whale_transfers if t['value_usd'] >= threshold][:10]
-                        
-                        # Track REAL addresses from blockchain
+                    # Track REAL addresses from blockchain
+                    if has_real_whales:
                         tracker = AddressTracker()
                         for real_address in real_whale_addresses:
+                            value_usd = next((t['value_usd'] for t in whale_transfers if t['from'] == real_address), max_order_usd)
                             tracker.record_address_activity(
                                 token=symbol,
-                                address=real_address,  # REAL ADDRESS from blockchain
-                                usd_value=max_order_usd,
+                                address=real_address,
+                                usd_value=value_usd,
                                 source="whale_ping_real"
                             )
+                        print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MID → tracked {len(real_whale_addresses)} real whale addresses")
                         
-                        print(f"[STEALTH DEBUG] whale_ping real address tracking for {symbol}: {len(real_whale_addresses)} real whale addresses")
-                    
-                    # If no real addresses found, skip advanced tracking
-                    if not real_whale_addresses:
-                        print(f"[STEALTH DEBUG] whale_ping for {symbol}: no real whale addresses found, using orderbook detection only")
-                
-                except Exception as addr_e:
-                    print(f"[STEALTH DEBUG] whale_ping real address tracking error for {symbol}: {addr_e}")
+                except Exception as inner_e:
+                    print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] blockchain API error: {inner_e}")
+                    has_real_whales = False
                     real_whale_addresses = []
+                        
+            except Exception as whale_e:
+                print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] blockchain whale detection error: {whale_e}")
+                has_real_whales = False
+                real_whale_addresses = []
+            
+            # 🚀 DECISION LOGIC FIX: Real whales always override adaptive thresholds
+            if has_real_whales:
+                # PRAWDZIWE WHALE ADRESY: zawsze aktywuj niezależnie od order size
+                active = True
+                strength = 1.0  # Maksymalna siła dla prawdziwych whale adresów
+                print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MID → REAL WHALES DETECTED: active=True, strength=1.0 (overrides adaptive threshold)")
+            else:
+                # BRAK PRAWDZIWYCH WHALE ADRESÓW: zastosuj adaptacyjne progi
+                # Enhanced filter: 50% minimum threshold for orderbook-only detection
+                if max_order_usd < threshold * 0.5:
+                    print(f"[STEALTH] whale_ping skipped for {symbol} – order size too small for threshold (${threshold:.2f})")
+                    return StealthSignal("whale_ping", False, 0.0)
+                
+                # Standard adaptive threshold logic
+                active = max_order_usd >= threshold
+                strength = min(max_order_usd / (threshold * 2), 1.0) if threshold > 0 else 0.0
+                
+                ratio = max_order_usd / threshold if threshold > 0 else 0
+                print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MID → ADAPTIVE THRESHOLD: ratio={ratio:.3f}, active={active}, strength={strength:.3f}")
+            
+            # WHALE MEMORY & TRACKING SYSTEM - Enhanced for real whale addresses
+            if active:
                 
                 # REAL WHALE MEMORY SYSTEM - using blockchain addresses
                 try:
