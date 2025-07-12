@@ -273,7 +273,7 @@ class StealthSignalDetector:
     def check_whale_ping(self, token_data: Dict) -> StealthSignal:
         """
         Whale ping detector - wykrycie wielorybów przez duże zlecenia
-        Dynamiczna wersja dopasowana do wolumenu tokena
+        🚀 ENHANCED: Uses adaptive threshold based on volume_24h (HIGHUSDT fix)
         """
         FUNC_NAME = "whale_ping"
         symbol = token_data.get("symbol", "UNKNOWN")
@@ -283,13 +283,17 @@ class StealthSignalDetector:
             bids = orderbook.get("bids", [])
             asks = orderbook.get("asks", [])
             
-            # Pobierz wolumen 24h dla adaptacyjnego progu
+            # 🚀 ADAPTIVE THRESHOLD: Get volume_24h for new threshold calculation
             volume_24h = token_data.get("volume_24h", 0)
             if not volume_24h:
                 # Fallback - try z innych źródeł
                 volume_24h = token_data.get("volume", 0)
                 if not volume_24h:
                     volume_24h = 0
+            
+            # 🚀 NEW: Import and use adaptive threshold system
+            from .adaptive_thresholds import compute_adaptive_whale_threshold
+            adaptive_threshold = compute_adaptive_whale_threshold(volume_24h)
             
             if not bids or not asks:
                 print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] INPUT → bids={len(bids)}, asks={len(asks)}, insufficient_data=True")
@@ -359,8 +363,8 @@ class StealthSignalDetector:
                 print(f"[STEALTH DEBUG] whale_ping for {symbol}: invalid ask structure after conversion: {type(asks[0])}, content: {asks[0]}")
                 return StealthSignal("whale_ping", False, 0.0)
             
-            # Oblicz adaptacyjny próg na podstawie wolumenu 24h
-            threshold = self.compute_adaptive_whale_threshold(volume_24h)
+            # 🚀 ADAPTIVE THRESHOLD: Replace old dynamic threshold with volume-based calculation
+            threshold = adaptive_threshold
             
             # === FILTR MAŁYCH ZLECEŃ ===
             # Sprawdź maksymalne zlecenie przed dalszą analizą
@@ -382,7 +386,7 @@ class StealthSignalDetector:
                 except:
                     pass
             
-            # Filtruj zbyt małe zlecenia - minimum 50% threshold
+            # 🚀 ENHANCED FILTER: Adaptive threshold pre-filter (50% minimum)
             if max_order_check < threshold * 0.5:
                 print(f"[STEALTH] whale_ping skipped for {symbol} – order size too small for threshold (${threshold:.2f})")
                 return StealthSignal("whale_ping", False, 0.0)

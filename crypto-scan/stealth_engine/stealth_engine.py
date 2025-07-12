@@ -171,6 +171,7 @@ class StealthEngine:
     def calculate_stealth_score(self, signals: List[Dict]) -> Tuple[float, Dict[str, float]]:
         """
         Oblicz stealth_score na podstawie aktywnych sygnałów i wag
+        🚀 ENHANCED: Dynamic spoofing weight based on signal context (HIGHUSDT fix)
         
         Args:
             signals: Lista wykrytych sygnałów
@@ -182,6 +183,11 @@ class StealthEngine:
         signal_breakdown = {}
         active_weight_sum = 0.0
         
+        # 🚀 ADAPTIVE SPOOFING WEIGHT: Check if spoofing is the only active signal
+        active_signals = [s for s in signals if s['active']]
+        spoofing_signals = [s for s in active_signals if 'spoofing' in s['signal_name'].lower()]
+        is_spoofing_only = len(spoofing_signals) > 0 and len(active_signals) <= 2
+        
         for signal in signals:
             signal_name = signal['signal_name']
             strength = signal['strength']
@@ -189,6 +195,15 @@ class StealthEngine:
             
             if active and signal_name in self.weights:
                 weight = self.weights[signal_name]
+                
+                # 🚀 ENHANCED SPOOFING WEIGHT: Apply dynamic weight for spoofing_layers
+                if signal_name == 'spoofing_layers':
+                    from .adaptive_thresholds import get_enhanced_spoofing_weight
+                    enhanced_weight = get_enhanced_spoofing_weight(is_spoofing_only, weight)
+                    weight = enhanced_weight
+                    
+                    print(f"[ADAPTIVE WEIGHT] {signal_name}: base={self.weights[signal_name]:.3f} → enhanced={weight:.3f} (only_signal: {is_spoofing_only})")
+                
                 contribution = strength * weight
                 total_score += contribution
                 active_weight_sum += weight
@@ -206,6 +221,7 @@ class StealthEngine:
     def make_decision(self, stealth_score: float, signals: List[Dict], market_data: Dict = None) -> Tuple[str, float]:
         """
         Podejmij decyzję handlową na podstawie stealth_score z dynamicznymi progami
+        🚀 ENHANCED: Context-aware decision with adaptive thresholds (HIGHUSDT fix)
         
         Args:
             stealth_score: Obliczony wynik stealth
@@ -222,17 +238,33 @@ class StealthEngine:
         # Base confidence na podstawie liczby sygnałów
         base_confidence = min(1.0, signal_count / 5.0)  # Max confidence przy 5+ sygnałach
         
-        # NOWA LOGIKA: Użyj simulate_stealth_decision dla progów alertowych
+        # 🚀 ENHANCED DECISION LOGIC: Use adaptive thresholds for market context
         volume_24h = market_data.get('volume_24h', 0) if market_data else 0
         tjde_phase = market_data.get('tjde_phase') if market_data else None
+        
+        # 🚀 CONTEXTUAL PHASE ESTIMATION: Fill in missing tjde_phase data
+        if tjde_phase is None or tjde_phase == 'unknown':
+            from .adaptive_thresholds import estimate_contextual_phase
+            spoofing_active = any('spoofing' in s['signal_name'].lower() and s['active'] for s in signals)
+            tjde_phase = estimate_contextual_phase(volume_24h, spoofing_active)
+            print(f"[PHASE ESTIMATION] tjde_phase estimated as: {tjde_phase} (volume: ${volume_24h:.0f}, spoofing: {spoofing_active})")
         
         # Sprawdź czy powinien być alert według dynamicznych progów
         should_alert = simulate_stealth_decision(stealth_score, volume_24h, tjde_phase)
         
-        # Decyzja na podstawie progów alertowych + tradycyjnych poziomów
+        # 🚀 WEAK ALERT SYSTEM: Check for weak but valuable signals
+        from .adaptive_thresholds import should_trigger_weak_alert
+        spoofing_active = any('spoofing' in s['signal_name'].lower() and s['active'] for s in signals)
+        weak_alert = should_trigger_weak_alert(stealth_score, volume_24h, spoofing_active)
+        
+        # Decyzja na podstawie progów alertowych + weak alert system
         if should_alert and stealth_score >= 0.5:
             decision = 'enter'
             confidence = base_confidence * 0.9  # Wysokie confidence dla qualified alerts
+        elif weak_alert:
+            decision = 'stealth_alert_weak'
+            confidence = base_confidence * 0.6  # Średnie confidence dla weak alerts
+            print(f"[WEAK ALERT] Triggered for score={stealth_score:.3f}, volume=${volume_24h:.0f}, spoofing={spoofing_active}")
         elif should_alert:
             decision = 'watch'  # Alert ale niższy score
             confidence = base_confidence * 0.8  # Średnie-wysokie confidence dla threshold alerts
