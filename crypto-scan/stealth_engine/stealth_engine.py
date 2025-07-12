@@ -22,39 +22,45 @@ from .stealth_weights import StealthWeightManager
 from .stealth_feedback import StealthFeedbackSystem
 
 
-def simulate_stealth_decision(score: float, volume_24h: float, tjde_phase: str = None) -> bool:
+def simulate_stealth_decision(score: float, volume_24h: float, tjde_phase: str = "unknown") -> bool:
     """
     Zwraca True jeśli powinien być wygenerowany alert Stealth.
-    Uwzględnia dynamiczne progi w zależności od płynności i fazy rynku.
+    Uwzględnia dynamiczne progi w zależności od płynności i fazy rynku z bonusem kontekstowym.
 
     Args:
         score: final stealth score
         volume_24h: 24-godzinny wolumen tokena  
-        tjde_phase: opcjonalna faza rynku z Trend Mode (np. 'accumulation', 'momentum')
+        tjde_phase: faza rynku z Trend Mode (domyślnie 'unknown')
         
     Returns:
         bool: True jeśli alert powinien być aktywowany
         
-    Logic:
-        - Podstawowy próg: 0.35
-        - Duży volume (>$10M): próg 0.40
-        - Mały volume (<$1M): próg 0.30  
-        - Bonus TJDE: accumulation/momentum + score >0.25 = aktywacja
+    Enhanced Logic:
+        - Podstawowy próg: 0.70 (wyższy dla lepszej selektywności)
+        - Duży volume (>$10M): próg pozostaje 0.70
+        - Mały volume (<$1M): próg obniżony do 0.65
+        - Bonus kontekstowy: +0.15 do score dla accumulation/momentum
+        - Obniżenie progu: -0.10 dla korzystnych faz (accumulation/momentum)
+        - Fallback: unknown/None = neutralne zachowanie
     """
-    # Podstawowy próg
-    threshold = 0.35
-
-    # Dostosowanie progu do wolumenu
-    if volume_24h > 10_000_000:
-        threshold = 0.40
-    elif volume_24h < 1_000_000:
-        threshold = 0.30
-
-    # Bonus: jeśli TJDE potwierdza fazę akumulacji lub momentum
-    if tjde_phase in ["accumulation", "momentum"] and score > 0.25:
-        return True
-
-    return score >= threshold
+    # Kopiuj pierwotny score dla modyfikacji
+    adjusted_score = score
+    
+    # Podstawowy próg (wyższy dla lepszej selektywności)
+    threshold = 0.70
+    
+    # Dostosowanie progu do wolumenu (mniejsze różnice)
+    if volume_24h < 1_000_000:
+        threshold = 0.65  # Nieco łagodniej dla małych tokenów
+    
+    # Bonus kontekstowy do score dla korzystnych faz rynku
+    if tjde_phase in ["accumulation", "momentum"]:
+        adjusted_score += 0.15  # Boost for stealth in favorable market context
+        threshold -= 0.10       # Obniżenie progu dla korzystnych faz (0.70 → 0.60)
+    elif tjde_phase == "unknown":
+        pass  # Neutralne zachowanie - bez bonusu ani kary
+    
+    return adjusted_score >= threshold
 
 
 @dataclass
@@ -379,48 +385,60 @@ class StealthEngine:
 
 def log_stealth_decision(symbol: str, stealth_score: float, volume_24h: float, tjde_phase: str, final_decision: str) -> None:
     """
-    Loguje szczegóły decyzji Stealth Engine z progami alertowymi
+    Loguje szczegóły decyzji Stealth Engine z ulepszonym systemem progów
     
     Args:
         symbol: Symbol tokena
         stealth_score: Obliczony stealth score
         volume_24h: Wolumen 24h tokena
-        tjde_phase: Faza rynku z TJDE
+        tjde_phase: Faza rynku z TJDE (domyślnie 'unknown')
         final_decision: Finalna decyzja systemu
     """
-    # Oblicz dynamiczny próg
-    threshold = 0.35
-    if volume_24h > 10_000_000:
-        threshold = 0.40
-    elif volume_24h < 1_000_000:
-        threshold = 0.30
+    # Obsłuż None jako 'unknown'
+    if tjde_phase is None:
+        tjde_phase = "unknown"
     
-    # Sprawdź bonus TJDE
-    tjde_bonus = tjde_phase in ["accumulation", "momentum"] and stealth_score > 0.25
-    should_alert = simulate_stealth_decision(stealth_score, volume_24h, tjde_phase)
+    # Oblicz bazowy próg i adjusted score zgodnie z nową logiką
+    adjusted_score = stealth_score
+    threshold = 0.70  # Nowy wyższy podstawowy próg
     
-    # Szczegółowy log
+    # Dostosowanie progu do wolumenu
+    if volume_24h < 1_000_000:
+        threshold = 0.65  # Nieco łagodniej dla małych tokenów
+    
+    # Bonus kontekstowy dla korzystnych faz
+    context_bonus = 0.0
+    threshold_reduction = 0.0
+    if tjde_phase in ["accumulation", "momentum"]:
+        context_bonus = 0.15  # Boost to score
+        threshold_reduction = 0.10  # Reduction to threshold
+        adjusted_score += context_bonus
+        threshold -= threshold_reduction
+    
+    # Sprawdź finalną decyzję
+    should_alert = adjusted_score >= threshold
+    
+    # Szczegółowy log z nowym formatem
     volume_str = f"${volume_24h/1_000_000:.1f}M" if volume_24h >= 1_000_000 else f"${volume_24h/1_000:.0f}k"
-    print(f"[STEALTH DECISION] {symbol}: score={stealth_score:.3f}, threshold={threshold:.2f}, volume={volume_str}")
-    print(f"[STEALTH DECISION] {symbol}: tjde_phase={tjde_phase}, tjde_bonus={tjde_bonus}, alert={should_alert} → {final_decision}")
+    print(f"[STEALTH DECISION] {symbol}: score={stealth_score:.3f}→{adjusted_score:.3f}, threshold={threshold:.2f}, volume={volume_str}")
+    print(f"[STEALTH DECISION] {symbol}: phase={tjde_phase}, context_bonus={context_bonus:.2f}, threshold_reduction={threshold_reduction:.2f}")
+    print(f"[STEALTH DECISION] {symbol}: alert={should_alert} → {final_decision}")
 
 
 def get_stealth_alert_threshold(volume_24h: float) -> float:
     """
-    Pobierz dynamiczny próg alertowy dla danego wolumenu
+    Pobierz bazowy próg alertowy dla danego wolumenu (bez bonusów kontekstowych)
     
     Args:
         volume_24h: Wolumen 24h tokena
         
     Returns:
-        float: Próg alertowy stealth_score
+        float: Bazowy próg alertowy stealth_score
     """
-    if volume_24h > 10_000_000:
-        return 0.40  # Duży token - wyższy próg
-    elif volume_24h < 1_000_000:
-        return 0.30  # Mały token - niższy próg
+    if volume_24h < 1_000_000:
+        return 0.65  # Mały token - nieco łagodniejszy próg
     else:
-        return 0.35  # Standardowy próg
+        return 0.70  # Standardowy/duży token - wyższy próg dla lepszej selektywności
 
 
 # Global instance dla łatwego importu
