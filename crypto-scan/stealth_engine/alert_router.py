@@ -346,19 +346,63 @@ def route_alert_with_priority(symbol: str, score: float, market_data: Dict,
         Dict: Kompletne dane alertu z priority
     """
     
-    # 1. Generuj tagi
-    tags = generate_alert_tags(symbol, market_data, stealth_signals, trust_score, trigger_detected)
+    # 🔧 TYPE SAFETY FIX: Ensure market_data is dict to prevent 'str' object has no attribute 'get' error
+    if not isinstance(market_data, dict):
+        print(f"[QUEUE PRIORITY ALERT] Error for {symbol}: market_data is {type(market_data)}, expected dict")
+        # Create minimal market_data dict from available data
+        market_data = {
+            "volume_24h": 0,
+            "price_usd": 0,
+            "price_change_24h": 0,
+            "dex_inflow": 0,
+            "orderbook": {}
+        }
     
-    # 2. Oblicz priority score
-    dex_inflow = market_data.get("dex_inflow", 0)
-    priority_score = compute_priority_score(score, tags, dex_inflow, trust_score, trigger_detected)
+    # 🔧 TYPE SAFETY FIX: Ensure stealth_signals is list 
+    if stealth_signals is not None and not isinstance(stealth_signals, list):
+        print(f"[QUEUE PRIORITY ALERT] Warning for {symbol}: stealth_signals is {type(stealth_signals)}, expected list")
+        stealth_signals = []
     
-    # 3. Utwórz dane alertu
-    alert_data = create_priority_alert_data(
-        symbol, score, priority_score, tags, market_data, trust_score, trigger_detected
-    )
-    
-    return alert_data
+    try:
+        # 1. Generuj tagi
+        tags = generate_alert_tags(symbol, market_data, stealth_signals, trust_score, trigger_detected)
+        
+        # 2. Oblicz priority score
+        dex_inflow = market_data.get("dex_inflow", 0)
+        priority_score = compute_priority_score(score, tags, dex_inflow, trust_score, trigger_detected)
+        
+        # 3. Utwórz dane alertu
+        alert_data = create_priority_alert_data(
+            symbol, score, priority_score, tags, market_data, trust_score, trigger_detected
+        )
+        
+        return alert_data
+        
+    except Exception as e:
+        print(f"[QUEUE PRIORITY ALERT] Error for {symbol}: {e}")
+        print(f"[QUEUE PRIORITY ALERT] market_data type: {type(market_data)}")
+        print(f"[QUEUE PRIORITY ALERT] stealth_signals type: {type(stealth_signals)}")
+        
+        # Return minimal alert data to prevent complete failure
+        return {
+            "symbol": symbol,
+            "score": score,
+            "priority_score": score,
+            "tags": ["error_recovery"],
+            "timestamp": time.time(),
+            "delay_seconds": 60,
+            "is_fast_track": False,
+            "fast_track_reason": "Error recovery mode",
+            "trust_score": trust_score,
+            "trigger_detected": trigger_detected,
+            "price_usd": 0,
+            "volume_24h": 0,
+            "price_change_24h": 0,
+            "dex_inflow": 0,
+            "ready_at": time.time() + 60,
+            "processed": False,
+            "error": str(e)
+        }
 
 
 def get_priority_stats() -> Dict:
