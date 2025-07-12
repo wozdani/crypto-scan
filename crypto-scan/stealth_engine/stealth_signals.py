@@ -191,6 +191,25 @@ class StealthSignalDetector:
         print(f"[DEBUG FLOW] {symbol} - get_active_stealth_signals() completed with {len(signals)} signals")
         return signals
     
+    def compute_adaptive_whale_threshold(self, volume_24h: float) -> float:
+        """
+        Oblicza adaptacyjny próg whale_ping na podstawie wolumenu 24h
+        
+        Args:
+            volume_24h: Wolumen 24h w USD
+            
+        Returns:
+            float: Adaptacyjny próg w USD (minimum $1000 lub 1% volume)
+        """
+        if not volume_24h or volume_24h <= 0:
+            return 1000.0  # Default minimum threshold
+        
+        # Minimum $1000 lub 1% volume jako dynamiczny próg
+        adaptive_threshold = max(1000.0, volume_24h * 0.01)
+        
+        # Cap na poziomie $50,000 dla bardzo dużych tokenów
+        return min(adaptive_threshold, 50000.0)
+
     def get_dynamic_whale_threshold(self, orderbook: dict) -> float:
         """
         Oblicza dynamiczny próg detekcji whale_ping w USD
@@ -264,19 +283,13 @@ class StealthSignalDetector:
             bids = orderbook.get("bids", [])
             asks = orderbook.get("asks", [])
             
-            # Pobierz średni wolumen 15m dla dynamicznego progu
-            candles_15m = token_data.get("candles_15m", [])
-            if candles_15m and len(candles_15m) > 0:
-                # Oblicz średni wolumen z ostatnich 15m świec
-                volumes = []
-                for candle in candles_15m[-8:]:  # ostatnie 8 świec
-                    if isinstance(candle, dict) and "volume" in candle:
-                        volumes.append(float(candle["volume"]))
-                    elif isinstance(candle, (list, tuple)) and len(candle) >= 6:
-                        volumes.append(float(candle[5]))  # volume jest na pozycji 5
-                avg_volume_15m = sum(volumes) / len(volumes) if volumes else 0
-            else:
-                avg_volume_15m = 0
+            # Pobierz wolumen 24h dla adaptacyjnego progu
+            volume_24h = token_data.get("volume_24h", 0)
+            if not volume_24h:
+                # Fallback - try z innych źródeł
+                volume_24h = token_data.get("volume", 0)
+                if not volume_24h:
+                    volume_24h = 0
             
             if not bids or not asks:
                 print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] INPUT → bids={len(bids)}, asks={len(asks)}, insufficient_data=True")
@@ -346,11 +359,11 @@ class StealthSignalDetector:
                 print(f"[STEALTH DEBUG] whale_ping for {symbol}: invalid ask structure after conversion: {type(asks[0])}, content: {asks[0]}")
                 return StealthSignal("whale_ping", False, 0.0)
             
-            # Oblicz dynamiczny próg na podstawie mediany wielkości zleceń
-            threshold = self.get_dynamic_whale_threshold(orderbook)
+            # Oblicz adaptacyjny próg na podstawie wolumenu 24h
+            threshold = self.compute_adaptive_whale_threshold(volume_24h)
             
-            # === MICROCAP ADAPTATION ===
-            # For tokens with very small max orders, adapt threshold
+            # === FILTR MAŁYCH ZLECEŃ ===
+            # Sprawdź maksymalne zlecenie przed dalszą analizą
             max_order_check = 0
             for bid in bids:
                 try:
@@ -369,62 +382,26 @@ class StealthSignalDetector:
                 except:
                     pass
             
-            if max_order_check < 200:  # Microcap token detection
-                # Use proportional threshold for micro tokens
-                adapted_threshold = max(50, max_order_check * 4)
-                print(f"[MICROCAP THRESHOLD] {symbol}: max_order=${max_order_check:.2f} → adapted threshold=${adapted_threshold:.2f} (was ${threshold:.2f})")
-                threshold = adapted_threshold
+            # Filtruj zbyt małe zlecenia - minimum 50% threshold
+            if max_order_check < threshold * 0.5:
+                print(f"[STEALTH] whale_ping skipped for {symbol} – order size too small for threshold (${threshold:.2f})")
+                return StealthSignal("whale_ping", False, 0.0)
             
-            # Oblicz wszystkie zlecenia USD
-            all_orders = []
-            for bid in bids:
-                try:
-                    price = float(bid[0])
-                    size = float(bid[1])
-                    usd_value = price * size
-                    all_orders.append({"price": price, "size": size, "usd_value": usd_value})
-                except (ValueError, TypeError, IndexError):
-                    continue
-            
-            for ask in asks:
-                try:
-                    price = float(ask[0])
-                    size = float(ask[1])
-                    usd_value = price * size
-                    all_orders.append({"price": price, "size": size, "usd_value": usd_value})
-                except (ValueError, TypeError, IndexError):
-                    continue
-            
-            # Znajdź największe zlecenie w USD
-            max_order_usd = max([o["usd_value"] for o in all_orders], default=0)
+            # max_order_usd już obliczone powyżej
+            max_order_usd = max_order_check
             
             # INPUT LOG - wszystkie dane wejściowe
-            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] INPUT → max_order_usd=${max_order_usd:.2f}, threshold=${threshold:.2f}, bids={len(bids)}, asks={len(asks)}")
+            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] INPUT → max_order_usd=${max_order_usd:.2f}, volume_24h=${volume_24h:.2f}, threshold=${threshold:.2f}, bids={len(bids)}, asks={len(asks)}")
             
-            # Warunek aktywacji z dynamicznym progiem
-            active = max_order_usd > threshold
+            # Warunek aktywacji z adaptacyjnym progiem
+            active = max_order_usd >= threshold
             
-            # Strength: max_order / (threshold * 2)
+            # Strength: proporcjonalny do przekroczenia progu
             strength = min(max_order_usd / (threshold * 2), 1.0) if threshold > 0 else 0.0
             
             # MID LOG - kluczowe obliczenia pośrednie
-            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MID → ratio={max_order_usd/threshold:.3f}, initial_strength={strength:.3f}")
-            
-            # 🔧 FIX: Microcap bonus przy niskim spread
-            # Dla tokenów z bardzo niskim spread (<0.3%) i małym max_order_usd, daj bonus aktywacyjny
-            if max_order_usd < 50 and len(bids) > 0 and len(asks) > 0:
-                try:
-                    best_bid = float(bids[0][0])
-                    best_ask = float(asks[0][0])
-                    spread_pct = (best_ask - best_bid) / best_bid * 100
-                    
-                    if spread_pct < 0.3:  # Bardzo niski spread
-                        # Aktywuj whale_ping z bonusem
-                        active = True
-                        strength = max(strength, 0.15)  # Minimum strength dla tight spread
-                        print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MICROCAP BONUS → spread={spread_pct:.3f}% <0.3%, activated with strength={strength:.3f}")
-                except:
-                    pass
+            ratio = max_order_usd / threshold if threshold > 0 else 0
+            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MID → ratio={ratio:.3f}, active={active}, strength={strength:.3f}")
             
             # REAL WHALE ADDRESS DETECTION - blockchain-based whale identification
             if active and max_order_usd > 0:
