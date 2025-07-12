@@ -323,13 +323,48 @@ class TelegramAlertManager:
             print(f"[TELEGRAM ALERT] Sending: {symbol}")
             print(f"[TELEGRAM ALERT] Message preview: {alert_text[:100]}...")
             
-            # TODO: Tutaj dodać prawdziwe wysyłanie na Telegram
-            # W tym momencie symulujemy sukces
+            # 📤 PRAWDZIWE WYSYŁANIE NA TELEGRAM
+            import requests
+            import os
+            from dotenv import load_dotenv
             
-            # Update 24h counter
-            self.stats["alerts_sent_24h"] = self.stats.get("alerts_sent_24h", 0) + 1
+            load_dotenv()
             
-            return True
+            bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
+            chat_id = os.getenv('TELEGRAM_CHAT_ID')
+            
+            if not bot_token or not chat_id:
+                print(f"[TELEGRAM ALERT] ❌ Missing Telegram credentials - bot_token: {'✓' if bot_token else '✗'}, chat_id: {'✓' if chat_id else '✗'}")
+                return False
+            
+            try:
+                # Escape Markdown special characters
+                escaped_text = alert_text.replace('*', '\\*').replace('_', '\\_').replace('[', '\\[').replace(']', '\\]').replace('(', '\\(').replace(')', '\\)')
+                
+                url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+                payload = {
+                    "chat_id": chat_id,
+                    "text": escaped_text,
+                    "parse_mode": "Markdown",
+                    "disable_web_page_preview": True
+                }
+                
+                response = requests.post(url, json=payload, timeout=10)
+                
+                if response.status_code == 200:
+                    print(f"[TELEGRAM ALERT] ✅ {symbol} → Alert sent successfully to Telegram")
+                    
+                    # Update 24h counter
+                    self.stats["alerts_sent_24h"] = self.stats.get("alerts_sent_24h", 0) + 1
+                    
+                    return True
+                else:
+                    print(f"[TELEGRAM ALERT] ❌ {symbol} → Telegram API error: {response.status_code} - {response.text}")
+                    return False
+                    
+            except Exception as telegram_error:
+                print(f"[TELEGRAM ALERT] ❌ {symbol} → Exception sending to Telegram: {telegram_error}")
+                return False
             
         except Exception as e:
             print(f"[TELEGRAM ALERT] Send error for {alert_data.get('symbol', 'UNKNOWN')}: {e}")
