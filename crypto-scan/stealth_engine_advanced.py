@@ -21,6 +21,7 @@ from gnn_anomaly_detector import detect_graph_anomalies
 from rl_agent import RLAgent
 from alert_manager import process_alert_decision, save_alert_history
 from gnn_data_exporter import GNNDataExporter
+from graph_visualizer import visualize_transaction_graph, create_anomaly_heatmap
 
 # Configuration
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -284,6 +285,32 @@ class StealthEngineAdvanced:
                 
                 if export_success:
                     logger.info(f"[GNN EXPORT] Training data exported for {symbol_for_rl} (suspicious: {suspicious_activity})")
+                
+                # Step 4.5: Generate graph visualization for debugging
+                try:
+                    # Generate graph visualization with anomaly scores
+                    graph_filename = visualize_transaction_graph(
+                        graph=graph_for_export,
+                        anomaly_scores=gnn_results['anomaly_scores'],
+                        token=symbol_for_rl,
+                        output_dir="graphs_output"
+                    )
+                    
+                    if graph_filename:
+                        logger.info(f"[GRAPH VIZ] Saved graph visualization: {graph_filename}")
+                    
+                    # Generate anomaly heatmap for detailed analysis
+                    heatmap_filename = create_anomaly_heatmap(
+                        anomaly_scores=gnn_results['anomaly_scores'],
+                        token=symbol_for_rl,
+                        output_dir="graphs_output"
+                    )
+                    
+                    if heatmap_filename:
+                        logger.info(f"[GRAPH VIZ] Saved anomaly heatmap: {heatmap_filename}")
+                        
+                except Exception as viz_e:
+                    logger.warning(f"[GRAPH VIZ] Failed to generate visualization: {viz_e}")
             
         except Exception as e:
             logger.error(f"[GNN EXPORT] Failed to export training data: {e}")
