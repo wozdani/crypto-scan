@@ -14,6 +14,7 @@ import networkx as nx
 import numpy as np
 from typing import Dict, List, Tuple, Any, Optional
 import logging
+from wallet_behavior_encoder import encode_wallet_behavior
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -95,38 +96,52 @@ class GNNAnomalyDetector:
         degree_matrix = np.diag(degree_inv_sqrt)
         adj_normalized = degree_matrix @ adj_matrix @ degree_matrix
         
-        # Extract enhanced node features: [total_tx_volume, in_degree, out_degree, degree_ratio, value_per_tx]
+        # Extract enhanced node features: [total_tx_volume, in_degree, out_degree] + behavioral_embedding
         node_features = []
         for node in nodes:
+            # Get node transactions for behavioral embedding
+            txs = []
+            for u, v, data in graph.edges(data=True):
+                if u == node or v == node:
+                    txs.append({
+                        "from": u, 
+                        "to": v, 
+                        "value": data.get("value", 0),
+                        "wallet": node
+                    })
+            
+            # Generate behavioral embedding (6-dimensional)
+            try:
+                behavioral_embedding = encode_wallet_behavior(txs)
+                # Convert to list if numpy array
+                if hasattr(behavioral_embedding, 'tolist'):
+                    behavioral_embedding = behavioral_embedding.tolist()
+            except Exception as e:
+                logger.warning(f"[GNN FEATURES] Failed to encode behavior for {node}: {e}")
+                # Fallback to zero embedding
+                behavioral_embedding = [0.0] * 6
+            
+            # Basic graph features
             attrs = graph.nodes[node]
             in_deg = attrs.get('in_degree', 0)
             out_deg = attrs.get('out_degree', 0)
             total_val = attrs.get('total_value', 0.0)
             
-            # Additional derived features for better anomaly detection
-            total_degree = in_deg + out_deg
-            degree_ratio = (out_deg - in_deg) / max(total_degree, 1)  # Balance indicator
-            value_per_tx = total_val / max(total_degree, 1)  # Average transaction size
-            
-            features = [
-                total_val,
-                in_deg,
-                out_deg,
-                degree_ratio,  # -1 (only incoming) to +1 (only outgoing)
-                value_per_tx   # Average value per transaction
-            ]
-            node_features.append(features)
+            # Combine basic features with behavioral embedding
+            # Result: [in_degree, out_degree, total_volume] + [6D behavioral embedding] = 9D features
+            combined_features = [float(in_deg), float(out_deg), float(total_val)] + list(behavioral_embedding)
+            node_features.append(combined_features)
         
         # Convert to tensors
         adj_tensor = torch.tensor(adj_normalized, dtype=torch.float32)
         features_tensor = torch.tensor(node_features, dtype=torch.float32)
         
-        # Feature normalization
+        # Feature normalization for combined features [in_degree, out_degree, total_volume] + [6D behavioral]
         if features_tensor.shape[0] > 0:
-            # Log-scale for transaction volume to handle large values
-            features_tensor[:, 0] = torch.log1p(features_tensor[:, 0])
+            # Log-scale for volume (index 2) to handle large values
+            features_tensor[:, 2] = torch.log1p(features_tensor[:, 2])
             
-            # Min-max normalization
+            # Min-max normalization for all features
             for i in range(features_tensor.shape[1]):
                 col = features_tensor[:, i]
                 if col.max() > col.min():
