@@ -20,6 +20,10 @@ args = "Crypto Scanner"
 task = "workflow.run"
 args = "Crypto Scanner Service"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "GNN Scheduler"
+
 [[workflows.workflow]]
 name = "Crypto Scanner"
 author = "agent"
@@ -36,6 +40,14 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd crypto-scan && python crypto_scan_service.py"
+
+[[workflows.workflow]]
+name = "GNN Scheduler"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd crypto-scan && python scheduler.py"
 
 [deployment]
 run = ["sh", "-c", "uv run python app.py"]

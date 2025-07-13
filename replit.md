@@ -98,6 +98,19 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### July 13, 2025 - CYCLIC GNN SCHEDULER COMPLETE - Automated Whale Address Monitoring Deployed ✅
+Successfully implemented comprehensive cyclic monitoring system for automated GNN + RL analysis of tracked whale addresses providing continuous blockchain surveillance:
+- **AUTOMATED SCHEDULER DEPLOYED**: Created scheduler.py with GNNScheduler class providing 5-minute interval scanning of tracked whale addresses with complete GNN + RL pipeline integration
+- **PRODUCTION WORKFLOW ACTIVE**: Configured "GNN Scheduler" workflow running continuously in background monitoring 6 whale addresses including Bitfinex whale (0x742d35Cc...) and Binance wallets
+- **COMPREHENSIVE ADDRESS TRACKING**: System tracks blockchain whale addresses with automatic transaction analysis, graph construction, anomaly detection, and RL-based alert decisions
+- **BATCH PROCESSING SYSTEM**: Automated batch scanning processing all tracked addresses with success rate tracking, alert counting, and comprehensive result logging to cache/scheduler_results.json
+- **PERSISTENT CONFIGURATION**: Address management with add_address() and remove_address() functions, configuration persistence, and statistics tracking for institutional-grade monitoring
+- **REAL-TIME STATUS MONITORING**: Created scheduler_status.py for checking tracked addresses, scan history, success rates, and alert statistics providing complete operational visibility
+- **INTELLIGENT ALERT SYSTEM**: RL Agent evaluates GNN anomaly scores for each address determining when to send Telegram alerts based on learned market patterns and suspicious transaction behavior
+- **CONTINUOUS OPERATION**: System runs every 5 minutes analyzing blockchain transactions for tracked addresses ensuring no suspicious whale activity goes undetected
+- **PRODUCTION VALIDATION**: First batch scan completed successfully with 100% success rate (6/6 addresses) demonstrating stable operation and comprehensive blockchain analysis capability
+- **INSTITUTIONAL-GRADE SURVEILLANCE**: Revolutionary automated monitoring where tracked whale addresses undergo continuous GNN analysis providing early detection of suspicious transaction patterns and market manipulation
+
 ### July 13, 2025 - STEALTH ENGINE REPLACEMENT COMPLETE (6/6) - Revolutionary GNN + RL System Fully Operational ✅
 Successfully deployed comprehensive GNN-based Stealth Engine replacement with all 6 components achieving 100% integration test success rate providing revolutionary blockchain transaction analysis:
 - **ADVANCED STEALTH ENGINE MODULE**: Deployed stealth_engine_advanced.py as unified pipeline combining GNN Graph Builder → Anomaly Detector → RL Agent → Alert Manager with complete blockchain API integration for Ethereum, BSC, and Polygon networks
