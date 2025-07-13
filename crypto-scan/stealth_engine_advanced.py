@@ -26,6 +26,7 @@ from wallet_behavior_encoder import (encode_advanced_wallet_behavior,
                                    analyze_wallet_behavior_complete,
                                    identify_whale_wallets)
 from whale_style_detector import WhaleStyleDetector
+from simulate_trader_decision_multi import simulate_trader_decision_multi, save_decision_training_data
 
 # Configuration
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -212,47 +213,166 @@ class StealthEngineAdvanced:
                 'timestamp': datetime.now().isoformat()
             }
         
-        # Step 2: RL Agent Decision
-        logger.info(f"[STEALTH ENGINE] Processing RL decision for anomaly scores")
+        # Step 2: Strategic Multi-Signal Decision Analysis
+        logger.info(f"[STEALTH ENGINE] Running strategic multi-signal decision analysis")
         symbol_for_rl = symbol or f"ADDR_{address[:8].upper()}"
         
-        # Extract anomaly scores as list
-        anomaly_scores_list = list(gnn_results['anomaly_scores'].values())
+        # Calculate GNN score (max anomaly score from graph analysis)
+        gnn_score = max(gnn_results['anomaly_scores'].values()) if gnn_results['anomaly_scores'] else 0.0
+        logger.info(f"[STRATEGIC ANALYSIS] GNN anomaly score: {gnn_score:.3f}")
         
-        rl_prediction = self.rl_agent.predict_alert(
-            anomaly_scores=anomaly_scores_list,
+        # Step 2.1: Analyze wallet behaviors for WhaleCLIP confidence
+        try:
+            transactions = self.fetch_transactions_from_blockchain(address, chain, limit=50)
+            if transactions:
+                # Encode wallet behavioral embeddings
+                behavioral_embeddings = []
+                for tx in transactions:
+                    # Create behavioral data from transaction
+                    wallet_data = {
+                        'from': tx.get('from', ''),
+                        'to': tx.get('to', ''),
+                        'value': float(tx.get('value', 0)),
+                        'timestamp': tx.get('timeStamp', ''),
+                        'hash': tx.get('hash', '')
+                    }
+                    embedding = encode_advanced_wallet_behavior([wallet_data])
+                    if embedding is not None:
+                        behavioral_embeddings.append(embedding)
+                
+                # Get whale classification confidence
+                if behavioral_embeddings:
+                    avg_embedding = [sum(x)/len(behavioral_embeddings) for x in zip(*behavioral_embeddings)]
+                    whale_results = self.whale_detector.predict_single([avg_embedding])
+                    whale_clip_conf = whale_results.get('confidence', 0.0)
+                    logger.info(f"[STRATEGIC ANALYSIS] WhaleCLIP confidence: {whale_clip_conf:.3f}")
+                else:
+                    whale_clip_conf = 0.0
+                    logger.warning(f"[STRATEGIC ANALYSIS] No behavioral embeddings available - using 0.0")
+            else:
+                whale_clip_conf = 0.0
+                logger.warning(f"[STRATEGIC ANALYSIS] No transactions for behavioral analysis - using 0.0")
+        except Exception as e:
+            logger.warning(f"[STRATEGIC ANALYSIS] Behavioral analysis failed: {e} - using 0.0")
+            whale_clip_conf = 0.0
+        
+        # Step 2.2: DEX inflow detection (simplified heuristic based on transaction patterns)
+        try:
+            dex_inflow_flag = False
+            if transactions:
+                # Simple heuristic: if >50% of transactions involve high-value transfers to known DEX patterns
+                high_value_txs = [tx for tx in transactions if float(tx.get('value', 0)) > 1000]  # >$1000
+                if len(high_value_txs) > len(transactions) * 0.3:  # >30% high-value transactions
+                    dex_inflow_flag = True
+                    logger.info(f"[STRATEGIC ANALYSIS] DEX inflow detected: {len(high_value_txs)}/{len(transactions)} high-value transactions")
+                else:
+                    logger.info(f"[STRATEGIC ANALYSIS] No significant DEX inflow: {len(high_value_txs)}/{len(transactions)} high-value transactions")
+            else:
+                logger.info(f"[STRATEGIC ANALYSIS] No transactions for DEX inflow analysis")
+        except Exception as e:
+            logger.warning(f"[STRATEGIC ANALYSIS] DEX inflow analysis failed: {e}")
+            dex_inflow_flag = False
+        
+        # Step 2.3: Strategic Decision Engine
+        logger.info(f"[STRATEGIC DECISION] Analyzing: GNN={gnn_score:.3f}, WhaleCLIP={whale_clip_conf:.3f}, DEX={dex_inflow_flag}")
+        
+        decision, final_score = simulate_trader_decision_multi(
+            gnn_score=gnn_score,
+            whale_clip_conf=whale_clip_conf,
+            dex_inflow_flag=dex_inflow_flag,
+            debug=True
+        )
+        
+        logger.info(f"[STRATEGIC DECISION] Result: {decision} (final score: {final_score:.3f})")
+        
+        # Save decision training data
+        save_decision_training_data(
+            gnn_score=gnn_score,
+            whale_clip_conf=whale_clip_conf,
+            dex_inflow_flag=dex_inflow_flag,
+            decision=decision,
+            final_score=final_score,
             symbol=symbol_for_rl
         )
         
-        # Step 3: Alert Decision & Telegram
-        if rl_prediction['should_alert']:
-            logger.info(f"[STEALTH ENGINE] RL decision: ALERT - processing Telegram notification")
+        # Step 3: Alert Decision & Telegram based on strategic score
+        alert_threshold = 0.7  # Send alert if strategic score >= 0.7
+        
+        if final_score >= alert_threshold:
+            logger.info(f"[STEALTH ENGINE] Strategic decision: ALERT ({final_score:.3f} >= {alert_threshold}) - sending Telegram notification")
             
-            # Prepare market data for alert
-            market_data = {
-                'address': address,
-                'chain': chain,
-                'transaction_count': gnn_results['transaction_count'],
-                'graph_nodes': gnn_results['graph_stats'].get('nodes', 0),
-                'graph_edges': gnn_results['graph_stats'].get('edges', 0),
-                'analysis_timestamp': gnn_results['timestamp']
-            }
+            # Prepare enhanced alert message with strategic analysis
+            message = f"""🚨 [STEALTH ENGINE STRATEGIC ALERT]
+💎 Address: {address[:10]}...{address[-8:]}
+🌐 Chain: {chain.upper()}
+📊 GNN Anomaly Score: {gnn_score:.3f}
+👤 WhaleCLIP Confidence: {whale_clip_conf:.3f}
+🌊 DEX Inflow Detected: {'✅' if dex_inflow_flag else '❌'}
+🧠 Strategic Decision: {decision}
+🔥 Final Score: {final_score:.2f}
+⏰ Time: {datetime.now().strftime('%H:%M:%S UTC')}
+
+📈 Graph Analysis:
+• Nodes: {gnn_results['graph_stats'].get('nodes', 0)}
+• Edges: {gnn_results['graph_stats'].get('edges', 0)}
+• Transactions: {gnn_results['transaction_count']}
+            """
             
-            alert_result = process_alert_decision(
-                symbol=symbol_for_rl,
-                anomaly_scores=gnn_results['anomaly_scores'],
-                rl_agent=self.rl_agent,
-                market_data=market_data,
-                token=TELEGRAM_BOT_TOKEN,
-                chat_id=TELEGRAM_CHAT_ID
-            )
+            # Send Telegram alert
+            try:
+                if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID:
+                    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+                    payload = {
+                        'chat_id': TELEGRAM_CHAT_ID,
+                        'text': message,
+                        'parse_mode': 'Markdown'
+                    }
+                    response = requests.post(url, json=payload, timeout=10)
+                    
+                    if response.status_code == 200:
+                        alert_result = {
+                            'alert_sent': True,
+                            'decision': decision,
+                            'final_score': final_score,
+                            'strategic_analysis': {
+                                'gnn_score': gnn_score,
+                                'whale_clip_conf': whale_clip_conf,
+                                'dex_inflow_flag': dex_inflow_flag
+                            }
+                        }
+                        logger.info(f"[TELEGRAM] Strategic alert sent successfully for {symbol_for_rl}")
+                    else:
+                        logger.error(f"[TELEGRAM] Failed to send alert: {response.status_code}")
+                        alert_result = {'alert_sent': False, 'reason': 'telegram_api_error'}
+                else:
+                    logger.warning(f"[TELEGRAM] Missing credentials - alert not sent")
+                    alert_result = {'alert_sent': False, 'reason': 'missing_credentials'}
+                    
+            except Exception as e:
+                logger.error(f"[TELEGRAM] Error sending strategic alert: {e}")
+                alert_result = {'alert_sent': False, 'reason': f'telegram_error: {e}'}
         else:
-            logger.info(f"[STEALTH ENGINE] RL decision: HOLD - no alert needed")
+            logger.info(f"[STEALTH ENGINE] Strategic decision: HOLD ({final_score:.3f} < {alert_threshold}) - no alert needed")
             alert_result = {
                 'alert_sent': False,
-                'reason': 'rl_decision_hold',
-                'confidence': rl_prediction['confidence']
+                'reason': 'strategic_score_below_threshold',
+                'decision': decision,
+                'final_score': final_score,
+                'strategic_analysis': {
+                    'gnn_score': gnn_score,
+                    'whale_clip_conf': whale_clip_conf,
+                    'dex_inflow_flag': dex_inflow_flag
+                }
             }
+        
+        # Update legacy RL prediction format for compatibility
+        rl_prediction = {
+            'should_alert': final_score >= alert_threshold,
+            'confidence': final_score,
+            'action': 1 if final_score >= alert_threshold else 0,
+            'strategic_decision': decision,
+            'strategic_score': final_score
+        }
         
         # Step 4: Export training data (GNN + RL + outcome)
         try:
