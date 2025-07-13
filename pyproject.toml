@@ -23,6 +23,7 @@ dependencies = [
     "torchvision>=0.22.1",
     "playwright>=1.53.0",
     "pytesseract>=0.3.13",
+    "scikit-learn>=1.7.0",
 ]
 
 [[tool.uv.index]]

@@ -25,6 +25,7 @@ from graph_visualizer import visualize_transaction_graph, create_anomaly_heatmap
 from wallet_behavior_encoder import (encode_advanced_wallet_behavior, 
                                    analyze_wallet_behavior_complete,
                                    identify_whale_wallets)
+from whale_style_detector import WhaleStyleDetector
 
 # Configuration
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -46,6 +47,7 @@ class StealthEngineAdvanced:
         """Initialize the advanced stealth engine"""
         self.rl_agent = RLAgent()
         self.gnn_exporter = GNNDataExporter()
+        self.whale_detector = WhaleStyleDetector(model_type='rf')  # Use RandomForest for production
         self.api_keys = {
             'ethereum': ETHERSCAN_API_KEY,
             'bsc': BSCSCAN_API_KEY,
@@ -432,18 +434,29 @@ class StealthEngineAdvanced:
         logger.info("[BEHAVIOR ANALYSIS] Running complete behavioral analysis")
         complete_analysis = analyze_wallet_behavior_complete(transactions_by_wallet)
         
-        # Step 4: Enhanced analysis with GNN anomaly scores correlation
+        # Step 4: Enhanced analysis with GNN anomaly scores correlation and ML whale classification
         gnn_behavior_correlation = {}
+        whale_style_predictions = {}
+        
         for wallet_addr in wallet_addresses:
             try:
                 # Get GNN anomaly analysis for this wallet
                 gnn_result = self.analyze_address_with_gnn(wallet_addr, chain)
                 
+                # Find wallet embedding for ML whale style detection
+                wallet_index = wallet_addresses.index(wallet_addr)
+                wallet_embedding = embeddings[wallet_index]
+                
+                # ML-based whale style prediction
+                try:
+                    whale_style_result = self.whale_detector.analyze_wallet_comprehensive(wallet_embedding)
+                    whale_style_predictions[wallet_addr] = whale_style_result
+                    logger.info(f"[WHALE ML] {wallet_addr[:10]}... → ML whale style: {whale_style_result.get('whale_analysis', {}).get('is_whale', 'unknown')}")
+                except Exception as ml_e:
+                    logger.warning(f"[WHALE ML] Failed ML prediction for {wallet_addr}: {ml_e}")
+                    whale_style_predictions[wallet_addr] = {'error': str(ml_e)}
+                
                 if gnn_result['status'] == 'success':
-                    # Find wallet embedding
-                    wallet_index = wallet_addresses.index(wallet_addr)
-                    wallet_embedding = embeddings[wallet_index]
-                    
                     # Correlate behavioral embedding with anomaly scores
                     max_anomaly_score = max(gnn_result['anomaly_scores'].values()) if gnn_result['anomaly_scores'] else 0
                     
@@ -452,11 +465,13 @@ class StealthEngineAdvanced:
                         'max_anomaly_score': max_anomaly_score,
                         'anomaly_addresses': len(gnn_result['anomaly_scores']),
                         'transaction_count': gnn_result['transaction_count'],
+                        'whale_style_prediction': whale_style_predictions[wallet_addr],
                         'gnn_status': 'success'
                     }
                 else:
                     gnn_behavior_correlation[wallet_addr] = {
                         'behavioral_embedding': embeddings[wallet_addresses.index(wallet_addr)].tolist(),
+                        'whale_style_prediction': whale_style_predictions[wallet_addr],
                         'gnn_status': 'failed',
                         'reason': gnn_result['status']
                     }
@@ -464,22 +479,35 @@ class StealthEngineAdvanced:
             except Exception as e:
                 logger.error(f"[BEHAVIOR ANALYSIS] Error correlating GNN for {wallet_addr}: {e}")
         
-        # Step 5: Enhanced whale detection using both behavioral and GNN features
+        # Step 5: Enhanced whale detection using behavioral, GNN, and ML whale classification
         enhanced_whale_wallets = []
         for whale_info in complete_analysis.get('whale_wallets', []):
             wallet_addr = whale_info['wallet']
             gnn_info = gnn_behavior_correlation.get(wallet_addr, {})
+            whale_style_pred = whale_style_predictions.get(wallet_addr, {})
             
-            # Enhanced whale score combining behavioral and anomaly features
+            # Enhanced whale score combining behavioral, anomaly, and ML features
             behavioral_score = whale_info['whale_score']
             anomaly_bonus = gnn_info.get('max_anomaly_score', 0) * 0.2  # 20% weight to anomaly
             
-            enhanced_score = min(1.0, behavioral_score + anomaly_bonus)
+            # ML whale classification contribution
+            ml_whale_confidence = 0
+            ml_whale_type = 'unknown'
+            if whale_style_pred and 'whale_analysis' in whale_style_pred:
+                ml_whale_confidence = whale_style_pred['whale_analysis'].get('whale_confidence', 0)
+                ml_whale_type = whale_style_pred.get('type_analysis', {}).get('predicted_type', 'unknown')
+            
+            ml_bonus = ml_whale_confidence * 0.15  # 15% weight to ML classification
+            
+            enhanced_score = min(1.0, behavioral_score + anomaly_bonus + ml_bonus)
             
             enhanced_whale_wallets.append({
                 **whale_info,
                 'enhanced_whale_score': enhanced_score,
                 'anomaly_contribution': anomaly_bonus,
+                'ml_whale_contribution': ml_bonus,
+                'ml_whale_confidence': ml_whale_confidence,
+                'ml_whale_type': ml_whale_type,
                 'gnn_anomaly_score': gnn_info.get('max_anomaly_score', 0),
                 'behavior_only_score': behavioral_score
             })
@@ -495,10 +523,17 @@ class StealthEngineAdvanced:
             'behavioral_clustering': complete_analysis.get('clustering', {}),
             'whale_wallets_behavioral': complete_analysis.get('whale_wallets', []),
             'whale_wallets_enhanced': enhanced_whale_wallets,
+            'whale_style_predictions': whale_style_predictions,
             'gnn_behavior_correlation': gnn_behavior_correlation,
             'embeddings_summary': {
                 'dimension': len(embeddings[0]) if embeddings else 0,
                 'wallet_count': len(embeddings)
+            },
+            'ml_whale_summary': {
+                'predictions_made': len(whale_style_predictions),
+                'successful_predictions': len([p for p in whale_style_predictions.values() if 'whale_analysis' in p]),
+                'whale_predictions': len([p for p in whale_style_predictions.values() 
+                                        if p.get('whale_analysis', {}).get('is_whale', False)])
             },
             'analysis_timestamp': datetime.now().isoformat(),
             'chain': chain
@@ -517,9 +552,12 @@ class StealthEngineAdvanced:
         whale_count_behavioral = len(complete_analysis.get('whale_wallets', []))
         whale_count_enhanced = len(enhanced_whale_wallets)
         cluster_count = complete_analysis.get('clustering', {}).get('n_clusters', 0)
+        ml_predictions = behavior_analysis_result['ml_whale_summary']['predictions_made']
+        ml_whales = behavior_analysis_result['ml_whale_summary']['whale_predictions']
         
         logger.info(f"[BEHAVIOR ANALYSIS] Complete: {whale_count_behavioral} behavioral whales, "
                    f"{whale_count_enhanced} enhanced whales, {cluster_count} clusters")
+        logger.info(f"[ML WHALE ANALYSIS] ML predictions: {ml_predictions}, ML whales detected: {ml_whales}")
         
         return behavior_analysis_result
     
