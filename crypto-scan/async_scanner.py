@@ -409,14 +409,22 @@ class AsyncCryptoScanner:
                     try:
                         from stealth_engine.telegram_alert_manager import queue_priority_alert
                         
-                        # Queue PPWCS alert with priority scoring
+                        # Extract active functions from PPWCS analysis
+                        active_functions = [f"ppwcs_{final_score:.1f}"]
+                        gpt_feedback = f"PPWCS Score: {final_score:.1f}"
+                        ai_confidence = final_score / 100.0  # Convert to 0-1 scale
+                        
+                        # Queue PPWCS alert with priority scoring and enhanced data
                         ppwcs_queued = queue_priority_alert(
                             symbol=symbol,
                             score=final_score,
                             market_data=market_data,
                             stealth_signals=[],
                             trust_score=0.0,
-                            trigger_detected=False
+                            trigger_detected=False,
+                            active_functions=active_functions,
+                            gpt_feedback=gpt_feedback,
+                            ai_confidence=ai_confidence
                         )
                         
                         if ppwcs_queued:

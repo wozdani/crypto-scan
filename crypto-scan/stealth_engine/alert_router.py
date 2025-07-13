@@ -191,6 +191,30 @@ def generate_alert_tags(symbol: str, market_data: Dict, stealth_signals: List[Di
     return tags
 
 
+def extract_active_functions(stealth_signals: List[Dict]) -> List[str]:
+    """
+    🔍 Wyciągnij nazwy aktywnych funkcji z sygnałów stealth
+    
+    Args:
+        stealth_signals: Lista sygnałów stealth
+        
+    Returns:
+        List[str]: Lista nazw aktywnych funkcji
+    """
+    active_functions = []
+    
+    if not stealth_signals:
+        return active_functions
+    
+    for signal in stealth_signals:
+        if signal.get("active", False):
+            signal_name = signal.get("signal_name", "")
+            if signal_name:
+                active_functions.append(signal_name)
+    
+    return active_functions
+
+
 def should_fast_track_alert(priority_score: float, tags: List[str], 
                            trust_score: float = 0.0) -> Tuple[bool, str]:
     """
@@ -273,7 +297,10 @@ def calculate_alert_delay(priority_score: float, tags: List[str],
 def create_priority_alert_data(symbol: str, score: float, priority_score: float,
                               tags: List[str], market_data: Dict,
                               trust_score: float = 0.0, 
-                              trigger_detected: bool = False) -> Dict:
+                              trigger_detected: bool = False,
+                              active_functions: List[str] = None,
+                              gpt_feedback: str = "",
+                              ai_confidence: float = 0.0) -> Dict:
     """
     📦 Utwórz kompletne dane alertu z priority scoring
     
@@ -308,6 +335,11 @@ def create_priority_alert_data(symbol: str, score: float, priority_score: float,
         "trust_score": trust_score,
         "trigger_detected": trigger_detected,
         
+        # Active functions and AI feedback for enhanced Telegram alerts
+        "active_functions": active_functions or [],
+        "gpt_feedback": gpt_feedback,
+        "ai_confidence": ai_confidence,
+        
         # Market data summary
         "price_usd": market_data.get("price_usd", 0),
         "volume_24h": market_data.get("volume_24h", 0),
@@ -330,7 +362,10 @@ def create_priority_alert_data(symbol: str, score: float, priority_score: float,
 def route_alert_with_priority(symbol: str, score: float, market_data: Dict,
                              stealth_signals: List[Dict] = None,
                              trust_score: float = 0.0, 
-                             trigger_detected: bool = False) -> Dict:
+                             trigger_detected: bool = False,
+                             active_functions: List[str] = None,
+                             gpt_feedback: str = "",
+                             ai_confidence: float = 0.0) -> Dict:
     """
     🎯 Kompletna funkcja routingu alertu z priority scoring
     
@@ -367,13 +402,18 @@ def route_alert_with_priority(symbol: str, score: float, market_data: Dict,
         # 1. Generuj tagi
         tags = generate_alert_tags(symbol, market_data, stealth_signals, trust_score, trigger_detected)
         
+        # 1.5. Ekstrakcja active_functions z stealth_signals jeśli nie podano
+        if active_functions is None and stealth_signals:
+            active_functions = extract_active_functions(stealth_signals)
+        
         # 2. Oblicz priority score
         dex_inflow = market_data.get("dex_inflow", 0)
         priority_score = compute_priority_score(score, tags, dex_inflow, trust_score, trigger_detected)
         
-        # 3. Utwórz dane alertu
+        # 3. Utwórz dane alertu z active_functions i GPT feedback
         alert_data = create_priority_alert_data(
-            symbol, score, priority_score, tags, market_data, trust_score, trigger_detected
+            symbol, score, priority_score, tags, market_data, trust_score, trigger_detected,
+            active_functions, gpt_feedback, ai_confidence
         )
         
         return alert_data

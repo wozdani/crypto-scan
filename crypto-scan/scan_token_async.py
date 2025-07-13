@@ -466,14 +466,29 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         try:
                             from stealth_engine.telegram_alert_manager import queue_priority_alert
                             
-                            # Queue Stealth alert with priority scoring
+                            # Extract active function names from stealth signals
+                            active_functions = []
+                            for signal in active_signals:
+                                if signal.get("active", False):
+                                    signal_name = signal.get("signal_name", "")
+                                    if signal_name:
+                                        active_functions.append(signal_name)
+                            
+                            # Get GPT feedback if available
+                            gpt_feedback = market_data.get("gpt_feedback", "")
+                            ai_confidence = market_data.get("ai_confidence", 0.0)
+                            
+                            # Queue Stealth alert with priority scoring and enhanced data
                             stealth_queued = queue_priority_alert(
                                 symbol=symbol,
                                 score=stealth_score,
                                 market_data=market_data,
                                 stealth_signals=active_signals,
                                 trust_score=market_data.get("trust_score", 0.0),
-                                trigger_detected=market_data.get("trigger_detected", False)
+                                trigger_detected=market_data.get("trigger_detected", False),
+                                active_functions=active_functions,
+                                gpt_feedback=gpt_feedback,
+                                ai_confidence=ai_confidence
                             )
                             
                             if stealth_queued:
@@ -1251,14 +1266,33 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     try:
                         from stealth_engine.telegram_alert_manager import queue_priority_alert
                         
-                        # Queue TJDE alert with priority scoring
+                        # Extract active function names from TJDE analysis
+                        stealth_signals = market_data.get("stealth_signals", [])
+                        active_functions = []
+                        for signal in stealth_signals:
+                            if signal.get("active", False):
+                                signal_name = signal.get("signal_name", "")
+                                if signal_name:
+                                    active_functions.append(signal_name)
+                        
+                        # Add TJDE decision as primary function
+                        active_functions.append(f"tjde_{enhanced_decision}")
+                        
+                        # Get GPT feedback if available
+                        gpt_feedback = market_data.get("gpt_feedback", f"TJDE Score: {tjde_score:.3f} - {enhanced_decision}")
+                        ai_confidence = market_data.get("ai_confidence", tjde_score)
+                        
+                        # Queue TJDE alert with priority scoring and enhanced data
                         tjde_queued = queue_priority_alert(
                             symbol=symbol,
                             score=tjde_score,
                             market_data=market_data,
-                            stealth_signals=market_data.get("stealth_signals", []),
+                            stealth_signals=stealth_signals,
                             trust_score=market_data.get("trust_score", 0.0),
-                            trigger_detected=market_data.get("trigger_detected", False)
+                            trigger_detected=market_data.get("trigger_detected", False),
+                            active_functions=active_functions,
+                            gpt_feedback=gpt_feedback,
+                            ai_confidence=ai_confidence
                         )
                         
                         if tjde_queued:

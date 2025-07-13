@@ -276,7 +276,7 @@ class TelegramAlertManager:
         """
         
         try:
-            # 🔔 Sformatuj wiadomość alertu
+            # 🔔 Sformatuj wiadomość alertu z rozszerzonymi informacjami
             symbol = alert_data.get("symbol", "UNKNOWN")
             score = alert_data.get("score", 0)
             priority_score = alert_data.get("priority_score", 0)
@@ -286,37 +286,102 @@ class TelegramAlertManager:
             # Base alert message
             alert_text = f"🚨 [{symbol}] Score: {score:.2f} | Priority: {priority_score:.2f}"
             
-            # Add price info
+            # 💰 ENHANCED PRICE INFO - więcej szczegółów
             price_usd = alert_data.get("price_usd", 0)
             price_change = alert_data.get("price_change_24h", 0)
             if price_usd > 0:
-                alert_text += f"\n💰 Price: ${price_usd:.6f} ({price_change:+.1f}%)"
+                # Format price with appropriate decimals
+                if price_usd >= 1:
+                    price_str = f"${price_usd:.4f}"
+                elif price_usd >= 0.01:
+                    price_str = f"${price_usd:.6f}"
+                else:
+                    price_str = f"${price_usd:.8f}"
+                
+                alert_text += f"\n💰 Current Price: {price_str}"
+                if price_change != 0:
+                    change_emoji = "📈" if price_change > 0 else "📉"
+                    alert_text += f" {change_emoji} {price_change:+.2f}%"
             
-            # Add volume info
+            # 🔧 ACTIVE FUNCTIONS - które funkcje aktywowały alert
+            active_functions = alert_data.get("active_functions", [])
+            if active_functions:
+                # Formatuj nazwy funkcji na bardziej czytelne
+                function_names = []
+                for func in active_functions[:5]:  # Max 5 funkcji
+                    if func == "whale_ping":
+                        function_names.append("🐋 Whale Activity")
+                    elif func == "dex_inflow":
+                        function_names.append("💧 DEX Inflow")
+                    elif func == "spoofing_layers":
+                        function_names.append("🎭 Spoofing")
+                    elif func == "volume_spike":
+                        function_names.append("📈 Volume Spike")
+                    elif func == "ghost_orders":
+                        function_names.append("👻 Ghost Orders")
+                    elif func == "ask_wall_removal":
+                        function_names.append("🧱 Wall Removal")
+                    elif func == "liquidity_absorption":
+                        function_names.append("🌊 Liquidity Absorption")
+                    elif func == "repeated_address_boost":
+                        function_names.append("🔄 Repeat Addresses")
+                    elif func == "velocity_boost":
+                        function_names.append("⚡ Address Velocity")
+                    elif func == "large_bid_walls_stealth":
+                        function_names.append("🏗️ Large Walls")
+                    else:
+                        function_names.append(f"🔍 {func.replace('_', ' ').title()}")
+                
+                alert_text += f"\n🔧 Active Signals: {', '.join(function_names)}"
+            
+            # 📊 MARKET DATA
             volume_24h = alert_data.get("volume_24h", 0)
             if volume_24h > 0:
-                alert_text += f"\n📊 Volume: ${volume_24h:,.0f}"
+                if volume_24h >= 1000000:
+                    volume_str = f"${volume_24h/1000000:.1f}M"
+                elif volume_24h >= 1000:
+                    volume_str = f"${volume_24h/1000:.0f}K"
+                else:
+                    volume_str = f"${volume_24h:,.0f}"
+                alert_text += f"\n📊 24h Volume: {volume_str}"
             
-            # Add DEX inflow
+            # 🔄 DEX INFLOW
             dex_inflow = alert_data.get("dex_inflow", 0)
             if dex_inflow > 0:
-                alert_text += f"\n🔄 DEX Inflow: ${dex_inflow:,.0f}"
+                if dex_inflow >= 1000000:
+                    inflow_str = f"${dex_inflow/1000000:.1f}M"
+                elif dex_inflow >= 1000:
+                    inflow_str = f"${dex_inflow/1000:.0f}K"
+                else:
+                    inflow_str = f"${dex_inflow:,.0f}"
+                alert_text += f"\n🔄 DEX Inflow: {inflow_str}"
             
-            # Add trust score info
+            # 🧠 AI FEEDBACK - GPT-4o analysis
+            gpt_feedback = alert_data.get("gpt_feedback", "")
+            ai_confidence = alert_data.get("ai_confidence", 0)
+            if gpt_feedback:
+                # Skróć feedback do max 150 znaków dla Telegram
+                if len(gpt_feedback) > 150:
+                    gpt_feedback = gpt_feedback[:147] + "..."
+                alert_text += f"\n🤖 GPT-4o: {gpt_feedback}"
+                if ai_confidence > 0:
+                    alert_text += f" (Confidence: {ai_confidence:.0%})"
+            
+            # 🧠 TRUST SCORE
             if trust_score > 0:
-                alert_text += f"\n🧠 Trust Score: {trust_score:.1%}"
+                alert_text += f"\n🧠 Trust Score: {trust_score:.0%}"
             
-            # Add tags
+            # 🏷️ TAGS
             if tags:
-                formatted_tags = " ".join([f"#{tag}" for tag in tags[:5]])  # Max 5 tagów
+                formatted_tags = " ".join([f"#{tag}" for tag in tags[:4]])  # Max 4 tagi
                 alert_text += f"\n🏷️ {formatted_tags}"
             
-            # Fast-track indicator
+            # ⚡ FAST-TRACK
             if alert_data.get("is_fast_track", False):
                 fast_track_reason = alert_data.get("fast_track_reason", "High priority")
                 alert_text += f"\n⚡ FAST-TRACK: {fast_track_reason}"
             
-            # Stage 7 trigger indicator
+            # 🎯 SMART MONEY
             if alert_data.get("trigger_detected", False):
                 alert_text += f"\n🎯 SMART MONEY DETECTED"
             
@@ -510,7 +575,10 @@ def get_telegram_manager() -> TelegramAlertManager:
 
 def queue_priority_alert(symbol: str, score: float, market_data: Dict,
                         stealth_signals: List[Dict] = None,
-                        trust_score: float = 0.0, trigger_detected: bool = False) -> bool:
+                        trust_score: float = 0.0, trigger_detected: bool = False,
+                        active_functions: List[str] = None,
+                        gpt_feedback: str = "",
+                        ai_confidence: float = 0.0) -> bool:
     """
     🎯 Convenience function: Dodaj alert z priority scoring do kolejki
     
@@ -529,9 +597,10 @@ def queue_priority_alert(symbol: str, score: float, market_data: Dict,
     try:
         from .alert_router import route_alert_with_priority
         
-        # Generate priority alert data
+        # Generate priority alert data with enhanced information
         alert_data = route_alert_with_priority(
-            symbol, score, market_data, stealth_signals, trust_score, trigger_detected
+            symbol, score, market_data, stealth_signals, trust_score, trigger_detected,
+            active_functions, gpt_feedback, ai_confidence
         )
         
         # Add to queue
