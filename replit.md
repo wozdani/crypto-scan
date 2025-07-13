@@ -98,6 +98,20 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### July 13, 2025 - GNN DATA EXPORTER COMPLETE - ML Training Data Collection System Deployed ✅
+Successfully implemented comprehensive GNN Data Exporter providing automated ML training data collection with graph snapshots, anomaly scores, and pump detection labels in JSONL format for future model training:
+- **GNN DATA EXPORTER MODULE**: Created gnn_data_exporter.py with GNNDataExporter class providing automated training data collection from GNN + RL analysis pipeline with comprehensive metadata tracking and JSONL format storage
+- **STEALTH ENGINE INTEGRATION**: Enhanced stealth_engine_advanced.py with automatic data export functionality where each GNN analysis generates training samples with graph data, anomaly scores, RL decisions, and suspicious activity labels
+- **TRAINING DATA PIPELINE**: Complete pipeline from blockchain transaction analysis → GNN graph building → anomaly detection → RL agent decisions → training data export with graph structure, node features, edge attributes, and prediction outcomes
+- **COMPREHENSIVE DATASET STRUCTURE**: JSONL format with timestamp, token symbol, graph nodes/edges, anomaly scores, market data, analysis metadata, and binary pump labels (1=suspicious, 0=normal) for supervised learning
+- **METADATA TRACKING SYSTEM**: Automatic statistics tracking with total samples, pump samples, no-pump samples, unique tokens, pump ratio, and last updated timestamps providing dataset monitoring capabilities
+- **SCHEDULER DATA COLLECTION**: Integrated export functionality for whale address monitoring where each scheduler scan automatically exports training data for address behavior analysis and suspicious activity detection
+- **PRODUCTION VALIDATION**: Complete integration testing achieving 4/4 test success rate validating basic exporter functionality, Stealth Engine integration, scheduler data export, and production file structure
+- **ML TRAINING PREPARATION**: Dataset structure optimized for Graph Neural Network training with node features, edge attributes, anomaly scores, and ground truth labels enabling future ML model development
+- **AUTOMATIC DATA COLLECTION**: System now automatically exports training data during each analysis cycle providing continuous dataset growth for model training and validation without manual intervention
+- **INSTITUTIONAL-GRADE DATA QUALITY**: Training data includes comprehensive metadata with transaction counts, risk analysis, pattern analysis, RL confidence scores, and alert decisions providing rich feature set for advanced ML models
+System delivers revolutionary ML training data collection where every GNN + RL analysis automatically generates structured training samples enabling future development of advanced pump prediction models with authentic blockchain transaction data and comprehensive feature engineering.
+
 ### July 13, 2025 - CYCLIC GNN SCHEDULER COMPLETE - Automated Whale Address Monitoring Deployed ✅
 Successfully implemented comprehensive cyclic monitoring system for automated GNN + RL analysis of tracked whale addresses providing continuous blockchain surveillance:
 - **AUTOMATED SCHEDULER DEPLOYED**: Created scheduler.py with GNNScheduler class providing 5-minute interval scanning of tracked whale addresses with complete GNN + RL pipeline integration

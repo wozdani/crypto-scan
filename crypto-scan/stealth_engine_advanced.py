@@ -20,6 +20,7 @@ from gnn_graph_builder import build_transaction_graph
 from gnn_anomaly_detector import detect_graph_anomalies
 from rl_agent import RLAgent
 from alert_manager import process_alert_decision, save_alert_history
+from gnn_data_exporter import GNNDataExporter
 
 # Configuration
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -40,6 +41,7 @@ class StealthEngineAdvanced:
     def __init__(self):
         """Initialize the advanced stealth engine"""
         self.rl_agent = RLAgent()
+        self.gnn_exporter = GNNDataExporter()
         self.api_keys = {
             'ethereum': ETHERSCAN_API_KEY,
             'bsc': BSCSCAN_API_KEY,
@@ -246,7 +248,47 @@ class StealthEngineAdvanced:
                 'confidence': rl_prediction['confidence']
             }
         
-        # Step 4: Compile final results
+        # Step 4: Export training data (GNN + RL + outcome)
+        try:
+            # Fetch transactions again for data export (could be optimized by storing in gnn_results)
+            transactions = self.fetch_transactions_from_blockchain(address, chain)
+            
+            if transactions:
+                # Determine if suspicious activity occurred (placeholder logic)
+                # In production, this could check for actual pump detection within time window
+                suspicious_activity = any(score > 0.7 for score in gnn_results['anomaly_scores'].values())
+                
+                # Build graph for export
+                graph_for_export = build_transaction_graph(transactions)
+                
+                # Export data for ML training
+                export_success = self.gnn_exporter.save_training_sample(
+                    graph=graph_for_export,
+                    anomaly_scores=gnn_results['anomaly_scores'],
+                    token=symbol_for_rl,
+                    pump_occurred=suspicious_activity,
+                    market_data={
+                        'address': address,
+                        'chain': chain,
+                        'alert_sent': alert_result.get('alert_sent', False),
+                        'rl_confidence': rl_prediction['confidence'],
+                        'rl_action': rl_prediction['action']
+                    },
+                    graph_stats=gnn_results['graph_stats'],
+                    analysis_metadata={
+                        'transaction_count': gnn_results['transaction_count'],
+                        'risk_analysis': gnn_results.get('risk_analysis', {}),
+                        'pattern_analysis': gnn_results.get('pattern_analysis', {})
+                    }
+                )
+                
+                if export_success:
+                    logger.info(f"[GNN EXPORT] Training data exported for {symbol_for_rl} (suspicious: {suspicious_activity})")
+            
+        except Exception as e:
+            logger.error(f"[GNN EXPORT] Failed to export training data: {e}")
+        
+        # Step 5: Compile final results
         pipeline_result = {
             'pipeline_status': 'success',
             'address': address,
