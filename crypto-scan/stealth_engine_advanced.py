@@ -22,6 +22,9 @@ from rl_agent import RLAgent
 from alert_manager import process_alert_decision, save_alert_history
 from gnn_data_exporter import GNNDataExporter
 from graph_visualizer import visualize_transaction_graph, create_anomaly_heatmap
+from wallet_behavior_encoder import (encode_advanced_wallet_behavior, 
+                                   analyze_wallet_behavior_complete,
+                                   identify_whale_wallets)
 
 # Configuration
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -378,6 +381,147 @@ class StealthEngineAdvanced:
         
         logger.info(f"[BATCH ANALYSIS] Complete: {successful}/{len(addresses)} successful, {alerts_sent} alerts sent")
         return results
+    
+    def analyze_wallet_behaviors(self, addresses: List[str], chain: str = 'ethereum') -> Dict[str, Any]:
+        """
+        Complete wallet behavior analysis using transaction history embeddings
+        
+        Args:
+            addresses: List of wallet addresses to analyze
+            chain: Blockchain network
+            
+        Returns:
+            Complete behavior analysis with clustering and whale detection
+        """
+        logger.info(f"[BEHAVIOR ANALYSIS] Starting behavioral analysis for {len(addresses)} wallets")
+        
+        # Step 1: Fetch transactions for all addresses
+        transactions_by_wallet = {}
+        for i, address in enumerate(addresses):
+            logger.info(f"[BEHAVIOR ANALYSIS] Fetching transactions {i+1}/{len(addresses)}: {address[:10]}...")
+            
+            try:
+                transactions = self.fetch_transactions_from_blockchain(address, chain)
+                if transactions:
+                    transactions_by_wallet[address] = transactions
+                    logger.info(f"[BEHAVIOR ANALYSIS] {address[:10]}... → {len(transactions)} transactions")
+                else:
+                    logger.warning(f"[BEHAVIOR ANALYSIS] {address[:10]}... → no transactions")
+                
+                # Rate limiting
+                time.sleep(0.1)
+                
+            except Exception as e:
+                logger.error(f"[BEHAVIOR ANALYSIS] Error fetching transactions for {address}: {e}")
+        
+        if not transactions_by_wallet:
+            logger.warning("[BEHAVIOR ANALYSIS] No transaction data available for behavioral analysis")
+            return {'error': 'no_transaction_data'}
+        
+        # Step 2: Generate behavioral embeddings for each wallet
+        logger.info(f"[BEHAVIOR ANALYSIS] Generating embeddings for {len(transactions_by_wallet)} wallets")
+        embeddings = []
+        wallet_addresses = list(transactions_by_wallet.keys())
+        
+        for wallet_addr in wallet_addresses:
+            transactions = transactions_by_wallet[wallet_addr]
+            embedding = encode_advanced_wallet_behavior(transactions, wallet_addr)
+            embeddings.append(embedding)
+        
+        # Step 3: Complete behavioral analysis with clustering and whale detection
+        logger.info("[BEHAVIOR ANALYSIS] Running complete behavioral analysis")
+        complete_analysis = analyze_wallet_behavior_complete(transactions_by_wallet)
+        
+        # Step 4: Enhanced analysis with GNN anomaly scores correlation
+        gnn_behavior_correlation = {}
+        for wallet_addr in wallet_addresses:
+            try:
+                # Get GNN anomaly analysis for this wallet
+                gnn_result = self.analyze_address_with_gnn(wallet_addr, chain)
+                
+                if gnn_result['status'] == 'success':
+                    # Find wallet embedding
+                    wallet_index = wallet_addresses.index(wallet_addr)
+                    wallet_embedding = embeddings[wallet_index]
+                    
+                    # Correlate behavioral embedding with anomaly scores
+                    max_anomaly_score = max(gnn_result['anomaly_scores'].values()) if gnn_result['anomaly_scores'] else 0
+                    
+                    gnn_behavior_correlation[wallet_addr] = {
+                        'behavioral_embedding': wallet_embedding.tolist(),
+                        'max_anomaly_score': max_anomaly_score,
+                        'anomaly_addresses': len(gnn_result['anomaly_scores']),
+                        'transaction_count': gnn_result['transaction_count'],
+                        'gnn_status': 'success'
+                    }
+                else:
+                    gnn_behavior_correlation[wallet_addr] = {
+                        'behavioral_embedding': embeddings[wallet_addresses.index(wallet_addr)].tolist(),
+                        'gnn_status': 'failed',
+                        'reason': gnn_result['status']
+                    }
+                    
+            except Exception as e:
+                logger.error(f"[BEHAVIOR ANALYSIS] Error correlating GNN for {wallet_addr}: {e}")
+        
+        # Step 5: Enhanced whale detection using both behavioral and GNN features
+        enhanced_whale_wallets = []
+        for whale_info in complete_analysis.get('whale_wallets', []):
+            wallet_addr = whale_info['wallet']
+            gnn_info = gnn_behavior_correlation.get(wallet_addr, {})
+            
+            # Enhanced whale score combining behavioral and anomaly features
+            behavioral_score = whale_info['whale_score']
+            anomaly_bonus = gnn_info.get('max_anomaly_score', 0) * 0.2  # 20% weight to anomaly
+            
+            enhanced_score = min(1.0, behavioral_score + anomaly_bonus)
+            
+            enhanced_whale_wallets.append({
+                **whale_info,
+                'enhanced_whale_score': enhanced_score,
+                'anomaly_contribution': anomaly_bonus,
+                'gnn_anomaly_score': gnn_info.get('max_anomaly_score', 0),
+                'behavior_only_score': behavioral_score
+            })
+        
+        # Sort by enhanced score
+        enhanced_whale_wallets.sort(key=lambda x: x['enhanced_whale_score'], reverse=True)
+        
+        # Step 6: Final comprehensive analysis
+        behavior_analysis_result = {
+            'analysis_type': 'comprehensive_wallet_behavior',
+            'wallet_count': len(wallet_addresses),
+            'transaction_wallets': len(transactions_by_wallet),
+            'behavioral_clustering': complete_analysis.get('clustering', {}),
+            'whale_wallets_behavioral': complete_analysis.get('whale_wallets', []),
+            'whale_wallets_enhanced': enhanced_whale_wallets,
+            'gnn_behavior_correlation': gnn_behavior_correlation,
+            'embeddings_summary': {
+                'dimension': len(embeddings[0]) if embeddings else 0,
+                'wallet_count': len(embeddings)
+            },
+            'analysis_timestamp': datetime.now().isoformat(),
+            'chain': chain
+        }
+        
+        # Save comprehensive analysis
+        analysis_filename = f"cache/behavior_analysis_{int(time.time())}.json"
+        try:
+            with open(analysis_filename, 'w') as f:
+                json.dump(behavior_analysis_result, f, indent=2, default=str)
+            logger.info(f"[BEHAVIOR ANALYSIS] Results saved to {analysis_filename}")
+        except Exception as e:
+            logger.error(f"[BEHAVIOR ANALYSIS] Failed to save analysis: {e}")
+        
+        # Summary statistics
+        whale_count_behavioral = len(complete_analysis.get('whale_wallets', []))
+        whale_count_enhanced = len(enhanced_whale_wallets)
+        cluster_count = complete_analysis.get('clustering', {}).get('n_clusters', 0)
+        
+        logger.info(f"[BEHAVIOR ANALYSIS] Complete: {whale_count_behavioral} behavioral whales, "
+                   f"{whale_count_enhanced} enhanced whales, {cluster_count} clusters")
+        
+        return behavior_analysis_result
     
     def get_system_stats(self) -> Dict[str, Any]:
         """Get comprehensive system statistics"""
