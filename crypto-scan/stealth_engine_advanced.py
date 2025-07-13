@@ -1,0 +1,355 @@
+#!/usr/bin/env python3
+"""
+Advanced Stealth Engine - GNN + Reinforcement Learning Pipeline
+Łączy wszystkie komponenty: transaction fetch → graph building → GNN analysis → RL decisions → Telegram alerts
+"""
+
+import os
+import json
+import time
+import requests
+import logging
+from typing import Dict, List, Optional, Any
+from datetime import datetime
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+from gnn_graph_builder import build_transaction_graph
+from gnn_anomaly_detector import detect_graph_anomalies
+from rl_agent import RLAgent
+from alert_manager import process_alert_decision, save_alert_history
+
+# Configuration
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+ETHERSCAN_API_KEY = os.environ.get("ETHERSCAN_API_KEY")
+BSCSCAN_API_KEY = os.environ.get("BSCSCAN_API_KEY")
+POLYGONSCAN_API_KEY = os.environ.get("POLYGONSCAN_API_KEY")
+
+# Logging setup
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+class StealthEngineAdvanced:
+    """
+    Advanced Stealth Engine combining GNN anomaly detection with reinforcement learning
+    """
+    
+    def __init__(self):
+        """Initialize the advanced stealth engine"""
+        self.rl_agent = RLAgent()
+        self.api_keys = {
+            'ethereum': ETHERSCAN_API_KEY,
+            'bsc': BSCSCAN_API_KEY,
+            'polygon': POLYGONSCAN_API_KEY
+        }
+        self.api_endpoints = {
+            'ethereum': 'https://api.etherscan.io/api',
+            'bsc': 'https://api.bscscan.com/api',
+            'polygon': 'https://api.polygonscan.com/api'
+        }
+        logger.info("[STEALTH ENGINE] Advanced GNN + RL system initialized")
+    
+    def fetch_transactions_from_blockchain(self, address: str, chain: str = 'ethereum', limit: int = 100) -> List[Dict]:
+        """
+        Fetch real blockchain transactions for given address
+        
+        Args:
+            address: Wallet address to analyze
+            chain: Blockchain network (ethereum, bsc, polygon)
+            limit: Maximum number of transactions to fetch
+            
+        Returns:
+            List of transaction dictionaries
+        """
+        api_key = self.api_keys.get(chain)
+        endpoint = self.api_endpoints.get(chain)
+        
+        if not api_key or not endpoint:
+            logger.warning(f"[BLOCKCHAIN] Missing API key or endpoint for {chain}")
+            return []
+        
+        params = {
+            "module": "account",
+            "action": "txlist",
+            "address": address,
+            "startblock": 0,
+            "endblock": 99999999,
+            "sort": "desc",
+            "apikey": api_key
+        }
+        
+        try:
+            logger.info(f"[BLOCKCHAIN] Fetching transactions for {address[:10]}... on {chain}")
+            response = requests.get(endpoint, params=params, timeout=10)
+            data = response.json()
+            
+            txs = []
+            if data.get("status") == "1" and data.get("result"):
+                for tx in data["result"][:limit]:
+                    # Convert Wei to ETH/BNB/MATIC
+                    value_wei = int(tx.get("value", 0))
+                    value_native = value_wei / 1e18
+                    
+                    # Only include transactions with meaningful value
+                    if value_native > 0.001:  # More than 0.001 native token
+                        txs.append({
+                            "from": tx["from"].lower(),
+                            "to": tx["to"].lower(),
+                            "value": value_native,
+                            "hash": tx["hash"],
+                            "timestamp": int(tx["timeStamp"]),
+                            "gas_used": int(tx.get("gasUsed", 0)),
+                            "gas_price": int(tx.get("gasPrice", 0))
+                        })
+                
+                logger.info(f"[BLOCKCHAIN] Found {len(txs)} meaningful transactions for {address[:10]}...")
+                return txs
+            else:
+                logger.warning(f"[BLOCKCHAIN] No transactions found for {address} on {chain}")
+                return []
+                
+        except Exception as e:
+            logger.error(f"[BLOCKCHAIN] Error fetching transactions: {e}")
+            return []
+    
+    def analyze_address_with_gnn(self, address: str, chain: str = 'ethereum') -> Dict[str, Any]:
+        """
+        Complete GNN analysis pipeline for given address
+        
+        Args:
+            address: Target wallet address
+            chain: Blockchain network
+            
+        Returns:
+            Complete analysis results
+        """
+        logger.info(f"[GNN ANALYSIS] Starting analysis for {address[:10]}... on {chain}")
+        
+        # Step 1: Fetch transactions
+        transactions = self.fetch_transactions_from_blockchain(address, chain)
+        if not transactions:
+            logger.warning(f"[GNN ANALYSIS] No transactions found for {address}")
+            return {
+                'address': address,
+                'chain': chain,
+                'status': 'no_transactions',
+                'anomaly_scores': {},
+                'graph_stats': {},
+                'timestamp': datetime.now().isoformat()
+            }
+        
+        # Step 2: Build transaction graph
+        logger.info(f"[GNN ANALYSIS] Building transaction graph from {len(transactions)} transactions")
+        graph = build_transaction_graph(transactions)
+        
+        if not graph or graph.number_of_nodes() == 0:
+            logger.warning(f"[GNN ANALYSIS] Failed to build graph for {address}")
+            return {
+                'address': address,
+                'chain': chain,
+                'status': 'graph_failed',
+                'anomaly_scores': {},
+                'graph_stats': {},
+                'timestamp': datetime.now().isoformat()
+            }
+        
+        # Step 3: GNN anomaly detection
+        logger.info(f"[GNN ANALYSIS] Running anomaly detection on graph ({graph.number_of_nodes()} nodes)")
+        anomaly_results = detect_graph_anomalies(graph)
+        
+        # Step 4: Compile results
+        analysis_result = {
+            'address': address,
+            'chain': chain,
+            'status': 'success',
+            'transaction_count': len(transactions),
+            'anomaly_scores': anomaly_results.get('anomaly_scores', {}),
+            'graph_stats': anomaly_results.get('graph_stats', {}),
+            'risk_analysis': anomaly_results.get('risk_analysis', {}),
+            'pattern_analysis': anomaly_results.get('pattern_analysis', {}),
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        logger.info(f"[GNN ANALYSIS] Analysis complete. Found {len(analysis_result['anomaly_scores'])} scored addresses")
+        return analysis_result
+    
+    def run_stealth_engine_for_address(self, address: str, chain: str = 'ethereum', 
+                                     symbol: str = None) -> Dict[str, Any]:
+        """
+        Complete stealth engine pipeline: GNN analysis → RL decision → Telegram alert
+        
+        Args:
+            address: Target wallet address
+            chain: Blockchain network
+            symbol: Associated token symbol (optional)
+            
+        Returns:
+            Complete pipeline results
+        """
+        logger.info(f"[STEALTH ENGINE] Starting full pipeline for {address[:10]}...")
+        
+        # Step 1: GNN Analysis
+        gnn_results = self.analyze_address_with_gnn(address, chain)
+        
+        if gnn_results['status'] != 'success':
+            logger.warning(f"[STEALTH ENGINE] GNN analysis failed: {gnn_results['status']}")
+            return {
+                'pipeline_status': 'gnn_failed',
+                'gnn_results': gnn_results,
+                'rl_prediction': None,
+                'alert_result': None,
+                'timestamp': datetime.now().isoformat()
+            }
+        
+        # Step 2: RL Agent Decision
+        logger.info(f"[STEALTH ENGINE] Processing RL decision for anomaly scores")
+        symbol_for_rl = symbol or f"ADDR_{address[:8].upper()}"
+        
+        # Extract anomaly scores as list
+        anomaly_scores_list = list(gnn_results['anomaly_scores'].values())
+        
+        rl_prediction = self.rl_agent.predict_alert(
+            anomaly_scores=anomaly_scores_list,
+            symbol=symbol_for_rl
+        )
+        
+        # Step 3: Alert Decision & Telegram
+        if rl_prediction['should_alert']:
+            logger.info(f"[STEALTH ENGINE] RL decision: ALERT - processing Telegram notification")
+            
+            # Prepare market data for alert
+            market_data = {
+                'address': address,
+                'chain': chain,
+                'transaction_count': gnn_results['transaction_count'],
+                'graph_nodes': gnn_results['graph_stats'].get('nodes', 0),
+                'graph_edges': gnn_results['graph_stats'].get('edges', 0),
+                'analysis_timestamp': gnn_results['timestamp']
+            }
+            
+            alert_result = process_alert_decision(
+                symbol=symbol_for_rl,
+                anomaly_scores=gnn_results['anomaly_scores'],
+                rl_agent=self.rl_agent,
+                market_data=market_data,
+                token=TELEGRAM_BOT_TOKEN,
+                chat_id=TELEGRAM_CHAT_ID
+            )
+        else:
+            logger.info(f"[STEALTH ENGINE] RL decision: HOLD - no alert needed")
+            alert_result = {
+                'alert_sent': False,
+                'reason': 'rl_decision_hold',
+                'confidence': rl_prediction['confidence']
+            }
+        
+        # Step 4: Compile final results
+        pipeline_result = {
+            'pipeline_status': 'success',
+            'address': address,
+            'chain': chain,
+            'symbol': symbol_for_rl,
+            'gnn_results': gnn_results,
+            'rl_prediction': rl_prediction,
+            'alert_result': alert_result,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        logger.info(f"[STEALTH ENGINE] Pipeline complete. Alert sent: {alert_result.get('alert_sent', False)}")
+        return pipeline_result
+    
+    def run_batch_analysis(self, addresses: List[str], chain: str = 'ethereum') -> List[Dict[str, Any]]:
+        """
+        Run stealth engine analysis on multiple addresses
+        
+        Args:
+            addresses: List of wallet addresses to analyze
+            chain: Blockchain network
+            
+        Returns:
+            List of analysis results
+        """
+        logger.info(f"[BATCH ANALYSIS] Starting batch analysis for {len(addresses)} addresses")
+        
+        results = []
+        for i, address in enumerate(addresses):
+            logger.info(f"[BATCH ANALYSIS] Processing address {i+1}/{len(addresses)}: {address[:10]}...")
+            
+            try:
+                result = self.run_stealth_engine_for_address(address, chain)
+                results.append(result)
+                
+                # Rate limiting
+                time.sleep(0.2)  # 200ms between API calls
+                
+            except Exception as e:
+                logger.error(f"[BATCH ANALYSIS] Error processing {address}: {e}")
+                results.append({
+                    'pipeline_status': 'error',
+                    'address': address,
+                    'error': str(e),
+                    'timestamp': datetime.now().isoformat()
+                })
+        
+        # Save batch results
+        batch_filename = f"cache/batch_analysis_{int(time.time())}.json"
+        try:
+            with open(batch_filename, 'w') as f:
+                json.dump(results, f, indent=2)
+            logger.info(f"[BATCH ANALYSIS] Results saved to {batch_filename}")
+        except Exception as e:
+            logger.error(f"[BATCH ANALYSIS] Failed to save results: {e}")
+        
+        # Summary statistics
+        successful = len([r for r in results if r.get('pipeline_status') == 'success'])
+        alerts_sent = len([r for r in results if r.get('alert_result', {}).get('alert_sent')])
+        
+        logger.info(f"[BATCH ANALYSIS] Complete: {successful}/{len(addresses)} successful, {alerts_sent} alerts sent")
+        return results
+    
+    def get_system_stats(self) -> Dict[str, Any]:
+        """Get comprehensive system statistics"""
+        return {
+            'rl_agent_stats': self.rl_agent.get_agent_stats(),
+            'api_keys_configured': {
+                chain: bool(key) for chain, key in self.api_keys.items()
+            },
+            'telegram_configured': bool(TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID),
+            'timestamp': datetime.now().isoformat()
+        }
+
+def test_stealth_engine_advanced():
+    """Test the advanced stealth engine with sample addresses"""
+    logger.info("[TEST] Starting advanced stealth engine test")
+    
+    # Test addresses (known whale addresses)
+    test_addresses = [
+        "0x8894e0a0c962cb723c1976a4421c95949be2d4e3",  # Binance hot wallet
+        "0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be",  # Binance cold wallet
+        "0x47ac0fb4f2d84898e4d9e7b4dab3c24507a6d503"   # Another large wallet
+    ]
+    
+    engine = StealthEngineAdvanced()
+    
+    # Test single address analysis
+    logger.info("[TEST] Testing single address analysis")
+    result = engine.run_stealth_engine_for_address(test_addresses[0], 'ethereum', 'TEST_WHALE')
+    
+    print(f"[TEST RESULT] Pipeline status: {result['pipeline_status']}")
+    if result['gnn_results']['status'] == 'success':
+        print(f"[TEST RESULT] Anomaly scores found: {len(result['gnn_results']['anomaly_scores'])}")
+        print(f"[TEST RESULT] RL decision: {'ALERT' if result['rl_prediction']['should_alert'] else 'HOLD'}")
+        print(f"[TEST RESULT] Alert sent: {result['alert_result'].get('alert_sent', False)}")
+    
+    # Test system stats
+    stats = engine.get_system_stats()
+    print(f"[TEST STATS] RL Agent Q-table size: {stats['rl_agent_stats']['q_table_size']}")
+    print(f"[TEST STATS] Telegram configured: {stats['telegram_configured']}")
+    
+    return result
+
+if __name__ == "__main__":
+    test_stealth_engine_advanced()

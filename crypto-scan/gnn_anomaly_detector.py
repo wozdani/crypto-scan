@@ -253,7 +253,7 @@ class GNNAnomalyDetector:
         else:
             return "NORMAL"
 
-def detect_graph_anomalies(graph: nx.DiGraph) -> Dict[str, float]:
+def detect_graph_anomalies(graph: nx.DiGraph) -> Dict[str, Any]:
     """
     Główna funkcja wykrywania anomalii GNN.
     
@@ -261,10 +261,36 @@ def detect_graph_anomalies(graph: nx.DiGraph) -> Dict[str, float]:
         graph: Graf transakcji NetworkX
         
     Returns:
-        Słownik {address: anomaly_score} gdzie score ∈ [0, 1]
+        Kompletny słownik z wynikami analizy anomalii
     """
     detector = GNNAnomalyDetector()
-    return detector.detect_graph_anomalies(graph)
+    anomaly_scores = detector.detect_graph_anomalies(graph)
+    
+    # Dodaj analizę wzorców
+    pattern_analysis = analyze_anomaly_patterns(anomaly_scores, graph)
+    
+    # Statystyki grafu
+    graph_stats = {
+        'nodes': graph.number_of_nodes(),
+        'edges': graph.number_of_edges(),
+        'total_value': sum(graph.edges[edge].get('value', 0) for edge in graph.edges()),
+        'avg_degree': sum(dict(graph.degree()).values()) / graph.number_of_nodes() if graph.number_of_nodes() > 0 else 0
+    }
+    
+    # Kompletny wynik
+    result = {
+        'anomaly_scores': anomaly_scores,
+        'graph_stats': graph_stats,
+        'risk_analysis': pattern_analysis['risk_distribution'],
+        'pattern_analysis': {
+            'total_addresses': pattern_analysis['total_addresses'],
+            'high_risk_count': pattern_analysis['high_risk_count'],
+            'medium_risk_count': pattern_analysis['medium_risk_count'],
+            'top_anomalies': pattern_analysis['top_anomalies']
+        }
+    }
+    
+    return result
 
 def analyze_anomaly_patterns(anomaly_scores: Dict[str, float], 
                            graph: nx.DiGraph) -> Dict[str, Any]:
