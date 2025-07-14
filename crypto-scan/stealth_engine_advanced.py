@@ -18,7 +18,10 @@ load_dotenv()
 
 from gnn_graph_builder import build_transaction_graph
 from gnn_anomaly_detector import detect_graph_anomalies
-from rl_agent_v2 import RLAgentV2
+from rl_agent_v3 import RLAgentV3
+from simulate_trader_decision_dynamic import (simulate_trader_decision_dynamic, 
+                                           process_stealth_signals_with_rl,
+                                           create_rl_agent_for_stealth_engine)
 from alert_manager import process_alert_decision, save_alert_history
 from gnn_data_exporter import GNNDataExporter
 from graph_visualizer import visualize_transaction_graph, create_anomaly_heatmap
@@ -47,13 +50,9 @@ class StealthEngineAdvanced:
     
     def __init__(self):
         """Initialize the advanced stealth engine"""
-        self.rl_agent = RLAgentV2(
-            learning_rate=0.1,
-            decay=0.99,
-            epsilon=0.1,  # Lower exploration for production
-            epsilon_min=0.01,
-            epsilon_decay=0.995,
-            q_path="cache/trained_qtable_v2.json"
+        self.rl_agent = create_rl_agent_for_stealth_engine(
+            weight_path="cache/rl_agent_v3_stealth_weights.json",
+            booster_names=("gnn", "whaleClip", "dexInflow")
         )
         self.gnn_exporter = GNNDataExporter()
         self.whale_detector = WhaleStyleDetector(model_type='rf')  # Use RandomForest for production
@@ -281,19 +280,28 @@ class StealthEngineAdvanced:
             logger.warning(f"[STRATEGIC ANALYSIS] DEX inflow analysis failed: {e}")
             dex_inflow_flag = False
         
-        # Step 2.3: Strategic Decision Engine
+        # Step 2.3: RLAgentV3 Dynamic Decision Engine
         logger.info(f"[STRATEGIC DECISION] Analyzing: GNN={gnn_score:.3f}, WhaleCLIP={whale_clip_conf:.3f}, DEX={dex_inflow_flag}")
         
-        decision, final_score = simulate_trader_decision_multi(
-            gnn_score=gnn_score,
-            whale_clip_conf=whale_clip_conf,
-            dex_inflow_flag=dex_inflow_flag,
+        # Use RLAgentV3 for intelligent decision making
+        inputs = {
+            "gnn": gnn_score,
+            "whaleClip": whale_clip_conf,
+            "dexInflow": 1.0 if dex_inflow_flag else 0.0
+        }
+        
+        decision, final_score, detailed_analysis = simulate_trader_decision_dynamic(
+            inputs=inputs,
+            rl_agent=self.rl_agent,
+            threshold=0.7,
             debug=True
         )
         
-        logger.info(f"[STRATEGIC DECISION] Result: {decision} (final score: {final_score:.3f})")
+        logger.info(f"[DYNAMIC DECISION] Result: {decision} (final score: {final_score:.3f})")
+        logger.info(f"[DYNAMIC DECISION] Dominant booster: {detailed_analysis['dominant_booster']}")
+        logger.info(f"[DYNAMIC DECISION] Recommendation: {detailed_analysis['prediction']['recommendation']}")
         
-        # Save decision training data
+        # Save decision training data with RLAgentV3 format
         save_decision_training_data(
             gnn_score=gnn_score,
             whale_clip_conf=whale_clip_conf,
@@ -303,28 +311,36 @@ class StealthEngineAdvanced:
             symbol=symbol_for_rl
         )
         
-        # Step 3: Alert Decision & Telegram based on strategic score
-        alert_threshold = 0.7  # Send alert if strategic score >= 0.7
+        # Step 3: Alert Decision & Telegram based on RLAgentV3 dynamic decision
+        alert_threshold = 0.7  # Send alert if dynamic score >= 0.7
         
-        if final_score >= alert_threshold:
-            logger.info(f"[STEALTH ENGINE] Strategic decision: ALERT ({final_score:.3f} >= {alert_threshold}) - sending Telegram notification")
+        if decision == "ALERT_TRIGGERED":
+            logger.info(f"[STEALTH ENGINE] RLAgentV3 decision: {decision} ({final_score:.3f} >= {alert_threshold}) - sending Telegram notification")
             
-            # Prepare enhanced alert message with strategic analysis
-            message = f"""🚨 [STEALTH ENGINE STRATEGIC ALERT]
+            # Prepare enhanced alert message with RLAgentV3 analysis
+            message = f"""🤖 [RLAGNENT V3 DYNAMIC ALERT]
 💎 Address: {address[:10]}...{address[-8:]}
 🌐 Chain: {chain.upper()}
 📊 GNN Anomaly Score: {gnn_score:.3f}
 👤 WhaleCLIP Confidence: {whale_clip_conf:.3f}
 🌊 DEX Inflow Detected: {'✅' if dex_inflow_flag else '❌'}
-🧠 Strategic Decision: {decision}
-🔥 Final Score: {final_score:.2f}
+🤖 RLAgent Decision: {decision}
+🎯 Dynamic Score: {final_score:.3f}
+💡 Recommendation: {detailed_analysis['prediction']['recommendation']}
+🏆 Dominant Booster: {detailed_analysis['dominant_booster']}
 ⏰ Time: {datetime.now().strftime('%H:%M:%S UTC')}
 
 📈 Graph Analysis:
 • Nodes: {gnn_results['graph_stats'].get('nodes', 0)}
 • Edges: {gnn_results['graph_stats'].get('edges', 0)}
 • Transactions: {gnn_results['transaction_count']}
-            """
+
+🧠 Learned Weights:
+"""
+            
+            # Add booster contributions
+            for booster, contrib in detailed_analysis['booster_contributions'].items():
+                message += f"• {booster}: {contrib['contribution']:.3f} ({contrib['percentage']:.1f}%)\n"
             
             # Send Telegram alert
             try:
@@ -342,13 +358,14 @@ class StealthEngineAdvanced:
                             'alert_sent': True,
                             'decision': decision,
                             'final_score': final_score,
+                            'rl_analysis': detailed_analysis,
                             'strategic_analysis': {
                                 'gnn_score': gnn_score,
                                 'whale_clip_conf': whale_clip_conf,
                                 'dex_inflow_flag': dex_inflow_flag
                             }
                         }
-                        logger.info(f"[TELEGRAM] Strategic alert sent successfully for {symbol_for_rl}")
+                        logger.info(f"[TELEGRAM] RLAgentV3 alert sent successfully for {symbol_for_rl}")
                         
                         # Log alert feedback for future learning
                         try:
@@ -382,12 +399,13 @@ class StealthEngineAdvanced:
                 logger.error(f"[TELEGRAM] Error sending strategic alert: {e}")
                 alert_result = {'alert_sent': False, 'reason': f'telegram_error: {e}'}
         else:
-            logger.info(f"[STEALTH ENGINE] Strategic decision: HOLD ({final_score:.3f} < {alert_threshold}) - no alert needed")
+            logger.info(f"[STEALTH ENGINE] RLAgentV3 decision: {decision} ({final_score:.3f} < {alert_threshold}) - no alert needed")
             alert_result = {
                 'alert_sent': False,
-                'reason': 'strategic_score_below_threshold',
+                'reason': 'rl_decision_no_alert',
                 'decision': decision,
                 'final_score': final_score,
+                'rl_analysis': detailed_analysis,
                 'strategic_analysis': {
                     'gnn_score': gnn_score,
                     'whale_clip_conf': whale_clip_conf,
@@ -395,13 +413,17 @@ class StealthEngineAdvanced:
                 }
             }
         
-        # Update legacy RL prediction format for compatibility
+        # Update RL prediction format for RLAgentV3 compatibility
         rl_prediction = {
-            'should_alert': final_score >= alert_threshold,
+            'should_alert': decision == "ALERT_TRIGGERED",
             'confidence': final_score,
-            'action': 1 if final_score >= alert_threshold else 0,
-            'strategic_decision': decision,
-            'strategic_score': final_score
+            'action': 1 if decision == "ALERT_TRIGGERED" else 0,
+            'rl_v3_decision': decision,
+            'dynamic_score': final_score,
+            'dominant_booster': detailed_analysis['dominant_booster'],
+            'prediction_quality': detailed_analysis['prediction']['recommendation'],
+            'booster_contributions': detailed_analysis['booster_contributions'],
+            'learned_weights': detailed_analysis['weights_used']
         }
         
         # Step 4: Export training data (GNN + RL + outcome)
