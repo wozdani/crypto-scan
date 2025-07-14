@@ -9,7 +9,7 @@ import json
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple
-from rl_agent import RLAgent
+from rl_agent_v2 import RLAgentV2
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -28,7 +28,14 @@ class RLFeedbackTrainer:
             feedback_folder: Folder containing feedback JSONL files
         """
         self.feedback_folder = feedback_folder
-        self.agent = RLAgent()
+        self.agent = RLAgentV2(
+            learning_rate=0.1,
+            decay=0.99,
+            epsilon=0.2,  # Start with moderate exploration
+            epsilon_min=0.01,
+            epsilon_decay=0.995,
+            q_path="cache/trained_qtable_v2.json"
+        )
         
     def load_feedback_data(self, max_age_days: int = 30) -> List[Dict]:
         """
@@ -123,23 +130,33 @@ class RLFeedbackTrainer:
         """
         pump_occurred = entry.get("pump_occurred", False)
         
-        # Base reward
-        base_reward = 1.0 if pump_occurred else -1.0
-        
-        # Enhanced reward based on price change
-        price_change_1h = entry.get("price_change_1h", 0.0)
-        if price_change_1h:
-            if pump_occurred and price_change_1h > 5.0:
-                # Strong pump - bonus reward
+        # Enhanced reward system for RLAgentV2
+        if pump_occurred:
+            base_reward = 1.5  # Higher base reward for successful pumps
+            
+            # Bonus for strong price movements
+            price_change_1h = entry.get("price_change_1h", 0.0)
+            if price_change_1h > 10.0:
+                # Very strong pump - maximum bonus
+                return base_reward + 1.0
+            elif price_change_1h > 5.0:
+                # Strong pump - good bonus
                 return base_reward + 0.5
-            elif pump_occurred and price_change_1h > 2.0:
+            elif price_change_1h > 2.0:
                 # Moderate pump - small bonus
                 return base_reward + 0.2
-            elif not pump_occurred and price_change_1h < -2.0:
-                # Strong dump after alert - penalty
-                return base_reward - 0.5
-        
-        return base_reward
+            
+            return base_reward
+        else:
+            # Penalty for false alerts
+            base_penalty = -1.0
+            
+            # Additional penalty for strong dumps after false alert
+            price_change_1h = entry.get("price_change_1h", 0.0)
+            if price_change_1h < -5.0:
+                return base_penalty - 0.5
+            
+            return base_penalty
     
     def train_from_feedback(self, max_age_days: int = 30) -> Dict[str, any]:
         """
@@ -256,7 +273,7 @@ class RLFeedbackTrainer:
                 "metadata": {
                     "trained_at": datetime.now().isoformat(),
                     "states_count": len(self.agent.q_table),
-                    "learning_rate": self.agent.learning_rate,
+                    "learning_rate": self.agent.lr,
                     "epsilon": self.agent.epsilon
                 }
             }

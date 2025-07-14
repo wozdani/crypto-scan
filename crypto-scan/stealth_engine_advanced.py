@@ -18,7 +18,7 @@ load_dotenv()
 
 from gnn_graph_builder import build_transaction_graph
 from gnn_anomaly_detector import detect_graph_anomalies
-from rl_agent import RLAgent
+from rl_agent_v2 import RLAgentV2
 from alert_manager import process_alert_decision, save_alert_history
 from gnn_data_exporter import GNNDataExporter
 from graph_visualizer import visualize_transaction_graph, create_anomaly_heatmap
@@ -47,7 +47,14 @@ class StealthEngineAdvanced:
     
     def __init__(self):
         """Initialize the advanced stealth engine"""
-        self.rl_agent = RLAgent()
+        self.rl_agent = RLAgentV2(
+            learning_rate=0.1,
+            decay=0.99,
+            epsilon=0.1,  # Lower exploration for production
+            epsilon_min=0.01,
+            epsilon_decay=0.995,
+            q_path="cache/trained_qtable_v2.json"
+        )
         self.gnn_exporter = GNNDataExporter()
         self.whale_detector = WhaleStyleDetector(model_type='rf')  # Use RandomForest for production
         self.api_keys = {
