@@ -26,17 +26,19 @@ class RLAgentV2:
     """
     
     def __init__(self, learning_rate: float = 0.1, decay: float = 0.99, 
-                 epsilon: float = 0.1, epsilon_min: float = 0.01, 
-                 epsilon_decay: float = 0.995, q_path: str = None):
+                 epsilon: float = 0.3, epsilon_min: float = 0.01, 
+                 epsilon_decay: float = 0.97, steps_before_decay: int = 50,
+                 q_path: str = None):
         """
-        Initialize enhanced RL Agent V2
+        Initialize enhanced RL Agent V2 with intelligent epsilon decay
         
         Args:
             learning_rate: How fast Q-values are updated (0.0-1.0)
             decay: How fast non-selected actions decay (0.0-1.0)
-            epsilon: Initial exploration rate (0.0-1.0)
-            epsilon_min: Minimum epsilon value
-            epsilon_decay: Epsilon decay rate per update
+            epsilon: Initial exploration rate (starts high for exploration)
+            epsilon_min: Minimum epsilon value (never goes below this)
+            epsilon_decay: Epsilon decay rate applied every steps_before_decay
+            steps_before_decay: Number of updates before applying epsilon decay
             q_path: Path to Q-table JSON file for persistence
         """
         self.lr = learning_rate
@@ -45,10 +47,15 @@ class RLAgentV2:
         self.initial_epsilon = epsilon
         self.epsilon_min = epsilon_min
         self.epsilon_decay = epsilon_decay
+        self.steps_before_decay = steps_before_decay
         self.q_path = q_path or "cache/rl_agent_v2_qtable.json"
         
         # Q-table: state → [score_no_alert, score_alert]
         self.q_table = {}
+        
+        # Step tracking for epsilon decay
+        self.steps = 0
+        self.total_epsilon_decays = 0
         
         # Training statistics
         self.training_stats = {
@@ -57,6 +64,7 @@ class RLAgentV2:
             "exploitation_actions": 0,
             "states_explored": 0,
             "average_reward": 0.0,
+            "total_epsilon_decays": 0,
             "last_trained": None
         }
         
@@ -126,9 +134,22 @@ class RLAgentV2:
         other_action = 1 - action
         self.q_table[state_key][other_action] *= self.decay
         
-        # Update epsilon (exploration decay)
-        if self.epsilon > self.epsilon_min:
-            self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
+        # Intelligent epsilon decay - only every steps_before_decay steps
+        self.steps += 1
+        if self.steps % self.steps_before_decay == 0:
+            old_epsilon = self.epsilon
+            # Always apply max() to ensure we never go below minimum
+            new_epsilon = self.epsilon * self.epsilon_decay
+            self.epsilon = max(self.epsilon_min, new_epsilon)
+            
+            # Only count as decay if epsilon actually changed
+            if self.epsilon > self.epsilon_min or old_epsilon > self.epsilon_min:
+                self.total_epsilon_decays += 1
+                self.training_stats["total_epsilon_decays"] = self.total_epsilon_decays
+                
+                # Log epsilon decay for debugging
+                logger.info(f"[RL V2 EPSILON DECAY] Step {self.steps}: {old_epsilon:.4f} → {self.epsilon:.4f} "
+                           f"(decay #{self.total_epsilon_decays})")
         
         # Update training statistics
         self.training_stats["total_updates"] += 1
@@ -204,11 +225,16 @@ class RLAgentV2:
         stats.update({
             'q_table_size': len(self.q_table),
             'states_count': len(self.q_table),  # Added for compatibility
-            'current_epsilon': round(self.epsilon, 3),
+            'current_epsilon': round(self.epsilon, 4),
+            'initial_epsilon': round(self.initial_epsilon, 4),
+            'epsilon_reduction': round((self.initial_epsilon - self.epsilon) / self.initial_epsilon * 100, 1),
             'exploration_rate': round(
                 self.training_stats['exploration_actions'] / 
                 max(self.training_stats['total_updates'], 1), 3
             ),
+            'steps_total': self.steps,
+            'steps_until_next_decay': self.steps_before_decay - (self.steps % self.steps_before_decay),
+            'decay_schedule': f"Every {self.steps_before_decay} steps by {self.epsilon_decay}x",
             'top_q_states': self._get_top_q_states(5)
         })
         
@@ -237,11 +263,15 @@ class RLAgentV2:
                     'epsilon': self.epsilon,
                     'initial_epsilon': self.initial_epsilon,
                     'epsilon_min': self.epsilon_min,
-                    'epsilon_decay': self.epsilon_decay
+                    'epsilon_decay': self.epsilon_decay,
+                    'steps_before_decay': self.steps_before_decay
                 },
                 'metadata': {
                     'saved_at': datetime.now().isoformat(),
-                    'version': '2.0'
+                    'version': '2.0',
+                    'total_steps': self.steps,
+                    'total_epsilon_decays': self.total_epsilon_decays,
+                    'epsilon_reduction_percent': round((self.initial_epsilon - self.epsilon) / self.initial_epsilon * 100, 1) if self.initial_epsilon > 0 else 0
                 }
             }
             
@@ -301,9 +331,20 @@ class RLAgentV2:
             new_epsilon: New epsilon value (uses initial if None)
         """
         old_epsilon = self.epsilon
-        self.epsilon = new_epsilon or self.initial_epsilon
         
-        logger.info(f"[RL V2] Reset exploration: {old_epsilon:.3f} → {self.epsilon:.3f}")
+        if new_epsilon is not None:
+            self.epsilon = max(self.epsilon_min, new_epsilon)
+        else:
+            self.epsilon = self.initial_epsilon
+        
+        # Reset step counter and decay tracking
+        self.steps = 0
+        self.total_epsilon_decays = 0
+        self.training_stats["total_epsilon_decays"] = 0
+        
+        logger.info(f"[RL V2 EXPLORATION RESET] {old_epsilon:.4f} → {self.epsilon:.4f} "
+                   f"(steps reset, decay counter reset)")
+        return self.epsilon
     
     def _state_to_key(self, state: tuple) -> str:
         """

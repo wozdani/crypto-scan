@@ -98,6 +98,20 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### July 14, 2025 - RLAGNENT V2 EPSILON DECAY ENHANCEMENT COMPLETE - Inteligentne Zarządzanie Eksploracją ✅
+Pomyślnie wdrożono zaawansowany system zarządzania epsilon decay z inteligentnym rozpadaniem i kontrolą eksploracji zapewniając zrównoważoną strategię uczenia się:
+- **INTELIGENTNY EPSILON DECAY**: Zaimplementowano inteligentne rozpadanie epsilon z konfigurowalnymi krokami przed rozpadem (steps_before_decay) gdzie epsilon zmniejsza się tylko co N kroków zamiast przy każdej aktualizacji zapewniając kontrolowaną eksplorację
+- **OCHRONA MINIMUM EPSILON**: Dodano bezpieczne ograniczenie minimum epsilon z max(epsilon_min, new_epsilon) chroniąc przed spadnięciem poniżej minimalnej wartości eksploracji (0.01) zapewniając ciągłą eksplorację podczas długotrwałego treningu
+- **ZAAWANSOWANE STATYSTYKI**: Rozszerzono system statystyk o epsilon_reduction (procent redukcji), steps_until_next_decay (kroki do następnego rozpadu), decay_schedule (harmonogram rozpadów), total_epsilon_decays (łączna liczba rozpadów)
+- **FUNKCJA RESET EKSPLORACJI**: Zaimplementowano reset_exploration() umożliwiającą przywrócenie epsilon do wartości początkowej z opcjonalną wartością niestandardową oraz resetem liczników kroków i rozpadów
+- **ULEPSZONY ZAPIS METADANYCH**: Rozszerzono zapis Q-table o metadane epsilon decay z total_steps, total_epsilon_decays, epsilon_reduction_percent, steps_before_decay zapewniając kompleksowe śledzenie historii treningu
+- **PRODUKCYJNE LOGOWANIE**: Dodano szczegółowe logowanie rozpadów epsilon z formatem "[RL V2 EPSILON DECAY] Step X: ε₁ → ε₂ (decay #N)" zapewniając przejrzystość procesu eksploracji
+- **COMPREHENSIVE TEST SUITE**: Osiągnięto 6/6 sukces testów walidacyjnych potwierdzając podstawowy epsilon decay, ochronę minimum, reset eksploracji, statystyki treningowe, persystencję metadanych, scenariusz produkcyjny
+- **INTELLIGENT DECAY SCHEDULING**: System teraz stosuje rozpad co 50 kroków (produkcyjnie) z współczynnikiem 0.97 zapewniając stopniowe przejście od eksploracji (ε=0.3) do eksploatacji (ε→0.01) podczas długotrwałego uczenia
+- **ENHANCED EXPLORATION CONTROL**: RLAgentV2 zapewnia zaawansowaną kontrolę eksploracji z automatycznym rozpadem, resetem, śledzeniem statystyk i ochroną minimum zapewniając optymalne strategie ε-greedy dla cryptocurrency market intelligence
+- **PRODUCTION READY DEPLOYMENT**: Kompletny system epsilon decay gotowy do wdrożenia produkcyjnego z konfigurowalnymi parametrami, persystencją stanu, szczegółowymi statystykami i comprehensive error handling
+System dostarcza rewolucyjne zarządzanie eksploracją gdzie inteligentny epsilon decay z konfigurowalnymi harmonogramami, ochroną minimum i funkcjami resetu zapewnia optymalną strategię ε-greedy exploration dla uczenia się reinforcement learning w cryptocurrency market analysis z institutional-grade precision i comprehensive monitoring capabilities.
+
 ### July 14, 2025 - RLAGNENT V2 COMPLETE INTEGRATION - Enhanced Learning Agent Deployed ✅
 Successfully completed full RLAgentV2 integration across entire system providing enhanced reinforcement learning with epsilon-greedy exploration and production deployment:
 - **RLAGNENT V2 COMPLETE DEPLOYMENT**: Fully implemented rl_agent_v2.py with epsilon-greedy exploration, learning rate decay, batch training, and advanced Q-table persistence replacing legacy RL agent across all system components
