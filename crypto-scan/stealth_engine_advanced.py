@@ -27,6 +27,7 @@ from wallet_behavior_encoder import (encode_advanced_wallet_behavior,
                                    identify_whale_wallets)
 from whale_style_detector import WhaleStyleDetector
 from simulate_trader_decision_multi import simulate_trader_decision_multi, save_decision_training_data
+from feedback_loop_logger import log_alert_feedback
 
 # Configuration
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -341,6 +342,28 @@ class StealthEngineAdvanced:
                             }
                         }
                         logger.info(f"[TELEGRAM] Strategic alert sent successfully for {symbol_for_rl}")
+                        
+                        # Log alert feedback for future learning
+                        try:
+                            log_alert_feedback(
+                                token=symbol_for_rl,
+                                gnn_score=gnn_score,
+                                whale_clip_conf=whale_clip_conf,
+                                dex_inflow_flag=dex_inflow_flag,
+                                decision=decision,
+                                final_score=final_score,
+                                alert_time=datetime.now().isoformat(),
+                                additional_data={
+                                    'address': address,
+                                    'chain': chain,
+                                    'transaction_count': gnn_results.get('transaction_count', 0),
+                                    'graph_nodes': gnn_results['graph_stats'].get('nodes', 0),
+                                    'graph_edges': gnn_results['graph_stats'].get('edges', 0)
+                                }
+                            )
+                            logger.info(f"[FEEDBACK LOG] Alert feedback logged for {symbol_for_rl}")
+                        except Exception as feedback_e:
+                            logger.warning(f"[FEEDBACK LOG] Failed to log feedback for {symbol_for_rl}: {feedback_e}")
                     else:
                         logger.error(f"[TELEGRAM] Failed to send alert: {response.status_code}")
                         alert_result = {'alert_sent': False, 'reason': 'telegram_api_error'}
