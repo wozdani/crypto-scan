@@ -444,10 +444,19 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 # Klasyfikacja alertu
                 alert_type = classify_stealth_alert(stealth_score)
                 
-                print(f"[STEALTH RESULT] {symbol} → Score: {stealth_score:.3f}, Signals: {len(active_signals)}, Alert: {alert_type}")
+                # NOWY SYSTEM LOGOWANIA STEALTH: Użyj enhanced logging
+                log_stealth_analysis_complete(symbol, stealth_score, len(active_signals))
                 
-                # 🚨 NOWY SYSTEM PROGÓW ALERTOWYCH - Dynamiczne progi 0.30-0.40
+                # Log aktywacji detektorów
+                for signal in active_signals:
+                    if signal.get("active", False):
+                        signal_name = signal.get("signal_name", "unknown")
+                        strength = signal.get("strength", 0.0)
+                        log_detector_activation(symbol, signal_name, strength, True)
+                
+                # 🚨 NOWY SYSTEM LOGOWANIA STEALTH + Dynamiczne progi alertowe
                 from stealth_engine.stealth_engine import simulate_stealth_decision, log_stealth_decision
+                from utils.stealth_logger import log_stealth_analysis_complete, log_detector_activation
                 
                 # Pobierz TJDE phase dla progów
                 tjde_phase = market_data.get("tjde_phase", None)
@@ -561,12 +570,10 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             market_data["stealth_signals"] = []
             market_data["stealth_alert_type"] = None
         
-        # TJDE Analysis with import validation
+        # TJDE Analysis with import validation (QUIET MODE - removed verbose logs)
         if TJDE_AVAILABLE:
             try:
-                print(f"[TJDE START] {symbol} → Starting TJDE analysis pipeline")
-                print(f"[TJDE DEBUG] {symbol} → market_data keys: {list(market_data.keys())}")
-                print(f"[TJDE DEBUG] {symbol} → candles_15m: {len(candles_15m) if candles_15m and isinstance(candles_15m, list) else 'INVALID'}, candles_5m: {len(candles_5m) if candles_5m and isinstance(candles_5m, list) else 'INVALID'}")
+                # Usunięto stare logi TJDE DEBUG zgodnie z requirements
                 
                 # ENHANCED: Advanced feature extraction is now handled in TJDE v2 Stage 4
                 # Features are extracted directly in unified_tjde_engine_v2.py
@@ -639,25 +646,10 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 
                 trend_features = extract_trend_features(candles_15m, candles_5m, price, volume_24h)
                 
-                # TJDE Analysis with comprehensive debug
-                print(f"[DEBUG] Simulating trader decision for {symbol}...")
-                print(f"[DEBUG] market_data keys: {list(market_data.keys()) if isinstance(market_data, dict) else 'Invalid structure'}")
-                
+                # TJDE Analysis (cleaned - removed verbose debugging)
                 if isinstance(market_data, dict):
                     candles_15m = market_data.get('candles', [])
                     candles_5m = market_data.get('candles_5m', [])
-                    print(f"[DEBUG] candles_15m: {len(candles_15m)}, candles_5m: {len(candles_5m)}")
-                    
-                    # FIX 1: Allow analysis with 15M candles even if 5M is empty
-                    if len(candles_15m) >= 20:
-                        print(f"[DEBUG] {symbol} → candles_15m: VALID (fallback mode without 5M)")
-                    else:
-                        print(f"[DEBUG] {symbol} → candles_15m: INVALID (insufficient data)")
-                        
-                    if len(candles_5m) >= 60:
-                        print(f"[DEBUG] {symbol} → candles_5m: VALID")
-                    else:
-                        print(f"[DEBUG] {symbol} → candles_5m: INVALID (using 15M fallback)")
                 
                 features = {
                     "symbol": symbol,
@@ -734,17 +726,11 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         "volume_confirmation": 0.5
                     }
                     
-                    # 🚀 TJDE v2 PHASE 1: BASIC FILTERING (No ai_label or htf_candles required)
-                    print(f"[BASIC SCREENING] {symbol}: Using basic TJDE for initial filtering")
-                    
-                    # Initialize basic_result to prevent undefined variable errors
+                    # 🚀 TJDE v2 PHASE 1: BASIC FILTERING (cleaned logging)
                     basic_result = None
                     
                     try:
-                        print(f"[BASIC ENGINE DEBUG] {symbol}: Attempting to import and call basic engine...")
                         from trader_ai_engine_basic import simulate_trader_decision_basic
-                        
-                        print(f"[BASIC ENGINE DEBUG] {symbol}: Basic engine imported successfully")
                         
                         # Validate parameters before calling basic engine
                         if not isinstance(candles_15m, list) or len(candles_15m) < 10:
@@ -764,8 +750,6 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         safe_volume_24h = float(volume_24h) if volume_24h is not None else None
                         safe_price_change_24h = float(price_change_24h) if price_change_24h is not None else None
                         
-                        print(f"[BASIC ENGINE DEBUG] {symbol}: Data validated - Price: {price}, Vol24h: {safe_volume_24h}, Candles15M: {len(candles_15m)}")
-                        
                         # Basic screening only needs core market data - NO ai_label or htf_candles
                         basic_result = simulate_trader_decision_basic(
                             symbol=symbol,
@@ -779,13 +763,8 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         basic_score = basic_result.get('score', 0.0)
                         basic_decision = basic_result.get('decision', 'unknown')
                         
-                        print(f"[BASIC SCREENING SUCCESS] {symbol}: Score={basic_score:.4f}, Decision={basic_decision}")
-                        print(f"[BASIC ENGINE DEBUG] {symbol}: Basic result complete: {basic_result}")
-                        
-                        # 🚀 TJDE v2 PHASE 2: ADVANCED SCORING for qualifying tokens
+                        # 🚀 TJDE v2 PHASE 2: ADVANCED SCORING for qualifying tokens (cleaned logging)
                         if basic_score >= 0.3 and basic_decision in ['consider', 'scalp_entry', 'wait']:
-                            print(f"[PHASE 2 TRIGGER] {symbol}: Basic score {basic_score:.4f} qualifies for advanced AI-EYE + HTF analysis")
-                            
                             try:
                                 # Prepare data for unified engine with AI-EYE and HTF
                                 candles_15m = market_data.get('candles_15m', market_data.get('candles', []))
@@ -800,9 +779,6 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                                 }
                                 htf_candles_data = market_data.get('htf_candles', [])
                                 
-                                print(f"[DATA TRANSFER] {symbol}: AI label '{ai_label_dict['label']}' (conf: {ai_label_dict['confidence']:.2f})")
-                                print(f"[DATA TRANSFER] {symbol}: HTF candles {len(htf_candles_data)}")
-                                
                                 # Use trend_features as signals data
                                 unified_data = prepare_unified_data(
                                     symbol=symbol,
@@ -815,8 +791,6 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                                     htf_candles=htf_candles_data  # Pass actual HTF candles from market_data
                                 )
                                 
-                                print(f"[PHASE 2 DATA] {symbol}: Unified data prepared for advanced modules")
-                                
                                 # Add symbol and basic score to unified_data for unified scoring engine
                                 unified_data['symbol'] = symbol
                                 unified_data['basic_score'] = basic_score  # Pass basic score as baseline
@@ -825,13 +799,9 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                                 
                                 # Run full unified scoring with all 5 modules
                                 advanced_result = simulate_trader_decision_advanced(data=unified_data)
-                                
-                                print(f"[PHASE 2 SUCCESS] {symbol}: Advanced scoring complete - Score: {advanced_result.get('final_score', 0):.4f}")
                                 tjde_result = advanced_result
                                 
                             except Exception as e:
-                                print(f"[PHASE 2 ERROR] {symbol}: Advanced scoring failed: {e}")
-                                print(f"[PHASE 2 FALLBACK] {symbol}: Using basic result as fallback")
                                 
                                 # Fallback to basic result
                                 tjde_result = {
@@ -844,7 +814,6 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                                     'reasoning': f"Phase 2 failed, using basic: {basic_score:.4f}"
                                 }
                         else:
-                            print(f"[PHASE 2 SKIP] {symbol}: Score {basic_score:.4f} below threshold (0.4) - using basic result only")
                             
                             # Use basic result for low-scoring tokens
                             tjde_result = {
@@ -859,9 +828,6 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         
                     except Exception as e:
                         import traceback
-                        print(f"[BASIC ERROR] {symbol}: Failed to use basic engine: {e}")
-                        print(f"[BASIC ERROR TRACEBACK] {symbol}: {traceback.format_exc()}")
-                        print(f"[BASIC FALLBACK] {symbol}: Creating minimal fallback result")
                         
                         # Create minimal fallback result to prevent crash
                         tjde_result = {
