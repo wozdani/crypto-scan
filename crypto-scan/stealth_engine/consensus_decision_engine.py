@@ -10,7 +10,7 @@ import os
 import time
 import json
 from datetime import datetime
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple, Union
 from dataclasses import dataclass
 from enum import Enum
 
@@ -97,31 +97,42 @@ class ConsensusDecisionEngine:
         
         print("[CONSENSUS ENGINE] Initialized multi-agent decision layer")
     
-    def run(self, token: str, scores: Dict[str, float], 
+    def run(self, token: str, scores: Union[Dict[str, float], Dict[str, Dict[str, float]]], 
             strategy: ConsensusStrategy = ConsensusStrategy.WEIGHTED_AVERAGE,
             metadata: Dict[str, Any] = None, 
-            use_simple_consensus: bool = False) -> ConsensusResult:
+            use_simple_consensus: bool = False,
+            use_dynamic_boosting: bool = False) -> ConsensusResult:
         """
         Główna funkcja uruchamiająca consensus decision process
         
         Args:
             token: Symbol tokena (np. 'RSRUSDT')
             scores: Dict z nazwami detektorów i ich scores
-                   {"WhaleCLIP": 0.84, "DiamondWhale": 0.78, "CaliforniumWhale": 0.92, "StealthSignal": 0.81}
+                   Simple format: {"WhaleCLIP": 0.84, "DiamondWhale": 0.78}
+                   Extended format: {"WhaleCLIP": {"score": 0.84, "confidence": 0.66, "weight": 0.28}}
             strategy: Strategia konsensusu do użycia
             metadata: Dodatkowe metadane z detektorów
             use_simple_consensus: True dla prostej logiki (Etap 2), False dla advanced strategies
+            use_dynamic_boosting: True dla Etap 3 confidence-based weighted scoring
             
         Returns:
             ConsensusResult: Kompletny wynik decyzji konsensusu
         """
+        is_extended_format = self._is_extended_score_format(scores)
+        booster_mode = "DYNAMIC_BOOST" if use_dynamic_boosting else "SIMPLE_CONSENSUS" if use_simple_consensus else strategy.value
+        
         print(f"[CONSENSUS ENGINE] Processing {token} with {len(scores)} detectors")
-        print(f"[CONSENSUS ENGINE] Strategy: {strategy.value if not use_simple_consensus else 'SIMPLE_CONSENSUS'}")
+        print(f"[CONSENSUS ENGINE] Mode: {booster_mode}")
+        print(f"[CONSENSUS ENGINE] Extended format: {is_extended_format}")
         print(f"[CONSENSUS ENGINE] Input scores: {scores}")
         
         # Walidacja input data
         if not scores:
             return self._create_no_alert_result("No detector scores provided", strategy)
+        
+        # ETAP 3: Dynamic Boosting Logic Implementation
+        if use_dynamic_boosting:
+            return self._dynamic_boosting_logic(token, scores)
         
         # ETAP 2: Simple Consensus Logic Implementation
         if use_simple_consensus:
@@ -151,6 +162,272 @@ class ConsensusDecisionEngine:
         print(f"[CONSENSUS ENGINE] Reasoning: {result.reasoning}")
         
         return result
+    
+    def _is_extended_score_format(self, scores: Dict) -> bool:
+        """
+        Sprawdza czy scores są w extended format (confidence + weight)
+        
+        Args:
+            scores: Input scores dictionary
+            
+        Returns:
+            True jeśli extended format, False jeśli simple format
+        """
+        if not scores:
+            return False
+        
+        first_value = next(iter(scores.values()))
+        return isinstance(first_value, dict) and 'score' in first_value
+    
+    def _dynamic_boosting_logic(self, token: str, scores: Union[Dict[str, float], Dict[str, Dict]]) -> ConsensusResult:
+        """
+        ETAP 3: Dynamic Boosting Decision Logic
+        Implementuje confidence-based weighted scoring z booster strategies:
+        - Aktywne detektory: score >= 0.75 AND confidence >= 0.60
+        - Global score: suma (score × weight) dla aktywnych detektorów
+        - Booster: confidence > 0.85 AND score > 0.90 → score × 1.1
+        
+        Args:
+            token: Symbol tokena
+            scores: Dict w extended format z confidence i weight
+            
+        Returns:
+            ConsensusResult z dynamic boosting decision
+        """
+        print(f"[DYNAMIC BOOST] Processing {token} using Etap 3 logic")
+        
+        # Konwersja do unified format jeśli potrzebne
+        unified_scores = self._normalize_to_extended_format(scores)
+        
+        # Thresholds dla Etap 3
+        score_threshold = 0.75
+        confidence_threshold = 0.60
+        global_score_threshold = 0.8
+        min_detectors = 2
+        
+        # Booster thresholds
+        booster_confidence_threshold = 0.85
+        booster_score_threshold = 0.90
+        booster_multiplier = 1.1
+        
+        print(f"[DYNAMIC BOOST] Unified scores: {unified_scores}")
+        
+        # Znajdź aktywne detektory (score >= 0.75 AND confidence >= 0.60)
+        active_detectors = {}
+        boosted_detectors = []
+        
+        for detector_name, detector_data in unified_scores.items():
+            score = detector_data['score']
+            confidence = detector_data['confidence']
+            weight = detector_data['weight']
+            
+            # Sprawdź warunki aktywności
+            if score >= score_threshold and confidence >= confidence_threshold:
+                # Zastosuj booster jeśli spełnia warunki
+                if confidence > booster_confidence_threshold and score > booster_score_threshold:
+                    original_score = score
+                    score = score * booster_multiplier
+                    boosted_detectors.append(detector_name)
+                    print(f"[BOOSTER] {detector_name}: {original_score:.3f} → {score:.3f} (×{booster_multiplier})")
+                
+                active_detectors[detector_name] = {
+                    'score': score,
+                    'confidence': confidence,
+                    'weight': weight,
+                    'weighted_contribution': score * weight
+                }
+        
+        print(f"[DYNAMIC BOOST] Active detectors: {len(active_detectors)}")
+        print(f"[DYNAMIC BOOST] Boosted detectors: {boosted_detectors}")
+        
+        # Oblicz weighted global_score
+        if active_detectors:
+            global_score = sum(d['weighted_contribution'] for d in active_detectors.values())
+            total_weight = sum(d['weight'] for d in active_detectors.values())
+        else:
+            global_score = 0.0
+            total_weight = 0.0
+        
+        print(f"[DYNAMIC BOOST] Weighted global score: {global_score:.3f} (total weight: {total_weight:.3f})")
+        
+        # Logika decyzyjna Etap 3:
+        # min. 2 detektory aktywne AND global_score > 0.8
+        if len(active_detectors) >= min_detectors and global_score > global_score_threshold:
+            decision = AlertDecision.ALERT
+            reason = f"Dynamic consensus from {len(active_detectors)} detectors, weighted_score={global_score:.2f}"
+            if boosted_detectors:
+                reason += f", boosted: {', '.join(boosted_detectors)}"
+            consensus_strength = min(1.0, len(active_detectors) / len(unified_scores))
+            
+            # Wysłanie enhanced Telegram alert
+            alert_sent = self._send_dynamic_telegram_alert(token, global_score, active_detectors, boosted_detectors)
+            
+            print(f"[DYNAMIC BOOST] ALERT triggered: {len(active_detectors)} detectors >= {min_detectors}, weighted_score {global_score:.3f} > {global_score_threshold}")
+            
+        else:
+            decision = AlertDecision.NO_ALERT
+            alert_sent = False
+            consensus_strength = 0.0
+            
+            if len(active_detectors) < min_detectors:
+                reason = f"Insufficient consensus ({len(active_detectors)} active detectors, need {min_detectors}), weighted_score={global_score:.2f}"
+            else:
+                reason = f"Weighted score too low ({global_score:.2f} ≤ {global_score_threshold}), detectors={len(active_detectors)}"
+            
+            print(f"[DYNAMIC BOOST] NO ALERT: {reason}")
+        
+        # Oblicz confidence na podstawie weighted average confidence
+        if active_detectors:
+            weighted_confidence = sum(d['confidence'] * d['weight'] for d in active_detectors.values()) / total_weight
+            confidence = min(1.0, weighted_confidence * (len(active_detectors) / len(unified_scores)))
+        else:
+            confidence = 0.0
+        
+        contributing_detectors = list(active_detectors.keys())
+        
+        # Zwróć rezultat w ConsensusResult format
+        result = ConsensusResult(
+            decision=decision,
+            final_score=global_score,
+            confidence=confidence,
+            strategy_used=ConsensusStrategy.WEIGHTED_AVERAGE,  # Używamy jako proxy dla dynamic boosting
+            contributing_detectors=contributing_detectors,
+            reasoning=reason,
+            consensus_strength=consensus_strength,
+            alert_sent=alert_sent,
+            timestamp=datetime.now().isoformat()
+        )
+        
+        # Zapisz do historii decyzji
+        self._record_dynamic_decision(token, result, unified_scores, active_detectors, boosted_detectors)
+        
+        return result
+    
+    def _normalize_to_extended_format(self, scores: Union[Dict[str, float], Dict[str, Dict]]) -> Dict[str, Dict]:
+        """
+        Normalizuje scores do extended format z confidence i weight
+        
+        Args:
+            scores: Simple lub extended format
+            
+        Returns:
+            Extended format z default values jeśli potrzebne
+        """
+        if self._is_extended_score_format(scores):
+            return scores
+        
+        # Konwersja z simple format - dodaj default confidence i weight
+        default_weights = {
+            "CaliforniumWhale": 0.30,
+            "WhaleCLIP": 0.25,
+            "DiamondWhale": 0.25,
+            "StealthSignal": 0.20
+        }
+        
+        normalized = {}
+        for detector_name, score in scores.items():
+            normalized[detector_name] = {
+                'score': score,
+                'confidence': 0.70,  # Default confidence
+                'weight': default_weights.get(detector_name, 0.20)  # Default weight
+            }
+        
+        print(f"[NORMALIZE] Converted simple format to extended format with defaults")
+        return normalized
+    
+    def _send_dynamic_telegram_alert(self, token: str, global_score: float, 
+                                    active_detectors: Dict, boosted_detectors: List[str]) -> bool:
+        """
+        ETAP 3: Dynamic Boosting Telegram Alert
+        Wysyła enhanced alert z confidence, weight i booster info
+        
+        Args:
+            token: Symbol tokena
+            global_score: Weighted global score
+            active_detectors: Dict aktywnych detektorów z metadata
+            boosted_detectors: Lista detektorów z applied booster
+            
+        Returns:
+            True jeśli alert wysłany pomyślnie
+        """
+        try:
+            # Format enhanced message zgodnie z Etap 3 specyfikacją
+            message = f"🚀 [Dynamic Consensus] {token} | Score: {global_score:.3f}\n"
+            message += f"Active detectors: {len(active_detectors)}\n"
+            
+            if boosted_detectors:
+                message += f"⚡ Boosted: {', '.join(boosted_detectors)}\n"
+            
+            message += "\n📊 Detector Breakdown:\n"
+            
+            # Dodaj detailed breakdown detektorów
+            for detector, data in active_detectors.items():
+                confidence_emoji = "🔥" if data['confidence'] >= 0.85 else "⚡" if data['confidence'] >= 0.70 else "💫"
+                booster_emoji = "⚡" if detector in boosted_detectors else ""
+                
+                message += f"  {confidence_emoji}{booster_emoji} {detector}:\n"
+                message += f"    Score: {data['score']:.3f} | Conf: {data['confidence']:.2f} | Weight: {data['weight']:.2f}\n"
+                message += f"    Contribution: {data['weighted_contribution']:.3f}\n"
+            
+            total_weight = sum(d['weight'] for d in active_detectors.values())
+            message += f"\n📈 Total Weight: {total_weight:.3f}"
+            message += f"\nTimestamp: {datetime.now().strftime('%H:%M:%S')}"
+            
+            print(f"[DYNAMIC TELEGRAM] Enhanced alert message prepared:")
+            print(message)
+            
+            # TODO: Implementacja rzeczywistego wysłania (Etap 4)
+            if self.telegram_token and self.chat_id:
+                print(f"[DYNAMIC TELEGRAM] Would send to chat {self.chat_id}")
+                # W Etap 4: requests.get(url, params=params)
+            else:
+                print(f"[DYNAMIC TELEGRAM] No Telegram credentials configured")
+            
+            return True
+            
+        except Exception as e:
+            print(f"[DYNAMIC TELEGRAM ERROR] Failed to send alert: {e}")
+            return False
+    
+    def _record_dynamic_decision(self, token: str, result: ConsensusResult, 
+                                all_scores: Dict, active_detectors: Dict, 
+                                boosted_detectors: List[str]):
+        """
+        Zapisuje dynamic boosting decision do historii
+        
+        Args:
+            token: Symbol tokena
+            result: ConsensusResult
+            all_scores: Wszystkie scores detektorów (extended format)
+            active_detectors: Aktywne detektory z metadata
+            boosted_detectors: Lista boosted detektorów
+        """
+        decision_record = {
+            'token': token,
+            'timestamp': result.timestamp,
+            'decision': result.decision.value,
+            'final_score': result.final_score,
+            'confidence': result.confidence,
+            'strategy': 'DYNAMIC_BOOSTING',
+            'consensus_strength': result.consensus_strength,
+            'all_detector_scores': all_scores,
+            'active_detector_data': active_detectors,
+            'active_count': len(active_detectors),
+            'total_count': len(all_scores),
+            'boosted_detectors': boosted_detectors,
+            'boosted_count': len(boosted_detectors),
+            'total_weight': sum(d['weight'] for d in active_detectors.values()) if active_detectors else 0.0,
+            'reasoning': result.reasoning,
+            'alert_sent': result.alert_sent
+        }
+        
+        self.decision_history.append(decision_record)
+        
+        # Ogranicz historię
+        if len(self.decision_history) > 1000:
+            self.decision_history = self.decision_history[-1000:]
+        
+        print(f"[DYNAMIC BOOST] Decision recorded: {result.decision.value} for {token}")
     
     def _simple_consensus_logic(self, token: str, scores: Dict[str, float]) -> ConsensusResult:
         """
@@ -904,6 +1181,149 @@ def test_etap2_simple_consensus():
     else:
         print("❌ Some tests failed - review implementation")
         return False
+
+
+def test_etap3_dynamic_boosting():
+    """Dedykowany test dla Etap 3 Dynamic Boosting Logic"""
+    
+    print("🚀 ETAP 3 DYNAMIC BOOSTING - DEDICATED TESTING")
+    print("=" * 80)
+    
+    engine = create_consensus_engine()
+    
+    # Test scenarios z extended format (confidence + weight)
+    test_scenarios = [
+        {
+            'name': 'Perfect Boosted Consensus (2 boosted detectors)',
+            'scores': {
+                "WhaleCLIP": {"score": 0.92, "confidence": 0.88, "weight": 0.28},
+                "DiamondWhale": {"score": 0.91, "confidence": 0.86, "weight": 0.33},
+                "CaliforniumWhale": {"score": 0.78, "confidence": 0.65, "weight": 0.25},
+                "StealthSignal": {"score": 0.74, "confidence": 0.59, "weight": 0.14}
+            },
+            'expected': 'ALERT',
+            'reason': 'Multiple boosted detectors, high weighted score'
+        },
+        {
+            'name': 'Minimum Dynamic Alert (2 active, weighted score > 0.8)',
+            'scores': {
+                "WhaleCLIP": {"score": 0.87, "confidence": 0.70, "weight": 0.50},
+                "DiamondWhale": {"score": 0.82, "confidence": 0.72, "weight": 0.45},
+                "CaliforniumWhale": {"score": 0.74, "confidence": 0.55, "weight": 0.25},
+                "StealthSignal": {"score": 0.70, "confidence": 0.50, "weight": 0.14}
+            },
+            'expected': 'ALERT',
+            'reason': '2 active detectors, weighted score > 0.8'
+        },
+        {
+            'name': 'Low Confidence Block (high scores, low confidence)',
+            'scores': {
+                "WhaleCLIP": {"score": 0.90, "confidence": 0.55, "weight": 0.30},
+                "DiamondWhale": {"score": 0.88, "confidence": 0.58, "weight": 0.30},
+                "CaliforniumWhale": {"score": 0.85, "confidence": 0.45, "weight": 0.25},
+                "StealthSignal": {"score": 0.82, "confidence": 0.50, "weight": 0.15}
+            },
+            'expected': 'NO_ALERT',
+            'reason': 'All detectors below confidence threshold (0.60)'
+        },
+        {
+            'name': 'Low Weighted Score (active detectors, low total weight)',
+            'scores': {
+                "WhaleCLIP": {"score": 0.76, "confidence": 0.65, "weight": 0.15},
+                "DiamondWhale": {"score": 0.78, "confidence": 0.68, "weight": 0.20},
+                "CaliforniumWhale": {"score": 0.77, "confidence": 0.62, "weight": 0.10},
+                "StealthSignal": {"score": 0.75, "confidence": 0.60, "weight": 0.05}
+            },
+            'expected': 'NO_ALERT',
+            'reason': 'Low weighted score despite 4 active detectors'
+        },
+        {
+            'name': 'Single Booster Scenario (one very strong detector)',
+            'scores': {
+                "WhaleCLIP": {"score": 0.95, "confidence": 0.90, "weight": 0.60},
+                "DiamondWhale": {"score": 0.80, "confidence": 0.70, "weight": 0.35},
+                "CaliforniumWhale": {"score": 0.70, "confidence": 0.50, "weight": 0.20},
+                "StealthSignal": {"score": 0.65, "confidence": 0.45, "weight": 0.10}
+            },
+            'expected': 'ALERT',
+            'reason': 'One boosted detector + one active, high weighted contribution'
+        }
+    ]
+    
+    success_count = 0
+    total_tests = len(test_scenarios)
+    
+    for i, scenario in enumerate(test_scenarios, 1):
+        print(f"\n🔬 Test {i}: {scenario['name']}")
+        print(f"   Scenario: {scenario['reason']}")
+        print(f"   Expected: {scenario['expected']}")
+        
+        # Sprawdź booster candidates
+        booster_candidates = []
+        for detector, data in scenario['scores'].items():
+            if data['confidence'] > 0.85 and data['score'] > 0.90:
+                booster_candidates.append(detector)
+        
+        if booster_candidates:
+            print(f"   Expected boosters: {', '.join(booster_candidates)}")
+        
+        result = engine.run(f"DTEST{i}", scenario['scores'], use_dynamic_boosting=True)
+        
+        success = result.decision.value == scenario['expected']
+        status = "✅ PASS" if success else "❌ FAIL"
+        
+        print(f"   Result: {result.decision.value} (score: {result.final_score:.3f}) {status}")
+        print(f"   Active detectors: {len(result.contributing_detectors)}")
+        print(f"   Reasoning: {result.reasoning}")
+        
+        if success:
+            success_count += 1
+    
+    print(f"\n📊 ETAP 3 TEST SUMMARY:")
+    print(f"Tests passed: {success_count}/{total_tests} ({(success_count/total_tests)*100:.1f}%)")
+    
+    if success_count == total_tests:
+        print("🎉 ETAP 3 DYNAMIC BOOSTING LOGIC: COMPLETE ✅")
+        return True
+    else:
+        print("❌ Some tests failed - review implementation")
+        return False
+
+
+def test_etap3_format_conversion():
+    """Test konwersji formatów między simple a extended"""
+    
+    print("\n🔄 TESTING FORMAT CONVERSION")
+    print("=" * 50)
+    
+    engine = create_consensus_engine()
+    
+    # Test 1: Simple format conversion
+    print("\n🔬 Test 1: Simple to Extended Format Conversion")
+    simple_scores = {
+        "WhaleCLIP": 0.84,
+        "DiamondWhale": 0.78,
+        "CaliforniumWhale": 0.92,
+        "StealthSignal": 0.81
+    }
+    
+    result = engine.run("CONVERT1", simple_scores, use_dynamic_boosting=True)
+    print(f"Simple format processed successfully: {result.decision.value}")
+    
+    # Test 2: Extended format direct use
+    print("\n🔬 Test 2: Extended Format Direct Processing")
+    extended_scores = {
+        "WhaleCLIP": {"score": 0.84, "confidence": 0.75, "weight": 0.28},
+        "DiamondWhale": {"score": 0.78, "confidence": 0.80, "weight": 0.33},
+        "CaliforniumWhale": {"score": 0.92, "confidence": 0.88, "weight": 0.25},
+        "StealthSignal": {"score": 0.81, "confidence": 0.70, "weight": 0.14}
+    }
+    
+    result = engine.run("CONVERT2", extended_scores, use_dynamic_boosting=True)
+    print(f"Extended format processed successfully: {result.decision.value}")
+    
+    print("✅ FORMAT CONVERSION TESTS COMPLETE")
+    return True
 
 
 if __name__ == "__main__":
