@@ -1029,6 +1029,44 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 
                 print(f"[CALIFORNIUM AI] {symbol}: Californium score={californium_score:.3f}, contribution=+{californium_contribution:.3f}")
                 print(f"[CALIFORNIUM AI] {symbol}: Temporal GNN + QIRL analysis completed successfully")
+                
+                # 🚨 STAGE 4/7 - CALIFORNIUM ALERT SYSTEM
+                # Sprawdź czy wysłać alert CaliforniumWhale AI (score > 0.7)
+                if californium_score > 0.7:
+                    try:
+                        from californium_alerts import send_californium_alert
+                        
+                        # Przygotuj market data dla alertu
+                        alert_market_data = {
+                            "price_usd": token_data.get('price', 0),
+                            "volume_24h": token_data.get('volume_24h', 0),
+                            "symbol": symbol
+                        }
+                        
+                        # Przygotuj dodatkowy kontekst
+                        alert_context = {
+                            "stealth_score": score,
+                            "active_signals": used_signals.copy(),
+                            "diamond_score": diamond_score if diamond_enabled else None,
+                            "data_coverage": data_coverage
+                        }
+                        
+                        # Wyślij alert CaliforniumWhale AI
+                        alert_sent = send_californium_alert(
+                            symbol, californium_score, 
+                            alert_market_data, alert_context
+                        )
+                        
+                        if alert_sent:
+                            print(f"[CALIFORNIUM ALERT] ✅ {symbol}: Mastermind alert sent (score: {californium_score:.3f})")
+                        else:
+                            print(f"[CALIFORNIUM ALERT] ℹ️ {symbol}: Alert not sent (cooldown/config)")
+                            
+                    except ImportError:
+                        print(f"[CALIFORNIUM ALERT] ⚠️ {symbol}: CaliforniumAlerts module not available")
+                    except Exception as alert_error:
+                        print(f"[CALIFORNIUM ALERT] ❌ {symbol}: Alert error: {alert_error}")
+                        
             else:
                 print(f"[CALIFORNIUM AI] {symbol}: No significant CaliforniumWhale activity detected")
                 
