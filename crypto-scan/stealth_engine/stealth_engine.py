@@ -1824,44 +1824,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             result["alert_sent"] = False
             result["alert_skip_reason"] = f"stealth_alert_error: {stealth_alert_error}"
                 
-        # ✅ WATCHLIST ALERT SYSTEM - zgodnie z propozycją Szefira
-        # Dla tokenów z score 0.4-0.6 + HOLD decision
-        # ⛔ FLUXUSDT excluded per user request
-        if score >= 0.40 and score < 0.70 and final_decision == "HOLD" and symbol != "FLUXUSDT":
-            try:
-                from alerts.stealth_v3_watchlist_alerts import send_watchlist_alert
-                
-                # Przygotuj dane dla watchlist alert
-                watchlist_data = {
-                    "symbol": symbol,
-                    "score": score,
-                    "decision": final_decision,
-                    "active_detectors": active_detectors_count,
-                    "consensus_data": consensus_data,
-                    "gnn_score": gnn_subgraph_score if gnn_active else None,
-                    "mastermind_addresses": len(mastermind_addresses) if mastermind_addresses else 0
-                }
-                
-                # Wyślij watchlist alert
-                watchlist_success = send_watchlist_alert(watchlist_data)
-                
-                if watchlist_success:
-                    print(f"[WATCHLIST ALERT] {symbol}: Watchlist alert sent (score: {score:.3f}, decision: {final_decision})")
-                    result["alert_sent"] = True
-                    result["alert_type"] = "watchlist"
-                else:
-                    print(f"[WATCHLIST ALERT] {symbol}: Watchlist alert w cooldown lub błąd")
-                    result["alert_sent"] = False
-                    result["alert_skip_reason"] = "watchlist_cooldown"
-                    
-            except ImportError:
-                print(f"[WATCHLIST ALERT] {symbol}: Watchlist alert system nie jest dostępny")
-                result["alert_sent"] = False
-                result["alert_skip_reason"] = "watchlist_unavailable"
-            except Exception as watchlist_error:
-                print(f"[WATCHLIST ALERT ERROR] {symbol}: {watchlist_error}")
-                result["alert_sent"] = False
-                result["alert_skip_reason"] = f"watchlist_error: {watchlist_error}"
+        # ⛔ WATCHLIST ALERT SYSTEM DISABLED per user request
+        # User requested removal of watchlist alerts completely
             
         return result
         
