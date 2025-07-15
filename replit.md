@@ -137,6 +137,18 @@ System dostarcza breakthrough production stability gdzie Stealth V3 Alert System
 - **COMPREHENSIVE TESTING SUCCESS**: Production environment testing potwierdzono że CaliforniumWhale AI produces meaningful scores (0.295 range) i DiamondWhale AI handles edge cases properly z zero breaking changes
 System delivers breakthrough GNN detector stability gdzie sophisticated AI analysis components now function reliably z enhanced error handling, proper score calculation, parameter order fixes, i production-ready deployment architecture enabling institutional-grade cryptocurrency intelligence z complete multi-agent consensus decision functionality.
 
+### July 15, 2025 - GNN SCHEDULER DUPLICATION RESOLVED - Architectural Cleanup Complete ✅
+**🔧 CRITICAL ARCHITECTURAL FIX:** Pomyślnie rozwiązano problem duplikacji GNN Scheduler gdzie system działał w dwóch miejscach jednocześnie powodując potencjalne konflikty:
+- **DUPLIKACJA ZIDENTYFIKOWANA**: scheduler.py (328 linii) działał jako osobny proces równolegle z scheduler/scheduler_diamond.py (354 linii) uruchamianym jako thread w crypto_scan_service.py
+- **PRZESTARZAŁY SCHEDULER USUNIĘTY**: scheduler.py workflow został wyłączony - był to przestarzały GNNScheduler bez integracji z systemem
+- **UNIFIED SCHEDULER ARCHITECTURE**: Teraz używamy tylko scheduler/scheduler_diamond.py z start_diamond_scheduler_thread() który jest właściwie zintegrowany z crypto_scan_service.py
+- **THREAD INTEGRATION CONFIRMED**: Diamond Scheduler działa jako daemon thread w ramach crypto_scan_service.py z proper integration z feedback loops, model checkpoints, i daily training
+- **PRODUCTION OPTIMIZATION**: Eliminacja duplikacji redukuje resource usage i potential conflicts między schedulers zapewniając clean architecture
+- **DIAMOND SCHEDULER FEATURES**: Scheduler zawiera complete Stage 6-7 functionality: daily feedback loops (02:00 UTC), model checkpoints (02:15 UTC), hourly pending checks, RLAgentV4 training integration
+- **ZERO BREAKING CHANGES**: Usunięcie przestarzałego scheduler.py nie wpływa na funkcjonalność - wszystkie capabilities przeniesione do scheduler/scheduler_diamond.py
+- **ARCHITECTURAL CLARITY**: Clear separation gdzie crypto_scan_service.py handles main scanning z integrated Diamond Scheduler thread dla automated training i feedback
+System dostarcza clean unified architecture gdzie GNN Scheduler działa jako single properly integrated thread eliminating architectural duplication i ensuring consistent automated training, feedback loops, model checkpoints z institutional-grade reliability bez resource conflicts.
+
 ### July 15, 2025 - FLUXUSDT WATCHLIST ALERT EXCLUSION COMPLETE - User-Requested Fine-Tuning ✅
 **🎯 USER-REQUESTED CUSTOMIZATION:** Pomyślnie usunięto watchlist alerty dla FLUXUSDT zgodnie z user request, implementując comprehensive exclusion system:
 - **WATCHLIST FUNCTION EXCLUSION**: Dodano dedicated FLUXUSDT filter w send_watchlist_alert() function blokujący alerts na poziomie messaging system
