@@ -183,9 +183,10 @@ class UnifiedTelegramAlerts:
     
     def send_stealth_alert(self, token_symbol: str, detector_name: str, score: float, 
                           comment: str = None, action: str = None, 
-                          additional_data: Dict = None) -> bool:
+                          additional_data: Dict = None, consensus_decision: str = None, 
+                          consensus_enabled: bool = False) -> bool:
         """
-        Universal stealth alert function for all detectors
+        Universal stealth alert function for all detectors with consensus validation
         
         Args:
             token_symbol: Symbol of the token (e.g., "RSRUSDT")
@@ -194,10 +195,27 @@ class UnifiedTelegramAlerts:
             comment: Custom comment (uses default if None)
             action: Suggested action (uses default if None)
             additional_data: Additional data to include in alert
+            consensus_decision: Consensus decision (BUY/HOLD/AVOID)
+            consensus_enabled: Whether consensus is available
             
         Returns:
             True if alert sent successfully, False otherwise
         """
+        
+        # 🔐 CRITICAL CONSENSUS DECISION CHECK FIRST - NAJWAŻNIEJSZE SPRAWDZENIE
+        if consensus_enabled and consensus_decision:
+            if consensus_decision != "BUY":
+                logger.info(f"[UNIFIED CONSENSUS BLOCK] {token_symbol} → Consensus decision {consensus_decision} blocks alert ({detector_name}, score={score:.3f})")
+                return False  # Blokuj alert jeśli consensus != BUY
+            else:
+                logger.info(f"[UNIFIED CONSENSUS PASS] {token_symbol} → Consensus decision BUY allows alert ({detector_name}, score={score:.3f})")
+        else:
+            # Fallback - bez consensus, sprawdź score threshold
+            if score < 4.0:
+                logger.info(f"[UNIFIED NO CONSENSUS] {token_symbol} → No consensus, score {score:.3f} < 4.0 threshold - blocking alert ({detector_name})")
+                return False
+            else:
+                logger.info(f"[UNIFIED FALLBACK] {token_symbol} → No consensus, high score {score:.3f} >= 4.0 allows alert ({detector_name})")
         
         # Validate credentials
         if not self.bot_token or not self.chat_id:

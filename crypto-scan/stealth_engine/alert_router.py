@@ -335,6 +335,12 @@ def create_priority_alert_data(symbol: str, score: float, priority_score: float,
         "trust_score": trust_score,
         "trigger_detected": trigger_detected,
         
+        # 🔐 CRITICAL CONSENSUS DECISION DATA - Required for Telegram Alert Manager
+        "consensus_decision": market_data.get("consensus_decision", "HOLD"),
+        "consensus_enabled": market_data.get("consensus_enabled", False),
+        "consensus_confidence": market_data.get("consensus_confidence", 0.0),
+        "consensus_detectors": market_data.get("consensus_detectors", []),
+        
         # Active functions and AI feedback for enhanced Telegram alerts
         "active_functions": active_functions or [],
         "gpt_feedback": gpt_feedback,

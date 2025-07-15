@@ -470,15 +470,35 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 # Sprawdź czy powinien być alert z nowymi progami
                 should_alert = simulate_stealth_decision(stealth_score, volume_24h, tjde_phase)
                 
+                # 🔐 CRITICAL CONSENSUS DECISION CHECK - BLOKUJ ALERTY JEŚLI CONSENSUS != "BUY"
+                consensus_decision = market_data.get("consensus_decision", "HOLD")
+                consensus_enabled = market_data.get("consensus_enabled", False)
+                
+                # Jeśli consensus jest dostępny, użyj jego decyzji
+                if consensus_enabled and consensus_decision:
+                    if consensus_decision == "BUY":
+                        should_alert = True
+                        print(f"[CONSENSUS OVERRIDE] {symbol} → Consensus decision BUY triggers STEALTH alert")
+                    else:
+                        should_alert = False
+                        print(f"[CONSENSUS BLOCK] {symbol} → Consensus decision {consensus_decision} blocks STEALTH alert (score={stealth_score:.3f})")
+                
                 if should_alert:
                     print(f"[STEALTH ALERT TRIGGERED] {symbol} → DYNAMIC THRESHOLD ALERT score={stealth_score:.3f}, volume=${volume_24h/1_000_000:.1f}M")
                     
                     # Log szczegółowej decyzji
                     log_stealth_decision(symbol, stealth_score, volume_24h, tjde_phase, "alert")
                     
-                    # Wywołaj system alertów z metadata
+                    # Wywołaj system alertów z metadata i consensus decision
                     try:
-                        await send_stealth_alert(symbol, stealth_score, active_signals, alert_type)
+                        await send_stealth_alert(
+                            symbol=symbol, 
+                            stealth_score=stealth_score, 
+                            active_signals=active_signals, 
+                            alert_type=alert_type,
+                            consensus_decision=consensus_decision,
+                            consensus_enabled=consensus_enabled
+                        )
                         print(f"[STEALTH ALERT SENT] {symbol} → Dynamic threshold alert dispatched successfully")
                         
                         # 🎯 ETAP 10 - INTEGRACJA Z PRIORITY ALERT QUEUE

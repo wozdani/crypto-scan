@@ -276,9 +276,28 @@ class TelegramAlertManager:
         """
         
         try:
-            # 🔔 Sformatuj wiadomość alertu z rozszerzonymi informacjami
+            # 🔐 CRITICAL CONSENSUS DECISION CHECK FIRST - NAJWAŻNIEJSZE SPRAWDZENIE
+            consensus_decision = alert_data.get("consensus_decision", "HOLD")
+            consensus_enabled = alert_data.get("consensus_enabled", False)
             symbol = alert_data.get("symbol", "UNKNOWN")
             score = alert_data.get("score", 0)
+            
+            # Jeśli consensus jest dostępny, sprawdź decyzję
+            if consensus_enabled and consensus_decision:
+                if consensus_decision != "BUY":
+                    print(f"[TELEGRAM CONSENSUS BLOCK] {symbol} → Consensus decision {consensus_decision} blocks alert (score={score:.3f})")
+                    return False  # Blokuj alert jeśli consensus != BUY
+                else:
+                    print(f"[TELEGRAM CONSENSUS PASS] {symbol} → Consensus decision BUY allows alert (score={score:.3f})")
+            else:
+                # Fallback - bez consensus, sprawdź score threshold
+                if score < 4.0:
+                    print(f"[TELEGRAM NO CONSENSUS] {symbol} → No consensus, score {score:.3f} < 4.0 threshold - blocking alert")
+                    return False
+                else:
+                    print(f"[TELEGRAM FALLBACK] {symbol} → No consensus, high score {score:.3f} >= 4.0 allows alert")
+            
+            # 🔔 Sformatuj wiadomość alertu z rozszerzonymi informacjami
             priority_score = alert_data.get("priority_score", 0)
             tags = alert_data.get("tags", [])
             trust_score = alert_data.get("trust_score", 0)

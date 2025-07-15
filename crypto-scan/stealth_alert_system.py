@@ -119,16 +119,33 @@ class StealthAlertManager:
 # Global alert manager
 stealth_alert_manager = StealthAlertManager()
 
-async def send_stealth_alert(symbol: str, stealth_score: float, active_signals: List[str], alert_type: str):
+async def send_stealth_alert(symbol: str, stealth_score: float, active_signals: List[str], alert_type: str, consensus_decision: str = None, consensus_enabled: bool = False):
     """
-    Wysyła alert Stealth Engine z pełną integracją utility modules
+    Wysyła alert Stealth Engine z pełną integracją utility modules i sprawdzaniem consensus
     
     Args:
         symbol: Symbol tokena
         stealth_score: Końcowy score stealth
         active_signals: Lista aktywnych sygnałów
         alert_type: Typ alertu (strong_stealth_alert, medium_alert)
+        consensus_decision: Decyzja consensus (BUY/HOLD/AVOID)
+        consensus_enabled: Czy consensus jest dostępny
     """
+    
+    # 🔐 CRITICAL CONSENSUS DECISION CHECK FIRST - NAJWAŻNIEJSZE SPRAWDZENIE
+    if consensus_enabled and consensus_decision:
+        if consensus_decision != "BUY":
+            print(f"[STEALTH CONSENSUS BLOCK] {symbol} → Consensus decision {consensus_decision} blocks alert (score={stealth_score:.3f})")
+            return  # Blokuj alert jeśli consensus != BUY
+        else:
+            print(f"[STEALTH CONSENSUS PASS] {symbol} → Consensus decision BUY allows alert (score={stealth_score:.3f})")
+    else:
+        # Fallback - bez consensus, sprawdź score threshold
+        if stealth_score < 4.0:
+            print(f"[STEALTH NO CONSENSUS] {symbol} → No consensus, score {stealth_score:.3f} < 4.0 threshold - blocking alert")
+            return
+        else:
+            print(f"[STEALTH FALLBACK] {symbol} → No consensus, high score {stealth_score:.3f} >= 4.0 allows alert")
     
     # Sprawdź intelligent cooldown z current score
     if not stealth_alert_manager.should_send_alert(symbol, stealth_score):
