@@ -1102,46 +1102,89 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             try:
                 from alerts.stealth_v3_telegram_alerts import send_stealth_v3_alert
                 
-                # Przygotuj detector_results na podstawie aktywnych sygnałów
+                # Przygotuj detector_results z numerycznymi wartościami dla diagnostic transparency
                 detector_results = {}
-                for signal_name in used_signals:
-                    if signal_name == "whale_ping":
-                        detector_results["whale_ping"] = True
-                    elif signal_name == "dex_inflow":
-                        detector_results["dex_inflow"] = True  
-                    elif signal_name == "spoofing_layers":
-                        detector_results["spoofing_layers"] = True
-                    elif signal_name == "volume_spike":
-                        detector_results["volume_spike"] = True
-                    elif signal_name == "orderbook_anomaly":
-                        detector_results["orderbook_anomaly"] = True
-                    elif signal_name == "diamond_whale_detection":
-                        detector_results["diamond_ai"] = True
-                    elif signal_name == "californium_whale_detection":
-                        detector_results["mastermind_tracing"] = True
                 
-                # Przygotuj consensus_data na podstawie score
-                if score >= 4.0:
-                    consensus_data = {
-                        "decision": "BUY",
-                        "votes": f"{len(used_signals)}/4",
-                        "confidence": round(min(score / 4.0, 1.0), 3),
-                        "feedback_adjust": 0.0
-                    }
-                elif score >= 2.5:
-                    consensus_data = {
-                        "decision": "MONITOR", 
-                        "votes": f"{len(used_signals)}/4",
-                        "confidence": round(score / 4.0, 3),
-                        "feedback_adjust": 0.0
-                    }
+                # Extract actual scores from signals for enhanced diagnostic breakdown
+                for signal in signals:
+                    if hasattr(signal, 'active') and signal.active and hasattr(signal, 'strength'):
+                        weight = weights.get(signal.name, 1.0)
+                        signal_score = weight * signal.strength
+                        
+                        # Map signals to detector categories z actual scores
+                        if signal.name == "whale_ping":
+                            detector_results["whale_ping"] = signal_score
+                        elif signal.name == "dex_inflow":
+                            detector_results["dex_inflow"] = signal_score
+                        elif signal.name == "spoofing_layers":
+                            detector_results["orderbook_anomaly"] = signal_score
+                        elif signal.name == "volume_spike":
+                            detector_results["volume_spike"] = signal_score
+                        elif signal.name in ["spoofing_layers", "orderbook_imbalance_stealth", "large_bid_walls"]:
+                            detector_results["orderbook_anomaly"] = detector_results.get("orderbook_anomaly", 0.0) + signal_score
+                
+                # Dodaj AI detector scores z właściwymi wartościami
+                if diamond_enabled and diamond_score > 0:
+                    detector_results["diamond_ai"] = diamond_score
+                if californium_enabled and californium_score > 0:
+                    detector_results["mastermind_tracing"] = californium_score
+                
+                # Ensure wszystkie kluczowe detektory są reprezentowane (0.0 jeśli nieaktywne)
+                required_detectors = ["whale_ping", "dex_inflow", "orderbook_anomaly", "whaleclip_vision", "mastermind_tracing"]
+                for detector in required_detectors:
+                    if detector not in detector_results:
+                        detector_results[detector] = 0.0
+                
+                # Przygotuj consensus_data z proper agent votes simulation dla diagnostic transparency
+                agent_votes = []
+                
+                # Simulate agent votes na podstawie detector activity i scores
+                if detector_results.get("whale_ping", 0.0) > 0.5:
+                    agent_votes.append("BUY")
                 else:
-                    consensus_data = {
-                        "decision": "WATCH",
-                        "votes": f"{len(used_signals)}/4",
-                        "confidence": round(score / 4.0, 3),
-                        "feedback_adjust": 0.0
-                    }
+                    agent_votes.append("HOLD" if detector_results.get("whale_ping", 0.0) > 0.2 else "AVOID")
+                
+                if detector_results.get("dex_inflow", 0.0) > 0.5:
+                    agent_votes.append("BUY")  
+                else:
+                    agent_votes.append("HOLD" if detector_results.get("dex_inflow", 0.0) > 0.2 else "AVOID")
+                
+                if detector_results.get("orderbook_anomaly", 0.0) > 0.5:
+                    agent_votes.append("BUY")
+                else:
+                    agent_votes.append("HOLD" if detector_results.get("orderbook_anomaly", 0.0) > 0.2 else "AVOID")
+                
+                if detector_results.get("mastermind_tracing", 0.0) > 0.5:
+                    agent_votes.append("BUY")
+                else:
+                    agent_votes.append("HOLD" if detector_results.get("mastermind_tracing", 0.0) > 0.2 else "AVOID")
+                
+                # Final decision na podstawie score i vote majority
+                buy_votes = agent_votes.count("BUY")
+                if score >= 4.0 or buy_votes >= 3:
+                    final_decision = "BUY"
+                elif score >= 2.5 or buy_votes >= 2:
+                    final_decision = "MONITOR"
+                else:
+                    final_decision = "WATCH"
+                
+                # Calculate feedback adjustment from component system
+                feedback_adjustment = 0.0
+                try:
+                    # Try to get recent feedback boost from component system
+                    from feedback_loop.component_score_updater import get_component_updater
+                    updater = get_component_updater()
+                    if hasattr(updater, 'get_recent_boost'):
+                        feedback_adjustment = updater.get_recent_boost(symbol)
+                except ImportError:
+                    pass
+                
+                consensus_data = {
+                    "decision": final_decision,
+                    "votes": agent_votes,  # Lista actual votes dla proper display
+                    "confidence": round(score, 3),  # Use actual score jako confidence
+                    "feedback_adjust": round(feedback_adjustment, 3)
+                }
                 
                 # Przygotuj meta_data z AI detector scores
                 meta_data = {
@@ -1155,6 +1198,14 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 if californium_enabled and californium_score > 0:
                     meta_data["californium_score"] = round(californium_score, 3)
                 
+                # Enhanced logging z comprehensive diagnostic breakdown
+                try:
+                    from utils.stealth_logger import StealthLogger
+                    stealth_logger = StealthLogger()
+                    stealth_logger.log_stealth_analysis_complete(symbol, detector_results, consensus_data)
+                except ImportError:
+                    pass
+                
                 # Wyślij Stealth v3 alert
                 alert_sent = send_stealth_v3_alert(
                     symbol=symbol,
@@ -1165,6 +1216,17 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 
                 if alert_sent:
                     print(f"[STEALTH V3 ALERT] ✅ {symbol}: Nowoczesny alert v3 wysłany (score: {score:.3f})")
+                    
+                    # Log pattern identification dla diagnostic transparency
+                    active_detectors = [name for name, score_val in detector_results.items() if score_val > 0.0]
+                    if active_detectors:
+                        print(f"[STEALTH V3 PATTERN] {symbol}: {', '.join(active_detectors)} consensus pattern")
+                    
+                    # Log agent consensus breakdown
+                    votes = consensus_data.get('votes', [])
+                    if isinstance(votes, list) and len(votes) > 0:
+                        buy_votes = votes.count('BUY')
+                        print(f"[STEALTH V3 CONSENSUS] {symbol}: {buy_votes}/{len(votes)} BUY votes → {consensus_data.get('decision', 'UNKNOWN')}")
                 else:
                     print(f"[STEALTH V3 ALERT] ℹ️ {symbol}: Alert v3 w cooldown lub błąd")
                     

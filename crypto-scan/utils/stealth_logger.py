@@ -26,11 +26,14 @@ class StealthLogger:
             'total_score': '🔐'
         }
         
-    def get_confidence_level(self, score: float) -> tuple:
-        """Zwróć poziom zagrożenia na podstawie score"""
-        if score > 1.8:
+    def get_confidence_level(self, score) -> tuple:
+        """Zwróć poziom zagrożenia na podstawie score (obsługuje float lub dict)"""
+        # Extract numeric value from score
+        numeric_score = self._extract_detector_value(score) if not isinstance(score, (int, float)) else score
+        
+        if numeric_score > 1.8:
             return "🔥", "[HIGH CONFIDENCE]"
-        elif 1.2 < score <= 1.8:
+        elif 1.2 < numeric_score <= 1.8:
             return "⚠️", "[MEDIUM CONFIDENCE]"
         else:
             return "🧪", "[LOW SIGNAL]"
@@ -51,10 +54,18 @@ class StealthLogger:
             stealth_score = token_data.get('base_score', 0.0)
             early_score = token_data.get('early_score', stealth_score)
             
+            # Extract numeric values for formatting
+            stealth_numeric = self._extract_detector_value(stealth_score)
+            early_numeric = self._extract_detector_value(early_score)
+            dex_numeric = self._extract_detector_value(token_data.get('dex_inflow', 0.0))
+            whale_numeric = self._extract_detector_value(token_data.get('whale_ping', 0.0))
+            trust_numeric = self._extract_detector_value(token_data.get('trust_boost', 0.0))
+            id_numeric = self._extract_detector_value(token_data.get('identity_boost', 0.0))
+            
             # Główny nagłówek tokena
             confidence_icon, confidence_text = self.get_confidence_level(stealth_score)
-            print(f"{i:2d}. {token:12} | Stealth: {stealth_score:6.3f} | Early: {early_score:6.3f}")
-            print(f"     DEX: {token_data.get('dex_inflow', 0.0):6.3f} | Whale: {token_data.get('whale_ping', 0.0):6.3f} | Trust: {token_data.get('trust_boost', 0.0):6.3f} | ID: {token_data.get('identity_boost', 0.0):6.3f}")
+            print(f"{i:2d}. {token:12} | Stealth: {stealth_numeric:6.3f} | Early: {early_numeric:6.3f}")
+            print(f"     DEX: {dex_numeric:6.3f} | Whale: {whale_numeric:6.3f} | Trust: {trust_numeric:6.3f} | ID: {id_numeric:6.3f}")
             print(f"     {confidence_icon} {confidence_text}")
             
             # Nowy breakdown detektorów
@@ -70,9 +81,126 @@ class StealthLogger:
     
     def _print_token_breakdown(self, token_data: Dict) -> None:
         """
-        Wyświetl szczegółowy breakdown detektorów
+        Wyświetl szczegółowy breakdown detektorów z numerical values
         """
         print("🔎 Breakdown:")
+        
+        # Extract numeric values from detectors (handles dict, bool, float)
+        whale_ping = self._extract_detector_value(token_data.get('whale_ping', 0.0))
+        mastermind = self._extract_detector_value(token_data.get('mastermind_tracing', 0.0))
+        dex_inflow = self._extract_detector_value(token_data.get('dex_inflow', 0.0))
+        orderbook = self._extract_detector_value(token_data.get('orderbook_anomaly', 0.0))
+        whaleclip = self._extract_detector_value(token_data.get('whaleclip_vision', 0.0))
+        consensus_votes = token_data.get('consensus_votes', "UNKNOWN")
+        feedback_adjust = self._extract_detector_value(token_data.get('feedback_adjust', 0.0))
+        total_score = self._extract_detector_value(token_data.get('base_score', 0.0))
+        
+        print(f" - 🐳 whale_ping:         {whale_ping:.2f}")
+        print(f" - 🧠 mastermind_tracing:  {mastermind:.2f}")
+        print(f" - 💧 dex_inflow:         {dex_inflow:.2f}")
+        print(f" - 📊 orderbook_anomaly:   {orderbook:.2f}")
+        print(f" - 🛰️ WhaleCLIP (vision):  {whaleclip:.2f}")
+        
+        # Consensus info
+        if isinstance(consensus_votes, list):
+            buy_count = consensus_votes.count('BUY') if consensus_votes else 0
+            total_count = len(consensus_votes) if consensus_votes else 0
+            print(f" - 🎯 consensus_vote:    {consensus_votes} ({buy_count}/{total_count})")
+        else:
+            print(f" - 🎯 consensus_vote:    {consensus_votes} (0/0)")
+        
+        print(f" - 🔁 feedback_adjust:   {feedback_adjust:+.2f}")
+        print(f" - 🔐 total_score:       {total_score:.3f}")
+    
+    def log_stealth_analysis_complete(self, symbol: str, detector_results: Dict[str, float], 
+                                    consensus_data: Dict[str, Any]) -> None:
+        """
+        Comprehensive logging dla kompletnej stealth analysis
+        """
+        print(f"\n[STEALTH ANALYSIS] {symbol} - Complete diagnostic breakdown:")
+        
+        # Active Detectors z scores
+        active_detectors = []
+        for detector, score in detector_results.items():
+            # Extract numeric value from detector result (supports bool, float, or dict)
+            numeric_score = self._extract_detector_value(score) if hasattr(self, '_extract_detector_value') else score
+            if isinstance(numeric_score, (int, float)) and numeric_score > 0.0:
+                active_detectors.append(f"{detector}: {numeric_score:.3f}")
+        
+        if active_detectors:
+            print(f"[STEALTH] {symbol} - Active detectors: {', '.join(active_detectors)}")
+            print(f"[STEALTH] {symbol} - Pattern identified: {self._identify_pattern(detector_results)}")
+        else:
+            print(f"[STEALTH] {symbol} - No active detectors (score: {final_score:.3f})")
+        
+        # Multi-agent consensus breakdown
+        votes = consensus_data.get('votes', [])
+        decision = consensus_data.get('decision', 'UNKNOWN')
+        confidence = consensus_data.get('confidence', 0.0)
+        
+        if isinstance(votes, list) and len(votes) > 0:
+            buy_votes = votes.count('BUY')
+            total_votes = len(votes)
+            print(f"[RL VOTE] {symbol} - Agents: {votes} → Final: {decision}")
+            print(f"[RL VOTE] {symbol} - Consensus: {buy_votes}/{total_votes} BUY (confidence: {confidence:.3f})")
+        
+        # Feedback boost info
+        feedback_adjust = consensus_data.get('feedback_adjust', 0.0)
+        if feedback_adjust != 0.0:
+            print(f"[FEEDBACK] {symbol} - Boost {feedback_adjust:+.3f} from prior success")
+    
+    def log_detector_activation(self, symbol: str, detector_name: str, score: float, 
+                               confidence: float = None) -> None:
+        """
+        Enhanced logging dla individual detector activation
+        """
+        emoji = self.detector_symbols.get(detector_name, '🔍')
+        confidence_text = f" (confidence: {confidence:.2f})" if confidence else ""
+        
+        # Extract numeric value from score (supports bool, float, or dict)
+        numeric_score = self._extract_detector_value(score)
+        
+        if numeric_score > 0.5:
+            print(f"[STEALTH] {emoji} {detector_name} detected pattern{confidence_text} - Score: {numeric_score:.3f}")
+        elif numeric_score > 0.0:
+            print(f"[STEALTH] {emoji} {detector_name} weak signal{confidence_text} - Score: {numeric_score:.3f}")
+    
+    def _extract_detector_value(self, detector_value) -> float:
+        """Extract numeric value from detector result (supports bool, float, or dict)"""
+        if isinstance(detector_value, bool):
+            return 1.0 if detector_value else 0.0
+        elif isinstance(detector_value, (int, float)):
+            return float(detector_value)
+        elif isinstance(detector_value, dict):
+            # Handle dict format like {"active": True, "score": 0.75}
+            if "score" in detector_value:
+                return float(detector_value["score"])
+            elif "active" in detector_value and detector_value["active"]:
+                return 1.0
+            else:
+                return 0.0
+        else:
+            return 0.0
+
+    def _identify_pattern(self, detector_results: Dict[str, float]) -> str:
+        """
+        Intelligent pattern identification na podstawie active detectors
+        """
+        # Convert all values to numeric using _extract_detector_value
+        active = []
+        for name, score in detector_results.items():
+            numeric_score = self._extract_detector_value(score)
+            if numeric_score > 0.0:
+                active.append(name)
+        
+        if len(active) >= 3:
+            return f"Multi-detector consensus ({'+'.join(active[:3])})"
+        elif len(active) == 2:
+            return f"{' + '.join(active)} consensus"
+        elif len(active) == 1:
+            return f"{active[0]} dominant signal"
+        else:
+            return "Composite stealth pattern"
         
         # Pobierz scores z stealth signals
         stealth_signals = token_data.get('stealth_signals', [])
@@ -160,16 +288,80 @@ class StealthLogger:
         """Log rozpoczęcia analizy stealth dla tokena"""
         print(f"[STEALTH ENGINE] {symbol} → Analyzing stealth signals...")
     
-    def log_stealth_analysis_complete(self, symbol: str, stealth_score: float, signals_count: int) -> None:
-        """Log zakończenia analizy stealth"""
-        confidence_icon, confidence_text = self.get_confidence_level(stealth_score)
-        print(f"[STEALTH COMPLETE] {symbol} → Score: {stealth_score:.3f} | Signals: {signals_count} | {confidence_icon} {confidence_text}")
+    def log_stealth_analysis_complete(self, symbol: str, detector_results_or_score, consensus_data_or_signals_count=None) -> None:
+        """
+        Comprehensive logging dla kompletnej stealth analysis
+        Supports both old format (symbol, score, signals_count) and new format (symbol, detector_results, consensus_data)
+        """
+        # Check if this is the new format (dict) or old format (float)
+        if isinstance(detector_results_or_score, dict) and consensus_data_or_signals_count is not None:
+            # New format: comprehensive diagnostic logging
+            detector_results = detector_results_or_score
+            consensus_data = consensus_data_or_signals_count
+            
+            print(f"\n[STEALTH ANALYSIS] {symbol} - Complete diagnostic breakdown:")
+            
+            # Calculate total score and active detectors
+            total_score = sum(self._extract_detector_value(score) for score in detector_results.values())
+            active_detectors = [name for name, score in detector_results.items() 
+                              if self._extract_detector_value(score) > 0.0]
+            
+            # Pattern identification
+            pattern = self._identify_pattern(detector_results)
+            confidence_icon, confidence_text = self.get_confidence_level(total_score)
+            
+            print(f"📊 {confidence_icon} Total Score: {total_score:.3f} {confidence_text}")
+            print(f"🔍 Pattern: {pattern}")
+            print(f"⚡ Active Detectors: {len(active_detectors)}/{len(detector_results)}")
+            
+            # Individual detector breakdown
+            print("🔬 Detector Breakdown:")
+            for name, score in detector_results.items():
+                numeric_score = self._extract_detector_value(score)
+                emoji = self.detector_symbols.get(name, '🔧')
+                status = "ACTIVE" if numeric_score > 0.0 else "INACTIVE"
+                print(f"  {emoji} {name}: {numeric_score:.3f} ({status})")
+            
+            # Consensus information
+            if consensus_data:
+                decision = consensus_data.get('decision', 'UNKNOWN')
+                confidence = consensus_data.get('confidence', 0.0)
+                votes = consensus_data.get('votes', [])
+                print(f"🎯 Consensus: {decision} (confidence: {confidence:.3f})")
+                if votes:
+                    buy_count = votes.count('BUY')
+                    print(f"🗳️  Agent Votes: {votes} → {buy_count}/{len(votes)} BUY")
+        else:
+            # Old format: simple score logging
+            stealth_score = detector_results_or_score
+            signals_count = consensus_data_or_signals_count or 0
+            confidence_icon, confidence_text = self.get_confidence_level(stealth_score)
+            print(f"[STEALTH COMPLETE] {symbol} → Score: {stealth_score:.3f} | Signals: {signals_count} | {confidence_icon} {confidence_text}")
     
-    def log_detector_activation(self, symbol: str, detector_name: str, score: float, active: bool) -> None:
-        """Log aktywacji konkretnego detektora"""
-        symbol_emoji = self.detector_symbols.get(detector_name, '🔧')
-        status = "ACTIVE" if active else "INACTIVE"
-        print(f"[DETECTOR] {symbol} → {symbol_emoji} {detector_name}: {score:.3f} ({status})")
+    def log_detector_activation(self, symbol: str, detector_name: str, score, active_or_confidence=None) -> None:
+        """
+        Enhanced logging dla individual detector activation
+        Supports both old format (symbol, name, score, active) and new format (symbol, name, score, confidence)
+        """
+        emoji = self.detector_symbols.get(detector_name, '🔧')
+        
+        # Extract numeric value from score (supports bool, float, or dict)
+        numeric_score = self._extract_detector_value(score)
+        
+        if active_or_confidence is None or isinstance(active_or_confidence, bool):
+            # Old format or simple activation
+            active = active_or_confidence if active_or_confidence is not None else (numeric_score > 0.0)
+            status = "ACTIVE" if active else "INACTIVE"
+            print(f"[DETECTOR] {symbol} → {emoji} {detector_name}: {numeric_score:.3f} ({status})")
+        else:
+            # New format with confidence
+            confidence = active_or_confidence
+            confidence_text = f" (confidence: {confidence:.2f})" if confidence else ""
+            
+            if numeric_score > 0.5:
+                print(f"[STEALTH] {emoji} {detector_name} detected pattern{confidence_text} - Score: {numeric_score:.3f}")
+            elif numeric_score > 0.0:
+                print(f"[STEALTH] {emoji} {detector_name} weak signal{confidence_text} - Score: {numeric_score:.3f}")
     
     def log_consensus_decision(self, symbol: str, consensus_vote: str, votes: str, confidence: float) -> None:
         """Log decyzji consensus system"""

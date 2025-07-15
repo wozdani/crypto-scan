@@ -31,16 +31,16 @@ class StealthV3TelegramAlerts:
         
         logger.info("[STEALTH V3 ALERTS] Initialized new modular alert system")
     
-    def send_stealth_v3_alert(self, symbol: str, detector_results: Dict[str, bool], 
+    def send_stealth_v3_alert(self, symbol: str, detector_results: Dict[str, Any], 
                              consensus_data: Dict[str, Any], meta_data: Dict[str, Any] = None) -> bool:
         """
         Wyślij nowoczesny Stealth v3 alert z pełnym breakdown detektorów i consensus logic
         
         Args:
             symbol: Symbol tokena (np. "FUELUSDT")
-            detector_results: Dict z rezultatami detektorów {"whale_ping": True, "dex_inflow": True, ...}
-            consensus_data: Dict z danymi consensus {"decision": "BUY", "votes": "3/4", "confidence": 1.945, "feedback_adjust": 0.124}
-            meta_data: Opcjonalne meta dane {"trust_addresses": 3, "coverage": 100.0, "californium_score": 0.434}
+            detector_results: Dict z rezultatami detektorów {"whale_ping": 1.000, "dex_inflow": 0.000, "whaleclip_vision": 1.000, ...}
+            consensus_data: Dict z danymi consensus {"decision": "BUY", "votes": ["BUY", "BUY", "HOLD", "BUY"], "confidence": 1.945, "feedback_adjust": 0.124}
+            meta_data: Opcjonalne meta dane {"trust_addresses": 3, "coverage": 100.0, "californium_score": 0.434, "diamond_score": 0.555}
             
         Returns:
             True jeśli alert wysłany pomyślnie
@@ -71,13 +71,13 @@ class StealthV3TelegramAlerts:
         
         return success
     
-    def _format_stealth_v3_message(self, symbol: str, detector_results: Dict[str, bool], 
+    def _format_stealth_v3_message(self, symbol: str, detector_results: Dict[str, Any], 
                                   consensus_data: Dict[str, Any], meta_data: Dict[str, Any] = None) -> str:
-        """Format nowy Stealth v3 alert message"""
+        """Format nowy Stealth v3 alert message z comprehensive diagnostic breakdown"""
         
         # Extract data with defaults
         decision = consensus_data.get('decision', 'UNKNOWN')
-        votes = consensus_data.get('votes', '0/4')
+        votes = consensus_data.get('votes', [])
         confidence = consensus_data.get('confidence', 0.0)
         feedback_adjust = consensus_data.get('feedback_adjust', 0.0)
         
@@ -88,57 +88,118 @@ class StealthV3TelegramAlerts:
         coverage = meta_data.get('coverage', 0.0)
         historical_support = meta_data.get('historical_support', 'Unknown')
         californium_score = meta_data.get('californium_score', 0.0)
+        diamond_score = meta_data.get('diamond_score', 0.0)
         
-        # Generate active detectors list for reason
-        active_detectors = []
-        detector_mapping = {
-            'whale_ping': 'whale ping',
-            'dex_inflow': 'dex inflow', 
-            'mastermind_tracing': 'mastermind tracing',
-            'orderbook_anomaly': 'orderbook anomaly',
-            'whaleclip_vision': 'WhaleCLIP vision'
-        }
+        # Calculate total score z detector breakdown
+        total_score = 0.0
+        active_detector_names = []
         
-        for detector, active in detector_results.items():
-            if active and detector in detector_mapping:
-                active_detectors.append(detector_mapping[detector])
+        # Extract detector scores (obsługuje zarówno bool jak i float)
+        whale_ping_score = self._extract_detector_value(detector_results.get('whale_ping', 0))
+        dex_inflow_score = self._extract_detector_value(detector_results.get('dex_inflow', 0))
+        mastermind_score = self._extract_detector_value(detector_results.get('mastermind_tracing', 0))
+        orderbook_score = self._extract_detector_value(detector_results.get('orderbook_anomaly', 0))
+        whaleclip_score = self._extract_detector_value(detector_results.get('whaleclip_vision', 0))
         
-        reason_text = f"Detected stealth accumulation via {', '.join(active_detectors) if active_detectors else 'multiple signals'}."
+        # Suma score breakdown
+        total_score = whale_ping_score + dex_inflow_score + mastermind_score + orderbook_score + whaleclip_score + californium_score + diamond_score + feedback_adjust
         
-        # Decision emoji based on consensus
-        decision_emoji = "✅" if decision == "BUY" else "⚠️" if decision == "HOLD" else "❌"
+        # Generate active detectors list dla pattern recognition
+        if whale_ping_score > 0: active_detector_names.append("Whale Ping")
+        if dex_inflow_score > 0: active_detector_names.append("DEX Inflow")
+        if mastermind_score > 0: active_detector_names.append("Mastermind")
+        if orderbook_score > 0: active_detector_names.append("Orderbook")
+        if whaleclip_score > 0: active_detector_names.append("WhaleCLIP")
+        if californium_score > 0: active_detector_names.append("CaliforniumWhale")
+        if diamond_score > 0: active_detector_names.append("DiamondWhale")
+        
+        # Smart pattern detection
+        if len(active_detector_names) >= 3:
+            pattern_text = f"Multi-detector consensus ({'+'.join(active_detector_names[:3])})"
+        elif len(active_detector_names) == 2:
+            pattern_text = f"{' + '.join(active_detector_names)} consensus"
+        elif len(active_detector_names) == 1:
+            pattern_text = f"{active_detector_names[0]} dominant signal"
+        else:
+            pattern_text = "Composite stealth signals"
+        
+        # Process agent votes z proper formatting
+        if isinstance(votes, list) and len(votes) > 0:
+            buy_votes = votes.count('BUY')
+            hold_votes = votes.count('HOLD')
+            avoid_votes = votes.count('AVOID')
+            total_votes = len(votes)
+            
+            # Consensus analysis
+            if buy_votes >= total_votes * 0.75:
+                consensus_text = f"✅ {buy_votes}/{total_votes} BUY (Strong Consensus)"
+            elif buy_votes > total_votes * 0.5:
+                consensus_text = f"✅ {buy_votes}/{total_votes} BUY (Majority)"
+            elif hold_votes > buy_votes:
+                consensus_text = f"⚠️ {hold_votes}/{total_votes} HOLD (Caution)"
+            else:
+                consensus_text = f"❌ {avoid_votes}/{total_votes} AVOID (Rejection)"
+            
+            votes_detail = f"[{', '.join(votes)}] → {consensus_text}"
+        else:
+            # Fallback dla starych formatów
+            votes_detail = f"Confidence: {confidence:.3f}"
+        
+        # Decision action na podstawie score i decision
+        if decision == "BUY" and confidence >= 2.0:
+            action_text = "STRONG LONG 🚀"
+        elif decision == "BUY" and confidence >= 1.5:
+            action_text = "LONG Opportunity"
+        elif decision == "MONITOR":
+            action_text = "High-priority watch 🔍"
+        else:
+            action_text = "Monitor closely"
         
         # Timestamp
         timestamp_utc = datetime.utcnow().strftime("%H:%M:%S UTC")
         
-        # Format message
-        message = f"""🚨 Stealth Alert: {symbol} 🚨
+        # Format enhanced message z complete diagnostic breakdown
+        message = f"""🚨 Stealth Alert Detected 🚨
 
-🧠 Detectors:
-• 🐳 whale_ping:           {"✅" if detector_results.get('whale_ping', False) else "❌"}
-• 💧 dex_inflow:           {"✅" if detector_results.get('dex_inflow', False) else "❌"}
-• 🧠 mastermind_tracing:   {"✅" if detector_results.get('mastermind_tracing', False) else "❌"}
-• 📊 orderbook_anomaly:    {"✅" if detector_results.get('orderbook_anomaly', False) else "❌"}
-• 🛰️ WhaleCLIP (Vision):   {"✅" if detector_results.get('whaleclip_vision', False) else "❌"}
+🐳 Token: {symbol}
+🔍 Detectors: {', '.join(active_detector_names) if active_detector_names else "None active"}
+📈 Score: {total_score:.3f}
+💬 Pattern: {pattern_text}
 
-📡 Consensus Decision: {decision_emoji} {decision} ({votes} agents)
-🎯 Confidence Score:    {confidence:.3f}
-🔁 Feedback Adjusted:   {feedback_adjust:+.3f}
+🗳️ Agent Votes: {votes_detail}
+🤖 Final Decision: {action_text}
 
-🔍 Reason:
-{reason_text}
+📊 Score Breakdown:
+• 🐳 Whale Ping: {whale_ping_score:.3f}
+• 💧 DEX Inflow: {dex_inflow_score:.3f}
+• 🧠 Mastermind: {mastermind_score:.3f}
+• 📊 Orderbook: {orderbook_score:.3f}
+• 🛰️ WhaleCLIP: {whaleclip_score:.3f}
+• 🔮 Californium: {californium_score:.3f}
+• 💎 Diamond: {diamond_score:.3f}
+• 🔁 Feedback Boost: {feedback_adjust:+.3f}
 
-📊 Meta:
-• Trust addresses:        {trust_addresses}
-• Data coverage:         {coverage:.1f}%
-• Historical support:    {historical_support}
-• Californium Score:     {californium_score:.3f}
+📋 Meta Analysis:
+• Trust addresses: {trust_addresses}
+• Data coverage: {coverage:.1f}%
+• Historical support: {historical_support}
 
 ⏰ Time: {timestamp_utc}
 
-#StealthEngine #WhaleCLIP #ConsensusAI #PumpRadar"""
+#StealthEngine #WhaleDetection #RLConsensus"""
 
         return message
+    
+    def _extract_detector_value(self, detector_value) -> float:
+        """Extract numeric value from detector result (supports bool, float, or dict)"""
+        if isinstance(detector_value, bool):
+            return 1.0 if detector_value else 0.0
+        elif isinstance(detector_value, (int, float)):
+            return float(detector_value)
+        elif isinstance(detector_value, dict) and 'score' in detector_value:
+            return float(detector_value['score'])
+        else:
+            return 0.0
     
     def _check_symbol_cooldown(self, symbol: str, confidence: float) -> bool:
         """Check cooldown for symbol with intelligent adjustment based on confidence"""
@@ -308,42 +369,73 @@ def send_stealth_v3_alert(symbol: str, detector_results: Dict[str, bool],
     return get_stealth_v3_alerts().send_stealth_v3_alert(symbol, detector_results, consensus_data, meta_data)
 
 def test_stealth_v3_alert_system():
-    """Test Stealth v3 alert system"""
-    # Test data
-    test_symbol = "FUELUSDT"
+    """Test Enhanced Stealth v3 alert system z numerical diagnostic transparency"""
+    print("🧪 Testing Enhanced Stealth v3 Alert System...")
+    print("📊 Features: Numerical detector scores, agent vote breakdown, comprehensive diagnostics")
+    
+    # Test scenario 1: High confidence multi-detector alert
+    test_symbol = "TESTUSDT"
     test_detector_results = {
-        'whale_ping': True,
-        'dex_inflow': True,
-        'mastermind_tracing': False,
-        'orderbook_anomaly': False,
-        'whaleclip_vision': True
+        'whale_ping': 1.000,
+        'dex_inflow': 0.750,
+        'mastermind_tracing': 0.434,  # CaliforniumWhale score
+        'orderbook_anomaly': 0.650,
+        'whaleclip_vision': 0.000,
+        'diamond_ai': 0.555  # DiamondWhale score
     }
     test_consensus_data = {
         'decision': 'BUY',
-        'votes': '3/4',
-        'confidence': 1.945,
+        'votes': ['BUY', 'BUY', 'HOLD', 'BUY'],  # Proper agent votes array
+        'confidence': 3.389,  # Total score jako confidence
         'feedback_adjust': 0.124
     }
     test_meta_data = {
         'trust_addresses': 3,
         'coverage': 100.0,
-        'historical_support': 'Yes',
-        'californium_score': 0.434
+        'historical_support': 'Strong',
+        'californium_score': 0.434,
+        'diamond_score': 0.555
     }
     
-    # Send test alert
-    result = send_stealth_v3_alert(test_symbol, test_detector_results, test_consensus_data, test_meta_data)
+    # Send high confidence test alert
+    result1 = send_stealth_v3_alert(test_symbol, test_detector_results, test_consensus_data, test_meta_data)
     
-    if result:
-        logger.info("[STEALTH V3 TEST] Test alert sent successfully")
+    if result1:
+        logger.info("[STEALTH V3 TEST] High confidence alert sent successfully")
     else:
-        logger.error("[STEALTH V3 TEST] Test alert failed")
+        logger.error("[STEALTH V3 TEST] High confidence alert failed")
+    
+    # Test scenario 2: Low confidence scenario
+    print("\n🧪 Testing Low Confidence Scenario...")
+    
+    low_symbol = "LOWUSDT"
+    low_detector_results = {
+        'whale_ping': 0.150,
+        'dex_inflow': 0.200,
+        'mastermind_tracing': 0.000,
+        'orderbook_anomaly': 0.000,
+        'whaleclip_vision': 0.100,
+        'diamond_ai': 0.000
+    }
+    low_consensus_data = {
+        'decision': 'WATCH',
+        'votes': ['HOLD', 'AVOID', 'HOLD', 'AVOID'],
+        'confidence': 0.450,
+        'feedback_adjust': -0.050
+    }
+    
+    result2 = send_stealth_v3_alert(low_symbol, low_detector_results, low_consensus_data, test_meta_data)
+    
+    if result2:
+        logger.info("[STEALTH V3 TEST] Low confidence alert sent successfully")
+    else:
+        logger.info("[STEALTH V3 TEST] Low confidence alert blocked (expected)")
     
     # Get statistics
     stats = get_stealth_v3_alerts().get_alert_statistics()
     logger.info(f"[STEALTH V3 TEST] Current stats: {stats}")
     
-    return result
+    return result1 or result2
 
 if __name__ == "__main__":
     test_stealth_v3_alert_system()
