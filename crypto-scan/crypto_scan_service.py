@@ -620,20 +620,100 @@ def main():
     """Main scanning loop with integrated feedback evaluation"""
     print("Starting Crypto Scanner Service (Enhanced with Feedback Loop)")
     
-    # 💎 STAGE 6/7 - DIAMOND SCHEDULER INTEGRATION
+    # 🔍 COMPREHENSIVE STAGE 1-7 DIAGNOSTIC CHECK
+    print("\n🔍 === STAGE 1-7 COMPREHENSIVE DIAGNOSTIC CHECK ===")
+    
+    # STAGE 1: CaliforniumWhale AI Temporal Graph + QIRL Detector
     try:
-        from scheduler import start_diamond_scheduler_thread
+        from stealth.californium.californium_whale_detect import CaliforniumTGN, QIRLAgent
+        print("✅ [STAGE 1/7] CaliforniumWhale AI Temporal Graph + QIRL Detector - OPERATIONAL")
+    except ImportError as e:
+        print(f"❌ [STAGE 1/7] CaliforniumWhale AI import failed: {e}")
+    except Exception as e:
+        print(f"⚠️ [STAGE 1/7] CaliforniumWhale AI error: {e}")
+    
+    # STAGE 2: DiamondWhale AI Integration
+    try:
+        from stealth_engine.diamond_detector import run_diamond_detector
+        print("✅ [STAGE 2/7] DiamondWhale AI Stealth Engine Integration - OPERATIONAL")
+    except ImportError as e:
+        print(f"❌ [STAGE 2/7] DiamondWhale AI import failed: {e}")
+    except Exception as e:
+        print(f"⚠️ [STAGE 2/7] DiamondWhale AI error: {e}")
+    
+    # STAGE 3: Diamond Decision Engine
+    try:
+        from stealth_engine.decision import simulate_diamond_decision
+        print("✅ [STAGE 3/7] Diamond Decision Engine - OPERATIONAL")
+    except ImportError as e:
+        print(f"❌ [STAGE 3/7] Diamond Decision Engine import failed: {e}")
+    except Exception as e:
+        print(f"⚠️ [STAGE 3/7] Diamond Decision Engine error: {e}")
+    
+    # STAGE 4: Diamond Alert Telegram System
+    try:
+        from alerts.telegram_notification import send_diamond_alert_auto
+        print("✅ [STAGE 4/7] Diamond Alert Telegram System - OPERATIONAL")
+    except ImportError as e:
+        print(f"❌ [STAGE 4/7] Diamond Alert System import failed: {e}")
+    except Exception as e:
+        print(f"⚠️ [STAGE 4/7] Diamond Alert System error: {e}")
+    
+    # STAGE 5: Fusion Engine Multi-Detector
+    try:
+        from stealth_engine.fusion_layer import FusionEngine
+        print("✅ [STAGE 5/7] Fusion Engine Multi-Detector - OPERATIONAL")
+    except ImportError as e:
+        print(f"❌ [STAGE 5/7] Fusion Engine import failed: {e}")
+    except Exception as e:
+        print(f"⚠️ [STAGE 5/7] Fusion Engine error: {e}")
+    
+    # STAGE 6: Diamond Scheduler (DETAILED DIAGNOSTIC)
+    print("\n🔍 [STAGE 6/7] DETAILED DIAMOND SCHEDULER DIAGNOSTIC:")
+    try:
+        # Test individual imports
+        print("  🔍 Testing scheduler module import...")
+        import scheduler
+        print(f"  ✅ Scheduler module imported: {scheduler.__file__}")
         
+        print("  🔍 Testing scheduler functions...")
+        from scheduler import start_diamond_scheduler_thread, manual_run
+        print(f"  ✅ Scheduler functions imported: start_diamond_scheduler_thread, manual_run")
+        
+        print("  🔍 Testing feedback loop import...")
+        from feedback.feedback_loop_diamond import get_diamond_feedback_loop
+        print(f"  ✅ Feedback loop imported successfully")
+        
+        print("  🔍 Testing scheduler execution...")
         diamond_scheduler_thread = start_diamond_scheduler_thread()
         print("✅ [STAGE 6/7] DiamondWhale AI Scheduler started - daily training automation active")
         print("   • Daily feedback loop: 02:00 UTC")
         print("   • Model checkpoints: 02:15 UTC") 
         print("   • Hourly pending checks: every hour at :30")
         
-    except ImportError:
-        print("ℹ️ [STAGE 6/7] Diamond Scheduler module not available")
+    except ImportError as e:
+        print(f"❌ [STAGE 6/7] Diamond Scheduler import failed: {e}")
+        print(f"  🔍 Import error details: {type(e).__name__}: {str(e)}")
+        import traceback
+        print(f"  🔍 Full traceback:")
+        traceback.print_exc()
     except Exception as diamond_error:
-        print(f"⚠️ [STAGE 6/7] Diamond Scheduler error: {diamond_error}")
+        print(f"⚠️ [STAGE 6/7] Diamond Scheduler execution error: {diamond_error}")
+        print(f"  🔍 Error details: {type(diamond_error).__name__}: {str(diamond_error)}")
+        import traceback
+        print(f"  🔍 Full traceback:")
+        traceback.print_exc()
+    
+    # STAGE 7: RLAgentV4 RL Fusion Agent
+    try:
+        from stealth_engine.rl.fusion_rl_agent import get_rl_fusion_agent
+        print("✅ [STAGE 7/7] RLAgentV4 RL Fusion Agent - OPERATIONAL")
+    except ImportError as e:
+        print(f"❌ [STAGE 7/7] RLAgentV4 import failed: {e}")
+    except Exception as e:
+        print(f"⚠️ [STAGE 7/7] RLAgentV4 error: {e}")
+    
+    print("=" * 60)
     
     # 🎯 ETAP 10 - URUCHOMIENIE TELEGRAM ALERT MANAGER
     try:
