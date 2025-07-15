@@ -1096,57 +1096,82 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         print(f"  Final score: {score:.3f}")
         print(f"[STEALTH] Final signal for {symbol} → Score: {score:.3f}, Decision: {decision}, Active: {len(used_signals)} signals{partial_note}{diamond_note}{californium_note}")
         
-        # 🚨 UNIFIED TELEGRAM ALERT SYSTEM - Stage 8/7
-        # Wysyłaj alert dla Classic Stealth Engine jeśli score >= 0.70
+        # 🚨 STEALTH V3 TELEGRAM ALERT SYSTEM - Modernizacja do nowego formatu
+        # Wysyłaj alert Stealth v3 jeśli score >= 0.70
         if score >= 0.70:
             try:
-                from alerts.unified_telegram_alerts import send_stealth_alert
+                from alerts.stealth_v3_telegram_alerts import send_stealth_v3_alert
                 
-                # Przygotuj komentarz na podstawie aktywnych sygnałów
-                if "whale_ping" in used_signals and "dex_inflow" in used_signals:
-                    comment = "Stealth pattern: whale_ping + DEX inflow 🐳"
-                elif "spoofing_layers" in used_signals:
-                    comment = "Orderbook manipulation detected 📊"
-                elif "volume_spike" in used_signals:
-                    comment = "Volume spike pattern 📈"
+                # Przygotuj detector_results na podstawie aktywnych sygnałów
+                detector_results = {}
+                for signal_name in used_signals:
+                    if signal_name == "whale_ping":
+                        detector_results["whale_ping"] = True
+                    elif signal_name == "dex_inflow":
+                        detector_results["dex_inflow"] = True  
+                    elif signal_name == "spoofing_layers":
+                        detector_results["spoofing_layers"] = True
+                    elif signal_name == "volume_spike":
+                        detector_results["volume_spike"] = True
+                    elif signal_name == "orderbook_anomaly":
+                        detector_results["orderbook_anomaly"] = True
+                    elif signal_name == "diamond_whale_detection":
+                        detector_results["diamond_ai"] = True
+                    elif signal_name == "californium_whale_detection":
+                        detector_results["mastermind_tracing"] = True
+                
+                # Przygotuj consensus_data na podstawie score
+                if score >= 4.0:
+                    consensus_data = {
+                        "decision": "BUY",
+                        "votes": f"{len(used_signals)}/4",
+                        "confidence": round(min(score / 4.0, 1.0), 3),
+                        "feedback_adjust": 0.0
+                    }
+                elif score >= 2.5:
+                    consensus_data = {
+                        "decision": "MONITOR", 
+                        "votes": f"{len(used_signals)}/4",
+                        "confidence": round(score / 4.0, 3),
+                        "feedback_adjust": 0.0
+                    }
                 else:
-                    comment = f"Classic stealth signals: {', '.join(used_signals[:3])}"
+                    consensus_data = {
+                        "decision": "WATCH",
+                        "votes": f"{len(used_signals)}/4",
+                        "confidence": round(score / 4.0, 3),
+                        "feedback_adjust": 0.0
+                    }
                 
-                # Określ sugerowane działanie na podstawie score
-                if score >= 2.0:
-                    action = "STRONG LONG Opportunity 🚀"
-                elif score >= 1.5:
-                    action = "LONG Opportunity?"
-                else:
-                    action = "High-priority watch 🔍"
-                
-                # Przygotuj dodatkowe dane
-                additional_data = {
-                    "active_signals": len(used_signals),
-                    "data_coverage": f"{data_coverage:.1%}",
-                    "decision": decision
+                # Przygotuj meta_data z AI detector scores
+                meta_data = {
+                    "trust_addresses": len([s for s in used_signals if "trust" in s or "identity" in s]),
+                    "coverage": round(data_coverage * 100, 1),
+                    "historical_support": "Yes" if score >= 3.0 else "Partial"
                 }
                 
                 if diamond_enabled and diamond_score > 0:
-                    additional_data["diamond_score"] = diamond_score
+                    meta_data["diamond_score"] = round(diamond_score, 3)
                 if californium_enabled and californium_score > 0:
-                    additional_data["californium_score"] = californium_score
+                    meta_data["californium_score"] = round(californium_score, 3)
                 
-                # Wyślij unified alert
-                alert_sent = send_stealth_alert(
-                    symbol, "Classic Stealth Engine", score, 
-                    comment, action, additional_data
+                # Wyślij Stealth v3 alert
+                alert_sent = send_stealth_v3_alert(
+                    symbol=symbol,
+                    detector_results=detector_results,
+                    consensus_data=consensus_data,
+                    meta_data=meta_data
                 )
                 
                 if alert_sent:
-                    print(f"[UNIFIED ALERT] ✅ {symbol}: Classic Stealth alert sent (score: {score:.3f})")
+                    print(f"[STEALTH V3 ALERT] ✅ {symbol}: Nowoczesny alert v3 wysłany (score: {score:.3f})")
                 else:
-                    print(f"[UNIFIED ALERT] ℹ️ {symbol}: Alert not sent (cooldown/config)")
+                    print(f"[STEALTH V3 ALERT] ℹ️ {symbol}: Alert v3 w cooldown lub błąd")
                     
             except ImportError:
-                print(f"[UNIFIED ALERT] ⚠️ {symbol}: Unified alerts module not available")
+                print(f"[STEALTH V3 ALERT] ⚠️ {symbol}: Stealth v3 alert system nie jest dostępny")
             except Exception as alert_error:
-                print(f"[UNIFIED ALERT] ❌ {symbol}: Alert error: {alert_error}")
+                print(f"[STEALTH V3 ALERT] ❌ {symbol}: Alert v3 error: {alert_error}")
         
         # === COMPONENT-AWARE FEEDBACK LOOP V4 INTEGRATION ===
         # Enhanced component breakdown calculation z dynamic weight application
@@ -1379,6 +1404,107 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             result["californium_error"] = californium_error
         if consensus_error:
             result["consensus_error"] = consensus_error
+        
+        # 🚨 STEALTH V3 TELEGRAM ALERT INTEGRATION - Nowoczesny Alert System
+        # Alert triggering logic based on stealth score and consensus
+        try:
+            # Import nowego systemu alertów Stealth v3
+            from alerts.stealth_v3_telegram_alerts import send_stealth_v3_alert
+            
+            # Sprawdź czy stealth score przekracza próg alertów (2.5+)
+            alert_threshold = 2.5
+            should_alert = score >= alert_threshold
+            
+            # Jeśli mamy consensus, użyj również jego decyzji
+            if consensus_result and consensus_result.decision.value in ["BUY", "MONITOR"]:
+                should_alert = True
+                print(f"[STEALTH V3 ALERT] {token_data.get('symbol', 'UNKNOWN')}: Consensus decision {consensus_result.decision.value} triggers alert")
+            
+            if should_alert:
+                symbol = token_data.get('symbol', 'UNKNOWN')
+                
+                # Przygotuj detector results - mapuj aktywne sygnały na detektory
+                detector_results = {}
+                
+                # Mapuj klasyczne stealth signals na detektory
+                for signal in used_signals:
+                    if signal == "whale_ping":
+                        detector_results["whale_ping"] = True
+                    elif signal == "dex_inflow":
+                        detector_results["dex_inflow"] = True
+                    elif signal == "spoofing_layers":
+                        detector_results["orderbook_anomaly"] = True
+                
+                # Dodaj AI detektory
+                if diamond_enabled and diamond_score > 0.3:
+                    detector_results["diamond_ai"] = True
+                if californium_enabled and californium_score > 0.3:
+                    detector_results["mastermind_tracing"] = True
+                
+                # Przygotuj consensus data
+                consensus_data = {}
+                if consensus_result:
+                    consensus_data = {
+                        "decision": consensus_result.decision.value,
+                        "votes": f"{len(consensus_result.contributing_detectors)}/{len(detector_scores) if 'detector_scores' in locals() else 4}",
+                        "confidence": round(consensus_result.final_score, 3),
+                        "feedback_adjust": 0.0  # Placeholder dla przyszłych implementacji
+                    }
+                else:
+                    # Fallback consensus data based on stealth score
+                    if score >= 4.0:
+                        consensus_data = {
+                            "decision": "BUY",
+                            "votes": f"{len(used_signals)}/4",
+                            "confidence": round(min(score / 4.0, 1.0), 3),
+                            "feedback_adjust": 0.0
+                        }
+                    elif score >= 2.5:
+                        consensus_data = {
+                            "decision": "MONITOR",
+                            "votes": f"{len(used_signals)}/4", 
+                            "confidence": round(score / 4.0, 3),
+                            "feedback_adjust": 0.0
+                        }
+                
+                # Przygotuj meta data
+                meta_data = {
+                    "trust_addresses": len([s for s in used_signals if "trust" in s or "identity" in s]),
+                    "coverage": round(data_coverage * 100, 1),
+                    "historical_support": "Yes" if score >= 3.0 else "Partial",
+                    "californium_score": round(californium_score, 3) if californium_enabled else None,
+                    "diamond_score": round(diamond_score, 3) if diamond_enabled else None
+                }
+                
+                # Wyślij Stealth v3 alert
+                alert_success = send_stealth_v3_alert(
+                    symbol=symbol,
+                    detector_results=detector_results,
+                    consensus_data=consensus_data,
+                    meta_data=meta_data
+                )
+                
+                if alert_success:
+                    print(f"[STEALTH V3 ALERT SUCCESS] {symbol}: Nowoczesny alert wysłany (score: {score:.3f})")
+                    result["alert_sent"] = True
+                    result["alert_type"] = "stealth_v3"
+                else:
+                    print(f"[STEALTH V3 ALERT SKIP] {symbol}: Alert w cooldown lub błąd wysyłania")
+                    result["alert_sent"] = False
+                    result["alert_skip_reason"] = "cooldown_or_error"
+            else:
+                print(f"[STEALTH V3 ALERT] {symbol}: Score {score:.3f} poniżej progu alertów ({alert_threshold})")
+                result["alert_sent"] = False
+                result["alert_skip_reason"] = "below_threshold"
+                
+        except ImportError:
+            print(f"[STEALTH V3 ALERT] {token_data.get('symbol', 'UNKNOWN')}: Stealth v3 alert system nie jest dostępny")
+            result["alert_sent"] = False
+            result["alert_skip_reason"] = "system_unavailable"
+        except Exception as alert_error:
+            print(f"[STEALTH V3 ALERT ERROR] {token_data.get('symbol', 'UNKNOWN')}: {alert_error}")
+            result["alert_sent"] = False
+            result["alert_skip_reason"] = f"error: {alert_error}"
             
         return result
         
@@ -1501,6 +1627,104 @@ def analyze_token_with_stealth_score(symbol: str, token_data: Dict) -> Dict:
         # LOG: Diamond Decision result
         print(f"[DIAMOND INTEGRATION] {symbol}: Diamond decision={diamond_decision['decision']}, fused_score={diamond_decision['fused_score']}")
         print(f"[DIAMOND INTEGRATION] {symbol}: Confidence={diamond_decision['confidence']}, dominant={diamond_decision['dominant_detector']}")
+        
+        # 🚨 STEALTH V3 TELEGRAM ALERT INTEGRATION - Diamond Decision Enhanced
+        # Alert triggering w oparciu o Diamond Decision + Stealth Score
+        try:
+            from alerts.stealth_v3_telegram_alerts import send_stealth_v3_alert
+            
+            # Alert logic - używamy Diamond Decision jako główny trigger
+            should_alert = False
+            
+            # Główny trigger: Diamond Decision = BUY
+            if diamond_decision["decision"] == "BUY":
+                should_alert = True
+                print(f"[STEALTH V3 ALERT] {symbol}: Diamond Decision BUY triggers alert")
+            
+            # Secondary trigger: High stealth score >= 3.0 
+            elif stealth_score >= 3.0:
+                should_alert = True
+                print(f"[STEALTH V3 ALERT] {symbol}: High stealth score {stealth_score:.3f} triggers alert")
+            
+            # Tertiary trigger: High fused score >= 0.75
+            elif diamond_decision["fused_score"] >= 0.75:
+                should_alert = True
+                print(f"[STEALTH V3 ALERT] {symbol}: High fused score {diamond_decision['fused_score']:.3f} triggers alert")
+            
+            if should_alert:
+                # Przygotuj detector results z enhanced mapping
+                detector_results = {}
+                
+                # Mapuj Diamond Decision reasoning na detektory
+                for reason in diamond_decision.get("trigger_reasons", []):
+                    if "whale" in reason.lower():
+                        detector_results["whale_ping"] = True
+                    elif "dex" in reason.lower() or "inflow" in reason.lower():
+                        detector_results["dex_inflow"] = True
+                    elif "diamond" in reason.lower():
+                        detector_results["diamond_ai"] = True
+                
+                # Mapuj aktywne stealth signals
+                for signal in active_signals:
+                    if signal == "whale_ping":
+                        detector_results["whale_ping"] = True
+                    elif signal == "dex_inflow":
+                        detector_results["dex_inflow"] = True
+                    elif signal == "spoofing_layers":
+                        detector_results["orderbook_anomaly"] = True
+                
+                # Enhanced consensus data z Diamond Decision
+                consensus_data = {
+                    "decision": diamond_decision["decision"],
+                    "votes": f"{len(diamond_decision.get('trigger_reasons', []))}/3",  # Based on Diamond reasoning
+                    "confidence": round(diamond_decision["fused_score"], 3),
+                    "feedback_adjust": 0.0,
+                    "diamond_confidence": diamond_decision["confidence"],
+                    "dominant_detector": diamond_decision["dominant_detector"]
+                }
+                
+                # Enhanced meta data z Diamond Decision breakdown
+                meta_data = {
+                    "trust_addresses": len([s for s in active_signals if "trust" in s]),
+                    "coverage": round(stealth_result.get("data_coverage", 1.0) * 100, 1),
+                    "diamond_fused_score": round(diamond_decision["fused_score"], 3),
+                    "whale_ping_score": round(whale_ping_score, 3),
+                    "whaleclip_score": round(whaleclip_score, 3),
+                    "diamond_score": round(diamond_score, 3),
+                    "decision_engine": "Diamond_v3",
+                    "historical_support": "Diamond_Enhanced"
+                }
+                
+                # Wyślij enhanced Stealth v3 alert
+                alert_success = send_stealth_v3_alert(
+                    symbol=symbol,
+                    detector_results=detector_results,
+                    consensus_data=consensus_data,
+                    meta_data=meta_data
+                )
+                
+                if alert_success:
+                    print(f"[STEALTH V3 DIAMOND ALERT SUCCESS] {symbol}: Enhanced Diamond alert wysłany")
+                    result["alert_sent"] = True
+                    result["alert_type"] = "stealth_v3_diamond"
+                    result["alert_trigger"] = diamond_decision["decision"]
+                else:
+                    print(f"[STEALTH V3 DIAMOND ALERT SKIP] {symbol}: Alert w cooldown lub błąd")
+                    result["alert_sent"] = False
+                    result["alert_skip_reason"] = "cooldown_or_error"
+            else:
+                print(f"[STEALTH V3 DIAMOND ALERT] {symbol}: Kryteria alertu nie spełnione (decision: {diamond_decision['decision']}, score: {stealth_score:.3f})")
+                result["alert_sent"] = False
+                result["alert_skip_reason"] = "criteria_not_met"
+                
+        except ImportError:
+            print(f"[STEALTH V3 DIAMOND ALERT] {symbol}: Stealth v3 alert system niedostępny")
+            result["alert_sent"] = False
+            result["alert_skip_reason"] = "system_unavailable"
+        except Exception as alert_error:
+            print(f"[STEALTH V3 DIAMOND ALERT ERROR] {symbol}: {alert_error}")
+            result["alert_sent"] = False
+            result["alert_skip_reason"] = f"error: {alert_error}"
         
         return result
         
