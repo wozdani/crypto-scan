@@ -338,8 +338,8 @@ class ConsensusDecisionEngine:
     def _send_dynamic_telegram_alert(self, token: str, global_score: float, 
                                     active_detectors: Dict, boosted_detectors: List[str]) -> bool:
         """
-        ETAP 3: Dynamic Boosting Telegram Alert
-        Wysyła enhanced alert z confidence, weight i booster info
+        ETAP 4: Enhanced Dynamic Telegram Alert
+        Forwards to new universal send_telegram_alert function
         
         Args:
             token: Symbol tokena
@@ -350,44 +350,133 @@ class ConsensusDecisionEngine:
         Returns:
             True jeśli alert wysłany pomyślnie
         """
-        try:
-            # Format enhanced message zgodnie z Etap 3 specyfikacją
-            message = f"🚀 [Dynamic Consensus] {token} | Score: {global_score:.3f}\n"
-            message += f"Active detectors: {len(active_detectors)}\n"
+        return self.send_telegram_alert(token, global_score, active_detectors, boosted_detectors)
+    
+    def send_telegram_alert(self, token: str, global_score: float, active_detectors: Dict, 
+                           boosted_detectors: List[str] = None) -> bool:
+        """
+        ETAP 4: Universal Telegram Alert Function
+        Uniwersalna funkcja alertów z pełną transparentnością konsensus decision
+        
+        Args:
+            token: Symbol tokena
+            global_score: Weighted global score
+            active_detectors: Dict z detector data {"detector": {"score": 0.8, "confidence": 0.7, "weight": 0.3}}
+            boosted_detectors: Opcjonalna lista boosted detectors
             
-            if boosted_detectors:
-                message += f"⚡ Boosted: {', '.join(boosted_detectors)}\n"
+        Returns:
+            True jeśli alert wysłany pomyślnie
+        """
+        if boosted_detectors is None:
+            boosted_detectors = []
             
-            message += "\n📊 Detector Breakdown:\n"
+        # ETAP 4: Enhanced Message Formatting z pełną informacją
+        lines = [f"🚨 [Consensus Alert] {token}"]
+        lines.append(f"🎯 Global Score: {global_score:.3f}")
+        lines.append(f"📊 Active Detectors: {len(active_detectors)}")
+        
+        if boosted_detectors:
+            lines.append(f"⚡ Boosted: {', '.join(boosted_detectors)}")
+        
+        lines.append("")
+        lines.append("🔍 Detector Breakdown:")
+        
+        # Sort detectors by contribution (score × weight)
+        sorted_detectors = sorted(
+            active_detectors.items(),
+            key=lambda x: x[1]['score'] * x[1]['weight'],
+            reverse=True
+        )
+        
+        total_weight = sum(data['weight'] for data in active_detectors.values())
+        total_contribution = sum(data['score'] * data['weight'] for data in active_detectors.values())
+        
+        for detector_name, data in sorted_detectors:
+            is_boosted = detector_name in boosted_detectors
+            contribution = data['score'] * data['weight']
+            contribution_pct = (contribution / total_contribution * 100) if total_contribution > 0 else 0
             
-            # Dodaj detailed breakdown detektorów
-            for detector, data in active_detectors.items():
-                confidence_emoji = "🔥" if data['confidence'] >= 0.85 else "⚡" if data['confidence'] >= 0.70 else "💫"
-                booster_emoji = "⚡" if detector in boosted_detectors else ""
-                
-                message += f"  {confidence_emoji}{booster_emoji} {detector}:\n"
-                message += f"    Score: {data['score']:.3f} | Conf: {data['confidence']:.2f} | Weight: {data['weight']:.2f}\n"
-                message += f"    Contribution: {data['weighted_contribution']:.3f}\n"
-            
-            total_weight = sum(d['weight'] for d in active_detectors.values())
-            message += f"\n📈 Total Weight: {total_weight:.3f}"
-            message += f"\nTimestamp: {datetime.now().strftime('%H:%M:%S')}"
-            
-            print(f"[DYNAMIC TELEGRAM] Enhanced alert message prepared:")
-            print(message)
-            
-            # TODO: Implementacja rzeczywistego wysłania (Etap 4)
-            if self.telegram_token and self.chat_id:
-                print(f"[DYNAMIC TELEGRAM] Would send to chat {self.chat_id}")
-                # W Etap 4: requests.get(url, params=params)
+            # Enhanced detector icons based on performance
+            if is_boosted:
+                icon = "🔥⚡"
+            elif data['confidence'] >= 0.80:
+                icon = "💎"
+            elif data['confidence'] >= 0.70:
+                icon = "⭐"
+            elif data['confidence'] >= 0.60:
+                icon = "💫"
             else:
-                print(f"[DYNAMIC TELEGRAM] No Telegram credentials configured")
+                icon = "⚡"
             
-            return True
-            
-        except Exception as e:
-            print(f"[DYNAMIC TELEGRAM ERROR] Failed to send alert: {e}")
+            lines.append(f"  {icon} {detector_name}:")
+            lines.append(f"    Score: {data['score']:.3f} | Conf: {data['confidence']:.2f} | Weight: {data['weight']:.2f}")
+            lines.append(f"    Contribution: {contribution:.3f} ({contribution_pct:.1f}%)")
+        
+        lines.append("")
+        lines.append(f"📈 Total Weight: {total_weight:.3f}")
+        lines.append(f"🕒 {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}")
+        
+        # ETAP 4: Enhanced confidence assessment
+        avg_confidence = sum(data['confidence'] for data in active_detectors.values()) / len(active_detectors)
+        confidence_level = self._assess_confidence_level(avg_confidence, len(boosted_detectors))
+        lines.append(f"🎖️ Consensus Confidence: {confidence_level}")
+        
+        message = "\n".join(lines)
+        
+        print("[CONSENSUS TELEGRAM] Enhanced alert message prepared:")
+        for line in lines:
+            print(line)
+        
+        # ETAP 4: Rzeczywiste wysłanie na Telegram
+        if not self.telegram_token or not self.chat_id:
+            print("[CONSENSUS TELEGRAM] No Telegram credentials configured")
             return False
+        
+        try:
+            import requests
+            
+            url = f"https://api.telegram.org/bot{self.telegram_token}/sendMessage"
+            params = {
+                "chat_id": self.chat_id,
+                "text": message,
+                "parse_mode": "HTML"
+            }
+            
+            response = requests.get(url, params=params, timeout=10)
+            
+            if response.status_code == 200:
+                print(f"[CONSENSUS TELEGRAM] Alert sent successfully for {token}")
+                return True
+            else:
+                print(f"[CONSENSUS TELEGRAM] Alert failed: {response.status_code} - {response.text}")
+                return False
+                
+        except Exception as e:
+            print(f"[CONSENSUS TELEGRAM] Alert error: {e}")
+            return False
+    
+    def _assess_confidence_level(self, avg_confidence: float, booster_count: int) -> str:
+        """
+        ETAP 4: Assess overall consensus confidence level
+        
+        Args:
+            avg_confidence: Average confidence across active detectors
+            booster_count: Number of boosted detectors
+            
+        Returns:
+            Confidence level string
+        """
+        # ETAP 4: Enhanced confidence assessment z booster weighting
+        if booster_count >= 2 and avg_confidence >= 0.80:
+            return "VERY HIGH ⭐⭐⭐"
+        elif booster_count >= 1 and avg_confidence >= 0.75:
+            return "HIGH ⭐⭐"
+        elif booster_count >= 1 or avg_confidence >= 0.70:
+            return "GOOD ⭐"
+        elif avg_confidence >= 0.60:
+            return "MODERATE 💫"
+        else:
+            return "LOW ⚡"
     
     def _record_dynamic_decision(self, token: str, result: ConsensusResult, 
                                 all_scores: Dict, active_detectors: Dict, 
@@ -974,7 +1063,16 @@ class ConsensusDecisionEngine:
         # Detector contribution analysis
         detector_contribution = {}
         for decision in self.decision_history:
-            for detector, score in decision['detector_scores'].items():
+            # Handle both old and new decision formats
+            detector_scores = decision.get('detector_scores', {})
+            if not detector_scores and 'all_detector_scores' in decision:
+                detector_scores = decision['all_detector_scores']
+            elif not detector_scores and 'active_detector_scores' in decision:
+                detector_scores = decision['active_detector_scores']
+            elif not detector_scores and 'all_scores' in decision:
+                detector_scores = decision['all_scores']
+                
+            for detector, score in detector_scores.items():
                 if detector not in detector_contribution:
                     detector_contribution[detector] = {'count': 0, 'avg_score': 0.0}
                 detector_contribution[detector]['count'] += 1
@@ -1182,6 +1280,99 @@ def test_etap2_simple_consensus():
         print("❌ Some tests failed - review implementation")
         return False
 
+
+def test_etap4_enhanced_telegram_alerts():
+    """
+    ETAP 4: Enhanced Telegram Alert Testing
+    Test comprehensive alert message formatting z pełną informacją o detektorach
+    """
+    print("🚀 ETAP 4 ENHANCED TELEGRAM ALERTS - DEDICATED TESTING")
+    print("=" * 80)
+    
+    engine = ConsensusDecisionEngine()
+    
+    test_scenarios = [
+        {
+            'name': 'High Confidence Multi-Booster Alert',
+            'token': 'BTCUSDT',
+            'global_score': 0.925,
+            'active_detectors': {
+                "CaliforniumWhale": {"score": 0.94, "confidence": 0.91, "weight": 0.34},
+                "DiamondWhale": {"score": 0.89, "confidence": 0.87, "weight": 0.32},
+                "WhaleCLIP": {"score": 0.82, "confidence": 0.78, "weight": 0.25},
+                "StealthSignal": {"score": 0.76, "confidence": 0.68, "weight": 0.18}
+            },
+            'boosted_detectors': ['CaliforniumWhale', 'DiamondWhale'],
+            'expected_confidence': 'VERY HIGH ⭐⭐⭐'
+        },
+        {
+            'name': 'Medium Confidence Single Booster',
+            'token': 'ETHUSDT',
+            'global_score': 0.834,
+            'active_detectors': {
+                "WhaleCLIP": {"score": 0.91, "confidence": 0.85, "weight": 0.45},
+                "DiamondWhale": {"score": 0.78, "confidence": 0.78, "weight": 0.35},
+                "StealthSignal": {"score": 0.71, "confidence": 0.74, "weight": 0.20}
+            },
+            'boosted_detectors': ['WhaleCLIP'],
+            'expected_confidence': 'HIGH ⭐⭐'
+        },
+        {
+            'name': 'No Boosters Alert',
+            'token': 'ADAUSDT',
+            'global_score': 0.802,
+            'active_detectors': {
+                "CaliforniumWhale": {"score": 0.83, "confidence": 0.76, "weight": 0.40},
+                "WhaleCLIP": {"score": 0.79, "confidence": 0.71, "weight": 0.35},
+                "StealthSignal": {"score": 0.74, "confidence": 0.65, "weight": 0.25}
+            },
+            'boosted_detectors': [],
+            'expected_confidence': 'GOOD ⭐'
+        }
+    ]
+    
+    passed_tests = 0
+    total_tests = len(test_scenarios)
+    
+    for i, scenario in enumerate(test_scenarios, 1):
+        print(f"\n🔬 Test {i}: {scenario['name']}")
+        print(f"   Token: {scenario['token']}")
+        print(f"   Global Score: {scenario['global_score']}")
+        print(f"   Active Detectors: {len(scenario['active_detectors'])}")
+        print(f"   Boosted: {len(scenario['boosted_detectors'])}")
+        print(f"   Expected Confidence: {scenario['expected_confidence']}")
+        
+        try:
+            # Test enhanced alert message formatting
+            success = engine.send_telegram_alert(
+                token=scenario['token'],
+                global_score=scenario['global_score'],
+                active_detectors=scenario['active_detectors'],
+                boosted_detectors=scenario['boosted_detectors']
+            )
+            
+            # Verify confidence assessment
+            avg_confidence = sum(d['confidence'] for d in scenario['active_detectors'].values()) / len(scenario['active_detectors'])
+            confidence_level = engine._assess_confidence_level(avg_confidence, len(scenario['boosted_detectors']))
+            
+            if confidence_level == scenario['expected_confidence']:
+                print(f"   Result: ✅ PASS - Confidence assessment correct")
+                passed_tests += 1
+            else:
+                print(f"   Result: ❌ FAIL - Expected '{scenario['expected_confidence']}', got '{confidence_level}'")
+        
+        except Exception as e:
+            print(f"   Result: ❌ FAIL - Exception: {e}")
+    
+    print(f"\n📊 ETAP 4 TEST SUMMARY:")
+    print(f"Tests passed: {passed_tests}/{total_tests} ({passed_tests/total_tests*100:.1f}%)")
+    
+    if passed_tests == total_tests:
+        print("🎉 ETAP 4 ENHANCED TELEGRAM ALERTS: COMPLETE ✅")
+        return True
+    else:
+        print("❌ Some tests failed - review implementation")
+        return False
 
 def test_etap3_dynamic_boosting():
     """Dedykowany test dla Etap 3 Dynamic Boosting Logic"""
