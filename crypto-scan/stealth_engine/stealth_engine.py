@@ -1148,39 +1148,125 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             except Exception as alert_error:
                 print(f"[UNIFIED ALERT] ❌ {symbol}: Alert error: {alert_error}")
         
-        # === COMPONENT BREAKDOWN CALCULATION ===
-        # Oblicz komponenty dla TOP 5 STEALTH SCORE display
+        # === COMPONENT-AWARE FEEDBACK LOOP V4 INTEGRATION ===
+        # Enhanced component breakdown calculation z dynamic weight application
         
-        # Ekstraktuj component scores z aktywnych sygnałów
-        dex_inflow_score = 0.0
-        whale_ping_score = 0.0
-        trust_boost_score = 0.0
-        identity_boost_score = 0.0
-        
-        for signal in signals:
-            if hasattr(signal, 'active') and signal.active and hasattr(signal, 'strength'):
-                weight = weights.get(signal.name, 1.0)
-                contribution = weight * signal.strength
+        try:
+            # Import Component Score Engine V4
+            from stealth_engine.component_score_engine import get_component_engine, extract_classic_stealth_components
+            from stealth_engine.component_logger import log_component_feedback, log_dynamic_weights
+            
+            component_engine = get_component_engine()
+            
+            # Build raw component scores from signals
+            raw_component_scores = {
+                "dex": 0.0,
+                "whale": 0.0, 
+                "trust": 0.0,
+                "id": 0.0
+            }
+            
+            # Extract component contributions from active signals
+            for signal in signals:
+                if hasattr(signal, 'active') and signal.active and hasattr(signal, 'strength'):
+                    weight = weights.get(signal.name, 1.0)
+                    contribution = weight * signal.strength
+                    
+                    # Kategoryzuj komponenty według advanced mapping
+                    if signal.name in ['dex_inflow']:
+                        raw_component_scores["dex"] += contribution
+                    elif signal.name in ['whale_ping', 'whale_ping_real', 'whale_ping_real_repeat']:
+                        raw_component_scores["whale"] += contribution
+                    elif signal.name in ['trust_boost', 'token_trust']:
+                        raw_component_scores["trust"] += contribution
+                    elif signal.name in ['identity_boost', 'repeated_address_boost']:
+                        raw_component_scores["id"] += contribution
+            
+            # Add AI detector contributions to component scores
+            if diamond_enabled and diamond_score > 0:
+                raw_component_scores["whale"] += diamond_score * 0.3  # Diamond AI → whale detection
+                raw_component_scores["trust"] += diamond_score * 0.1   # Diamond AI → trust boost
+            
+            if californium_enabled and californium_score > 0:
+                raw_component_scores["trust"] += californium_score * 0.25  # Californium AI → trust
+                raw_component_scores["whale"] += californium_score * 0.1   # Californium AI → whale detection
+            
+            # Apply Component-Aware Dynamic Weights V4
+            weighted_component_scores, component_weighted_total = component_engine.apply_dynamic_weights_to_components(
+                raw_component_scores, "ClassicStealth"
+            )
+            
+            # Update original score with component-weighted total (enhanced precision)
+            if component_weighted_total > 0:
+                # Blend original score with component-weighted score (70/30 mix for stability)
+                enhanced_score = (score * 0.7) + (component_weighted_total * 0.3)
+                print(f"[COMPONENT V4] {symbol}: Enhanced score {score:.3f} → {enhanced_score:.3f} (component boost: +{enhanced_score-score:.3f})")
+                score = enhanced_score
+            
+            # Extract final component values for TOP 5 display
+            dex_inflow_score = weighted_component_scores.get("dex", 0.0)
+            whale_ping_score = weighted_component_scores.get("whale", 0.0)
+            trust_boost_score = weighted_component_scores.get("trust", 0.0)
+            identity_boost_score = weighted_component_scores.get("id", 0.0)
+            
+            # Log Component-Aware Feedback V4 effectiveness
+            if sum(raw_component_scores.values()) > 0:
+                # Calculate effectiveness percentages
+                total_raw = sum(raw_component_scores.values())
+                effectiveness_percentages = {
+                    comp: (weighted_component_scores.get(comp, 0.0) / raw_component_scores.get(comp, 0.001)) * 100
+                    for comp in raw_component_scores if raw_component_scores[comp] > 0
+                }
                 
-                # Kategoryzuj komponenty na podstawie nazwy sygnału
-                if signal.name in ['dex_inflow']:
-                    dex_inflow_score += contribution
-                elif signal.name in ['whale_ping', 'whale_ping_real', 'whale_ping_real_repeat']:
-                    whale_ping_score += contribution
-                elif signal.name in ['trust_boost', 'token_trust']:
-                    trust_boost_score += contribution
-                elif signal.name in ['identity_boost', 'repeated_address_boost']:
-                    identity_boost_score += contribution
+                # Log component feedback according to user specification
+                log_component_feedback(effectiveness_percentages, symbol, "ClassicStealth")
+                
+                # Get applied weights for logging
+                from feedback_loop.weights_loader import get_dynamic_component_weights
+                applied_weights = get_dynamic_component_weights()
+                log_dynamic_weights(applied_weights, symbol, "ClassicStealth")
+            
+            # Enhanced component logging with V4 format
+            print(f"[STEALTH COMPONENTS V4] {symbol} | DEX: {dex_inflow_score:.3f} | WHALE: {whale_ping_score:.3f} | TRUST: {trust_boost_score:.3f} | ID: {identity_boost_score:.3f}")
+            print(f"[COMPONENT V4] {symbol}: Component-weighted total: {component_weighted_total:.3f}")
+            
+        except ImportError as e:
+            print(f"[COMPONENT V4] {symbol}: Component system not available: {e}")
+            # Fallback to original component calculation
+            dex_inflow_score = 0.0
+            whale_ping_score = 0.0
+            trust_boost_score = 0.0
+            identity_boost_score = 0.0
+            
+            for signal in signals:
+                if hasattr(signal, 'active') and signal.active and hasattr(signal, 'strength'):
+                    weight = weights.get(signal.name, 1.0)
+                    contribution = weight * signal.strength
+                    
+                    if signal.name in ['dex_inflow']:
+                        dex_inflow_score += contribution
+                    elif signal.name in ['whale_ping', 'whale_ping_real', 'whale_ping_real_repeat']:
+                        whale_ping_score += contribution
+                    elif signal.name in ['trust_boost', 'token_trust']:
+                        trust_boost_score += contribution
+                    elif signal.name in ['identity_boost', 'repeated_address_boost']:
+                        identity_boost_score += contribution
+            
+            # Add AI contributions (fallback)
+            if diamond_enabled and diamond_score > 0:
+                whale_ping_score += diamond_score * 0.3
+            if californium_enabled and californium_score > 0:
+                trust_boost_score += californium_score * 0.25
+                
+            print(f"[STEALTH COMPONENTS] {symbol} | DEX: {dex_inflow_score:.3f} | WHALE: {whale_ping_score:.3f} | TRUST: {trust_boost_score:.3f} | ID: {identity_boost_score:.3f}")
         
-        # Dodaj DiamondWhale AI i CaliforniumWhale AI contributions
-        if diamond_enabled and diamond_score > 0:
-            whale_ping_score += diamond_score * 0.3  # Diamond AI contributes to whale detection
-        
-        if californium_enabled and californium_score > 0:
-            trust_boost_score += californium_score * 0.25  # Californium AI contributes to trust
-        
-        # Log komponentów dla debug
-        print(f"[STEALTH COMPONENTS] {symbol} | DEX: {dex_inflow_score:.3f} | WHALE: {whale_ping_score:.3f} | TRUST: {trust_boost_score:.3f} | ID: {identity_boost_score:.3f}")
+        except Exception as e:
+            print(f"[COMPONENT V4 ERROR] {symbol}: Component system error: {e}")
+            # Safe fallback values
+            dex_inflow_score = 0.0
+            whale_ping_score = 0.0  
+            trust_boost_score = 0.0
+            identity_boost_score = 0.0
         
         # Przygotuj rezultat z integracją DiamondWhale AI + CaliforniumWhale AI + Component Breakdown
         result = {
@@ -1197,7 +1283,6 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             "dex_inflow": round(dex_inflow_score, 3),
             "whale_ping": round(whale_ping_score, 3),
             "trust_boost": round(trust_boost_score, 3),
-            "identity_boost": round(identity_boost_score, 3)
             "identity_boost": round(identity_boost_score, 3)
         }
         

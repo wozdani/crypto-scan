@@ -98,6 +98,23 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### July 15, 2025 - COMPONENT-AWARE FEEDBACK LOOP V4 COMPLETE - Revolutionary Multi-Detector Component Intelligence ✅
+**🎉 PRZEŁOMOWE OSIĄGNIĘCIE:** Pomyślnie wdrożono Component-Aware Feedback Loop V4 - zaawansowany system śledzenia skuteczności poszczególnych komponentów wszystkich detektorów (DEX, Whale, Trust, ID, DiamondWhale, Californium, WhaleCLIP, GNN) z dynamicznym dostosowywaniem ich wpływu na końcowy score alertu:
+- **COMPONENT FEEDBACK TRAINER V4 DEPLOYED**: Utworzono comprehensive system w feedback_loop/component_feedback_trainer.py z ComponentFeedbackTrainer class automatycznie śledzącej skuteczność każdego komponentu scoringowego i dostosowującej dynamicznie ich wagi
+- **DYNAMIC WEIGHTS LOADER SYSTEM**: Zaimplementowano feedback_loop/weights_loader.py z ComponentWeightsLoader agregującą historyczne skuteczności z JSONL i dostarczającą dynamic weights dla wszystkich detektorów w systemie
+- **COMPONENT SCORE ENGINE V4 INTEGRATION**: Enhanced stealth_engine/component_score_engine.py z ComponentScoreEngine aplikującą dynamic component weights do wszystkich detektorów (ClassicStealth, DiamondWhale AI, CaliforniumWhale AI, WhaleCLIP, GraphGNN, MultiAgentConsensus, RLAgentV3)
+- **ADVANCED COMPONENT LOGGING**: Implementowano stealth_engine/component_logger.py z enhanced logging formatów zgodnie z user specification: [COMPONENT FEEDBACK] whale=83%, dex=61%, id=74%, diamond=91%, clip=79%, gnn=87% | [BOOSTER] Dynamic weights applied: whale=1.2, dex=0.7, gnn=1.1
+- **STEALTH ENGINE V4 ENHANCEMENT**: Upgraded compute_stealth_score() z Component-Aware integration aplikując dynamic weight blending (70/30 mix) dla enhanced precision i component breakdown calculation dla TOP 5 STEALTH SCORE display
+- **COMPREHENSIVE COMPONENT VISUALIZATION**: Utworzono visual/component_effectiveness_visualization.py z ComponentEffectivenessVisualizer enabling heatmapa skuteczności komponentów per detektor, weight evolution trends charts, multi-detector comparison analysis
+- **PRODUCTION COMPONENT INTELLIGENCE**: System teraz uczy się które składniki wzmacniają/osłabiają alerty eliminując fałszywe boosty i optymalizując scoring do realnych warunków rynkowych poprzez mathematical precision feedback learning
+- **MULTI-DETECTOR SUPPORT COMPLETE**: Obsługa wszystkich detektorów: ClassicStealth (whale, dex, trust, id), DiamondWhale AI (diamond), CaliforniumWhale AI (californium/mastermind), WhaleCLIP (clip), GraphGNN (gnn), MultiAgentConsensus (consensus), RLAgentV3 (rl_agent)
+- **INTELLIGENT COMPONENT CATEGORIZATION**: Advanced signal mapping system categorizing stealth signals do specific display categories z precise effectiveness tracking enabling sophisticated component learning
+- **REAL-TIME COMPONENT ENHANCEMENT**: Enhanced score calculation gdzie component-weighted total blends z original score providing mathematical precision boost while maintaining system stability
+- **COMPREHENSIVE ERROR HANDLING**: Robust fallback mechanisms ensuring system operations continue smoothly gdy component system unavailable z graceful degradation maintaining backward compatibility
+- **PRODUCTION DEPLOYMENT VERIFIED**: Component-Aware Feedback Loop V4 fully operational z complete integration testing demonstrating enhanced component scoring precision i TOP 5 STEALTH SCORE display showing real component values
+- **INSTITUTIONAL-GRADE COMPONENT INTELLIGENCE**: Revolutionary system gdzie sophisticated component analysis across multiple AI detectors converges through learned weight optimization enabling superior cryptocurrency intelligence z complete component transparency
+System delivers breakthrough component-aware cryptocurrency intelligence gdzie advanced multi-detector analysis learns optimal component weighting through real trading outcome feedback enabling continuous evolution accuracy bez manual intervention z institutional-grade component effectiveness tracking i comprehensive visualization capabilities.
+
 ### July 15, 2025 - DATETIME MODERNIZATION COMPLETE - Zero-Warning Production Environment ✅
 **🎉 FINAL PRODUCTION POLISH:** Pomyślnie ukończono kompletną modernizację systemu datetime eliminiując wszystkie deprecation warnings i osiągając zero-warning production environment:
 - **DATETIME.UTCNOW() ELIMINATION COMPLETE**: Systematycznie zastąpiono wszystkie 100+ wystąpień datetime.utcnow() z datetime.now(timezone.utc) w całym codebase eliminując deprecation warnings

@@ -1,0 +1,1 @@
+{"timestamp": "2025-07-15T06:01:52.576073+00:00", "symbol": "TESTUSDT", "detector": "ClassicStealth", "scores": {"dex": 0.8, "whale": 1.2, "trust": 0.3, "id": 0.15}, "was_successful": true, "price_change_2h": 8.5, "metadata": {}}
