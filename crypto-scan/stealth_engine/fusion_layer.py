@@ -258,6 +258,52 @@ class FusionEngine:
             # Save to history
             self.save_fusion_history(result)
             
+            # 🚨 UNIFIED TELEGRAM ALERT SYSTEM - Stage 8/7
+            # Wysyłaj alert dla Fusion Engine jeśli alert_decision == True
+            if alert_decision:
+                try:
+                    from alerts.unified_telegram_alerts import send_stealth_alert
+                    
+                    # Przygotuj komentarz na podstawie confidence i dominant detector
+                    dominant_detector = "californium" if californium_score >= max(diamond_score, whaleclip_score) else ("diamond" if diamond_score >= whaleclip_score else "whaleclip")
+                    
+                    if confidence == "VERY_HIGH":
+                        comment = f"Multi-detector consensus: {dominant_detector} dominant 🚀"
+                        action = "IMMEDIATE HIGH CONFIDENCE SIGNAL 💎"
+                    elif confidence == "HIGH":
+                        comment = f"Strong multi-detector signal: {dominant_detector} leading 📊"
+                        action = "HIGH CONFIDENCE SIGNAL 🔥"
+                    else:
+                        comment = f"Multi-detector fusion pattern detected 🧠"
+                        action = "FUSION SIGNAL - Monitor closely 🔍"
+                    
+                    # Przygotuj dodatkowe dane
+                    additional_data = {
+                        "confidence": confidence,
+                        "californium_score": californium_score,
+                        "diamond_score": diamond_score,
+                        "whaleclip_score": whaleclip_score,
+                        "dominant_detector": dominant_detector,
+                        "threshold": self.threshold,
+                        "weights": f"C:{self.weights['californium']:.2f}/D:{self.weights['diamond']:.2f}/W:{self.weights['whaleclip']:.2f}"
+                    }
+                    
+                    # Wyślij unified alert
+                    alert_sent = send_stealth_alert(
+                        symbol, "Fusion Engine", fusion_score,
+                        comment, action, additional_data
+                    )
+                    
+                    if alert_sent:
+                        logger.info(f"[UNIFIED ALERT] ✅ {symbol}: Fusion Engine alert sent (score: {fusion_score:.3f})")
+                    else:
+                        logger.info(f"[UNIFIED ALERT] ℹ️ {symbol}: Alert not sent (cooldown/config)")
+                        
+                except ImportError:
+                    logger.warning(f"[UNIFIED ALERT] ⚠️ {symbol}: Unified alerts module not available")
+                except Exception as alert_error:
+                    logger.error(f"[UNIFIED ALERT] ❌ {symbol}: Alert error: {alert_error}")
+            
             logger.info(f"[FUSION] {symbol}: Decision complete - Alert: {alert_decision}, Score: {fusion_score:.3f}")
             
             return result

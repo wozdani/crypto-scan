@@ -1096,6 +1096,58 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         print(f"  Final score: {score:.3f}")
         print(f"[STEALTH] Final signal for {symbol} → Score: {score:.3f}, Decision: {decision}, Active: {len(used_signals)} signals{partial_note}{diamond_note}{californium_note}")
         
+        # 🚨 UNIFIED TELEGRAM ALERT SYSTEM - Stage 8/7
+        # Wysyłaj alert dla Classic Stealth Engine jeśli score >= 0.70
+        if score >= 0.70:
+            try:
+                from alerts.unified_telegram_alerts import send_stealth_alert
+                
+                # Przygotuj komentarz na podstawie aktywnych sygnałów
+                if "whale_ping" in used_signals and "dex_inflow" in used_signals:
+                    comment = "Stealth pattern: whale_ping + DEX inflow 🐳"
+                elif "spoofing_layers" in used_signals:
+                    comment = "Orderbook manipulation detected 📊"
+                elif "volume_spike" in used_signals:
+                    comment = "Volume spike pattern 📈"
+                else:
+                    comment = f"Classic stealth signals: {', '.join(used_signals[:3])}"
+                
+                # Określ sugerowane działanie na podstawie score
+                if score >= 2.0:
+                    action = "STRONG LONG Opportunity 🚀"
+                elif score >= 1.5:
+                    action = "LONG Opportunity?"
+                else:
+                    action = "High-priority watch 🔍"
+                
+                # Przygotuj dodatkowe dane
+                additional_data = {
+                    "active_signals": len(used_signals),
+                    "data_coverage": f"{data_coverage:.1%}",
+                    "decision": decision
+                }
+                
+                if diamond_enabled and diamond_score > 0:
+                    additional_data["diamond_score"] = diamond_score
+                if californium_enabled and californium_score > 0:
+                    additional_data["californium_score"] = californium_score
+                
+                # Wyślij unified alert
+                alert_sent = send_stealth_alert(
+                    symbol, "Classic Stealth Engine", score, 
+                    comment, action, additional_data
+                )
+                
+                if alert_sent:
+                    print(f"[UNIFIED ALERT] ✅ {symbol}: Classic Stealth alert sent (score: {score:.3f})")
+                else:
+                    print(f"[UNIFIED ALERT] ℹ️ {symbol}: Alert not sent (cooldown/config)")
+                    
+            except ImportError:
+                print(f"[UNIFIED ALERT] ⚠️ {symbol}: Unified alerts module not available")
+            except Exception as alert_error:
+                print(f"[UNIFIED ALERT] ❌ {symbol}: Alert error: {alert_error}")
+        
         # Przygotuj rezultat z integracją DiamondWhale AI + CaliforniumWhale AI
         result = {
             "score": round(score, 3),

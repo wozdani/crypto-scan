@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-CaliforniumWhale AI Alert System - Stage 4/7
-Specialized alert system for CaliforniumWhale AI temporal graph detection
+CaliforniumWhale AI Alert System - Stage 4/7 → UNIFIED INTEGRATION
+DEPRECATED: Use alerts/unified_telegram_alerts.py instead
+This module provides backward compatibility wrapper
 """
 
 import os
@@ -14,6 +15,64 @@ import logging
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+def send_californium_alert(symbol: str, californium_score: float, 
+                          market_data: Dict = None, additional_context: Dict = None) -> bool:
+    """
+    UNIFIED INTEGRATION: CaliforniumWhale AI Alert Wrapper
+    Redirects to unified alert system for consistent messaging
+    
+    Args:
+        symbol: Token symbol
+        californium_score: CaliforniumWhale AI score
+        market_data: Market data context
+        additional_context: Additional analysis context
+        
+    Returns:
+        True if alert sent successfully via unified system
+    """
+    try:
+        from alerts.unified_telegram_alerts import send_stealth_alert
+        
+        # Przygotuj komentarz na podstawie score
+        if californium_score >= 0.85:
+            comment = "High-confidence mastermind traced 🧠💎"
+            action = "IMMEDIATE HIGH PRIORITY WATCH 🚀"
+        elif californium_score >= 0.75:
+            comment = "Mastermind activity traced 🧠"
+            action = "HIGH PRIORITY WATCH 🔍"
+        else:
+            comment = "Temporal graph mastermind pattern 📊"
+            action = "Monitor & Evaluate"
+        
+        # Przygotuj dodatkowe dane z kontekstu
+        additional_data = {}
+        if market_data:
+            additional_data.update({
+                "price_usd": market_data.get("price_usd"),
+                "volume_24h": market_data.get("volume_24h")
+            })
+        
+        if additional_context:
+            additional_data.update({
+                "stealth_score": additional_context.get("stealth_score"),
+                "active_signals": additional_context.get("active_signals"),
+                "diamond_score": additional_context.get("diamond_score"),
+                "data_coverage": additional_context.get("data_coverage")
+            })
+        
+        # Wyślij przez unified alert system
+        return send_stealth_alert(
+            symbol, "CaliforniumWhale AI", californium_score,
+            comment, action, additional_data
+        )
+        
+    except ImportError:
+        logger.error("[CALIFORNIUM WRAPPER] Unified alerts not available")
+        return False
+    except Exception as e:
+        logger.error(f"[CALIFORNIUM WRAPPER] Alert error: {e}")
+        return False
 
 class CaliforniumAlertManager:
     """

@@ -400,6 +400,50 @@ class DiamondDetector:
             }
             
             logger.info(f"[DIAMOND RESULT] {symbol}: score={diamond_score:.3f}, action={action_name}, recommendation={recommendation}")
+            
+            # 🚨 UNIFIED TELEGRAM ALERT SYSTEM - Stage 8/7
+            # Wysyłaj alert dla DiamondWhale AI jeśli action == ALERT i score >= 0.70
+            if action == 0 and diamond_score >= 0.70:  # ALERT action
+                try:
+                    from alerts.unified_telegram_alerts import send_stealth_alert
+                    
+                    # Przygotuj komentarz na podstawie recommendation
+                    if recommendation == "STRONG_DIAMOND_ALERT":
+                        comment = "Strong temporal whale pattern 💎📊"
+                        action_suggestion = "IMMEDIATE WATCH & EVALUATE 🚀"
+                    elif recommendation == "QIRL_SUGGESTED_ALERT":
+                        comment = "QIRL-suggested temporal pattern 🧠"
+                        action_suggestion = "Watch & Evaluate"
+                    else:
+                        comment = "Diamond temporal analysis pattern 💎"
+                        action_suggestion = "Monitor closely 🔍"
+                    
+                    # Przygotuj dodatkowe dane
+                    additional_data = {
+                        "qirl_action": action_name,
+                        "recommendation": recommendation,
+                        "anomaly_scores": len(anomaly_scores),
+                        "graph_nodes": result["graph_stats"]["nodes"],
+                        "graph_edges": result["graph_stats"]["edges"],
+                        "time_span_hours": f"{result['graph_stats']['time_span_hours']:.1f}h"
+                    }
+                    
+                    # Wyślij unified alert
+                    alert_sent = send_stealth_alert(
+                        symbol, "DiamondWhale AI", diamond_score, 
+                        comment, action_suggestion, additional_data
+                    )
+                    
+                    if alert_sent:
+                        logger.info(f"[UNIFIED ALERT] ✅ {symbol}: DiamondWhale alert sent (score: {diamond_score:.3f})")
+                    else:
+                        logger.info(f"[UNIFIED ALERT] ℹ️ {symbol}: Alert not sent (cooldown/config)")
+                        
+                except ImportError:
+                    logger.warning(f"[UNIFIED ALERT] ⚠️ {symbol}: Unified alerts module not available")
+                except Exception as alert_error:
+                    logger.error(f"[UNIFIED ALERT] ❌ {symbol}: Alert error: {alert_error}")
+            
             return result
             
         except Exception as e:
