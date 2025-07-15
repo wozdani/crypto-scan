@@ -75,13 +75,14 @@ class UnifiedTelegramAlerts:
         
         logger.info("[UNIFIED ALERTS] Initialized with environment variables")
     
-    def check_alert_cooldown(self, token_symbol: str, detector_name: str) -> bool:
+    def check_alert_cooldown(self, token_symbol: str, detector_name: str, current_score: float = 0.0) -> bool:
         """
-        Check if alert is within cooldown period
+        Check if alert is within cooldown period (intelligent cooldown for high scores)
         
         Args:
             token_symbol: Token symbol
             detector_name: Name of detector
+            current_score: Current score for dynamic cooldown calculation
             
         Returns:
             True if alert can be sent, False if in cooldown
@@ -91,9 +92,40 @@ class UnifiedTelegramAlerts:
         
         if cooldown_key in self.alert_counts:
             last_alert_time = self.alert_counts[cooldown_key].get('last_alert', 0)
-            if current_time - last_alert_time < self.cooldown_seconds:
-                remaining = self.cooldown_seconds - (current_time - last_alert_time)
-                logger.info(f"[COOLDOWN] {detector_name} → {token_symbol} | {remaining:.0f}s remaining")
+            last_score = self.alert_counts[cooldown_key].get('last_score', 0.0)
+            time_elapsed = current_time - last_alert_time
+            
+            # 🎯 INTELLIGENT COOLDOWN: Reduced cooldown for exceptional signals
+            base_cooldown = self.cooldown_seconds  # 30 minutes default
+            
+            # Dynamic cooldown based on current score strength
+            if current_score >= 1.5:
+                # Very high score: 5 minute cooldown only
+                dynamic_cooldown = 300  # 5 minutes
+                logger.info(f"[COOLDOWN SMART] {detector_name} → {token_symbol} | High score {current_score:.3f}, reduced cooldown: 5min")
+            elif current_score >= 1.0:
+                # High score: 10 minute cooldown
+                dynamic_cooldown = 600  # 10 minutes
+                logger.info(f"[COOLDOWN SMART] {detector_name} → {token_symbol} | Good score {current_score:.3f}, reduced cooldown: 10min")
+            elif current_score >= 0.8:
+                # Medium-high score: 15 minute cooldown
+                dynamic_cooldown = 900  # 15 minutes
+                logger.info(f"[COOLDOWN SMART] {detector_name} → {token_symbol} | Medium score {current_score:.3f}, reduced cooldown: 15min")
+            else:
+                # Standard score: full cooldown
+                dynamic_cooldown = base_cooldown
+                logger.info(f"[COOLDOWN SMART] {detector_name} → {token_symbol} | Standard score {current_score:.3f}, normal cooldown: 30min")
+            
+            # Check if score significantly improved from last alert
+            if current_score > last_score + 0.3:
+                # Score improved significantly: allow immediate re-alert
+                logger.info(f"[COOLDOWN SMART] {detector_name} → {token_symbol} | Score improved {last_score:.3f} → {current_score:.3f}, bypassing cooldown")
+                return True
+            
+            # Apply dynamic cooldown
+            if time_elapsed < dynamic_cooldown:
+                remaining = dynamic_cooldown - time_elapsed
+                logger.info(f"[COOLDOWN SMART] {detector_name} → {token_symbol} | Alert blocked, {remaining:.0f}s remaining (score: {current_score:.3f})")
                 return False
         
         return True
@@ -191,8 +223,8 @@ class UnifiedTelegramAlerts:
         if action is None:
             action = config["default_action"]
         
-        # Check cooldown
-        if not self.check_alert_cooldown(token_symbol, detector_name):
+        # Check intelligent cooldown with score
+        if not self.check_alert_cooldown(token_symbol, detector_name, score):
             return False
         
         # Format message

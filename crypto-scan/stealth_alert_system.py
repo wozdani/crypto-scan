@@ -44,8 +44,14 @@ class StealthAlertManager:
         except Exception as e:
             print(f"[STEALTH ALERT] Error saving alert history: {e}")
     
-    def should_send_alert(self, symbol: str) -> bool:
-        """Sprawdź czy można wysłać alert (cooldown)"""
+    def should_send_alert(self, symbol: str, current_score: float = 0.0) -> bool:
+        """
+        Sprawdź czy można wysłać alert (intelligent cooldown)
+        
+        Args:
+            symbol: Token symbol
+            current_score: Current stealth score (for dynamic cooldown calculation)
+        """
         if symbol not in self.alert_history:
             return True
         
@@ -53,12 +59,47 @@ class StealthAlertManager:
         if not last_alert_time:
             return True
         
-        # Sprawdź cooldown
+        # Sprawdź intelligent cooldown
         from datetime import datetime, timedelta
         last_time = datetime.fromisoformat(last_alert_time)
-        cooldown_period = timedelta(minutes=STEALTH_ALERT_CONFIG["cooldown_minutes"])
+        last_score = self.alert_history[symbol].get("last_score", 0.0)
         
-        return datetime.now() - last_time > cooldown_period
+        # 🎯 INTELLIGENT COOLDOWN: Reduced cooldown for exceptional signals
+        base_cooldown = STEALTH_ALERT_CONFIG["cooldown_minutes"]
+        
+        # Dynamic cooldown based on current score strength
+        if current_score >= 1.5:
+            # Very high score: 5 minute cooldown only
+            cooldown_minutes = 5
+            print(f"[COOLDOWN SMART] {symbol} → High score {current_score:.3f}, reduced cooldown: {cooldown_minutes}min")
+        elif current_score >= 1.0:
+            # High score: 8 minute cooldown
+            cooldown_minutes = 8
+            print(f"[COOLDOWN SMART] {symbol} → Good score {current_score:.3f}, reduced cooldown: {cooldown_minutes}min")
+        elif current_score >= 0.8:
+            # Medium-high score: 10 minute cooldown
+            cooldown_minutes = 10
+            print(f"[COOLDOWN SMART] {symbol} → Medium score {current_score:.3f}, reduced cooldown: {cooldown_minutes}min")
+        else:
+            # Standard score: full cooldown
+            cooldown_minutes = base_cooldown
+            print(f"[COOLDOWN SMART] {symbol} → Standard score {current_score:.3f}, normal cooldown: {cooldown_minutes}min")
+        
+        # Check if score significantly improved from last alert
+        if current_score > last_score + 0.3:
+            # Score improved significantly: allow immediate re-alert
+            print(f"[COOLDOWN SMART] {symbol} → Score improved {last_score:.3f} → {current_score:.3f}, bypassing cooldown")
+            return True
+        
+        cooldown_period = timedelta(minutes=cooldown_minutes)
+        time_elapsed = datetime.now() - last_time
+        
+        if time_elapsed <= cooldown_period:
+            remaining_minutes = (cooldown_period - time_elapsed).total_seconds() / 60
+            print(f"[COOLDOWN SMART] {symbol} → Alert blocked, {remaining_minutes:.1f}min remaining (score: {current_score:.3f})")
+            return False
+        
+        return True
     
     def record_alert(self, symbol: str, stealth_score: float, active_signals: List[str], alert_type: str):
         """Zapisz wysłany alert"""
@@ -89,9 +130,9 @@ async def send_stealth_alert(symbol: str, stealth_score: float, active_signals: 
         alert_type: Typ alertu (strong_stealth_alert, medium_alert)
     """
     
-    # Sprawdź cooldown
-    if not stealth_alert_manager.should_send_alert(symbol):
-        print(f"[STEALTH ALERT] {symbol} → Alert w cooldown, pomijam")
+    # Sprawdź intelligent cooldown z current score
+    if not stealth_alert_manager.should_send_alert(symbol, stealth_score):
+        print(f"[STEALTH ALERT] {symbol} → Alert w cooldown, pomijam (score: {stealth_score:.3f})")
         return
     
     processing_start = time.time()
