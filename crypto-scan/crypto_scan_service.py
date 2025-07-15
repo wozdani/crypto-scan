@@ -620,6 +620,21 @@ def main():
     """Main scanning loop with integrated feedback evaluation"""
     print("Starting Crypto Scanner Service (Enhanced with Feedback Loop)")
     
+    # 💎 STAGE 6/7 - DIAMOND SCHEDULER INTEGRATION
+    try:
+        from scheduler import start_diamond_scheduler_thread
+        
+        diamond_scheduler_thread = start_diamond_scheduler_thread()
+        print("✅ [STAGE 6/7] DiamondWhale AI Scheduler started - daily training automation active")
+        print("   • Daily feedback loop: 02:00 UTC")
+        print("   • Model checkpoints: 02:15 UTC") 
+        print("   • Hourly pending checks: every hour at :30")
+        
+    except ImportError:
+        print("ℹ️ [STAGE 6/7] Diamond Scheduler module not available")
+    except Exception as diamond_error:
+        print(f"⚠️ [STAGE 6/7] Diamond Scheduler error: {diamond_error}")
+    
     # 🎯 ETAP 10 - URUCHOMIENIE TELEGRAM ALERT MANAGER
     try:
         from stealth_engine.telegram_alert_manager import get_telegram_manager
