@@ -522,6 +522,15 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 market_data["stealth_score"] = stealth_score
                 market_data["stealth_signals"] = active_signals
                 
+                # 🎯 TOP 5 STEALTH FIX: Aktualizuj stealth scores cache dla TOP 5 display
+                try:
+                    from stealth_engine.priority_scheduler import AlertQueueManager
+                    priority_manager = AlertQueueManager()
+                    priority_manager.update_stealth_scores(symbol, stealth_result)
+                    print(f"[STEALTH CACHE] {symbol} → Updated stealth scores cache with score {stealth_score:.3f}")
+                except Exception as cache_error:
+                    print(f"[STEALTH CACHE ERROR] {symbol} → Failed to update cache: {cache_error}")
+                
                 # 🔧 MOCAUSDT FIX 7: Dodaj stealth_alert_type na podstawie score
                 if stealth_score >= 0.70:
                     alert_type = "stealth_alert"
