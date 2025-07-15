@@ -980,8 +980,17 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             if contract_info and contract_info.get('address'):
                 print(f"[DIAMOND AI] {symbol}: Starting DiamondWhale AI analysis for contract {contract_info['address'][:10]}...")
                 
-                # Wywołaj DiamondWhale AI Detector - Fix parameter order
-                diamond_result = run_diamond_detector([], symbol)
+                # Pobierz rzeczywiste transakcje blockchain dla analizy temporal graph
+                from .blockchain_fetcher import fetch_diamond_transactions
+                contract_address = contract_info['address']
+                chain = contract_info.get('chain', 'ethereum')
+                
+                # Fetch real blockchain transactions
+                transactions = fetch_diamond_transactions(contract_address, chain)
+                print(f"[DIAMOND AI] {symbol}: Fetched {len(transactions)} real blockchain transactions")
+                
+                # Wywołaj DiamondWhale AI Detector z rzeczywistymi transakcjami
+                diamond_result = run_diamond_detector(transactions, symbol)
                 
                 if diamond_result and diamond_result.get('diamond_score') is not None:
                     diamond_score = float(diamond_result['diamond_score'])
