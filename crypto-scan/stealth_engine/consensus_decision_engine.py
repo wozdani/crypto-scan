@@ -179,26 +179,33 @@ class ConsensusDecisionEngine:
         first_value = next(iter(scores.values()))
         return isinstance(first_value, dict) and 'score' in first_value
     
-    def _dynamic_boosting_logic(self, token: str, scores: Union[Dict[str, float], Dict[str, Dict]]) -> ConsensusResult:
+    def _dynamic_boosting_logic(self, token: str, scores: Union[Dict[str, float], Dict[str, Dict]], use_adaptive_weights: bool = True) -> ConsensusResult:
         """
-        ETAP 3: Dynamic Boosting Decision Logic + ETAP 5: Fallback Logic
+        ETAP 3: Dynamic Boosting Decision Logic + ETAP 5: Fallback Logic + ETAP 6: Adaptive Weights
         Implementuje confidence-based weighted scoring z booster strategies i fallback alerts:
         - Aktywne detektory: score >= 0.75 AND confidence >= 0.60
         - Global score: suma (score × weight) dla aktywnych detektorów
         - Booster: confidence > 0.85 AND score > 0.90 → score × 1.1
         - ETAP 5: Fallback alert: jeśli 1 detektor > 0.92 score i > 0.85 confidence = instant alert
+        - ETAP 6: Adaptive weights: dynamiczne dostosowanie wag na podstawie historycznej skuteczności
         
         Args:
             token: Symbol tokena
             scores: Dict w extended format z confidence i weight
+            use_adaptive_weights: Czy stosować adaptive weights (default: True)
             
         Returns:
             ConsensusResult z dynamic boosting decision lub fallback alert
         """
-        print(f"[DYNAMIC BOOST] Processing {token} using Etap 3 + Etap 5 logic")
+        print(f"[DYNAMIC BOOST] Processing {token} using Etap 3 + Etap 5 + Etap 6 logic")
         
         # Konwersja do unified format jeśli potrzebne
         unified_scores = self._normalize_to_extended_format(scores)
+        
+        # ETAP 6: Aplikuj adaptive weights jeśli włączone
+        if use_adaptive_weights:
+            print(f"[ADAPTIVE WEIGHTS] Applying adaptive weights to {len(unified_scores)} detectors")
+            unified_scores = self.apply_adaptive_weights(unified_scores, days=7)
         
         # ETAP 5: Check for fallback trigger first (very strong single detector)
         fallback_triggered, fallback_detector = self._should_trigger_fallback_alert(unified_scores)
@@ -445,6 +452,144 @@ class ConsensusDecisionEngine:
         
         self.decision_history.append(decision_record)
         print(f"[FALLBACK RECORD] Recorded fallback decision for {token}: {trigger_detector} → {result.decision.value}")
+    
+    def update_detector_weights(self, feedback_history: Dict[str, Dict], decay: float = 0.95) -> Dict[str, float]:
+        """
+        ETAP 6: Dynamiczne modyfikowanie wag detektorów na podstawie feedback history
+        
+        Args:
+            feedback_history: Dict z historią skuteczności detektorów
+                {"detector": {"correct": int, "total": int, "avg_conf": float, "prev_weight": float}}
+            decay: Czynnik wygaszania dla smooth weight transitions (default: 0.95)
+            
+        Returns:
+            Dict z zaktualizowanymi wagami detektorów
+        """
+        updated_weights = {}
+        
+        for detector, stats in feedback_history.items():
+            if stats["total"] == 0:
+                # Brak danych - używaj domyślnej wagi
+                updated_weights[detector] = stats.get("prev_weight", 0.25)
+                continue
+                
+            # Oblicz success rate (0.0 - 1.0)
+            success_rate = stats["correct"] / max(1, stats["total"])
+            avg_confidence = stats.get("avg_conf", 0.70)
+            prev_weight = stats.get("prev_weight", 0.25)
+            
+            # Adaptive weight formula: exponential moving average z confidence boost
+            # new_weight = decay * prev_weight + (1 - decay) * (success_rate * avg_confidence)
+            performance_factor = success_rate * avg_confidence
+            new_weight = decay * prev_weight + (1 - decay) * performance_factor
+            
+            # Bounds protection: wagi między 0.10 a 0.50
+            new_weight = max(0.10, min(0.50, new_weight))
+            updated_weights[detector] = round(new_weight, 4)
+            
+            print(f"[ADAPTIVE WEIGHTS] {detector}: success={success_rate:.2f}, conf={avg_confidence:.2f}, "
+                  f"prev={prev_weight:.3f} → new={new_weight:.3f}")
+        
+        return updated_weights
+    
+    def get_feedback_history_from_decisions(self, days: int = 7) -> Dict[str, Dict]:
+        """
+        ETAP 6: Pobiera feedback history z decision_history dla adaptive weights
+        
+        Args:
+            days: Liczba dni wstecz do analizy (default: 7)
+            
+        Returns:
+            Feedback history dict dla update_detector_weights()
+        """
+        from datetime import datetime, timedelta
+        
+        cutoff_date = datetime.now() - timedelta(days=days)
+        feedback_history = {}
+        
+        # Domyślne wagi detektorów
+        default_weights = {
+            "CaliforniumWhale": 0.30,
+            "DiamondWhale": 0.25,
+            "WhaleCLIP": 0.25,
+            "StealthSignal": 0.20
+        }
+        
+        # Inicjalizuj feedback history dla wszystkich detektorów
+        for detector, default_weight in default_weights.items():
+            feedback_history[detector] = {
+                "correct": 0,
+                "total": 0,
+                "avg_conf": 0.70,
+                "prev_weight": default_weight,
+                "confidence_sum": 0.0
+            }
+        
+        # Analizuj decision history
+        for decision in self.decision_history:
+            try:
+                decision_time = datetime.fromisoformat(decision["timestamp"])
+                if decision_time < cutoff_date:
+                    continue
+                    
+                # Sprawdź każdy contributing detector
+                contributing_detectors = decision.get("contributing_detectors", [])
+                decision_success = decision.get("alert_sent", False)  # Proxy dla success
+                
+                for detector in contributing_detectors:
+                    if detector in feedback_history:
+                        feedback_history[detector]["total"] += 1
+                        if decision_success:
+                            feedback_history[detector]["correct"] += 1
+                        
+                        # Dodaj confidence do sumy
+                        conf = decision.get("confidence", 0.70)
+                        feedback_history[detector]["confidence_sum"] += conf
+                        
+            except (KeyError, ValueError, TypeError) as e:
+                print(f"[FEEDBACK HISTORY] Skipping malformed decision: {e}")
+                continue
+        
+        # Oblicz średnie confidence dla każdego detektora
+        for detector in feedback_history:
+            if feedback_history[detector]["total"] > 0:
+                avg_conf = feedback_history[detector]["confidence_sum"] / feedback_history[detector]["total"]
+                feedback_history[detector]["avg_conf"] = round(avg_conf, 3)
+            
+            # Usuń tymczasową sumę
+            del feedback_history[detector]["confidence_sum"]
+        
+        print(f"[FEEDBACK HISTORY] Analyzed {len(self.decision_history)} decisions from last {days} days")
+        return feedback_history
+    
+    def apply_adaptive_weights(self, scores: Dict[str, Dict], days: int = 7) -> Dict[str, Dict]:
+        """
+        ETAP 6: Aplikuje adaptive weights do detector scores
+        
+        Args:
+            scores: Extended format scores {"detector": {"score": float, "confidence": float, "weight": float}}
+            days: Liczba dni dla feedback analysis (default: 7)
+            
+        Returns:
+            Scores z zaktualizowanymi adaptive weights
+        """
+        # Pobierz feedback history
+        feedback_history = self.get_feedback_history_from_decisions(days)
+        
+        # Zaktualizuj wagi na podstawie performance
+        updated_weights = self.update_detector_weights(feedback_history)
+        
+        # Aplikuj nowe wagi do scores
+        updated_scores = scores.copy()
+        for detector in updated_scores:
+            if detector in updated_weights:
+                old_weight = updated_scores[detector]["weight"]
+                new_weight = updated_weights[detector]
+                updated_scores[detector]["weight"] = new_weight
+                
+                print(f"[ADAPTIVE WEIGHTS] {detector}: weight {old_weight:.3f} → {new_weight:.3f}")
+        
+        return updated_scores
     
     def _send_dynamic_telegram_alert(self, token: str, global_score: float, 
                                     active_detectors: Dict, boosted_detectors: List[str]) -> bool:
@@ -1187,7 +1332,9 @@ class ConsensusDecisionEngine:
                 if detector not in detector_contribution:
                     detector_contribution[detector] = {'count': 0, 'avg_score': 0.0}
                 detector_contribution[detector]['count'] += 1
-                detector_contribution[detector]['avg_score'] += score
+                # Handle both float scores and dict scores
+                numeric_score = score if isinstance(score, (int, float)) else score.get('score', 0.0) if isinstance(score, dict) else 0.0
+                detector_contribution[detector]['avg_score'] += numeric_score
         
         # Calculate average scores
         for detector in detector_contribution:
