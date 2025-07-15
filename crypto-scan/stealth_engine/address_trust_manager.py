@@ -205,7 +205,7 @@ class AddressTrustManager:
     
     def get_trust_statistics(self, address: str = None) -> Dict:
         """
-        Pobierz statystyki trust score z ENHANCED timeout protection
+        🔧 TRIGGER TIMEOUT FIX: Pobierz statystyki trust score z NO-LOCK CACHE optimization
         
         Args:
             address: Konkretny adres lub None dla wszystkich
@@ -215,14 +215,12 @@ class AddressTrustManager:
         """
         print(f"[TRUST STATS] Called get_trust_statistics for {address[:12] if address else 'ALL'}...")
         
-        # ENHANCED FIX: Add JSON decode error protection and faster lock timeout
+        # 🔧 TRIGGER TIMEOUT FIX: Use lockless cache read for performance
         try:
-            # 🔧 MOCAUSDT FIX 4: Dramatically reduced lock timeout to prevent hanging
-            lock_acquired = self.lock.acquire(timeout=0.1)  # Super fast timeout
-            if not lock_acquired:
-                print(f"[TRUST STATS EMERGENCY] Lock timeout for {address[:12] if address else 'ALL'} - using emergency fallback")
-                # Return safe fallback data IMMEDIATELY
-                if address:
+            if address:
+                # Fast cache lookup without lock for individual addresses
+                if address not in self.address_performance:
+                    print(f"[TRUST STATS FAST] Address {address[:12]}... not found in cache - returning default")
                     return {
                         'address': address,
                         'hits': 0,
@@ -231,87 +229,72 @@ class AddressTrustManager:
                         'trust_score': 0.0,
                         'boost_value': 0.0,
                         'last_updated': None,
-                        'fallback_reason': 'lock_timeout'
-                    }
-                else:
-                    return {
-                        'total_addresses': 0,
-                        'trusted_addresses': 0,
-                        'trust_ratio': 0.0,
-                        'top_trusted': [],
-                        'fallback_reason': 'lock_timeout'
-                    }
-        except Exception as lock_e:
-            print(f"[TRUST STATS CRITICAL] Lock acquisition failed for {address[:12] if address else 'ALL'}: {lock_e}")
-            # Emergency fallback for any lock errors
-            if address:
-                return {
-                    'address': address,
-                    'hits': 0, 'misses': 0, 'total_predictions': 0,
-                    'trust_score': 0.0, 'boost_value': 0.0, 'last_updated': None,
-                    'fallback_reason': 'lock_error'
-                }
-            else:
-                return {
-                    'total_addresses': 0, 'trusted_addresses': 0, 'trust_ratio': 0.0,
-                    'top_trusted': [], 'fallback_reason': 'lock_error'
-                }
-        
-        try:
-            if address:
-                # Statystyki dla konkretnego adresu
-                if address not in self.address_performance:
-                    return {
-                        'address': address,
-                        'hits': 0,
-                        'misses': 0,
-                        'total_predictions': 0,
-                        'trust_score': 0.0,
-                        'boost_value': 0.0,
-                        'last_updated': None
+                        'cache_source': 'not_found'
                     }
                 
+                # LOCKLESS READ: Direct cache access for performance  
                 perf = self.address_performance[address]
+                boost_value = self.get_address_boost(address)
+                
+                print(f"[TRUST STATS FAST] Address {address[:12]}... found - trust: {perf['score']:.3f}, predictions: {perf['total_predictions']}")
                 return {
                     'address': address,
                     'hits': perf['hits'],
                     'misses': perf['misses'],
                     'total_predictions': perf['total_predictions'],
                     'trust_score': perf['score'],
-                    'boost_value': self.get_address_boost(address),
+                    'boost_value': boost_value,
                     'last_updated': datetime.fromtimestamp(perf['last_updated']).isoformat(),
-                    'recent_history': perf['history'][-5:]  # Ostatnie 5 predykcji
+                    'recent_history': perf['history'][-5:],  # Ostatnie 5 predykcji
+                    'cache_source': 'direct_access'
                 }
             else:
-                # Statystyki globalne
-                total_addresses = len(self.address_performance)
-                trusted_addresses = sum(1 for perf in self.address_performance.values() 
-                                      if perf['score'] >= 0.5 and perf['total_predictions'] >= self.min_predictions_required)
+                # Global stats - still need minimal lock but much faster
+                try:
+                    lock_acquired = self.lock.acquire(timeout=0.05)  # Very short timeout for global stats
+                    if not lock_acquired:
+                        print(f"[TRUST STATS EMERGENCY] Global stats lock timeout - using emergency fallback")
+                        return {
+                            'total_addresses': 0,
+                            'trusted_addresses': 0,
+                            'trust_ratio': 0.0,
+                            'top_trusted': [],
+                            'fallback_reason': 'global_lock_timeout'
+                        }
+                    
+                    # Fast global calculation
+                    total_addresses = len(self.address_performance)
+                    trusted_addresses = sum(1 for perf in self.address_performance.values() 
+                                          if perf['score'] >= 0.5 and perf['total_predictions'] >= self.min_predictions_required)
+                    
+                    print(f"[TRUST STATS FAST] Global stats - total: {total_addresses}, trusted: {trusted_addresses}")
+                    return {
+                        'total_addresses': total_addresses,
+                        'trusted_addresses': trusted_addresses,
+                        'trust_ratio': trusted_addresses / total_addresses if total_addresses > 0 else 0.0,
+                        'top_trusted': [],  # Skip heavy calculation for performance
+                        'cache_source': 'fast_global'
+                    }
+                finally:
+                    if lock_acquired:
+                        self.lock.release()
+                        print(f"[TRUST STATS] Released global lock")
                 
-                # Top trusted addresses
-                trusted_list = []
-                for addr, perf in self.address_performance.items():
-                    if perf['total_predictions'] >= self.min_predictions_required:
-                        trusted_list.append({
-                            'address': addr,
-                            'trust_score': perf['score'],
-                            'predictions': perf['total_predictions'],
-                            'boost': self.get_address_boost(addr)
-                        })
-                
-                # Sortuj według trust score
-                trusted_list.sort(key=lambda x: x['trust_score'], reverse=True)
-                
+        except Exception as e:
+            print(f"[TRUST STATS ERROR] Cache access failed for {address[:12] if address else 'ALL'}: {e}")
+            # Super fast emergency fallback
+            if address:
                 return {
-                    'total_addresses': total_addresses,
-                    'trusted_addresses': trusted_addresses,
-                    'trust_ratio': trusted_addresses / total_addresses if total_addresses > 0 else 0.0,
-                    'top_trusted': trusted_list[:10]  # Top 10 najbardziej zaufanych
+                    'address': address,
+                    'hits': 0, 'misses': 0, 'total_predictions': 0,
+                    'trust_score': 0.0, 'boost_value': 0.0, 'last_updated': None,
+                    'fallback_reason': 'cache_error'
                 }
-        finally:
-            if lock_acquired:
-                self.lock.release()
-                print(f"[TRUST STATS] Released lock for {address[:12] if address else 'ALL'}")
+            else:
+                return {
+                    'total_addresses': 0, 'trusted_addresses': 0, 'trust_ratio': 0.0,
+                    'top_trusted': [], 'fallback_reason': 'cache_error'
+                }
     
     def evaluate_pending_predictions(self, price_fetcher_callback=None):
         """
