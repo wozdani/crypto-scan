@@ -1826,7 +1826,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 
         # ✅ WATCHLIST ALERT SYSTEM - zgodnie z propozycją Szefira
         # Dla tokenów z score 0.4-0.6 + HOLD decision
-        if score >= 0.40 and score < 0.70 and final_decision == "HOLD":
+        # ⛔ FLUXUSDT excluded per user request
+        if score >= 0.40 and score < 0.70 and final_decision == "HOLD" and symbol != "FLUXUSDT":
             try:
                 from alerts.stealth_v3_watchlist_alerts import send_watchlist_alert
                 

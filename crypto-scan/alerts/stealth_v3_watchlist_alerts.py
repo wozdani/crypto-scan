@@ -22,6 +22,13 @@ def send_watchlist_alert(watchlist_data: Dict[str, Any]) -> bool:
         bool: True jeśli alert wysłany pomyślnie
     """
     try:
+        symbol = watchlist_data["symbol"]
+        
+        # ⛔ FLUXUSDT EXCLUSION - zgodnie z user request
+        if symbol == "FLUXUSDT":
+            print(f"[WATCHLIST ALERT] {symbol}: Excluded from watchlist alerts per user request")
+            return False
+            
         # Pobierz konfigurację Telegram
         bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
         chat_id = os.getenv("TELEGRAM_CHAT_ID")
@@ -31,8 +38,8 @@ def send_watchlist_alert(watchlist_data: Dict[str, Any]) -> bool:
             return False
             
         # Sprawdź cooldown
-        if _is_watchlist_cooldown(watchlist_data["symbol"]):
-            print(f"[WATCHLIST ALERT] {watchlist_data['symbol']}: W cooldown")
+        if _is_watchlist_cooldown(symbol):
+            print(f"[WATCHLIST ALERT] {symbol}: W cooldown")
             return False
             
         # Przygotuj wiadomość watchlist
