@@ -194,10 +194,36 @@ class TokenTrustTracker:
             "signal_history": token_data.get("signal_history", {})
         }
     
-    def get_trust_statistics(self) -> Dict:
+    def get_trust_statistics(self, address: str = None) -> Dict:
         """
-        📊 Pobierz kompletne statystyki trust trackera
+        📊 Pobierz statystyki trust - z cache dla pojedynczych adresów
+        
+        Args:
+            address: Opcjonalny adres do sprawdzenia (z cache)
         """
+        if address:
+            # Quick cache lookup for single address
+            cache_key = address[:10] + "..."
+            
+            # Search in cached data
+            for token, data in self.trust_data.items():
+                if address in data["addresses"]:
+                    return {
+                        "trust": min(data["addresses"][address] / 10.0, 1.0),  # Normalize to 0-1
+                        "predictions": data["addresses"][address],
+                        "token": token,
+                        "cached": True
+                    }
+            
+            # Address not found in cache
+            return {
+                "trust": 0.0,
+                "predictions": 0,
+                "token": None,
+                "cached": True
+            }
+        
+        # Full statistics calculation (original behavior)
         total_tokens = len(self.trust_data)
         total_addresses = sum(len(data["addresses"]) for data in self.trust_data.values())
         total_signals = sum(data.get("total_signals", 0) for data in self.trust_data.values())
@@ -284,10 +310,10 @@ def get_token_trust_stats(token: str) -> Dict:
     tracker = get_trust_tracker()
     return tracker.get_token_trust_stats(token)
 
-def get_trust_statistics() -> Dict:
-    """📊 Convenience function: Pobierz kompletne statystyki trust"""
+def get_trust_statistics(address: str = None) -> Dict:
+    """📊 Convenience function: Pobierz statystyki trust z cache dla pojedynczych adresów"""
     tracker = get_trust_tracker()
-    return tracker.get_trust_statistics()
+    return tracker.get_trust_statistics(address)
 
 def cleanup_trust_data(max_age_days: int = 30):
     """🧹 Convenience function: Oczyść stare dane trust"""

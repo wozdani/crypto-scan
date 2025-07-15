@@ -963,6 +963,49 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                             final_score += emergency_modifier
                             print(f"[MODIFIER EMERGENCY] {symbol}: basic_screening + trend_strength emergency: +{emergency_modifier:.3f}")
                     
+                    # 🔍 CORE FLOW VALIDATION - Missing Functions Detection System
+                    try:
+                        print(f"[CORE FLOW] {symbol}: Starting core flow validation...")
+                        
+                        # Validate TJDE components presence 
+                        core_components = {}
+                        core_components['tjde_score'] = final_score
+                        core_components['tjde_decision'] = decision
+                        core_components['tjde_confidence'] = tjde_result.get('confidence', 0.0)
+                        
+                        # Check if stealth analysis is present in market_data
+                        stealth_present = market_data.get("stealth_score") is not None
+                        core_components['stealth_enabled'] = stealth_present
+                        
+                        if stealth_present:
+                            core_components['stealth_score'] = market_data.get("stealth_score", 0.0)
+                            core_components['stealth_signals'] = len(market_data.get("stealth_signals", []))
+                        
+                        # Consensus engine validation
+                        consensus_present = market_data.get("consensus_decision") is not None
+                        core_components['consensus_enabled'] = consensus_present
+                        
+                        if consensus_present:
+                            core_components['consensus_decision'] = market_data.get("consensus_decision")
+                            core_components['consensus_score'] = market_data.get("consensus_score", 0.0)
+                        
+                        # Log core flow status
+                        print(f"[CORE FLOW] {symbol}: TJDE={final_score:.3f}, Stealth={stealth_present}, Consensus={consensus_present}")
+                        print(f"[CORE FLOW] {symbol}: Core components validated: {len(core_components)} functions active")
+                        
+                        # Enhanced flow validation for missing components
+                        if not stealth_present:
+                            print(f"[CORE FLOW WARNING] {symbol}: Stealth analysis missing - should run stealth_engine.compute_stealth_score()")
+                        
+                        if not consensus_present:
+                            print(f"[CORE FLOW WARNING] {symbol}: Multi-agent consensus missing - should run consensus_decision_engine")
+                        
+                        # Store validation results for diagnostic
+                        market_data["core_flow_validation"] = core_components
+                        
+                    except Exception as flow_error:
+                        print(f"[CORE FLOW ERROR] {symbol}: Flow validation failed: {flow_error}")
+                    
                     # === DUAL ENGINE DECISION SYSTEM ===
                     # Replace single TJDE scoring with separated engines
                     print(f"[DUAL ENGINE] {symbol}: Implementing TJDE + Stealth separation")

@@ -1282,7 +1282,73 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             trust_boost_score = 0.0
             identity_boost_score = 0.0
         
-        # Przygotuj rezultat z integracją DiamondWhale AI + CaliforniumWhale AI + Component Breakdown
+        # 🧠 MULTI-AGENT CONSENSUS DECISION ENGINE - Unified Detector Fusion
+        consensus_result = None
+        consensus_error = None
+        
+        try:
+            from .consensus_decision_engine import create_consensus_engine
+            
+            # Prepare detector scores for consensus
+            detector_scores = {}
+            
+            # Classic Stealth Engine
+            if score > 0.0:
+                detector_scores["StealthEngine"] = {
+                    "score": score,
+                    "confidence": min(data_coverage, 1.0),
+                    "weight": 0.25
+                }
+            
+            # DiamondWhale AI
+            if diamond_enabled and diamond_score > 0.0:
+                detector_scores["DiamondWhale"] = {
+                    "score": diamond_score,
+                    "confidence": 0.85,  # High confidence temporal analysis
+                    "weight": 0.25
+                }
+            
+            # CaliforniumWhale AI
+            if californium_enabled and californium_score > 0.0:
+                detector_scores["CaliforniumWhale"] = {
+                    "score": californium_score,
+                    "confidence": 0.80,  # Good confidence TGN+QIRL
+                    "weight": 0.30
+                }
+            
+            # WhaleCLIP (mock for now - could be integrated later)
+            if "whale_ping" in used_signals:
+                detector_scores["WhaleCLIP"] = {
+                    "score": min(score * 0.8, 1.0),  # Derive from whale signals
+                    "confidence": 0.75,
+                    "weight": 0.20
+                }
+            
+            # Run consensus if we have multiple detectors
+            if len(detector_scores) >= 2:
+                consensus_engine = create_consensus_engine()
+                
+                # Use simple consensus for production
+                consensus_result = consensus_engine.run(
+                    symbol, 
+                    {k: v["score"] for k, v in detector_scores.items()},
+                    use_simple_consensus=True
+                )
+                
+                print(f"[CONSENSUS ENGINE] {symbol}: {consensus_result.decision.value} (score: {consensus_result.final_score:.3f})")
+                print(f"[CONSENSUS ENGINE] {symbol}: Active detectors: {consensus_result.contributing_detectors}")
+                print(f"[CONSENSUS ENGINE] {symbol}: Reasoning: {consensus_result.reasoning}")
+                
+            else:
+                print(f"[CONSENSUS ENGINE] {symbol}: Insufficient detectors ({len(detector_scores)}) for consensus analysis")
+                
+        except ImportError:
+            print(f"[CONSENSUS ENGINE] {symbol}: Consensus engine not available")
+        except Exception as e:
+            consensus_error = str(e)
+            print(f"[CONSENSUS ENGINE ERROR] {symbol}: Failed to run consensus: {e}")
+        
+        # Przygotuj rezultat z integracją DiamondWhale AI + CaliforniumWhale AI + Component Breakdown + Consensus
         result = {
             "score": round(score, 3),
             "active_signals": used_signals,
@@ -1297,7 +1363,13 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             "dex_inflow": round(dex_inflow_score, 3),
             "whale_ping": round(whale_ping_score, 3),
             "trust_boost": round(trust_boost_score, 3),
-            "identity_boost": round(identity_boost_score, 3)
+            "identity_boost": round(identity_boost_score, 3),
+            
+            # === CONSENSUS DECISION ENGINE RESULTS ===
+            "consensus_decision": consensus_result.decision.value if consensus_result else None,
+            "consensus_score": round(consensus_result.final_score, 3) if consensus_result else None,
+            "consensus_confidence": round(consensus_result.confidence, 3) if consensus_result else None,
+            "consensus_detectors": consensus_result.contributing_detectors if consensus_result else []
         }
         
         # Dodaj informacje o błędach jeśli wystąpiły
@@ -1305,6 +1377,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             result["diamond_error"] = diamond_error
         if californium_error:
             result["californium_error"] = californium_error
+        if consensus_error:
+            result["consensus_error"] = consensus_error
             
         return result
         
