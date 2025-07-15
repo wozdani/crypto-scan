@@ -1006,6 +1006,69 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             print(f"[DIAMOND AI ERROR] {symbol}: Failed to run DiamondWhale detector: {e}")
             print(f"[DIAMOND AI ERROR] {symbol}: Continuing without diamond analysis")
 
+        # === WHALECLIP AI DETECTOR INTEGRATION ===
+        # 🧠 STAGE: Integrate WhaleCLIP Vision AI Detector
+        whaleclip_score = 0.0
+        whaleclip_enabled = False
+        whaleclip_error = None
+        
+        try:
+            # Sprawdź czy token ma kontrakt blockchain dla analizy transakcji
+            from utils.contracts import get_contract
+            contract_info = get_contract(symbol)
+            
+            if contract_info and contract_info.get('address'):
+                print(f"[WHALECLIP AI] {symbol}: Starting WhaleCLIP AI analysis for contract {contract_info['address'][:10]}...")
+                
+                # Wywołaj WhaleCLIP AI Detector - simplified behavioral analysis
+                try:
+                    # Use stealth_engine_advanced WhaleCLIP integration
+                    from stealth_engine_advanced import StealthEngineAdvanced
+                    advanced_engine = StealthEngineAdvanced()
+                    
+                    # Get blockchain address for behavioral analysis
+                    blockchain_address = contract_info['address']
+                    chain = contract_info.get('chain', 'ethereum')
+                    
+                    # Fetch transactions and analyze behavioral patterns
+                    transactions = advanced_engine.fetch_transactions_from_blockchain(blockchain_address, chain, limit=20)
+                    
+                    if transactions and len(transactions) > 0:
+                        # Simple WhaleCLIP scoring based on transaction patterns
+                        high_value_txs = [tx for tx in transactions if float(tx.get('value', 0)) > 1000]
+                        total_value = sum(float(tx.get('value', 0)) for tx in transactions)
+                        
+                        # Calculate WhaleCLIP confidence based on transaction behavior
+                        if len(high_value_txs) > len(transactions) * 0.3 and total_value > 10000:
+                            whaleclip_score = min(0.9, (len(high_value_txs) / len(transactions)) * (total_value / 100000))
+                            whaleclip_enabled = True
+                            
+                            # Dodaj whaleclip_score do głównego stealth score (z wagą 0.2)
+                            whaleclip_contribution = whaleclip_score * 0.2
+                            score += whaleclip_contribution
+                            
+                            # Dodaj do listy aktywnych sygnałów jeśli znaczący
+                            if whaleclip_score > 0.3:
+                                used_signals.append("whaleclip_vision_detection")
+                            
+                            print(f"[WHALECLIP AI] {symbol}: WhaleCLIP score={whaleclip_score:.3f}, contribution=+{whaleclip_contribution:.3f}")
+                            print(f"[WHALECLIP AI] {symbol}: Behavioral vision analysis completed successfully")
+                        else:
+                            print(f"[WHALECLIP AI] {symbol}: Insufficient behavioral patterns for WhaleCLIP analysis")
+                    else:
+                        print(f"[WHALECLIP AI] {symbol}: No transactions available for behavioral analysis")
+                        
+                except Exception as clip_e:
+                    whaleclip_error = str(clip_e)
+                    print(f"[WHALECLIP AI ERROR] {symbol}: WhaleCLIP analysis failed: {clip_e}")
+            else:
+                print(f"[WHALECLIP AI] {symbol}: No blockchain contract found - skipping behavioral analysis")
+                
+        except Exception as e:
+            whaleclip_error = str(e)
+            print(f"[WHALECLIP AI ERROR] {symbol}: Failed to run WhaleCLIP detector: {e}")
+            print(f"[WHALECLIP AI ERROR] {symbol}: Continuing without WhaleCLIP analysis")
+
         # === CALIFORNIUM WHALE AI DETECTOR INTEGRATION ===
         # 🚀 STAGE 3/7: Integrate CaliforniumWhale AI Temporal Graph + QIRL Detector
         californium_score = 0.0
@@ -1075,26 +1138,31 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             print(f"[CALIFORNIUM AI ERROR] {symbol}: Failed to run CaliforniumWhale detector: {e}")
             print(f"[CALIFORNIUM AI ERROR] {symbol}: Continuing without californium analysis")
 
-        # LOG: Finalna decyzja scoringowa z nową implementacją bonusu + Diamond AI + CaliforniumWhale AI
+        # LOG: Finalna decyzja scoringowa z nową implementacją bonusu + All AI Detectors
         decision = "strong" if score >= 3.0 else "weak" if score >= 1.0 else "none"
         partial_note = f" (partial: {available_signals}/{total_signals} signals)" if data_coverage < 0.8 else ""
         diamond_note = f" + Diamond: {diamond_score:.3f}" if diamond_enabled else ""
+        whaleclip_note = f" + WhaleCLIP: {whaleclip_score:.3f}" if whaleclip_enabled else ""
         californium_note = f" + Californium: {californium_score:.3f}" if californium_enabled else ""
         
         print(f"[STEALTH SCORING] {symbol} final calculation:")
         base_score = score - active_rules_bonus
         if diamond_enabled:
             base_score -= diamond_score * 0.3
+        if whaleclip_enabled:
+            base_score -= whaleclip_score * 0.2
         if californium_enabled:
             base_score -= californium_score * 0.25
         print(f"  Base score: {base_score:.3f}")
         print(f"  Active rules bonus: {len(used_signals)} × 0.025 = +{active_rules_bonus:.3f}")
         if diamond_enabled:
             print(f"  Diamond AI contribution: {diamond_score:.3f} × 0.3 = +{diamond_score * 0.3:.3f}")
+        if whaleclip_enabled:
+            print(f"  WhaleCLIP AI contribution: {whaleclip_score:.3f} × 0.2 = +{whaleclip_score * 0.2:.3f}")
         if californium_enabled:
             print(f"  CaliforniumWhale AI contribution: {californium_score:.3f} × 0.25 = +{californium_score * 0.25:.3f}")
         print(f"  Final score: {score:.3f}")
-        print(f"[STEALTH] Final signal for {symbol} → Score: {score:.3f}, Decision: {decision}, Active: {len(used_signals)} signals{partial_note}{diamond_note}{californium_note}")
+        print(f"[STEALTH] Final signal for {symbol} → Score: {score:.3f}, Decision: {decision}, Active: {len(used_signals)} signals{partial_note}{diamond_note}{whaleclip_note}{californium_note}")
         
         # 🚨 STEALTH V3 TELEGRAM ALERT SYSTEM - Modernizacja do nowego formatu
         # Wysyłaj alert Stealth v3 jeśli score >= 0.70
@@ -1126,6 +1194,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 # Dodaj AI detector scores z właściwymi wartościami
                 if diamond_enabled and diamond_score > 0:
                     detector_results["diamond_ai"] = diamond_score
+                if whaleclip_enabled and whaleclip_score > 0:
+                    detector_results["whaleclip_vision"] = whaleclip_score
                 if californium_enabled and californium_score > 0:
                     detector_results["mastermind_tracing"] = californium_score
                 
@@ -1153,6 +1223,11 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     agent_votes.append("BUY")
                 else:
                     agent_votes.append("HOLD" if detector_results.get("orderbook_anomaly", 0.0) > 0.2 else "AVOID")
+                
+                if detector_results.get("whaleclip_vision", 0.0) > 0.5:
+                    agent_votes.append("BUY")
+                else:
+                    agent_votes.append("HOLD" if detector_results.get("whaleclip_vision", 0.0) > 0.2 else "AVOID")
                 
                 if detector_results.get("mastermind_tracing", 0.0) > 0.5:
                     agent_votes.append("BUY")
@@ -1195,6 +1270,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 
                 if diamond_enabled and diamond_score > 0:
                     meta_data["diamond_score"] = round(diamond_score, 3)
+                if whaleclip_enabled and whaleclip_score > 0:
+                    meta_data["whaleclip_score"] = round(whaleclip_score, 3)
                 if californium_enabled and californium_score > 0:
                     meta_data["californium_score"] = round(californium_score, 3)
                 
@@ -1273,6 +1350,10 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             if diamond_enabled and diamond_score > 0:
                 raw_component_scores["whale"] += diamond_score * 0.3  # Diamond AI → whale detection
                 raw_component_scores["trust"] += diamond_score * 0.1   # Diamond AI → trust boost
+            
+            if whaleclip_enabled and whaleclip_score > 0:
+                raw_component_scores["whale"] += whaleclip_score * 0.2  # WhaleCLIP AI → whale detection
+                raw_component_scores["trust"] += whaleclip_score * 0.05  # WhaleCLIP AI → trust boost
             
             if californium_enabled and californium_score > 0:
                 raw_component_scores["trust"] += californium_score * 0.25  # Californium AI → trust
@@ -1356,6 +1437,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             # Add AI contributions (fallback)
             if diamond_enabled and diamond_score > 0:
                 whale_ping_score += diamond_score * 0.3
+            if whaleclip_enabled and whaleclip_score > 0:
+                whale_ping_score += whaleclip_score * 0.2
             if californium_enabled and californium_score > 0:
                 trust_boost_score += californium_score * 0.25
                 
