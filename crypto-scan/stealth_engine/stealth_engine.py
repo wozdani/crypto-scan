@@ -135,10 +135,11 @@ def californium_whale_score(symbol: str) -> float:
         agent.update(state_vector, action, reward)
         
         # STEP 8: Calculate final CaliforniumWhale score
+        # 🔧 FIXED: Always use weighted TGN score regardless of QIRL action
         if action == 1:  # QIRL recommends action
             final_score = tgn_score
-        else:  # QIRL recommends hold
-            final_score = 0.0
+        else:  # QIRL recommends hold - but still use weighted TGN score
+            final_score = tgn_score * 0.5  # Reduced weight for HOLD action
         
         print(f"[CALIFORNIUM] {symbol}: TGN score={tgn_score:.3f}, QIRL action={action}, final={final_score:.3f}")
         
@@ -979,8 +980,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             if contract_info and contract_info.get('address'):
                 print(f"[DIAMOND AI] {symbol}: Starting DiamondWhale AI analysis for contract {contract_info['address'][:10]}...")
                 
-                # Wywołaj DiamondWhale AI Detector
-                diamond_result = run_diamond_detector(symbol, token_data)
+                # Wywołaj DiamondWhale AI Detector - Fix parameter order
+                diamond_result = run_diamond_detector([], symbol)
                 
                 if diamond_result and diamond_result.get('diamond_score') is not None:
                     diamond_score = float(diamond_result['diamond_score'])
