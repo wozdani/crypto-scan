@@ -90,7 +90,7 @@ class ComponentFeedbackTrainer:
     
     def update_component_scores_from_result(self, result: Dict[str, Any]) -> Dict[str, float]:
         """
-        Aktualizuje component weights na podstawie wyniku alertu
+        Aktualizuje component weights na podstawie wyniku alertu z Self-Learning Decay integration
         
         Args:
             result: Dictionary z wynikiem alertu zawierający:
@@ -102,7 +102,7 @@ class ComponentFeedbackTrainer:
                 - metadata: Dodatkowe dane (opcjonalnie)
                 
         Returns:
-            Dict[str, float]: Zaktualizowane component weights
+            Dict[str, float]: Zaktualizowane component weights z decay application
         """
         try:
             # Validate input
@@ -148,19 +148,33 @@ class ComponentFeedbackTrainer:
                         )
                         logger.info(f"[COMPONENT TRAINER] {component}: -{weight_decrease:.3f} → {updated_weights[component]:.3f}")
             
-            # Update metadata
-            updated_weights["last_updated"] = datetime.now(timezone.utc).isoformat()
-            updated_weights["total_updates"] = updated_weights.get("total_updates", 0) + 1
-            
-            # Save updated weights
-            with open(self.component_weights_file, 'w') as f:
-                json.dump(updated_weights, f, indent=2)
-            
-            # Log to component memory
-            self._log_component_feedback(result)
-            
-            logger.info(f"[COMPONENT TRAINER] Updated weights successfully: {updated_weights['total_updates']} total updates")
-            return updated_weights
+            # Apply Self-Learning Decay (co kilka aktualizacji)
+            try:
+                from feedback_loop.component_score_updater import get_component_updater
+                updater = get_component_updater()
+                
+                # Trigger integrated decay update
+                final_weights = updater.update_dynamic_weights_with_decay(result)
+                
+                logger.info(f"[COMPONENT TRAINER] Applied Self-Learning Decay integration")
+                return final_weights
+                
+            except ImportError:
+                logger.warning(f"[COMPONENT TRAINER] Decay integration not available, using basic updates")
+                
+                # Fallback: Basic weight update without decay
+                updated_weights["last_updated"] = datetime.now(timezone.utc).isoformat()
+                updated_weights["total_updates"] = updated_weights.get("total_updates", 0) + 1
+                
+                # Save updated weights
+                with open(self.component_weights_file, 'w') as f:
+                    json.dump(updated_weights, f, indent=2)
+                
+                # Log to component memory
+                self._log_component_feedback(result)
+                
+                logger.info(f"[COMPONENT TRAINER] Updated weights successfully: {updated_weights['total_updates']} total updates")
+                return updated_weights
             
         except Exception as e:
             logger.error(f"[COMPONENT TRAINER] Error updating component scores: {e}")

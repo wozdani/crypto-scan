@@ -1191,7 +1191,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 raw_component_scores["trust"] += californium_score * 0.25  # Californium AI → trust
                 raw_component_scores["whale"] += californium_score * 0.1   # Californium AI → whale detection
             
-            # Apply Component-Aware Dynamic Weights V4
+            # Apply Component-Aware Dynamic Weights V4 with Self-Learning Decay
             weighted_component_scores, component_weighted_total = component_engine.apply_dynamic_weights_to_components(
                 raw_component_scores, "ClassicStealth"
             )
@@ -1209,7 +1209,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             trust_boost_score = weighted_component_scores.get("trust", 0.0)
             identity_boost_score = weighted_component_scores.get("id", 0.0)
             
-            # Log Component-Aware Feedback V4 effectiveness
+            # Log Component-Aware Feedback V4 effectiveness with Self-Learning Decay
             if sum(raw_component_scores.values()) > 0:
                 # Calculate effectiveness percentages
                 total_raw = sum(raw_component_scores.values())
@@ -1221,10 +1221,24 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 # Log component feedback according to user specification
                 log_component_feedback(effectiveness_percentages, symbol, "ClassicStealth")
                 
-                # Get applied weights for logging
-                from feedback_loop.weights_loader import get_dynamic_component_weights
-                applied_weights = get_dynamic_component_weights()
-                log_dynamic_weights(applied_weights, symbol, "ClassicStealth")
+                # Get dynamic weights with decay application
+                try:
+                    from feedback_loop.component_score_updater import get_component_updater
+                    updater = get_component_updater()
+                    applied_weights = updater.load_current_weights()
+                    
+                    # Log decay-adjusted weights
+                    log_dynamic_weights(applied_weights, symbol, "ClassicStealth")
+                    
+                    # Log Self-Learning Decay status
+                    if hasattr(updater, 'enable_decay') and updater.enable_decay:
+                        print(f"[SELF-LEARNING DECAY] {symbol}: Active - weights auto-adjusted based on historical performance")
+                    
+                except ImportError:
+                    # Fallback to basic weights loader
+                    from feedback_loop.weights_loader import get_dynamic_component_weights
+                    applied_weights = get_dynamic_component_weights()
+                    log_dynamic_weights(applied_weights, symbol, "ClassicStealth")
             
             # Enhanced component logging with V4 format
             print(f"[STEALTH COMPONENTS V4] {symbol} | DEX: {dex_inflow_score:.3f} | WHALE: {whale_ping_score:.3f} | TRUST: {trust_boost_score:.3f} | ID: {identity_boost_score:.3f}")
