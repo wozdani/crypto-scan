@@ -22,6 +22,19 @@ from .stealth_weights import StealthWeightManager
 from .stealth_feedback import StealthFeedbackSystem
 from .diamond_detector import run_diamond_detector
 
+# CaliforniumWhale AI imports
+try:
+    from stealth.californium.californium_whale_detect import CaliforniumTGN
+    from stealth.californium.qirl_agent_singleton import get_qirl_agent
+    from stealth.californium.graph_cache import generate_mock_graph_data
+    import networkx as nx
+    import torch
+    CALIFORNIUM_AVAILABLE = True
+    print("[CALIFORNIUM] CaliforniumWhale AI successfully imported")
+except ImportError as e:
+    print(f"[CALIFORNIUM WARNING] CaliforniumWhale AI not available: {e}")
+    CALIFORNIUM_AVAILABLE = False
+
 
 def simulate_stealth_decision(score: float, volume_24h: float, tjde_phase: str = "unknown") -> bool:
     """
@@ -62,6 +75,78 @@ def simulate_stealth_decision(score: float, volume_24h: float, tjde_phase: str =
         pass  # Neutralne zachowanie - bez bonusu ani kary
     
     return adjusted_score >= threshold
+
+
+def californium_whale_score(symbol: str) -> float:
+    """
+    CaliforniumWhale AI - Temporal Graph + QIRL detector
+    
+    Analizuje ukryte wzorce akumulacji whale'ów używając:
+    - Temporal Graph Convolutional Network (TGN)
+    - Quantum-inspired Reinforcement Learning (QIRL)
+    - Mock graph data z cache system
+    
+    Args:
+        symbol: Symbol tokena (np. 'BTCUSDT')
+        
+    Returns:
+        float: CaliforniumWhale score (0.0-1.0)
+    """
+    if not CALIFORNIUM_AVAILABLE:
+        print(f"[CALIFORNIUM] CaliforniumWhale AI not available for {symbol}")
+        return 0.0
+    
+    try:
+        # STEP 1: Generate mock graph data
+        data = generate_mock_graph_data(symbol)
+        
+        # STEP 2: Extract graph components
+        G = data["graph"]
+        adj = nx.to_numpy_array(G)
+        features = data["features"]
+        timestamps = data["timestamps"]
+        volumes = data["volumes"]
+        
+        # STEP 3: Initialize Temporal GNN model
+        model = CaliforniumTGN(in_features=features.shape[1], out_features=1)
+        model.eval()  # Set to evaluation mode
+        
+        # STEP 4: Run TGN analysis
+        with torch.no_grad():
+            scores = model(adj, features, timestamps, volumes)
+        
+        # STEP 5: Prepare state for QIRL Agent
+        tgn_score = float(scores.max().item())
+        state_vector = scores.flatten().detach().numpy().tolist() + timestamps.tolist()
+        
+        # Pad or truncate to fixed size (20 features)
+        if len(state_vector) > 20:
+            state_vector = state_vector[:20]
+        else:
+            state_vector.extend([0.0] * (20 - len(state_vector)))
+        
+        # STEP 6: Get QIRL Agent decision
+        agent = get_qirl_agent(state_size=20, action_size=2)
+        action = agent.get_action(state_vector)
+        
+        # STEP 7: Update QIRL Agent with placeholder reward
+        # In production, this would be real market feedback
+        reward = 1.0 if action == 1 else 0.0
+        agent.update(state_vector, action, reward)
+        
+        # STEP 8: Calculate final CaliforniumWhale score
+        if action == 1:  # QIRL recommends action
+            final_score = tgn_score
+        else:  # QIRL recommends hold
+            final_score = 0.0
+        
+        print(f"[CALIFORNIUM] {symbol}: TGN score={tgn_score:.3f}, QIRL action={action}, final={final_score:.3f}")
+        
+        return final_score
+        
+    except Exception as e:
+        print(f"[CALIFORNIUM ERROR] {symbol}: {e}")
+        return 0.0
 
 
 @dataclass
@@ -921,32 +1006,75 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             print(f"[DIAMOND AI ERROR] {symbol}: Failed to run DiamondWhale detector: {e}")
             print(f"[DIAMOND AI ERROR] {symbol}: Continuing without diamond analysis")
 
-        # LOG: Finalna decyzja scoringowa z nową implementacją bonusu + Diamond AI
+        # === CALIFORNIUM WHALE AI DETECTOR INTEGRATION ===
+        # 🚀 STAGE 3/7: Integrate CaliforniumWhale AI Temporal Graph + QIRL Detector
+        californium_score = 0.0
+        californium_enabled = False
+        californium_error = None
+        
+        try:
+            # Wywołaj CaliforniumWhale AI Score
+            californium_score = californium_whale_score(symbol)
+            
+            if californium_score > 0.0:
+                californium_enabled = True
+                
+                # Dodaj californium_score do głównego stealth score (z wagą 0.25)
+                californium_contribution = californium_score * 0.25
+                score += californium_contribution
+                
+                # Dodaj do listy aktywnych sygnałów jeśli znaczący
+                if californium_score > 0.3:
+                    used_signals.append("californium_whale_detection")
+                
+                print(f"[CALIFORNIUM AI] {symbol}: Californium score={californium_score:.3f}, contribution=+{californium_contribution:.3f}")
+                print(f"[CALIFORNIUM AI] {symbol}: Temporal GNN + QIRL analysis completed successfully")
+            else:
+                print(f"[CALIFORNIUM AI] {symbol}: No significant CaliforniumWhale activity detected")
+                
+        except Exception as e:
+            californium_error = str(e)
+            print(f"[CALIFORNIUM AI ERROR] {symbol}: Failed to run CaliforniumWhale detector: {e}")
+            print(f"[CALIFORNIUM AI ERROR] {symbol}: Continuing without californium analysis")
+
+        # LOG: Finalna decyzja scoringowa z nową implementacją bonusu + Diamond AI + CaliforniumWhale AI
         decision = "strong" if score >= 3.0 else "weak" if score >= 1.0 else "none"
         partial_note = f" (partial: {available_signals}/{total_signals} signals)" if data_coverage < 0.8 else ""
         diamond_note = f" + Diamond: {diamond_score:.3f}" if diamond_enabled else ""
+        californium_note = f" + Californium: {californium_score:.3f}" if californium_enabled else ""
         
         print(f"[STEALTH SCORING] {symbol} final calculation:")
-        print(f"  Base score: {score - active_rules_bonus - (diamond_score * 0.3 if diamond_enabled else 0):.3f}")
+        base_score = score - active_rules_bonus
+        if diamond_enabled:
+            base_score -= diamond_score * 0.3
+        if californium_enabled:
+            base_score -= californium_score * 0.25
+        print(f"  Base score: {base_score:.3f}")
         print(f"  Active rules bonus: {len(used_signals)} × 0.025 = +{active_rules_bonus:.3f}")
         if diamond_enabled:
             print(f"  Diamond AI contribution: {diamond_score:.3f} × 0.3 = +{diamond_score * 0.3:.3f}")
+        if californium_enabled:
+            print(f"  CaliforniumWhale AI contribution: {californium_score:.3f} × 0.25 = +{californium_score * 0.25:.3f}")
         print(f"  Final score: {score:.3f}")
-        print(f"[STEALTH] Final signal for {symbol} → Score: {score:.3f}, Decision: {decision}, Active: {len(used_signals)} signals{partial_note}{diamond_note}")
+        print(f"[STEALTH] Final signal for {symbol} → Score: {score:.3f}, Decision: {decision}, Active: {len(used_signals)} signals{partial_note}{diamond_note}{californium_note}")
         
-        # Przygotuj rezultat z integracją DiamondWhale AI
+        # Przygotuj rezultat z integracją DiamondWhale AI + CaliforniumWhale AI
         result = {
             "score": round(score, 3),
             "active_signals": used_signals,
             "data_coverage": round(data_coverage, 2),
             "partial_scoring": data_coverage < 0.8,
             "diamond_score": round(diamond_score, 3) if diamond_enabled else None,
-            "diamond_enabled": diamond_enabled
+            "diamond_enabled": diamond_enabled,
+            "californium_score": round(californium_score, 3) if californium_enabled else None,
+            "californium_enabled": californium_enabled
         }
         
-        # Dodaj informacje o błędzie jeśli wystąpił
+        # Dodaj informacje o błędach jeśli wystąpiły
         if diamond_error:
             result["diamond_error"] = diamond_error
+        if californium_error:
+            result["californium_error"] = californium_error
             
         return result
         
