@@ -57,16 +57,36 @@ class PriorityLearningMemory:
                 for symbol, entries in data.items():
                     self.memory[symbol] = []
                     for entry in entries:
-                        self.memory[symbol].append(LearningEntry(
-                            timestamp=entry.get('timestamp', ''),
-                            score=entry.get('score', 0.0),
-                            stealth_score=entry.get('stealth_score', 0.0),
-                            result_success=entry.get('result_success', False),
-                            price_change_2h=entry.get('price_change_2h', 0.0),
-                            price_change_6h=entry.get('price_change_6h', 0.0),
-                            tags=entry.get('tags', []),
-                            confidence=entry.get('confidence', 0.0)
-                        ))
+                        # 🔧 STAGE 10 FIX: Handle both dict and string entries
+                        if isinstance(entry, dict):
+                            # Normal dict entry
+                            self.memory[symbol].append(LearningEntry(
+                                timestamp=entry.get('timestamp', ''),
+                                score=entry.get('score', 0.0),
+                                stealth_score=entry.get('stealth_score', 0.0),
+                                result_success=entry.get('result_success', False),
+                                price_change_2h=entry.get('price_change_2h', 0.0),
+                                price_change_6h=entry.get('price_change_6h', 0.0),
+                                tags=entry.get('tags', []),
+                                confidence=entry.get('confidence', 0.0)
+                            ))
+                        elif isinstance(entry, str):
+                            # String entry - create default LearningEntry
+                            print(f"[PRIORITY LEARNING] Converting string entry to dict for {symbol}: {entry[:50]}...")
+                            self.memory[symbol].append(LearningEntry(
+                                timestamp=datetime.now(timezone.utc).isoformat(),
+                                score=0.0,
+                                stealth_score=0.0,
+                                result_success=False,
+                                price_change_2h=0.0,
+                                price_change_6h=0.0,
+                                tags=["converted_from_string"],
+                                confidence=0.0
+                            ))
+                        else:
+                            # Unknown type - skip with warning
+                            print(f"[PRIORITY LEARNING WARNING] Skipping unknown entry type {type(entry)} for {symbol}")
+                            continue
                         
                 print(f"[PRIORITY LEARNING] Loaded memory: {len(self.memory)} tokens")
             else:
