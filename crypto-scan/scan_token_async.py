@@ -451,12 +451,17 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 # NOWY SYSTEM LOGOWANIA STEALTH: Użyj enhanced logging
                 log_stealth_analysis_complete(symbol, stealth_score, len(active_signals))
                 
-                # Log aktywacji detektorów
+                # Log aktywacji detektorów z type checking
                 for signal in active_signals:
-                    if signal.get("active", False):
-                        signal_name = signal.get("signal_name", "unknown")
-                        strength = signal.get("strength", 0.0)
-                        log_detector_activation(symbol, signal_name, strength, True)
+                    # Handle both dict and string formats
+                    if isinstance(signal, dict):
+                        if signal.get("active", False):
+                            signal_name = signal.get("signal_name", "unknown")
+                            strength = signal.get("strength", 0.0)
+                            log_detector_activation(symbol, signal_name, strength, True)
+                    elif isinstance(signal, str):
+                        # Handle string signal format (legacy)
+                        log_detector_activation(symbol, signal, 1.0, True)
                 
                 # Pobierz TJDE phase dla progów
                 tjde_phase = market_data.get("tjde_phase", None)
@@ -480,13 +485,17 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         try:
                             from stealth_engine.telegram_alert_manager import queue_priority_alert
                             
-                            # Extract active function names from stealth signals
+                            # Extract active function names from stealth signals z type checking
                             active_functions = []
                             for signal in active_signals:
-                                if signal.get("active", False):
-                                    signal_name = signal.get("signal_name", "")
-                                    if signal_name:
-                                        active_functions.append(signal_name)
+                                if isinstance(signal, dict):
+                                    if signal.get("active", False):
+                                        signal_name = signal.get("signal_name", "")
+                                        if signal_name:
+                                            active_functions.append(signal_name)
+                                elif isinstance(signal, str):
+                                    # Handle string signal format (legacy)
+                                    active_functions.append(signal)
                             
                             # Get GPT feedback if available
                             gpt_feedback = market_data.get("gpt_feedback", "")
