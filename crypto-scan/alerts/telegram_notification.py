@@ -202,8 +202,60 @@ def send_diamond_alert(token: str, chat_id: str, symbol: str, scores_dict: Dict[
         if response.status_code == 200:
             print(f"[DIAMOND ALERT] ✅ Alert sent successfully for {symbol}")
             
-            # Zapisz log alertu
+            # Zapisz log alertu (legacy)
             save_diamond_alert_log(symbol, scores_dict, timestamp)
+            
+            # === STAGE 5/7 FEEDBACK LOOP INTEGRATION ===
+            # Log alert for feedback evaluation
+            try:
+                from feedback.feedback_loop_diamond import log_diamond_alert_feedback
+                
+                # Przygotuj decision vector (QIRL state) na podstawie scores
+                decision_vector = [
+                    decision_breakdown.get("whale_ping_score", 0.0),
+                    decision_breakdown.get("whaleclip_score", 0.0), 
+                    decision_breakdown.get("diamond_score", 0.0),
+                    fused_score,
+                    1.0 if confidence == "HIGH" else 0.5 if confidence == "MEDIUM" else 0.0,
+                    len(trigger_reasons) / 5.0,  # Normalized trigger count
+                    0.8,  # Base temporal weight
+                    0.7,  # Base graph weight
+                    0.6,  # Base anomaly weight
+                    0.5,  # Base pattern weight
+                    0.4,  # Base sequence weight
+                    0.3,  # Base confidence weight
+                    0.2,  # Base threshold weight
+                    0.1,  # Base decay weight
+                    0.05  # Base noise weight
+                ]
+                
+                # Market data dla feedback
+                market_data_feedback = {
+                    "price": None,  # Will be fetched by feedback system
+                    "volume": None,
+                    "symbol": symbol,
+                    "alert_sent_at": timestamp
+                }
+                
+                # Log alert for feedback evaluation
+                feedback_logged = log_diamond_alert_feedback(
+                    symbol=symbol,
+                    timestamp=datetime.utcnow(),
+                    anomaly_score=decision_breakdown.get("diamond_score", fused_score),
+                    decision_vector=decision_vector,
+                    market_data=market_data_feedback,
+                    confidence=confidence,
+                    dominant_detector=dominant_detector
+                )
+                
+                if feedback_logged:
+                    print(f"[DIAMOND FEEDBACK] ✅ Alert logged for evaluation: {symbol}")
+                else:
+                    print(f"[DIAMOND FEEDBACK] ⚠️ Failed to log alert for evaluation: {symbol}")
+                    
+            except Exception as feedback_error:
+                print(f"[DIAMOND FEEDBACK] ⚠️ Feedback logging error: {feedback_error}")
+            
             return True
         else:
             print(f"[DIAMOND ALERT] ❌ Failed to send alert: {response.status_code}")
