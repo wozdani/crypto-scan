@@ -986,35 +986,96 @@ def classify_stealth_alert(stealth_score: float) -> Optional[str]:
 
 def analyze_token_with_stealth_score(symbol: str, token_data: Dict) -> Dict:
     """
-    🔍 KOMPLETNA ANALIZA TOKENA - convenience function
+    🔍 KOMPLETNA ANALIZA TOKENA - Stage 3/7 Diamond Decision Integration
     
-    Łączy compute_stealth_score() z klasyfikacją alertów
+    Łączy compute_stealth_score() z Diamond Decision Engine dla adaptive decision making
     
     Args:
         symbol: Symbol tokena
         token_data: Dane rynkowe
         
     Returns:
-        dict: Kompletny wynik analizy Stealth
+        dict: Kompletny wynik analizy Stealth z Diamond Decision
     """
     try:
         # Oblicz stealth score
         stealth_result = compute_stealth_score(token_data)
         
-        # Klasyfikuj alert
-        alert_type = classify_stealth_alert(stealth_result["score"])
+        # === STAGE 3/7: DIAMOND DECISION INTEGRATION ===
+        # Przygotuj scores dla Diamond Decision Engine
+        stealth_score = stealth_result.get("score", 0.0)
+        diamond_score = stealth_result.get("diamond_score", 0.0) or 0.0
+        volume_24h = token_data.get("volume_24h", 0)
         
-        return {
+        # Oblicz whale_ping_score i whaleclip_score z aktywnych sygnałów
+        active_signals = stealth_result.get("active_signals", [])
+        
+        # Whale ping score (z klasycznych stealth signals)
+        whale_ping_score = 0.0
+        if "whale_ping" in active_signals:
+            whale_ping_score = 0.8  # High confidence dla active whale ping
+        elif any(signal in active_signals for signal in ["spoofing_layers", "orderbook_anomaly"]):
+            whale_ping_score = 0.5  # Medium confidence dla related signals
+        
+        # WhaleCLIP score (z stealth score jako proxy - będzie później zastąpiony prawdziwym WhaleCLIP)
+        whaleclip_score = min(0.9, stealth_score / 4.0)  # Scale stealth score to 0-0.9 range
+        
+        # Wywołaj Diamond Decision Engine
+        from .decision import simulate_diamond_decision
+        
+        diamond_decision = simulate_diamond_decision(
+            whale_score=whale_ping_score,
+            whaleclip_score=whaleclip_score, 
+            diamond_score=diamond_score,
+            token=symbol,
+            volume_24h=volume_24h
+        )
+        
+        # Klasyfikuj alert tradycyjnie jako fallback
+        alert_type = classify_stealth_alert(stealth_score)
+        
+        # === ENHANCED RESULT WITH DIAMOND DECISION ===
+        result = {
             "symbol": symbol,
-            "stealth_score": stealth_result["score"], 
-            "active_signals": stealth_result["active_signals"],
+            "stealth_score": stealth_score,
+            "active_signals": active_signals,
             "alert_type": alert_type,
-            "signal_count": len(stealth_result["active_signals"]),
-            "timestamp": time.time()
+            "signal_count": len(active_signals),
+            "timestamp": time.time(),
+            # Diamond Decision Integration
+            "diamond_decision": diamond_decision["decision"],
+            "diamond_fused_score": diamond_decision["fused_score"],
+            "diamond_confidence": diamond_decision["confidence"],
+            "diamond_reasons": diamond_decision["trigger_reasons"],
+            "dominant_detector": diamond_decision["dominant_detector"],
+            "decision_breakdown": {
+                "whale_ping_score": whale_ping_score,
+                "whaleclip_score": whaleclip_score,
+                "diamond_score": diamond_score,
+                "fused_score": diamond_decision["fused_score"]
+            },
+            # Enhanced metadata
+            "diamond_enabled": stealth_result.get("diamond_enabled", False),
+            "data_coverage": stealth_result.get("data_coverage", 1.0),
+            "partial_scoring": stealth_result.get("partial_scoring", False)
         }
         
+        # Dodaj błędy jeśli wystąpiły
+        if "diamond_error" in stealth_result:
+            result["diamond_error"] = stealth_result["diamond_error"]
+        if "error" in stealth_result:
+            result["stealth_error"] = stealth_result["error"]
+        
+        # LOG: Diamond Decision result
+        print(f"[DIAMOND INTEGRATION] {symbol}: Diamond decision={diamond_decision['decision']}, fused_score={diamond_decision['fused_score']}")
+        print(f"[DIAMOND INTEGRATION] {symbol}: Confidence={diamond_decision['confidence']}, dominant={diamond_decision['dominant_detector']}")
+        
+        return result
+        
     except Exception as e:
+        import traceback
         print(f"[STEALTH ANALYSIS ERROR] {symbol}: {e}")
+        print(f"[STEALTH ANALYSIS ERROR] {symbol}: Traceback: {traceback.format_exc()}")
         return {
             "symbol": symbol,
             "stealth_score": 0.0,
@@ -1022,5 +1083,8 @@ def analyze_token_with_stealth_score(symbol: str, token_data: Dict) -> Dict:
             "alert_type": None,
             "signal_count": 0,
             "timestamp": time.time(),
-            "error": str(e)
+            "error": str(e),
+            "diamond_decision": "AVOID",
+            "diamond_fused_score": 0.0,
+            "diamond_confidence": "ERROR"
         }
