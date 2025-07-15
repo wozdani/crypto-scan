@@ -444,6 +444,10 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 # Klasyfikacja alertu
                 alert_type = classify_stealth_alert(stealth_score)
                 
+                # 🚨 NOWY SYSTEM LOGOWANIA STEALTH + Dynamiczne progi alertowe
+                from stealth_engine.stealth_engine import simulate_stealth_decision, log_stealth_decision
+                from utils.stealth_logger import log_stealth_analysis_complete, log_detector_activation
+                
                 # NOWY SYSTEM LOGOWANIA STEALTH: Użyj enhanced logging
                 log_stealth_analysis_complete(symbol, stealth_score, len(active_signals))
                 
@@ -453,10 +457,6 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         signal_name = signal.get("signal_name", "unknown")
                         strength = signal.get("strength", 0.0)
                         log_detector_activation(symbol, signal_name, strength, True)
-                
-                # 🚨 NOWY SYSTEM LOGOWANIA STEALTH + Dynamiczne progi alertowe
-                from stealth_engine.stealth_engine import simulate_stealth_decision, log_stealth_decision
-                from utils.stealth_logger import log_stealth_analysis_complete, log_detector_activation
                 
                 # Pobierz TJDE phase dla progów
                 tjde_phase = market_data.get("tjde_phase", None)
