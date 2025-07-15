@@ -316,16 +316,17 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             candles_5m_len = len(candles_5m) if candles_5m and isinstance(candles_5m, list) else 0
             print(f"[CANDLES READY] {symbol} → 15M: {candles_15m_len}, 5M: {candles_5m_len} candles")
         
-        # Debug candle data format
-        if candles_15m is not None and isinstance(candles_15m, list):
-            print(f"[CANDLE DEBUG] {symbol} → 15M: {len(candles_15m)} candles")
-            if len(candles_15m) == 0:
-                print(f"[CANDLE EMPTY] {symbol} → 15M list is empty")
-        
-        if candles_5m is not None and isinstance(candles_5m, list):
-            print(f"[CANDLE DEBUG] {symbol} → 5M: {len(candles_5m)} candles")
-            if len(candles_5m) == 0:
-                print(f"[CANDLE EMPTY] {symbol} → 5M list is empty")
+        # Debug candle data format (only in DEBUG mode)
+        if os.getenv("DEBUG") == "1":
+            if candles_15m is not None and isinstance(candles_15m, list):
+                print(f"[CANDLE DEBUG] {symbol} → 15M: {len(candles_15m)} candles")
+                if len(candles_15m) == 0:
+                    print(f"[CANDLE EMPTY] {symbol} → 15M list is empty")
+            
+            if candles_5m is not None and isinstance(candles_5m, list):
+                print(f"[CANDLE DEBUG] {symbol} → 5M: {len(candles_5m)} candles")
+                if len(candles_5m) == 0:
+                    print(f"[CANDLE EMPTY] {symbol} → 5M list is empty")
         
         # Use enhanced data processor with 5M support
         from utils.async_data_processor import process_async_data_enhanced_with_5m
@@ -377,11 +378,12 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             try:
                 print(f"[STEALTH ENGINE] {symbol} → Analyzing stealth signals...")
                 
-                # 🔍 FIX: Dodaj debugowanie przed przekazaniem do STEALTH
-                print(f"[STEALTH DATA PREP] {symbol} → Preparing data for STEALTH engine...")
-                print(f"[STEALTH DATA PREP] {symbol} → market_data keys: {list(market_data.keys())}")
-                print(f"[STEALTH DATA PREP] {symbol} → candles_15m in market_data: {len(market_data.get('candles_15m', []))}")
-                print(f"[STEALTH DATA PREP] {symbol} → candles_5m in market_data: {len(market_data.get('candles_5m', []))}")
+                # Debug stealth data preparation in DEBUG mode only
+                if os.getenv("DEBUG") == "1":
+                    print(f"[STEALTH DATA PREP] {symbol} → Preparing data for STEALTH engine...")
+                    print(f"[STEALTH DATA PREP] {symbol} → market_data keys: {list(market_data.keys())}")
+                    print(f"[STEALTH DATA PREP] {symbol} → candles_15m in market_data: {len(market_data.get('candles_15m', []))}")
+                    print(f"[STEALTH DATA PREP] {symbol} → candles_5m in market_data: {len(market_data.get('candles_5m', []))}")
                 
                 # ENHANCED: Calculate real dex_inflow for metadata consistency
                 real_dex_inflow = 0
@@ -424,14 +426,17 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     "volume_profile": market_data.get("volume_profile", [])
                 }
                 
-                # Debug final data przekazane do STEALTH
-                print(f"[STEALTH DATA FINAL] {symbol} → stealth_token_data candles_15m: {len(stealth_token_data['candles_15m'])}")
-                print(f"[STEALTH DATA FINAL] {symbol} → stealth_token_data candles_5m: {len(stealth_token_data['candles_5m'])}")
+                # Debug final data przekazane do STEALTH (only in DEBUG mode)
+                if os.getenv("DEBUG") == "1":
+                    print(f"[STEALTH DATA FINAL] {symbol} → stealth_token_data candles_15m: {len(stealth_token_data['candles_15m'])}")
+                    print(f"[STEALTH DATA FINAL] {symbol} → stealth_token_data candles_5m: {len(stealth_token_data['candles_5m'])}")
+                    print(f"[STEALTH DEBUG] {symbol} → Calling compute_stealth_score() with {len(stealth_token_data)} keys")
                 
-                # Wywołaj główny silnik scoringu z debug=True dla pełnego logowania
-                print(f"[STEALTH DEBUG] {symbol} → Calling compute_stealth_score() with {len(stealth_token_data)} keys")
+                # Wywołaj główny silnik scoringu
                 stealth_result = compute_stealth_score(stealth_token_data)
-                print(f"[STEALTH DEBUG] {symbol} → compute_stealth_score() returned: {type(stealth_result)} = {stealth_result}")
+                
+                if os.getenv("DEBUG") == "1":
+                    print(f"[STEALTH DEBUG] {symbol} → compute_stealth_score() returned: {type(stealth_result)} = {stealth_result}")
                 
                 stealth_score = stealth_result.get("score", 0.0)
                 active_signals = stealth_result.get("active_signals", [])

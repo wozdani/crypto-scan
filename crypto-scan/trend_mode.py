@@ -13,6 +13,19 @@ import json
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
+def log_debug(message: str, level: str = "info"):
+    """
+    Log control function for managing TJDE verbosity
+    
+    Args:
+        message: Log message
+        level: 'info' (always show) or 'debug' (only when DEBUG=1)
+    """
+    if level == "info":
+        print(message)
+    elif level == "debug" and os.getenv("DEBUG") == "1":
+        print(message)
+
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -108,7 +121,9 @@ def compute_trader_score(ctx: Dict, adaptive_engine=None, market_context: Dict =
             "adaptive_stats": adaptive_engine.get_performance_stats()
         })
         
-        print(f"[TJDE ADAPTIVE] Score: {score:.3f}, Context: {market_context.get('session', 'unknown')}, Adaptations: {len(adaptive_engine.memory)}")
+        # Debug logging only in DEBUG mode
+        if os.getenv("DEBUG") == "1":
+            print(f"[TJDE ADAPTIVE] Score: {score:.3f}, Context: {market_context.get('session', 'unknown')}, Adaptations: {len(adaptive_engine.memory)}")
         
         return ctx
         
@@ -326,7 +341,7 @@ def analyze_trend_opportunity(symbol: str, candles: List[List] = None, enable_vi
         dict: TJDE analysis result
     """
     try:
-        print(f"[TJDE] {symbol}: Starting AdvancedTraderWeightedDecisionEngine analysis...")
+        log_debug(f"[TJDE] {symbol}: Starting AdvancedTraderWeightedDecisionEngine analysis...", "debug")
         
         # Get candles if not provided
         if candles is None:
@@ -342,44 +357,37 @@ def analyze_trend_opportunity(symbol: str, candles: List[List] = None, enable_vi
                 "grade": "data_error"
             }
         
-        print(f"[TJDE] {symbol}: Retrieved {len(candles)} candles")
+        log_debug(f"[TJDE] {symbol}: Retrieved {len(candles)} candles", "debug")
         
         # === KROK 1: ZBIERANIE DANYCH Z MODUŁÓW ANALITYCZNYCH ===
         
         trend_context = {}
         
         # Basic market structure analysis
-        print(f"[TJDE] {symbol}: Analyzing market structure...")
         market_structure = analyze_market_structure(candles, symbol)
         trend_context["trend_strength"] = _extract_trend_strength(market_structure)
         
         # Candle behavior analysis
-        print(f"[TJDE] {symbol}: Analyzing candle behavior...")
         candle_behavior = analyze_candle_behavior(candles, symbol)
         trend_context["pullback_quality"] = _extract_pullback_quality(candle_behavior)
         
         # Orderbook interpretation
-        print(f"[TJDE] {symbol}: Interpreting orderbook...")
         orderbook_info = interpret_orderbook(symbol)
         trend_context["support_reaction"] = _extract_support_reaction(orderbook_info)
         
         # Market phase detection
-        print(f"[TJDE] {symbol}: Detecting market phase...")
         phase_analysis = detect_market_phase(candles, symbol)
         trend_context.update(_extract_phase_data(phase_analysis))
         
         # Liquidity behavior analysis
-        print(f"[TJDE] {symbol}: Analyzing liquidity behavior...")
         liquidity_analysis = analyze_liquidity_behavior(symbol, None, candles)
         trend_context["liquidity_pattern_score"] = liquidity_analysis.get("liquidity_pattern_score", 0.5)
         
         # Psychological traps detection
-        print(f"[TJDE] {symbol}: Detecting psychological traps...")
         psychology_analysis = detect_psychological_traps(candles, symbol)
         trend_context["psych_score"] = psychology_analysis.get("psych_score", 0.7)
         
         # HTF confirmation
-        print(f"[TJDE] {symbol}: Getting HTF confirmation...")
         htf_analysis = get_htf_confirmation(symbol, "15")
         trend_context["htf_supportive_score"] = htf_analysis.get("htf_supportive_score", 0.5)
         
@@ -390,7 +398,7 @@ def analyze_trend_opportunity(symbol: str, candles: List[List] = None, enable_vi
         
         # === KROK 2: NEW ADAPTIVE DECISION ENGINE ===
         
-        print(f"[TJDE] {symbol}: Extracting features for adaptive decision engine...")
+        log_debug(f"[TJDE] {symbol}: Extracting features for adaptive decision engine...", "debug")
         
         # Extract all features for new decision system
         from utils.feature_extractor import extract_all_features_for_token
@@ -403,14 +411,14 @@ def analyze_trend_opportunity(symbol: str, candles: List[List] = None, enable_vi
         
         try:
             adaptive_result = simulate_trader_decision_with_memory(symbol, market_data, features)
-            print(f"[TREND MODE] {symbol}: Using ARCYMISTRZOWSKA PERCEPCJA - Elite Trader AI")
+            log_debug(f"[TREND MODE] {symbol}: Using ARCYMISTRZOWSKA PERCEPCJA - Elite Trader AI", "debug")
         except Exception as e:
-            print(f"[TREND MODE] {symbol}: Fallback to Phase 1 due to: {e}")
+            log_debug(f"[TREND MODE] {symbol}: Fallback to Phase 1 due to: {e}", "debug")
             try:
                 adaptive_result = simulate_trader_decision_perception_sync(symbol, market_data, features)
-                print(f"[TREND MODE] {symbol}: Using Phase 1 Perception Synchronization")
+                log_debug(f"[TREND MODE] {symbol}: Using Phase 1 Perception Synchronization", "debug")
             except Exception as e2:
-                print(f"[TREND MODE] {symbol}: Fallback to standard TJDE due to: {e2}")
+                log_debug(f"[TREND MODE] {symbol}: Fallback to standard TJDE due to: {e2}", "debug")
                 adaptive_result = simulate_trader_decision_advanced(symbol, market_data, features)
         
         # Map result to trend_context format
@@ -425,11 +433,11 @@ def analyze_trend_opportunity(symbol: str, candles: List[List] = None, enable_vi
             "used_features": adaptive_result.get("used_features", {})
         })
         
-        print(f"[TJDE] {symbol}: Adaptive decision: {adaptive_result['decision'].upper()}, Score: {adaptive_result['final_score']:.3f}")
+        log_debug(f"[TJDE] {symbol}: Adaptive decision: {adaptive_result['decision'].upper()}, Score: {adaptive_result['final_score']:.3f}", "debug")
         
         # === KROK 3: FINAL DECISION VALIDATION ===
         
-        print(f"[TJDE] {symbol}: Validating final decision...")
+        log_debug(f"[TJDE] {symbol}: Validating final decision...", "debug")
         
         # Decision already made by adaptive engine, just validate
         decision = trend_context.get("decision", "avoid")
@@ -438,27 +446,16 @@ def analyze_trend_opportunity(symbol: str, candles: List[List] = None, enable_vi
         
         # === KROK 4: ALERT AND LOGGING ===
         
-        print(f"[TJDE] {symbol}: {decision.upper()} | Score: {final_score:.3f} | Grade: {grade}")
+        log_debug(f"[TJDE] {symbol}: {decision.upper()} | Score: {final_score:.3f} | Grade: {grade}", "info")
         
         # Send alert ONLY for join_trend decisions with high score
         if decision == "join_trend" and final_score >= 0.7:
-            print(f"[TJDE ALERT] {symbol}: Triggering trend alert...")
+            log_debug(f"[TJDE ALERT] {symbol}: Triggering trend alert...", "info")
             send_tjde_alert(symbol, trend_context)
         elif decision == "join_trend":
-            print(f"[TJDE] {symbol}: JOIN decision but score too low ({final_score:.3f} < 0.7)")
+            log_debug(f"[TJDE] {symbol}: JOIN decision but score too low ({final_score:.3f} < 0.7)", "debug")
         else:
-            print(f"[TJDE] {symbol}: No alert - decision: {decision}, score: {final_score:.3f}")
-        
-        decision = trend_context.get("decision", "avoid")
-        final_score = trend_context.get("final_score", 0.0)
-        grade = trend_context.get("grade", "unknown")
-        
-        print(f"[TJDE] {symbol}: {decision.upper()} | Score: {final_score:.3f} | Grade: {grade}")
-        
-        # Alert tylko przy "join"
-        if decision == "join":
-            print(f"[TJDE ALERT] {symbol}: Triggering trend alert...")
-            send_tjde_alert(symbol, trend_context)
+            log_debug(f"[TJDE] {symbol}: No alert - decision: {decision}, score: {final_score:.3f}", "debug")
         
         # Zapis do loga
         log_trend_decision(symbol, trend_context)
