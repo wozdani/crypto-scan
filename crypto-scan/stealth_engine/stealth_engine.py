@@ -1148,7 +1148,41 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             except Exception as alert_error:
                 print(f"[UNIFIED ALERT] ❌ {symbol}: Alert error: {alert_error}")
         
-        # Przygotuj rezultat z integracją DiamondWhale AI + CaliforniumWhale AI
+        # === COMPONENT BREAKDOWN CALCULATION ===
+        # Oblicz komponenty dla TOP 5 STEALTH SCORE display
+        
+        # Ekstraktuj component scores z aktywnych sygnałów
+        dex_inflow_score = 0.0
+        whale_ping_score = 0.0
+        trust_boost_score = 0.0
+        identity_boost_score = 0.0
+        
+        for signal in signals:
+            if hasattr(signal, 'active') and signal.active and hasattr(signal, 'strength'):
+                weight = weights.get(signal.name, 1.0)
+                contribution = weight * signal.strength
+                
+                # Kategoryzuj komponenty na podstawie nazwy sygnału
+                if signal.name in ['dex_inflow']:
+                    dex_inflow_score += contribution
+                elif signal.name in ['whale_ping', 'whale_ping_real', 'whale_ping_real_repeat']:
+                    whale_ping_score += contribution
+                elif signal.name in ['trust_boost', 'token_trust']:
+                    trust_boost_score += contribution
+                elif signal.name in ['identity_boost', 'repeated_address_boost']:
+                    identity_boost_score += contribution
+        
+        # Dodaj DiamondWhale AI i CaliforniumWhale AI contributions
+        if diamond_enabled and diamond_score > 0:
+            whale_ping_score += diamond_score * 0.3  # Diamond AI contributes to whale detection
+        
+        if californium_enabled and californium_score > 0:
+            trust_boost_score += californium_score * 0.25  # Californium AI contributes to trust
+        
+        # Log komponentów dla debug
+        print(f"[STEALTH COMPONENTS] {symbol} | DEX: {dex_inflow_score:.3f} | WHALE: {whale_ping_score:.3f} | TRUST: {trust_boost_score:.3f} | ID: {identity_boost_score:.3f}")
+        
+        # Przygotuj rezultat z integracją DiamondWhale AI + CaliforniumWhale AI + Component Breakdown
         result = {
             "score": round(score, 3),
             "active_signals": used_signals,
@@ -1157,7 +1191,14 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             "diamond_score": round(diamond_score, 3) if diamond_enabled else None,
             "diamond_enabled": diamond_enabled,
             "californium_score": round(californium_score, 3) if californium_enabled else None,
-            "californium_enabled": californium_enabled
+            "californium_enabled": californium_enabled,
+            
+            # === COMPONENT BREAKDOWN FOR TOP 5 DISPLAY ===
+            "dex_inflow": round(dex_inflow_score, 3),
+            "whale_ping": round(whale_ping_score, 3),
+            "trust_boost": round(trust_boost_score, 3),
+            "identity_boost": round(identity_boost_score, 3)
+            "identity_boost": round(identity_boost_score, 3)
         }
         
         # Dodaj informacje o błędach jeśli wystąpiły
