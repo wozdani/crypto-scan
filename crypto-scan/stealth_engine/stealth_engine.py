@@ -1168,78 +1168,131 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         # ✅ CONSENSUS-BASED ALERT LOGIC: Only send alerts when final_decision == "BUY"
         # This eliminates false positives where high score but agents vote HOLD/AVOID
         
-        # First calculate the consensus decision to determine alert eligibility
-        agent_votes = []
+        # 🚨 NEW UNIFIED CONSENSUS DECISION ENGINE INTEGRATION
+        # Replace old 5-agent system with new 4-agent consensus: CaliforniumWhale, WhaleCLIP, StealthEngine, DiamondWhale
+        final_decision = "WATCH"  # Default fallback
+        consensus_data = None
         
-        # Extract actual scores from signals for enhanced diagnostic breakdown
-        detector_results = {}
-        for signal in signals:
-            if hasattr(signal, 'active') and signal.active and hasattr(signal, 'strength'):
-                weight = weights.get(signal.name, 1.0)
-                signal_score = weight * signal.strength
+        try:
+            from .decision_consensus import create_decision_consensus_engine
+            
+            # Prepare detector outputs for new consensus system
+            detector_outputs = {}
+            
+            # StealthEngine (Classic Stealth Signals)
+            if score > 0.0:
+                stealth_vote = "BUY" if score > 2.0 else ("HOLD" if score > 1.0 else "AVOID")
+                detector_outputs["StealthEngine"] = {
+                    "vote": stealth_vote,
+                    "score": min(score / 4.0, 1.0),  # Normalize to 0-1
+                    "confidence": min(data_coverage, 1.0),
+                    "weight": 0.25
+                }
+                print(f"[NEW CONSENSUS] {symbol}: StealthEngine → {stealth_vote} (score: {score:.3f})")
+            
+            # CaliforniumWhale AI
+            if californium_enabled and californium_score > 0.0:
+                calif_vote = "BUY" if californium_score > 0.7 else ("HOLD" if californium_score > 0.4 else "AVOID")
+                detector_outputs["CaliforniumWhale"] = {
+                    "vote": calif_vote,
+                    "score": californium_score,
+                    "confidence": 0.85,
+                    "weight": 0.33
+                }
+                print(f"[NEW CONSENSUS] {symbol}: CaliforniumWhale → {calif_vote} (score: {californium_score:.3f})")
+            
+            # DiamondWhale AI
+            if diamond_enabled and diamond_score > 0.0:
+                diamond_vote = "BUY" if diamond_score > 0.6 else ("HOLD" if diamond_score > 0.3 else "AVOID")
+                detector_outputs["DiamondWhale"] = {
+                    "vote": diamond_vote,
+                    "score": diamond_score,
+                    "confidence": 0.80,
+                    "weight": 0.25
+                }
+                print(f"[NEW CONSENSUS] {symbol}: DiamondWhale → {diamond_vote} (score: {diamond_score:.3f})")
+            
+            # WhaleCLIP (derived from whale signals)
+            whale_signal_strength = 0.0
+            if "whale_ping" in used_signals:
+                for signal in signals:
+                    if signal.name == "whale_ping" and hasattr(signal, 'strength'):
+                        whale_signal_strength = signal.strength
+                        break
                 
-                # Map signals to detector categories z actual scores
-                if signal.name == "whale_ping":
-                    detector_results["whale_ping"] = signal_score
-                elif signal.name == "dex_inflow":
-                    detector_results["dex_inflow"] = signal_score
-                elif signal.name == "spoofing_layers":
-                    detector_results["orderbook_anomaly"] = signal_score
-                elif signal.name == "volume_spike":
-                    detector_results["volume_spike"] = signal_score
-                elif signal.name in ["spoofing_layers", "orderbook_imbalance_stealth", "large_bid_walls"]:
-                    detector_results["orderbook_anomaly"] = detector_results.get("orderbook_anomaly", 0.0) + signal_score
-        
-        # Dodaj AI detector scores z właściwymi wartościami
-        if diamond_enabled and diamond_score > 0:
-            detector_results["diamond_ai"] = diamond_score
-        if whaleclip_enabled and whaleclip_score > 0:
-            detector_results["whaleclip_vision"] = whaleclip_score
-        if californium_enabled and californium_score > 0:
-            detector_results["mastermind_tracing"] = californium_score
-        
-        # Ensure wszystkie kluczowe detektory są reprezentowane (0.0 jeśli nieaktywne)
-        required_detectors = ["whale_ping", "dex_inflow", "orderbook_anomaly", "whaleclip_vision", "mastermind_tracing"]
-        for detector in required_detectors:
-            if detector not in detector_results:
-                detector_results[detector] = 0.0
-        
-        # Simulate agent votes na podstawie detector activity i scores
-        if detector_results.get("whale_ping", 0.0) > 0.5:
-            agent_votes.append("BUY")
-        else:
-            agent_votes.append("HOLD" if detector_results.get("whale_ping", 0.0) > 0.2 else "AVOID")
-        
-        if detector_results.get("dex_inflow", 0.0) > 0.5:
-            agent_votes.append("BUY")  
-        else:
-            agent_votes.append("HOLD" if detector_results.get("dex_inflow", 0.0) > 0.2 else "AVOID")
-        
-        if detector_results.get("orderbook_anomaly", 0.0) > 0.5:
-            agent_votes.append("BUY")
-        else:
-            agent_votes.append("HOLD" if detector_results.get("orderbook_anomaly", 0.0) > 0.2 else "AVOID")
-        
-        if detector_results.get("whaleclip_vision", 0.0) > 0.5:
-            agent_votes.append("BUY")
-        else:
-            agent_votes.append("HOLD" if detector_results.get("whaleclip_vision", 0.0) > 0.2 else "AVOID")
-        
-        if detector_results.get("mastermind_tracing", 0.0) > 0.5:
-            agent_votes.append("BUY")
-        else:
-            agent_votes.append("HOLD" if detector_results.get("mastermind_tracing", 0.0) > 0.2 else "AVOID")
-        
-        # Final decision na podstawie agent consensus (PRIORITIZED OVER SCORE)
-        buy_votes = agent_votes.count("BUY")
-        if buy_votes >= 3:  # Majority BUY vote required
-            final_decision = "BUY"
-        elif buy_votes >= 2:
-            final_decision = "MONITOR"
-        else:
+                if whale_signal_strength > 0.0:
+                    clip_vote = "BUY" if whale_signal_strength > 0.8 else ("HOLD" if whale_signal_strength > 0.5 else "AVOID")
+                    detector_outputs["WhaleCLIP"] = {
+                        "vote": clip_vote,
+                        "score": whale_signal_strength,
+                        "confidence": 0.75,
+                        "weight": 0.26
+                    }
+                    print(f"[NEW CONSENSUS] {symbol}: WhaleCLIP → {clip_vote} (score: {whale_signal_strength:.3f})")
+            
+            # Run consensus decision if we have detectors
+            if len(detector_outputs) >= 2:
+                consensus_engine = create_decision_consensus_engine()
+                consensus_result = consensus_engine.simulate_decision_consensus(
+                    detector_outputs, 
+                    threshold=0.7, 
+                    token=symbol
+                )
+                
+                final_decision = consensus_result.decision
+                consensus_data = {
+                    "decision": final_decision,
+                    "votes": [f"{det}: {data['vote']}" for det, data in detector_outputs.items()],
+                    "confidence": consensus_result.confidence,
+                    "final_score": consensus_result.final_score,
+                    "threshold_met": consensus_result.threshold_met,
+                    "contributing_detectors": consensus_result.contributing_detectors
+                }
+                
+                print(f"[NEW CONSENSUS] {symbol}: Final decision → {final_decision} (score: {consensus_result.final_score:.3f}, confidence: {consensus_result.confidence:.3f})")
+                print(f"[NEW CONSENSUS] {symbol}: Contributing detectors: {consensus_result.contributing_detectors}")
+                
+            else:
+                print(f"[NEW CONSENSUS] {symbol}: Insufficient detectors ({len(detector_outputs)}) for consensus - defaulting to WATCH")
+                consensus_data = {
+                    "decision": "WATCH",
+                    "votes": [],
+                    "confidence": 0.0,
+                    "final_score": 0.0,
+                    "threshold_met": False,
+                    "contributing_detectors": []
+                }
+                
+        except ImportError:
+            print(f"[NEW CONSENSUS] {symbol}: Consensus engine not available - falling back to legacy logic")
+            # Simplified fallback logic
+            if score > 2.0:
+                final_decision = "BUY"
+            elif score > 1.0:
+                final_decision = "MONITOR"
+            else:
+                final_decision = "WATCH"
+                
+            consensus_data = {
+                "decision": final_decision,
+                "votes": ["fallback_mode"],
+                "confidence": min(score / 4.0, 1.0),
+                "final_score": score,
+                "threshold_met": score > 2.0,
+                "contributing_detectors": ["stealth_fallback"]
+            }
+        except Exception as e:
+            print(f"[NEW CONSENSUS ERROR] {symbol}: {e}")
             final_decision = "WATCH"
+            consensus_data = {
+                "decision": "WATCH",
+                "votes": [],
+                "confidence": 0.0,
+                "final_score": 0.0,
+                "threshold_met": False,
+                "contributing_detectors": []
+            }
         
-        print(f"[CONSENSUS ANALYSIS] {symbol}: Agent votes {agent_votes} → {buy_votes}/{len(agent_votes)} BUY → {final_decision}")
         print(f"[ALERT LOGIC] {symbol}: Score={score:.3f}, Decision={final_decision} → Alert Eligible: {final_decision == 'BUY'}")
         
         # ✅ NEW ALERT CONDITION: Only send alerts when agents reach BUY consensus
@@ -1247,12 +1300,42 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             try:
                 from alerts.stealth_v3_telegram_alerts import send_stealth_v3_alert
                 
-                # Note: detector_results and agent_votes already calculated above
+                # Prepare detector_results for alert system using new consensus data
+                detector_results = {}
+                
+                # Extract detector scores for alert display
+                if consensus_data and "contributing_detectors" in consensus_data:
+                    for detector in consensus_data["contributing_detectors"]:
+                        # Map detector names to legacy alert format
+                        if detector == "StealthEngine":
+                            detector_results["whale_ping"] = min(score / 4.0, 1.0)
+                        elif detector == "CaliforniumWhale":
+                            detector_results["mastermind_tracing"] = californium_score if californium_enabled else 0.0
+                        elif detector == "DiamondWhale": 
+                            detector_results["diamond_ai"] = diamond_score if diamond_enabled else 0.0
+                        elif detector == "WhaleCLIP":
+                            detector_results["whaleclip_vision"] = whale_signal_strength
+                
+                # Ensure required detector fields exist for alert compatibility
+                required_detectors = ["whale_ping", "dex_inflow", "orderbook_anomaly", "whaleclip_vision", "mastermind_tracing"]
+                for detector in required_detectors:
+                    if detector not in detector_results:
+                        detector_results[detector] = 0.0
+                
+                # Add classic signal scores
+                for signal in signals:
+                    if hasattr(signal, 'active') and signal.active and hasattr(signal, 'strength'):
+                        weight = weights.get(signal.name, 1.0)
+                        signal_score = weight * signal.strength
+                        
+                        if signal.name == "dex_inflow":
+                            detector_results["dex_inflow"] = signal_score
+                        elif signal.name in ["spoofing_layers", "orderbook_imbalance_stealth", "large_bid_walls"]:
+                            detector_results["orderbook_anomaly"] = detector_results.get("orderbook_anomaly", 0.0) + signal_score
                 
                 # Calculate feedback adjustment from component system
                 feedback_adjustment = 0.0
                 try:
-                    # Try to get recent feedback boost from component system
                     from feedback_loop.component_score_updater import get_component_updater
                     updater = get_component_updater()
                     if hasattr(updater, 'get_recent_boost'):
@@ -1260,12 +1343,19 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 except ImportError:
                     pass
                 
-                consensus_data = {
-                    "decision": final_decision,
-                    "votes": agent_votes,  # Lista actual votes dla proper display
-                    "confidence": round(score, 3),  # Use actual score jako confidence
-                    "feedback_adjust": round(feedback_adjustment, 3)
-                }
+                # Use consensus_data if available, otherwise create fallback
+                if not consensus_data:
+                    consensus_data = {
+                        "decision": final_decision,
+                        "votes": ["fallback_mode"],
+                        "confidence": min(score / 4.0, 1.0),
+                        "final_score": score,
+                        "threshold_met": score > 2.0,
+                        "contributing_detectors": ["stealth_fallback"]
+                    }
+                
+                # Update consensus_data with feedback adjustment
+                consensus_data["feedback_adjust"] = round(feedback_adjustment, 3)
                 
                 # Przygotuj meta_data z AI detector scores
                 meta_data = {
