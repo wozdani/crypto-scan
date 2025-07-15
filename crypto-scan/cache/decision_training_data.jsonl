@@ -112,3 +112,4 @@
 {"timestamp": "2025-07-15T00:31:32.784046", "symbol": "ADDR_0X123456", "inputs": {"gnn_score": 0.953, "whale_clip_confidence": 0.0, "dex_inflow_flag": false}, "outputs": {"decision": "AVOID", "final_score": 0.3177}, "decision_tier": 7}
 {"timestamp": "2025-07-15T00:33:24.594703", "symbol": "ADDR_0X742D35", "inputs": {"gnn_score": 0.953, "whale_clip_confidence": 0.0, "dex_inflow_flag": true}, "outputs": {"decision": "ALERT_CONSIDER", "final_score": 0.651}, "decision_tier": 7}
 {"timestamp": "2025-07-15T00:34:31.268316", "symbol": "ADDR_0XDC76CD", "inputs": {"gnn_score": 0.953, "whale_clip_confidence": 0.0, "dex_inflow_flag": true}, "outputs": {"decision": "ALERT_CONSIDER", "final_score": 0.651}, "decision_tier": 7}
+{"timestamp": "2025-07-15T00:34:47.199366", "symbol": "ADDR_0X3F5CE5", "inputs": {"gnn_score": 0.953, "whale_clip_confidence": 0.0, "dex_inflow_flag": false}, "outputs": {"decision": "AVOID", "final_score": 0.3177}, "decision_tier": 7}
