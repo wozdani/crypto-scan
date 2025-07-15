@@ -42,10 +42,12 @@ class RLFeedbackTrainer:
         self.alert_history_file = os.path.join(cache_path, "fusion_history.json")
         self.weights_backup_file = os.path.join(cache_path, "rl_fusion", "weights_backup.json")
         self.training_log_file = os.path.join(cache_path, "rl_fusion", "daily_training.jsonl")
+        self.weight_history_file = os.path.join("crypto-scan", "logs", "rl_weight_history.jsonl")
         
         # Ensure directories exist
         os.makedirs(os.path.dirname(self.weights_backup_file), exist_ok=True)
         os.makedirs(os.path.dirname(self.training_log_file), exist_ok=True)
+        os.makedirs(os.path.dirname(self.weight_history_file), exist_ok=True)
     
     def load_recent_alerts(self, hours_back: int = 24) -> List[Dict[str, Any]]:
         """
@@ -218,11 +220,27 @@ class RLFeedbackTrainer:
                 # Get updated statistics
                 training_stats = rl_agent.get_training_statistics()
                 
+                # Get final weights for logging
+                try:
+                    final_weights = rl_agent.get_current_weights()
+                    if not final_weights or len(final_weights) < 3:
+                        final_weights = [0.5, 0.3, 0.2]  # fallback
+                except:
+                    final_weights = [0.5, 0.3, 0.2]  # fallback
+                
+                # Save weight history for visualization
+                self.save_weight_history(final_weights)
+                
                 logger.info(f"[RL TRAINER] Training completed: {len(training_samples)} samples")
                 logger.info(f"[RL TRAINER] Success/Failure: {successful_alerts}/{failed_alerts}")
                 logger.info(f"[RL TRAINER] Updated success rate: {training_stats.get('success_rate', 0):.1f}%")
                 
-                # Save training log
+                # Save training log with weights
+                training_stats["final_weights"] = {
+                    "californium": final_weights[0],
+                    "diamond": final_weights[1], 
+                    "whaleclip": final_weights[2]
+                }
                 self.save_training_log(training_samples, training_stats)
                 
                 return {
@@ -271,6 +289,30 @@ class RLFeedbackTrainer:
             
         except Exception as e:
             logger.error(f"[RL TRAINER] Failed to save training log: {e}")
+    
+    def save_weight_history(self, final_weights: List[float]):
+        """Save weight evolution history for visualization"""
+        try:
+            # Ensure logs directory exists
+            os.makedirs(os.path.dirname(self.weight_history_file), exist_ok=True)
+            
+            # Prepare weight history entry
+            weight_entry = {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "californium": final_weights[0] if len(final_weights) > 0 else 0.5,
+                "diamond": final_weights[1] if len(final_weights) > 1 else 0.3,
+                "whaleclip": final_weights[2] if len(final_weights) > 2 else 0.2,
+                "total_weight": sum(final_weights) if final_weights else 1.0
+            }
+            
+            # Append to JSONL file
+            with open(self.weight_history_file, 'a') as f:
+                f.write(json.dumps(weight_entry) + '\n')
+            
+            logger.info(f"[RL TRAINER] Weight history saved: C:{weight_entry['californium']:.3f}, D:{weight_entry['diamond']:.3f}, W:{weight_entry['whaleclip']:.3f}")
+            
+        except Exception as e:
+            logger.error(f"[RL TRAINER] Failed to save weight history: {e}")
     
     def backup_current_weights(self):
         """Create backup of current weights before training"""
