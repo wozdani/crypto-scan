@@ -11,6 +11,19 @@ from datetime import datetime
 from typing import Dict, Any, Optional, List
 import logging
 
+# Import watchlist functionality
+try:
+    from .stealth_v3_watchlist_alerts import send_watchlist_alert
+except ImportError:
+    # Fallback for direct import
+    try:
+        from stealth_v3_watchlist_alerts import send_watchlist_alert
+    except ImportError:
+        def send_watchlist_alert(watchlist_data: Dict[str, Any]) -> bool:
+            """Fallback function if watchlist alerts not available"""
+            print(f"[WATCHLIST FALLBACK] Watchlist alerts not available for {watchlist_data.get('symbol', 'UNKNOWN')}")
+            return False
+
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
