@@ -20,18 +20,81 @@ from datetime import datetime, timedelta
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Configure logging first
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 from feedback.feedback_loop_diamond import (
     evaluate_diamond_alerts_after_delay,
     run_diamond_daily_evaluation,
     get_diamond_feedback_loop
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# Import RLAgentV4 trainer for Stage 7/7
+try:
+    from daily_jobs.rl_weights_trainer import run_daily_training
+    RL_TRAINER_AVAILABLE = True
+    logger.info("✅ [DIAMOND SCHEDULER] RLAgentV4 trainer imported successfully")
+except ImportError as e:
+    RL_TRAINER_AVAILABLE = False
+    logger.warning(f"⚠️ [DIAMOND SCHEDULER] RLAgentV4 trainer not available: {e}")
+
+
+def job_rl_weights_trainer():
+    """
+    Stage 7/7: Daily RLAgentV4 training job
+    Uruchamia się codziennie o 01:45 UTC (15 minut przed DiamondWhale)
+    """
+    current_time = datetime.utcnow().isoformat()
+    logger.info(f"🧠 [DIAMOND SCHEDULER] Stage 7/7: Starting RLAgentV4 training @ {current_time}")
+    
+    try:
+        if not RL_TRAINER_AVAILABLE:
+            logger.warning("[DIAMOND SCHEDULER] ⚠️ RLAgentV4 trainer not available - skipping")
+            return False
+        
+        # Run daily RLAgentV4 training
+        logger.info("[DIAMOND SCHEDULER] Running RLAgentV4 daily training...")
+        training_results = run_daily_training(hours_back=24)
+        
+        logger.info(f"[DIAMOND SCHEDULER] RLAgentV4 training results:")
+        logger.info(f"  📊 Status: {training_results.get('status', 'unknown')}")
+        logger.info(f"  🎯 Alerts processed: {training_results.get('alerts_processed', 0)}")
+        logger.info(f"  🧠 Training samples: {training_results.get('training_samples', 0)}")
+        logger.info(f"  ✅ Successful alerts: {training_results.get('successful_alerts', 0)}")
+        logger.info(f"  ❌ Failed alerts: {training_results.get('failed_alerts', 0)}")
+        
+        if training_results.get('status') == 'success':
+            logger.info(f"  📈 Success rate: {training_results.get('success_rate', 0):.1f}%")
+            logger.info(f"  🔄 Total updates: {training_results.get('total_updates', 0)}")
+        
+        # Save scheduler execution log
+        rl_scheduler_log = {
+            "timestamp": current_time,
+            "training_results": training_results,
+            "execution_type": "scheduled_daily_rl_training",
+            "stage": "7/7"
+        }
+        
+        # Write scheduler log
+        os.makedirs("cache/scheduler", exist_ok=True)
+        rl_scheduler_log_file = "cache/scheduler/rl_training_scheduler_log.jsonl"
+        
+        import json
+        with open(rl_scheduler_log_file, "a") as f:
+            f.write(f"{json.dumps(rl_scheduler_log)}\n")
+        
+        logger.info(f"[DIAMOND SCHEDULER] ✅ RLAgentV4 training completed successfully")
+        logger.info(f"[DIAMOND SCHEDULER] Training log saved: {rl_scheduler_log_file}")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"[DIAMOND SCHEDULER] ❌ RLAgentV4 training failed: {e}")
+        return False
 
 
 def job_feedback_loop():
@@ -183,6 +246,13 @@ def schedule_diamond_jobs():
     """
     logger.info("📅 [DIAMOND SCHEDULER] Scheduling DiamondWhale AI jobs...")
     
+    # Stage 7/7: Daily RLAgentV4 training at 01:45 UTC (before feedback loop)
+    if RL_TRAINER_AVAILABLE:
+        schedule.every().day.at("01:45").do(job_rl_weights_trainer)
+        logger.info("✅ [DIAMOND SCHEDULER] Stage 7/7: RLAgentV4 training scheduled")
+    else:
+        logger.warning("⚠️ [DIAMOND SCHEDULER] RLAgentV4 trainer not available - skipping scheduling")
+    
     # Daily feedback loop at 02:00 UTC
     schedule.every().day.at("02:00").do(job_feedback_loop)
     
@@ -193,6 +263,8 @@ def schedule_diamond_jobs():
     schedule.every().hour.at(":30").do(job_hourly_check)
     
     logger.info("✅ [DIAMOND SCHEDULER] Jobs scheduled:")
+    if RL_TRAINER_AVAILABLE:
+        logger.info("  • Stage 7/7 RLAgentV4 training: 01:45 UTC")
     logger.info("  • Daily feedback loop: 02:00 UTC")
     logger.info("  • Model checkpoint: 02:15 UTC")
     logger.info("  • Hourly pending check: every hour at :30")
