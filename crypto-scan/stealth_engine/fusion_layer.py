@@ -7,7 +7,7 @@ Unified decision system combining CaliforniumWhale AI, DiamondWhale AI, and Whal
 import os
 import json
 import logging
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, List
 from datetime import datetime, timezone
 
 # Setup logging
@@ -19,7 +19,7 @@ class FusionEngine:
     Multi-Detector Fusion Engine combining three advanced AI detectors
     """
     
-    def __init__(self, config_path: str = "crypto-scan/cache"):
+    def __init__(self, config_path: str = "crypto-scan/cache", use_rl_weights: bool = True):
         """Initialize Fusion Engine with configurable weights"""
         self.config_path = config_path
         self.weights_file = os.path.join(config_path, "fusion_weights.json")
@@ -34,6 +34,18 @@ class FusionEngine:
         
         # Default alert threshold
         self.default_threshold = 0.65
+        
+        # RLAgentV4 integration for dynamic weight learning
+        self.use_rl_weights = use_rl_weights
+        self.rl_agent = None
+        if use_rl_weights:
+            try:
+                from stealth_engine.rl.fusion_rl_agent import get_rl_fusion_agent
+                self.rl_agent = get_rl_fusion_agent()
+                logger.info("[FUSION] RLAgentV4 integration enabled for dynamic weight learning")
+            except Exception as e:
+                logger.warning(f"[FUSION] Failed to load RLAgentV4, using static weights: {e}")
+                self.use_rl_weights = False
         
         # Load or initialize weights
         self.weights = self.load_weights()
@@ -153,22 +165,40 @@ class FusionEngine:
         Returns:
             Weighted fusion score (0.0-1.0)
         """
-        fusion_score = (
-            self.weights["californium"] * californium_score +
-            self.weights["diamond"] * diamond_score +
-            self.weights["whaleclip"] * whaleclip_score
-        )
-        
-        # Ensure score is within valid range
-        fusion_score = max(0.0, min(1.0, fusion_score))
-        
-        logger.info(f"[FUSION] Weighted calculation:")
-        logger.info(f"  Californium: {californium_score:.3f} × {self.weights['californium']:.2f} = {californium_score * self.weights['californium']:.3f}")
-        logger.info(f"  Diamond: {diamond_score:.3f} × {self.weights['diamond']:.2f} = {diamond_score * self.weights['diamond']:.3f}")
-        logger.info(f"  WhaleCLIP: {whaleclip_score:.3f} × {self.weights['whaleclip']:.2f} = {whaleclip_score * self.weights['whaleclip']:.3f}")
-        logger.info(f"  Final Fusion Score: {fusion_score:.3f}")
-        
-        return fusion_score
+        try:
+            # Get adaptive weights from RLAgentV4 if available
+            if self.use_rl_weights and self.rl_agent:
+                try:
+                    detector_scores = [californium_score, diamond_score, whaleclip_score]
+                    adaptive_weights = self.rl_agent.get_weight_dict(detector_scores)
+                    weights = adaptive_weights
+                    logger.info(f"[FUSION] Using RLAgentV4 adaptive weights: {weights}")
+                except Exception as e:
+                    logger.warning(f"[FUSION] RLAgentV4 failed, using static weights: {e}")
+                    weights = self.weights
+            else:
+                weights = self.weights
+            
+            fusion_score = (
+                weights["californium"] * californium_score +
+                weights["diamond"] * diamond_score +
+                weights["whaleclip"] * whaleclip_score
+            )
+            
+            # Ensure score is within valid range
+            fusion_score = max(0.0, min(1.0, fusion_score))
+            
+            logger.info(f"[FUSION] Weighted calculation:")
+            logger.info(f"  Californium: {californium_score:.3f} × {weights['californium']:.3f} = {californium_score * weights['californium']:.3f}")
+            logger.info(f"  Diamond: {diamond_score:.3f} × {weights['diamond']:.3f} = {diamond_score * weights['diamond']:.3f}")
+            logger.info(f"  WhaleCLIP: {whaleclip_score:.3f} × {weights['whaleclip']:.3f} = {whaleclip_score * weights['whaleclip']:.3f}")
+            logger.info(f"  Final Fusion Score: {fusion_score:.3f}")
+            
+            return fusion_score
+            
+        except Exception as e:
+            logger.error(f"[FUSION] Error calculating fusion score: {e}")
+            return 0.0
     
     def should_alert(self, fusion_score: float) -> bool:
         """
@@ -366,6 +396,36 @@ class FusionEngine:
         self.threshold = max(0.0, min(1.0, new_threshold))
         self.save_weights()
         logger.info(f"[FUSION] Updated threshold: {self.threshold}")
+    
+    def train_rl_agent(self, detector_scores: List[float], alert_outcome: str, success: bool):
+        """
+        Train RLAgentV4 based on alert outcome feedback
+        
+        Args:
+            detector_scores: [californium_score, diamond_score, whaleclip_score] used for alert
+            alert_outcome: Description of what happened after alert
+            success: True if alert was successful (pump occurred), False if false positive
+        """
+        if self.use_rl_weights and self.rl_agent:
+            try:
+                reward = 1.0 if success else -1.0
+                self.rl_agent.update(detector_scores, reward, alert_outcome)
+                logger.info(f"[FUSION] RL training: scores={detector_scores}, outcome={alert_outcome}, reward={reward}")
+            except Exception as e:
+                logger.error(f"[FUSION] RL training failed: {e}")
+        else:
+            logger.info(f"[FUSION] RL training disabled or agent not available")
+    
+    def get_rl_training_stats(self) -> Dict[str, Any]:
+        """Get RLAgentV4 training statistics"""
+        if self.use_rl_weights and self.rl_agent:
+            try:
+                return self.rl_agent.get_training_statistics()
+            except Exception as e:
+                logger.error(f"[FUSION] Error getting RL stats: {e}")
+                return {"error": str(e)}
+        else:
+            return {"message": "RL Agent not available"}
 
 # Global instance
 _fusion_engine = None
@@ -435,6 +495,23 @@ def format_fusion_alert_message(result: Dict[str, Any]) -> str:
     
     return message
 
+def train_fusion_rl_agent(detector_scores: List[float], alert_outcome: str, success: bool):
+    """
+    Convenience function to train fusion RL agent
+    
+    Args:
+        detector_scores: [californium_score, diamond_score, whaleclip_score]
+        alert_outcome: Description of alert outcome
+        success: True if alert was successful
+    """
+    engine = get_fusion_engine()
+    engine.train_rl_agent(detector_scores, alert_outcome, success)
+
+def get_fusion_rl_stats() -> Dict[str, Any]:
+    """Get fusion RL training statistics"""
+    engine = get_fusion_engine()
+    return engine.get_rl_training_stats()
+
 def test_fusion_engine():
     """Test Fusion Engine functionality"""
     print("🧪 Testing Multi-Detector Fusion Engine...")
@@ -460,6 +537,10 @@ def test_fusion_engine():
     # Test statistics
     stats = engine.get_fusion_statistics()
     print(f"\n📈 Fusion Statistics: {stats}")
+    
+    # Test RL training statistics
+    rl_stats = get_fusion_rl_stats()
+    print(f"\n🤖 RL Training Statistics: {rl_stats}")
     
     print("✅ Fusion Engine test completed")
 
