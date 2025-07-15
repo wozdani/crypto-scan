@@ -181,23 +181,31 @@ class ConsensusDecisionEngine:
     
     def _dynamic_boosting_logic(self, token: str, scores: Union[Dict[str, float], Dict[str, Dict]]) -> ConsensusResult:
         """
-        ETAP 3: Dynamic Boosting Decision Logic
-        Implementuje confidence-based weighted scoring z booster strategies:
+        ETAP 3: Dynamic Boosting Decision Logic + ETAP 5: Fallback Logic
+        Implementuje confidence-based weighted scoring z booster strategies i fallback alerts:
         - Aktywne detektory: score >= 0.75 AND confidence >= 0.60
         - Global score: suma (score × weight) dla aktywnych detektorów
         - Booster: confidence > 0.85 AND score > 0.90 → score × 1.1
+        - ETAP 5: Fallback alert: jeśli 1 detektor > 0.92 score i > 0.85 confidence = instant alert
         
         Args:
             token: Symbol tokena
             scores: Dict w extended format z confidence i weight
             
         Returns:
-            ConsensusResult z dynamic boosting decision
+            ConsensusResult z dynamic boosting decision lub fallback alert
         """
-        print(f"[DYNAMIC BOOST] Processing {token} using Etap 3 logic")
+        print(f"[DYNAMIC BOOST] Processing {token} using Etap 3 + Etap 5 logic")
         
         # Konwersja do unified format jeśli potrzebne
         unified_scores = self._normalize_to_extended_format(scores)
+        
+        # ETAP 5: Check for fallback trigger first (very strong single detector)
+        fallback_triggered, fallback_detector = self._should_trigger_fallback_alert(unified_scores)
+        
+        if fallback_triggered:
+            print(f"[FALLBACK ALERT] {fallback_detector} exceeded threshold - instant alert!")
+            return self._create_fallback_alert_result(token, unified_scores, fallback_detector)
         
         # Thresholds dla Etap 3
         score_threshold = 0.75
@@ -334,6 +342,109 @@ class ConsensusDecisionEngine:
         
         print(f"[NORMALIZE] Converted simple format to extended format with defaults")
         return normalized
+    
+    def _should_trigger_fallback_alert(self, active_detectors: Dict[str, Dict], 
+                                      fallback_threshold: float = 0.92, 
+                                      min_confidence: float = 0.85) -> Tuple[bool, str]:
+        """
+        ETAP 5: Sprawdza czy któryś detektor przekroczył próg fallback alert
+        
+        Args:
+            active_detectors: Dict z detector data {"detector": {"score": 0.8, "confidence": 0.7}}
+            fallback_threshold: Minimalny score dla fallback alert (default: 0.92)
+            min_confidence: Minimalna confidence dla fallback alert (default: 0.85)
+            
+        Returns:
+            Tuple[bool, str]: (czy_trigger, nazwa_detektora)
+        """
+        for detector_name, data in active_detectors.items():
+            score = data.get('score', 0.0)
+            confidence = data.get('confidence', 0.0)
+            
+            if score >= fallback_threshold and confidence >= min_confidence:
+                print(f"[FALLBACK CHECK] {detector_name}: score={score:.3f} >= {fallback_threshold}, conf={confidence:.3f} >= {min_confidence} → TRIGGER")
+                return True, detector_name
+        
+        print(f"[FALLBACK CHECK] No detector meets fallback criteria (score >= {fallback_threshold}, conf >= {min_confidence})")
+        return False, None
+    
+    def _create_fallback_alert_result(self, token: str, all_scores: Dict[str, Dict], 
+                                     trigger_detector: str) -> ConsensusResult:
+        """
+        ETAP 5: Tworzy ConsensusResult dla fallback alert z pojedynczego silnego detektora
+        
+        Args:
+            token: Symbol tokena
+            all_scores: Wszystkie scores detektorów
+            trigger_detector: Nazwa detektora który triggered fallback
+            
+        Returns:
+            ConsensusResult z fallback alert decision
+        """
+        trigger_data = all_scores[trigger_detector]
+        trigger_score = trigger_data['score']
+        trigger_confidence = trigger_data['confidence']
+        
+        # Wyślij fallback alert z enhanced reason
+        reason = f"Fallback Trigger: {trigger_detector} exceeded threshold"
+        alert_sent = self.send_telegram_alert(
+            token=token,
+            global_score=trigger_score,
+            active_detectors={trigger_detector: trigger_data},
+            boosted_detectors=[]
+        )
+        
+        # Create result
+        result = ConsensusResult(
+            decision=AlertDecision.ALERT,
+            final_score=trigger_score,
+            confidence=trigger_confidence,
+            strategy_used=ConsensusStrategy.DOMINANT_DETECTOR,
+            contributing_detectors=[trigger_detector],
+            reasoning=reason,
+            consensus_strength=1.0,  # Single strong detector = high strength
+            alert_sent=alert_sent,
+            timestamp=datetime.now().isoformat()
+        )
+        
+        print(f"[FALLBACK RESULT] Created fallback alert: score={trigger_score:.3f}, detector={trigger_detector}")
+        
+        # Record fallback decision
+        self._record_fallback_decision(token, result, all_scores, trigger_detector)
+        
+        return result
+    
+    def _record_fallback_decision(self, token: str, result: ConsensusResult, 
+                                 all_scores: Dict[str, Dict], trigger_detector: str):
+        """
+        ETAP 5: Zapisuje fallback decision do historii
+        
+        Args:
+            token: Symbol tokena
+            result: ConsensusResult z fallback decision
+            all_scores: Wszystkie scores detektorów
+            trigger_detector: Nazwa detektora który triggered fallback
+        """
+        decision_record = {
+            'timestamp': result.timestamp,
+            'token': token,
+            'decision': result.decision.value,
+            'strategy': result.strategy_used.value,
+            'final_score': result.final_score,
+            'confidence': result.confidence,
+            'reasoning': result.reasoning,
+            'consensus_strength': result.consensus_strength,
+            'alert_sent': result.alert_sent,
+            'fallback_trigger': True,
+            'trigger_detector': trigger_detector,
+            'trigger_score': all_scores[trigger_detector]['score'],
+            'trigger_confidence': all_scores[trigger_detector]['confidence'],
+            'all_detector_scores': {k: v['score'] for k, v in all_scores.items()},
+            'all_detector_confidences': {k: v['confidence'] for k, v in all_scores.items()}
+        }
+        
+        self.decision_history.append(decision_record)
+        print(f"[FALLBACK RECORD] Recorded fallback decision for {token}: {trigger_detector} → {result.decision.value}")
     
     def _send_dynamic_telegram_alert(self, token: str, global_score: float, 
                                     active_detectors: Dict, boosted_detectors: List[str]) -> bool:
@@ -1517,5 +1628,73 @@ def test_etap3_format_conversion():
     return True
 
 
+def test_etap5_fallback_logic():
+    """
+    ETAP 5: Test fallback logic dla bardzo silnych detektorów
+    Sprawdza czy pojedynczy silny detektor może triggerować instant alert
+    """
+    print("\n[TEST ETAP 5] Fallback Logic Testing...")
+    engine = create_consensus_engine()
+    
+    # Test 1: Fallback trigger - DiamondWhale przekracza próg
+    fallback_scores = {
+        "DiamondWhale": {"score": 0.94, "confidence": 0.89, "weight": 0.25},
+        "WhaleCLIP": {"score": 0.45, "confidence": 0.55, "weight": 0.25},
+        "CaliforniumWhale": {"score": 0.30, "confidence": 0.40, "weight": 0.30}
+    }
+    
+    result = engine.run(
+        token="TESTUSDT",
+        scores=fallback_scores,
+        use_dynamic_boosting=True
+    )
+    
+    assert result.decision == AlertDecision.ALERT
+    assert result.strategy_used == ConsensusStrategy.DOMINANT_DETECTOR
+    assert "DiamondWhale" in result.contributing_detectors
+    assert "Fallback Trigger" in result.reasoning
+    assert result.consensus_strength == 1.0
+    print("✅ Test 1: Fallback trigger - PASSED")
+    
+    # Test 2: No fallback trigger - high score but low confidence
+    no_fallback_scores = {
+        "DiamondWhale": {"score": 0.95, "confidence": 0.75, "weight": 0.25},  # < 0.85 confidence
+        "WhaleCLIP": {"score": 0.50, "confidence": 0.60, "weight": 0.25},
+        "CaliforniumWhale": {"score": 0.40, "confidence": 0.50, "weight": 0.30}
+    }
+    
+    result = engine.run(
+        token="TESTUSDT2", 
+        scores=no_fallback_scores,
+        use_dynamic_boosting=True
+    )
+    
+    # Should fall through to normal dynamic boosting logic (insufficient consensus)
+    assert result.decision == AlertDecision.NO_ALERT
+    assert "Fallback Trigger" not in result.reasoning
+    print("✅ Test 2: No fallback trigger (low confidence) - PASSED")
+    
+    # Test 3: CaliforniumWhale fallback trigger
+    fallback_californium = {
+        "CaliforniumWhale": {"score": 0.96, "confidence": 0.91, "weight": 0.30},
+        "DiamondWhale": {"score": 0.40, "confidence": 0.50, "weight": 0.25},
+        "WhaleCLIP": {"score": 0.35, "confidence": 0.45, "weight": 0.25}
+    }
+    
+    result = engine.run(
+        token="TESTUSDT4",
+        scores=fallback_californium,
+        use_dynamic_boosting=True
+    )
+    
+    assert result.decision == AlertDecision.ALERT
+    assert result.strategy_used == ConsensusStrategy.DOMINANT_DETECTOR
+    assert "CaliforniumWhale" in result.contributing_detectors
+    assert "Fallback Trigger" in result.reasoning
+    print("✅ Test 3: CaliforniumWhale fallback trigger - PASSED")
+    
+    print("✅ ETAP 5 Fallback Logic: All tests PASSED!")
+
 if __name__ == "__main__":
     test_consensus_engine()
+    test_etap5_fallback_logic()
