@@ -1753,6 +1753,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     result["alert_sent"] = False
                     result["alert_skip_reason"] = "cooldown_or_error"
             else:
+                alert_threshold = 3.0  # Define the alert threshold
                 print(f"[STEALTH V3 ALERT] {symbol}: Score {score:.3f} poniżej progu alertów ({alert_threshold})")
                 result["alert_sent"] = False
                 result["alert_skip_reason"] = "below_threshold"
