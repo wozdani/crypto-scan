@@ -9,7 +9,7 @@ Alerts mają mocniejszy branding, większą wagę i oznaczenia 🧠 + 💎.
 
 import os
 import requests
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 import json
 import time
@@ -159,7 +159,7 @@ def send_diamond_alert(token: str, chat_id: str, symbol: str, scores_dict: Dict[
         formatted_breakdown = format_score_breakdown(decision_breakdown)
         
         # Timestamp UTC
-        timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
+        timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
         
         # === DIAMOND ALERT MESSAGE TEMPLATE ===
         message = f"""🚨💎 [DIAMOND ALERT] {symbol}
@@ -240,7 +240,7 @@ def send_diamond_alert(token: str, chat_id: str, symbol: str, scores_dict: Dict[
                 # Log alert for feedback evaluation
                 feedback_logged = log_diamond_alert_feedback(
                     symbol=symbol,
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(timezone.utc),
                     anomaly_score=decision_breakdown.get("diamond_score", fused_score),
                     decision_vector=decision_vector,
                     market_data=market_data_feedback,
@@ -380,7 +380,7 @@ def get_diamond_alert_stats() -> Dict[str, Any]:
             "decisions": decisions,
             "confidence_levels": confidence_levels,
             "dominant_detectors": dominant_detectors,
-            "last_updated": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
+            "last_updated": datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
         }
         
     except (FileNotFoundError, json.JSONDecodeError):
@@ -390,7 +390,7 @@ def get_diamond_alert_stats() -> Dict[str, Any]:
             "decisions": {},
             "confidence_levels": {},
             "dominant_detectors": {},
-            "last_updated": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
+            "last_updated": datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
         }
     except Exception as e:
         print(f"[DIAMOND STATS] ⚠️ Error getting stats: {e}")

@@ -623,7 +623,7 @@ def generate_tjde_training_chart_contextual(symbol, candles_15m, tjde_score, tjd
         import os
         import numpy as np
 
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
         folder = "training_data/charts"
         os.makedirs(folder, exist_ok=True)
 
@@ -815,7 +815,7 @@ def generate_tjde_training_chart_simple(symbol, price_series, tjde_score, tjde_p
         from datetime import datetime
         import os
 
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
         folder = "training_data/charts"
         os.makedirs(folder, exist_ok=True)
 

@@ -277,7 +277,7 @@ Format odpowiedzi:
             "tjde_score": tjde_score,
             "decision": decision,
             "clip_prediction": clip_prediction,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "analysis_type": "chart_commentary"
         }
         
@@ -354,7 +354,7 @@ Bądź konkretny i wskaż specific visual patterns."""
             "explanation": explanation,
             "expected_setup": expected_setup,
             "actual_prediction": actual_prediction,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "analysis_type": "clip_error_analysis"
         }
         
@@ -437,7 +437,7 @@ Bądź krytyczny i wskaż konkretne problemy."""
         audit_data = {
             "audit_report": audit_report,
             "scoring_data": scoring_data,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "analysis_type": "scoring_audit"
         }
         
@@ -508,7 +508,7 @@ Bądź precyzyjny i używaj terminologii technicznej."""
         synthetic_path = image_path.replace('.png', '.gpt_synthetic.json')
         synthetic_data = {
             "synthetic_description": description,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "analysis_type": "synthetic_labeling"
         }
         

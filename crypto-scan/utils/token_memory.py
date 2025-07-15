@@ -6,7 +6,7 @@ Tracks token behavior patterns over 4 days for adaptive decision making
 import os
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Any
 
 MEMORY_PATH = "data/token_profile_store.json"
@@ -83,13 +83,13 @@ def update_token_memory(symbol: str, entry: Dict[str, Any]):
         token_mem = data.get(symbol, [])
 
         # Add timestamp as ISO format
-        entry["timestamp"] = datetime.utcnow().isoformat()
+        entry["timestamp"] = datetime.now(timezone.utc).isoformat()
         entry["symbol"] = symbol  # Ensure symbol is stored
 
         token_mem.append(entry)
 
         # Remove data older than MEMORY_LOOKBACK_HOURS
-        cutoff = datetime.utcnow() - timedelta(hours=MEMORY_LOOKBACK_HOURS)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=MEMORY_LOOKBACK_HOURS)
         token_mem = [
             e for e in token_mem
             if datetime.fromisoformat(e["timestamp"]) > cutoff
@@ -184,7 +184,7 @@ def analyze_token_behavior(symbol: str) -> Dict[str, Any]:
             "common_phases": common_phases,
             "last_24h_entries": len([h for h in history if 
                                    datetime.fromisoformat(h["timestamp"]) > 
-                                   datetime.utcnow() - timedelta(hours=24)]),
+                                   datetime.now(timezone.utc) - timedelta(hours=24)]),
             "analysis": f"Token shows {'poor' if success_rate < 0.4 else 'good' if success_rate > 0.7 else 'mixed'} historical performance"
         }
         
@@ -208,7 +208,7 @@ def set_result_for_last_entry(symbol: str, result_label: str):
             
         # Update the most recent entry
         data[symbol][-1]["result_after_2h"] = result_label
-        data[symbol][-1]["evaluated_at"] = datetime.utcnow().isoformat()
+        data[symbol][-1]["evaluated_at"] = datetime.now(timezone.utc).isoformat()
         
         save_token_memory(data)
         logging.debug(f"Updated result for {symbol}: {result_label}")
@@ -279,7 +279,7 @@ def export_token_profile(symbol: str) -> Optional[Dict]:
             "symbol": symbol,
             "history": history,
             "analysis": analysis,
-            "exported_at": datetime.utcnow().isoformat()
+            "exported_at": datetime.now(timezone.utc).isoformat()
         }
         
     except Exception as e:

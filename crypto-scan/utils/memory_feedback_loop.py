@@ -6,7 +6,7 @@ Updates token memory with actual results after trading decisions
 import os
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 from utils.token_memory import load_token_memory, save_token_memory, set_result_for_last_entry
 
@@ -24,7 +24,7 @@ def evaluate_recent_decisions(lookback_hours: int = 2):
             logging.info("No token memory data to evaluate")
             return
         
-        cutoff_time = datetime.utcnow() - timedelta(hours=lookback_hours)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=lookback_hours)
         evaluated_count = 0
         
         for symbol, entries in memory_data.items():
@@ -40,7 +40,7 @@ def evaluate_recent_decisions(lookback_hours: int = 2):
                     result = _evaluate_decision_outcome(symbol, entry)
                     if result:
                         entry["result_after_2h"] = result
-                        entry["evaluated_at"] = datetime.utcnow().isoformat()
+                        entry["evaluated_at"] = datetime.now(timezone.utc).isoformat()
                         evaluated_count += 1
         
         if evaluated_count > 0:

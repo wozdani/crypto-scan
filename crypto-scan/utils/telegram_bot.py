@@ -74,7 +74,7 @@ def get_feedback_summary_with_reasons(weights_before: dict, weights_after: dict,
         
         if summary_lines:
             from datetime import datetime
-            header = f"\n📊 *Feedback Loop - Aktualizacja Wag* ({datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}):"
+            header = f"\n📊 *Feedback Loop - Aktualizacja Wag* ({datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}):"
             return header + "\n" + "\n".join(summary_lines)
         
         return ""

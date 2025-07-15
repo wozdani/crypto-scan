@@ -15,7 +15,7 @@ import schedule
 import time
 import logging
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -48,7 +48,7 @@ def job_rl_weights_trainer():
     Stage 7/7: Daily RLAgentV4 training job
     Uruchamia się codziennie o 01:45 UTC (15 minut przed DiamondWhale)
     """
-    current_time = datetime.utcnow().isoformat()
+    current_time = datetime.now(timezone.utc).isoformat()
     logger.info(f"🧠 [DIAMOND SCHEDULER] Stage 7/7: Starting RLAgentV4 training @ {current_time}")
     
     try:
@@ -102,7 +102,7 @@ def job_feedback_loop():
     Daily DiamondWhale AI feedback loop job
     Uruchamia się codziennie o 02:00 UTC
     """
-    current_time = datetime.utcnow().isoformat()
+    current_time = datetime.now(timezone.utc).isoformat()
     logger.info(f"🔥 [DIAMOND SCHEDULER] Starting DiamondWhale feedback loop @ {current_time}")
     
     try:
@@ -209,12 +209,12 @@ def job_model_checkpoint():
             checkpoint_dir = "cache/checkpoints"
             os.makedirs(checkpoint_dir, exist_ok=True)
             
-            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
             checkpoint_file = f"{checkpoint_dir}/qirl_agent_checkpoint_{timestamp}.json"
             
             # Get agent state
             agent_state = {
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "statistics": qirl_agent.get_statistics(),
                 "memory_size": qirl_agent.get_statistics().get('memory_size', 0),
                 "accuracy": qirl_agent.get_statistics().get('accuracy', 0.0),

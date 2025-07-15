@@ -7,7 +7,7 @@ Automated training system for RLAgentV3 based on feedback data collected during 
 import os
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List
 import sys
 
@@ -108,7 +108,7 @@ def train_rl_v3_from_feedback(
         
         # Create training log entry
         log_entry = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "total_updates": total_updates,
             "pump_positive": pump_positive,
             "pump_negative": pump_negative,

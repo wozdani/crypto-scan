@@ -561,7 +561,7 @@ def daily_self_train_at_night(last_run_file="cache/last_train.txt"):
         return
     
     try:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         today_str = now.strftime("%Y-%m-%d")
 
         # Run only between 02:00 and 02:10 UTC
@@ -659,7 +659,7 @@ def main():
         # Pokaż statystyki uczenia
         learning_stats = priority_memory.get_learning_statistics()
         print(f"ℹ️ [STAGE 11] Pamięć uczenia: {learning_stats['total_entries']} wpisów, "
-              f"{learning_stats['success_rate']:.1%} skuteczność")
+              f"{learning_stats.get('success_rate', learning_stats.get('overall_success_rate', 0.0)):.1%} skuteczność")
               
     except ImportError:
         print("ℹ️ [STAGE 11] Priority Learning Memory system niedostępny")

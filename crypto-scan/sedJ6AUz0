@@ -1,0 +1,141 @@
+#!/usr/bin/env python3
+"""
+Test Real-World Blockchain Integration
+Validates that new blockchain_scanners.py module works correctly
+"""
+
+import os
+import sys
+sys.path.insert(0, '.')
+
+def test_blockchain_scanner_import():
+    """Test blockchain scanner import and basic functionality"""
+    print("🔧 Testing blockchain scanner import...")
+    
+    try:
+        from utils.blockchain_scanners import BlockchainScanner, get_token_transfers_last_24h, get_whale_transfers
+        print("✅ Blockchain scanner import successful")
+        return True
+    except Exception as e:
+        print(f"❌ Import failed: {e}")
+        return False
+
+def test_stealth_engine_import():
+    """Test updated stealth engine with real blockchain integration"""
+    print("🔧 Testing stealth engine with blockchain integration...")
+    
+    try:
+        from stealth_engine.stealth_signals import StealthSignalDetector
+        detector = StealthSignalDetector()
+        print("✅ Stealth engine with blockchain integration import successful")
+        
+        # Test basic signal detection (without real API calls)
+        mock_token_data = {
+            "symbol": "TESTUSDT",
+            "orderbook": {"bids": [[100, 1000]], "asks": [[101, 1000]]},
+            "candles_15m": [],
+            "dex_inflow": 0,
+            "dex_inflow_history": [100, 200, 150]
+        }
+        
+        # Test dex_inflow function (should fall back to legacy mode for mock data)
+        dex_signal = detector.check_dex_inflow(mock_token_data)
+        print(f"✅ DEX inflow test: active={dex_signal.active}, strength={dex_signal.strength:.3f}")
+        
+        # Test whale_ping function (should work with orderbook data)
+        whale_signal = detector.check_whale_ping(mock_token_data)
+        print(f"✅ Whale ping test: active={whale_signal.active}, strength={whale_signal.strength:.3f}")
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ Stealth engine test failed: {e}")
+        return False
+
+def test_known_exchange_addresses():
+    """Test known exchange addresses database"""
+    print("🔧 Testing known exchange addresses...")
+    
+    try:
+        from utils.blockchain_scanners import load_known_exchange_addresses
+        addresses = load_known_exchange_addresses()
+        
+        print(f"✅ Loaded exchange addresses for {len(addresses)} chains")
+        for chain, addrs in addresses.items():
+            if isinstance(addrs, list):
+                print(f"   {chain}: {len(addrs)} addresses")
+            elif isinstance(addrs, dict):
+                print(f"   {chain}: {sum(len(v) for v in addrs.values())} addresses")
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ Exchange addresses test failed: {e}")
+        return False
+
+def test_contract_lookup():
+    """Test contract lookup functionality"""
+    print("🔧 Testing contract lookup...")
+    
+    try:
+        from utils.contracts import get_contract
+        
+        # Test with common tokens (should find contracts if cache is available)
+        test_symbols = ["BTCUSDT", "ETHUSDT", "PEPEUSDT"]
+        
+        found_contracts = 0
+        for symbol in test_symbols:
+            contract = get_contract(symbol)
+            if contract:
+                found_contracts += 1
+                print(f"✅ Found contract for {symbol}: {contract['address'][:10]}... on {contract['chain']}")
+            else:
+                print(f"⚠️ No contract found for {symbol} (cache may be empty)")
+        
+        print(f"✅ Contract lookup test: {found_contracts}/{len(test_symbols)} contracts found")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Contract lookup test failed: {e}")
+        return False
+
+def main():
+    """Run all blockchain integration tests"""
+    print("🚀 BLOCKCHAIN INTEGRATION TESTS")
+    print("=" * 50)
+    
+    tests = [
+        ("Blockchain Scanner Import", test_blockchain_scanner_import),
+        ("Stealth Engine Integration", test_stealth_engine_import),
+        ("Exchange Addresses Database", test_known_exchange_addresses),
+        ("Contract Lookup", test_contract_lookup),
+    ]
+    
+    passed = 0
+    total = len(tests)
+    
+    for test_name, test_func in tests:
+        print(f"\n📋 {test_name}")
+        print("-" * 30)
+        try:
+            if test_func():
+                passed += 1
+                print(f"✅ {test_name} PASSED")
+            else:
+                print(f"❌ {test_name} FAILED")
+        except Exception as e:
+            print(f"💥 {test_name} CRASHED: {e}")
+    
+    print("\n" + "=" * 50)
+    print(f"🎯 RESULTS: {passed}/{total} tests passed")
+    
+    if passed == total:
+        print("🎉 ALL TESTS PASSED - Real-World API Upgrade Ready!")
+    else:
+        print("⚠️ Some tests failed - Review implementation")
+    
+    return passed == total
+
+if __name__ == "__main__":
+    success = main()
+    sys.exit(0 if success else 1)

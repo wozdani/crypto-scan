@@ -6,7 +6,7 @@ Zapisuje każdy alert i jego parametry do późniejszej analizy skuteczności
 
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 import logging
 
@@ -111,7 +111,7 @@ def update_alert_outcome(token: str, alert_time: str, pump_occurred: bool,
                         # Update with outcome
                         data["pump_occurred"] = pump_occurred
                         data["evaluation_pending"] = False
-                        data["evaluation_timestamp"] = datetime.utcnow().isoformat()
+                        data["evaluation_timestamp"] = datetime.now(timezone.utc).isoformat()
                         
                         # Add price changes if provided
                         if price_change_1h is not None:
@@ -168,7 +168,7 @@ def update_master_file_outcome(token: str, alert_time: str, pump_occurred: bool,
                         
                         data["pump_occurred"] = pump_occurred
                         data["evaluation_pending"] = False
-                        data["evaluation_timestamp"] = datetime.utcnow().isoformat()
+                        data["evaluation_timestamp"] = datetime.now(timezone.utc).isoformat()
                         
                         if price_change_1h is not None:
                             data["price_change_1h"] = round(float(price_change_1h), 4)
@@ -299,7 +299,7 @@ def test_feedback_loop():
     print("=" * 50)
     
     # Test logging
-    test_time = datetime.utcnow().isoformat()
+    test_time = datetime.now(timezone.utc).isoformat()
     
     result1 = log_alert_feedback(
         token="TESTUSDT",

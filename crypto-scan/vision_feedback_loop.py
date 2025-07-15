@@ -23,7 +23,7 @@ def evaluate_clip_predictions(hours_back: int = 24) -> Dict:
         print("[CLIP FEEDBACK] No training dataset found")
         return {}
     
-    cutoff_time = datetime.utcnow() - timedelta(hours=hours_back)
+    cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours_back)
     
     corrections = []
     total_predictions = 0
@@ -127,7 +127,7 @@ def evaluate_clip_predictions(hours_back: int = 24) -> Dict:
             "correct_predictions": correct_predictions,
             "accuracy": accuracy,
             "corrections": corrections,
-            "evaluation_time": datetime.utcnow().isoformat()
+            "evaluation_time": datetime.now(timezone.utc).isoformat()
         }
         
         print(f"[CLIP FEEDBACK] Evaluated {total_predictions} predictions")
@@ -235,7 +235,7 @@ def generate_clip_retraining_data(corrections: List[Dict]) -> int:
             "original_prediction": correction.get("clip_prediction"),
             "correct_label": correction.get("corrected_label"),
             "symbol": correction.get("symbol"),
-            "correction_timestamp": datetime.utcnow().isoformat()
+            "correction_timestamp": datetime.now(timezone.utc).isoformat()
         }
         
         retraining_samples.append(sample)
@@ -279,7 +279,7 @@ def run_vision_feedback_cycle() -> Dict:
         "status": "completed",
         "evaluation": evaluation_results,
         "retraining_samples": retraining_count,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
     
     print(f"[VISION FEEDBACK] Cycle complete: {evaluation_results['accuracy']:.2%} accuracy")

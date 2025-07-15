@@ -106,7 +106,7 @@ class DiamondFeedbackLoop:
                 "dominant_detector": dominant_detector,
                 "entry_price": market_data.get("price") if market_data else None,
                 "evaluation_status": "pending",
-                "logged_at": datetime.utcnow().isoformat()
+                "logged_at": datetime.now(timezone.utc).isoformat()
             }
             
             # Load existing logs
@@ -276,7 +276,7 @@ class DiamondFeedbackLoop:
             with open(LOG_PATH, "r") as f:
                 logs = json.load(f)
             
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             delay_window = timedelta(minutes=self.config["delay_minutes"])
             max_eval_window = timedelta(hours=self.config["max_evaluation_hours"])
             
@@ -419,7 +419,7 @@ class DiamondFeedbackLoop:
                     logs = json.load(f)
                     
                 # Count alerts in last 24h
-                now = datetime.utcnow()
+                now = datetime.now(timezone.utc)
                 last_24h = now - timedelta(hours=24)
                 recent_alerts = 0
                 pending_alerts = 0
@@ -524,7 +524,7 @@ def test_diamond_feedback_loop():
         print("  ✅ Diamond feedback loop initialized")
         
         # Test logging
-        test_time = datetime.utcnow()
+        test_time = datetime.now(timezone.utc)
         test_vector = [0.8, 0.7, 0.9, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.0, 
                       0.8, 0.9, 0.7, 0.6, 0.5]  # 15-dimensional state
         

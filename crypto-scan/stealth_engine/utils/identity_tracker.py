@@ -72,7 +72,7 @@ class PersistentIdentityTracker:
         if not wallets:
             return
         
-        current_time = datetime.utcnow().isoformat()
+        current_time = datetime.now(timezone.utc).isoformat()
         
         with self._lock:
             for wallet in wallets:
@@ -224,7 +224,7 @@ class PersistentIdentityTracker:
         high_score_wallets = len([data for data in self.identity_scores.values() if data["score"] >= 5])
         
         # Aktywne portfele w ostatnich 24h
-        cutoff_time = datetime.utcnow() - timedelta(hours=24)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=24)
         active_wallets_24h = 0
         for data in self.identity_scores.values():
             if data["last_seen"]:
@@ -248,7 +248,7 @@ class PersistentIdentityTracker:
         """
         🧹 Oczyść stare dane identity (opcjonalnie)
         """
-        cutoff_time = datetime.utcnow() - timedelta(days=max_age_days)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(days=max_age_days)
         removed_count = 0
         
         with self._lock:

@@ -108,7 +108,7 @@ def fetch_fresh_candles(symbol: str, interval: str = "15m", limit: int = 96, for
                 # Validate data freshness
                 if candles:
                     last_candle_time = datetime.fromtimestamp(candles[-1]['timestamp'] / 1000)
-                    current_time = datetime.utcnow()
+                    current_time = datetime.now(timezone.utc)
                     time_diff = current_time - last_candle_time
                     
                     print(f"[FRESH CANDLES] ✅ {symbol}: Fetched {len(candles)} fresh candles")
@@ -164,7 +164,7 @@ def validate_candle_freshness(candles: List[Dict], symbol: str, max_age_minutes:
         else:  # Seconds
             last_time = datetime.fromtimestamp(last_timestamp)
         
-        current_time = datetime.utcnow()
+        current_time = datetime.now(timezone.utc)
         time_diff = current_time - last_time
         age_minutes = time_diff.total_seconds() / 60
         
@@ -245,5 +245,5 @@ def debug_candle_timestamps(candles: List[Dict], symbol: str):
         print(f"[CANDLE DEBUG] {symbol}: Candle {idx+1}: {dt.strftime('%Y-%m-%d %H:%M:%S UTC')}")
     
     # Current time comparison
-    current_time = datetime.utcnow()
+    current_time = datetime.now(timezone.utc)
     print(f"[CANDLE DEBUG] {symbol}: Current UTC time: {current_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")

@@ -179,7 +179,7 @@ class SatelliteScanner:
                     "tjde_score": tjde_score,
                     "scan_result": scan_result,
                     "triggered_by": triggered_by,
-                    "scan_timestamp": datetime.utcnow().isoformat()
+                    "scan_timestamp": datetime.now(timezone.utc).isoformat()
                 }
             else:
                 return {
@@ -188,7 +188,7 @@ class SatelliteScanner:
                     "tjde_score": 0.0,
                     "error": "Invalid scan result",
                     "triggered_by": triggered_by,
-                    "scan_timestamp": datetime.utcnow().isoformat()
+                    "scan_timestamp": datetime.now(timezone.utc).isoformat()
                 }
                 
         except Exception as e:
@@ -199,7 +199,7 @@ class SatelliteScanner:
                 "tjde_score": 0.0,
                 "error": str(e),
                 "triggered_by": triggered_by,
-                "scan_timestamp": datetime.utcnow().isoformat()
+                "scan_timestamp": datetime.now(timezone.utc).isoformat()
             }
     
     async def _simplified_twin_scan(self, symbol: str, triggered_by: str) -> Dict:
@@ -230,7 +230,7 @@ class SatelliteScanner:
                 "tjde_score": 0.0,
                 "scan_type": "simplified",
                 "triggered_by": triggered_by,
-                "scan_timestamp": datetime.utcnow().isoformat()
+                "scan_timestamp": datetime.now(timezone.utc).isoformat()
             }
             
         except Exception as e:
@@ -239,7 +239,7 @@ class SatelliteScanner:
                 "stealth_score": 0.0,
                 "error": f"Simplified scan failed: {e}",
                 "triggered_by": triggered_by,
-                "scan_timestamp": datetime.utcnow().isoformat()
+                "scan_timestamp": datetime.now(timezone.utc).isoformat()
             }
     
     async def queue_satellite_scan(self, symbol: str, stealth_score: float) -> bool:
@@ -267,7 +267,7 @@ class SatelliteScanner:
             "triggered_by": symbol,
             "trigger_score": stealth_score,
             "twins": twins,
-            "queued_at": datetime.utcnow().isoformat()
+            "queued_at": datetime.now(timezone.utc).isoformat()
         }
         
         # Dodaj do kolejki
@@ -291,7 +291,7 @@ class SatelliteScanner:
                 "total_results": len(self.scan_results),
                 "recent_results": len([
                     r for r in self.scan_results.values()
-                    if (datetime.utcnow() - datetime.fromisoformat(r["scan_timestamp"])).total_seconds() < 3600
+                    if (datetime.now(timezone.utc) - datetime.fromisoformat(r["scan_timestamp"])).total_seconds() < 3600
                 ])
             }
     
@@ -299,7 +299,7 @@ class SatelliteScanner:
         """
         📈 Pobierz ostatnie wyniki satelitarnych skanów
         """
-        cutoff = datetime.utcnow() - timedelta(hours=hours)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
         
         recent_results = []
         for symbol, result in self.scan_results.items():

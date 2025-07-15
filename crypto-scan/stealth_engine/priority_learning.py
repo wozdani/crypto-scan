@@ -12,7 +12,7 @@
 
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 
@@ -122,7 +122,7 @@ class PriorityLearningMemory:
             confidence: Confidence level alertu
         """
         try:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             
             if symbol not in self.memory:
                 self.memory[symbol] = []
@@ -323,7 +323,7 @@ class PriorityLearningMemory:
             max_age_days: Maksymalny wiek wpisów w dniach
         """
         try:
-            cutoff_date = datetime.utcnow() - timedelta(days=max_age_days)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=max_age_days)
             removed_count = 0
             
             for symbol in list(self.memory.keys()):

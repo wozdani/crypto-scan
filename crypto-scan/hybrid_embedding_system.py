@@ -257,7 +257,7 @@ class HybridEmbeddingSystem:
                     print(f"[CRITICAL] embeddings.json corrupted: {e}")
                     # Create backup of corrupted file
                     from datetime import datetime
-                    backup_path = f"{self.embeddings_file.replace('.json', '')}_corrupted_backup_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+                    backup_path = f"{self.embeddings_file.replace('.json', '')}_corrupted_backup_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json"
                     os.rename(self.embeddings_file, backup_path)
                     print(f"[RECOVERY] Created backup: {backup_path}")
                     # Start with empty embeddings

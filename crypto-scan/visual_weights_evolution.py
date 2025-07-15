@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 import numpy as np
 
@@ -303,7 +303,7 @@ def generate_all_charts(
     results["effectiveness_comparison"] = generate_effectiveness_comparison(log_path, effectiveness_chart_path)
     
     # Add timestamp to results
-    results["generation_timestamp"] = datetime.utcnow().isoformat()
+    results["generation_timestamp"] = datetime.now(timezone.utc).isoformat()
     results["total_generated"] = sum(1 for v in results.values() if isinstance(v, bool) and v)
     
     logger.info(f"[ALL CHARTS] Generated {results['total_generated']} charts successfully")

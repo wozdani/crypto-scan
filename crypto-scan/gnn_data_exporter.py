@@ -7,7 +7,7 @@ Eksportuje dane z grafu + anomaly_scores + wynik do pliku .jsonl dla treningu ML
 import json
 import os
 import networkx as nx
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional, List
 import logging
 
@@ -41,8 +41,8 @@ class GNNDataExporter:
         """Inicjalizuj metadata pliku jeśli nie istnieje"""
         if not os.path.exists(self.metadata_file):
             metadata = {
-                "created": datetime.utcnow().isoformat(),
-                "last_updated": datetime.utcnow().isoformat(),
+                "created": datetime.now(timezone.utc).isoformat(),
+                "last_updated": datetime.now(timezone.utc).isoformat(),
                 "total_samples": 0,
                 "pump_samples": 0,
                 "no_pump_samples": 0,
@@ -120,7 +120,7 @@ class GNNDataExporter:
             
             # Prepare training sample
             sample = {
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "token": token,
                 "graph": {
                     "nodes": nodes_data,
@@ -155,7 +155,7 @@ class GNNDataExporter:
         try:
             metadata = self._load_metadata()
             
-            metadata["last_updated"] = datetime.utcnow().isoformat()
+            metadata["last_updated"] = datetime.now(timezone.utc).isoformat()
             metadata["total_samples"] = metadata.get("total_samples", 0) + 1
             
             if pump_occurred:
@@ -271,7 +271,7 @@ class GNNDataExporter:
             suspicious_activity = any(score > 0.7 for score in anomaly_scores.values())
             
             sample = {
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "type": "address_monitoring",
                 "address": address,
                 "graph": {

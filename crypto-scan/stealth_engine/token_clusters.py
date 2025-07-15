@@ -98,7 +98,7 @@ class TokenClusterManager:
         return {
             "scan_history": [],
             "twin_performance": {},
-            "last_cleanup": datetime.utcnow().isoformat()
+            "last_cleanup": datetime.now(timezone.utc).isoformat()
         }
     
     def _save_results_cache(self):
@@ -167,7 +167,7 @@ class TokenClusterManager:
                     "total_scans": 0,
                     "successful_scans": 0,
                     "avg_performance": 0.0,
-                    "last_update": datetime.utcnow().isoformat()
+                    "last_update": datetime.now(timezone.utc).isoformat()
                 }
             
             perf_data = self.results_cache["twin_performance"][key]
@@ -180,7 +180,7 @@ class TokenClusterManager:
             old_avg = perf_data["avg_performance"]
             new_avg = (old_avg * (perf_data["total_scans"] - 1) + performance_score) / perf_data["total_scans"]
             perf_data["avg_performance"] = round(new_avg, 3)
-            perf_data["last_update"] = datetime.utcnow().isoformat()
+            perf_data["last_update"] = datetime.now(timezone.utc).isoformat()
             
             self._save_results_cache()
             
@@ -213,7 +213,7 @@ class TokenClusterManager:
         twin_performance = self.results_cache.get("twin_performance", {})
         
         # Ostatnie 24h
-        recent_cutoff = datetime.utcnow() - timedelta(hours=24)
+        recent_cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
         recent_scans = [
             scan for scan in scan_history
             if datetime.fromisoformat(scan["scan_timestamp"]) > recent_cutoff
@@ -252,7 +252,7 @@ class TokenClusterManager:
             return False
         
         # Sprawdź czy nie był już skanowany ostatnio (cooldown 1h)
-        recent_cutoff = datetime.utcnow() - timedelta(hours=1)
+        recent_cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
         recent_scans = [
             scan for scan in self.results_cache.get("scan_history", [])
             if (scan["triggered_by"] == symbol and 
@@ -270,7 +270,7 @@ class TokenClusterManager:
         """
         🧹 Oczyść stare dane satelitarne
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=max_age_days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=max_age_days)
         
         with self.lock:
             original_count = len(self.results_cache["scan_history"])
@@ -284,7 +284,7 @@ class TokenClusterManager:
             removed_count = original_count - len(self.results_cache["scan_history"])
             
             # Aktualizuj timestamp cleanup
-            self.results_cache["last_cleanup"] = datetime.utcnow().isoformat()
+            self.results_cache["last_cleanup"] = datetime.now(timezone.utc).isoformat()
             
             self._save_results_cache()
             
@@ -316,7 +316,7 @@ class TokenClusterManager:
             self.results_cache = {
                 "scan_history": [],
                 "twin_performance": {},
-                "last_cleanup": datetime.utcnow().isoformat()
+                "last_cleanup": datetime.now(timezone.utc).isoformat()
             }
             self._save_results_cache()
             print(f"[SATELLITE TEST CLEAR] All satellite data cleared for testing")
@@ -355,7 +355,7 @@ def record_satellite_result(symbol: str, triggered_by: str, stealth_score: float
         symbol=symbol,
         triggered_by=triggered_by,
         stealth_score=stealth_score,
-        scan_timestamp=datetime.utcnow().isoformat(),
+        scan_timestamp=datetime.now(timezone.utc).isoformat(),
         success=success,
         error_message=error_message
     )

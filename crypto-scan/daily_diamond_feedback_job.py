@@ -12,7 +12,7 @@ import sys
 import schedule
 import time
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -62,7 +62,7 @@ def run_daily_diamond_feedback_evaluation():
         
         # Save evaluation timestamp
         evaluation_record = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "results": results,
             "stats": stats,
             "evaluation_type": "daily_scheduled"

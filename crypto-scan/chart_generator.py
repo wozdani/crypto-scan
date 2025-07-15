@@ -218,7 +218,7 @@ def _save_chart_metadata(
             "tjde_breakdown": tjde_breakdown or {},
             "chart_type": "disabled_matplotlib",
             "generation_method": "tradingview_only",
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
         
         with open(metadata_file, 'w') as f:

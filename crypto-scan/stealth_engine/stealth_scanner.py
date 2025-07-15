@@ -137,7 +137,7 @@ class StealthScannerManager:
                 if is_stealth_ready:
                     stealth_ready_tokens.append({
                         **result,
-                        'stealth_ready_timestamp': datetime.utcnow().isoformat(),
+                        'stealth_ready_timestamp': datetime.now(timezone.utc).isoformat(),
                         'stealth_ready_score': stealth_score
                     })
                     
@@ -266,7 +266,7 @@ class StealthScannerManager:
             "stealth_score": stealth_score,
             "satellite_scan_triggered": False,
             "satellite_twins": [],
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
         try:

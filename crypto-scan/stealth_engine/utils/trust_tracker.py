@@ -101,7 +101,7 @@ class TokenTrustTracker:
         token_data["signal_history"][signal_type] += 1
         
         # Update metadata
-        token_data["last_updated"] = datetime.datetime.utcnow().isoformat()
+        token_data["last_updated"] = datetime.datetime.now(timezone.utc).isoformat()
         token_data["total_signals"] += 1
         
         self.save_trust_scores()
@@ -226,7 +226,7 @@ class TokenTrustTracker:
         """
         🧹 Oczyść stare dane trust (opcjonalnie)
         """
-        cutoff_date = datetime.datetime.utcnow() - datetime.timedelta(days=max_age_days)
+        cutoff_date = datetime.datetime.now(timezone.utc) - datetime.timedelta(days=max_age_days)
         
         cleaned_tokens = []
         

@@ -66,7 +66,7 @@ def log_alert_history(symbol, score, decision, breakdown=None, timestamp=None):
         
         log_entry = {
             "symbol": symbol,
-            "timestamp": timestamp or datetime.utcnow().isoformat(),
+            "timestamp": timestamp or datetime.now(timezone.utc).isoformat(),
             "score": round(float(score), 4),
             "decision": decision,
             "score_breakdown": breakdown or {}
