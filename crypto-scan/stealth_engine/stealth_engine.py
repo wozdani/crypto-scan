@@ -20,6 +20,7 @@ import os
 from .stealth_signals import StealthSignalDetector, StealthSignal
 from .stealth_weights import StealthWeightManager
 from .stealth_feedback import StealthFeedbackSystem
+from .diamond_detector import run_diamond_detector
 
 
 def simulate_stealth_decision(score: float, volume_24h: float, tjde_phase: str = "unknown") -> bool:
@@ -879,22 +880,75 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             score += baseline_bonus
             print(f"[STEALTH PARTIAL] {symbol}: Added baseline bonus +{baseline_bonus:.3f} for {len(used_signals)} active signals")
         
-        # LOG: Finalna decyzja scoringowa z nową implementacją bonusu
+        # === DIAMOND WHALE AI DETECTOR INTEGRATION ===
+        # 🔥 STAGE 2/7: Integrate DiamondWhale AI Temporal Graph + QIRL Detector
+        diamond_score = 0.0
+        diamond_enabled = False
+        diamond_error = None
+        
+        try:
+            # Sprawdź czy token ma kontrakt blockchain dla analizy transakcji
+            from utils.contracts import get_contract
+            contract_info = get_contract(symbol)
+            
+            if contract_info and contract_info.get('address'):
+                print(f"[DIAMOND AI] {symbol}: Starting DiamondWhale AI analysis for contract {contract_info['address'][:10]}...")
+                
+                # Wywołaj DiamondWhale AI Detector
+                diamond_result = run_diamond_detector(symbol, token_data)
+                
+                if diamond_result and diamond_result.get('diamond_score') is not None:
+                    diamond_score = float(diamond_result['diamond_score'])
+                    diamond_enabled = True
+                    
+                    # Dodaj diamond_score do głównego stealth score (z wagą 0.3)
+                    diamond_contribution = diamond_score * 0.3
+                    score += diamond_contribution
+                    
+                    # Dodaj do listy aktywnych sygnałów jeśli znaczący
+                    if diamond_score > 0.5:
+                        used_signals.append("diamond_whale_detection")
+                    
+                    print(f"[DIAMOND AI] {symbol}: Diamond score={diamond_score:.3f}, contribution=+{diamond_contribution:.3f}")
+                    print(f"[DIAMOND AI] {symbol}: Temporal graph analysis completed successfully")
+                else:
+                    print(f"[DIAMOND AI] {symbol}: No significant diamond activity detected")
+            else:
+                print(f"[DIAMOND AI] {symbol}: No blockchain contract found - skipping temporal analysis")
+                
+        except Exception as e:
+            diamond_error = str(e)
+            print(f"[DIAMOND AI ERROR] {symbol}: Failed to run DiamondWhale detector: {e}")
+            print(f"[DIAMOND AI ERROR] {symbol}: Continuing without diamond analysis")
+
+        # LOG: Finalna decyzja scoringowa z nową implementacją bonusu + Diamond AI
         decision = "strong" if score >= 3.0 else "weak" if score >= 1.0 else "none"
         partial_note = f" (partial: {available_signals}/{total_signals} signals)" if data_coverage < 0.8 else ""
+        diamond_note = f" + Diamond: {diamond_score:.3f}" if diamond_enabled else ""
         
         print(f"[STEALTH SCORING] {symbol} final calculation:")
-        print(f"  Base score: {score - active_rules_bonus:.3f}")
+        print(f"  Base score: {score - active_rules_bonus - (diamond_score * 0.3 if diamond_enabled else 0):.3f}")
         print(f"  Active rules bonus: {len(used_signals)} × 0.025 = +{active_rules_bonus:.3f}")
+        if diamond_enabled:
+            print(f"  Diamond AI contribution: {diamond_score:.3f} × 0.3 = +{diamond_score * 0.3:.3f}")
         print(f"  Final score: {score:.3f}")
-        print(f"[STEALTH] Final signal for {symbol} → Score: {score:.3f}, Decision: {decision}, Active: {len(used_signals)} signals{partial_note}")
+        print(f"[STEALTH] Final signal for {symbol} → Score: {score:.3f}, Decision: {decision}, Active: {len(used_signals)} signals{partial_note}{diamond_note}")
         
-        return {
+        # Przygotuj rezultat z integracją DiamondWhale AI
+        result = {
             "score": round(score, 3),
             "active_signals": used_signals,
             "data_coverage": round(data_coverage, 2),
-            "partial_scoring": data_coverage < 0.8
+            "partial_scoring": data_coverage < 0.8,
+            "diamond_score": round(diamond_score, 3) if diamond_enabled else None,
+            "diamond_enabled": diamond_enabled
         }
+        
+        # Dodaj informacje o błędzie jeśli wystąpił
+        if diamond_error:
+            result["diamond_error"] = diamond_error
+            
+        return result
         
     except Exception as e:
         import traceback
