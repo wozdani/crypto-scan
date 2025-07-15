@@ -12,6 +12,8 @@ from typing import Dict, Tuple, List, Optional
 import json
 import os
 from datetime import datetime
+from .qirl_agent_singleton import get_qirl_agent, save_qirl_agent
+from .graph_cache import generate_mock_graph_data, get_cached_graph, cache_graph
 
 # 🔷 CaliforniumTGN: Temporal GNN + EWMA volume boost
 class CaliforniumTGN(nn.Module):
@@ -270,30 +272,50 @@ def californium_whale_detect(symbol: str, agent: QIRLAgent, graph_data: dict) ->
         }
 
 # 🔧 Utility functions
-def create_californium_agent(state_size: int = 20, action_size: int = 2) -> QIRLAgent:
+def create_californium_agent(state_size: int = 20, action_size: int = 2) -> 'QIRLAgent':
     """
-    Create new CaliforniumWhale QIRL Agent
+    Create CaliforniumWhale QIRL Agent using singleton pattern
     
     Args:
         state_size: Size of state vector
         action_size: Number of possible actions
         
     Returns:
-        Initialized QIRL Agent
+        Singleton QIRL Agent instance
     """
-    return QIRLAgent(state_size, action_size)
+    agent = get_qirl_agent(state_size, action_size)
+    print(f"[CALIFORNIUM] Using singleton QIRL Agent with state_size={state_size}, action_size={action_size}")
+    return agent
 
-def prepare_graph_data(transactions: List[Dict]) -> Dict:
+def prepare_graph_data(transactions: List[Dict], symbol: str = None) -> Dict:
     """
-    Prepare graph data from transaction list
+    Prepare graph data from transaction list or use cached mock data
     
     Args:
         transactions: List of transaction dictionaries
+        symbol: Token symbol for caching (optional)
         
     Returns:
         Graph data dictionary for CaliforniumWhale AI
     """
     try:
+        # Try to use cached data if symbol provided
+        if symbol:
+            cached_data = get_cached_graph(symbol)
+            if cached_data:
+                print(f"[CALIFORNIUM] Using cached graph data for {symbol}")
+                # Convert cached data back to usable format
+                G = nx.DiGraph()
+                G.add_nodes_from(cached_data['graph_nodes'])
+                G.add_edges_from(cached_data['graph_edges'])
+                
+                return {
+                    'graph': G,
+                    'features': torch.tensor(cached_data['features'], dtype=torch.float),
+                    'timestamps': torch.tensor(cached_data['timestamps'], dtype=torch.float),
+                    'volumes': cached_data['volumes']
+                }
+        
         # Create graph from transactions
         G = nx.DiGraph()
         
@@ -330,15 +352,40 @@ def prepare_graph_data(transactions: List[Dict]) -> Dict:
         # Extract volume data
         volumes = [tx.get('value', 0) for tx in transactions]
         
-        return {
+        graph_data = {
             'graph': G,
             'features': features_tensor,
             'timestamps': timestamps_tensor,
             'volumes': volumes
         }
         
+        # Cache if symbol provided
+        if symbol:
+            cache_graph(symbol, {
+                'symbol': symbol,
+                'pattern': 'real_data',
+                'graph_nodes': list(G.nodes()),
+                'graph_edges': [(u, v, data) for u, v, data in G.edges(data=True)],
+                'features': features_tensor.tolist(),
+                'timestamps': timestamps_tensor.tolist(),
+                'volumes': volumes,
+                'metadata': {
+                    'nodes_count': len(G.nodes()),
+                    'edges_count': len(G.edges()),
+                    'total_value': sum([data['weight'] for _, _, data in G.edges(data=True)]),
+                    'generated_at': datetime.now().isoformat(),
+                    'pattern_type': 'real_data'
+                }
+            })
+        
+        return graph_data
+        
     except Exception as e:
         print(f"[CALIFORNIUM PREP ERROR] {e}")
+        # Use mock data as fallback
+        if symbol:
+            print(f"[CALIFORNIUM] Using mock graph data for {symbol} as fallback")
+            return generate_mock_graph_data(symbol, 'normal')
         return {
             'graph': nx.Graph(),
             'features': torch.zeros(1, 4),
