@@ -406,6 +406,43 @@ class RLAgentV3:
             })
         
         logger.info(f"[RL V3 RESET] Weights reset to equal values")
+    
+    def save_weights(self):
+        """Save current weights and statistics to file"""
+        try:
+            os.makedirs(os.path.dirname(self.weight_path), exist_ok=True)
+            
+            data = {
+                "weights": self.weights,
+                "metadata": {
+                    "update_count": self.update_count,
+                    "total_reward": self.total_reward,
+                    "successful_alerts": self.successful_alerts,
+                    "failed_alerts": self.failed_alerts
+                },
+                "booster_stats": self.booster_stats,
+                "weight_history": self.weight_history[-50:],  # Keep last 50 entries
+                "last_updated": datetime.now().isoformat(),
+                "config": {
+                    "learning_rate": self.learning_rate,
+                    "decay": self.decay,
+                    "min_weight": self.min_weight,
+                    "max_weight": self.max_weight,
+                    "normalize_weights": self.normalize_weights
+                }
+            }
+            
+            with open(self.weight_path, "w") as f:
+                json.dump(data, f, indent=2)
+            
+            logger.info(f"[RL V3] Saved weights to {self.weight_path}")
+            
+        except Exception as e:
+            logger.error(f"[RL V3] Failed to save weights: {e}")
+    
+    def save(self):
+        """Alias for save_weights() for backward compatibility"""
+        self.save_weights()
 
 def test_rl_agent_v3():
     """Test RLAgentV3 functionality"""

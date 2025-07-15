@@ -139,6 +139,16 @@ from utils.coingecko import build_coingecko_cache
 from utils.whale_priority import prioritize_whale_tokens
 from utils.training_data_manager import TrainingDataManager
 
+# Daily RL Training System Imports
+try:
+    from daily_rl_train_job import train_rl_v3_from_feedback
+    from visual_weights_evolution import visualize_weight_evolution, generate_all_charts
+    DAILY_RL_TRAINING_AVAILABLE = True
+    print("✅ Daily RL Training System loaded")
+except ImportError as e:
+    DAILY_RL_TRAINING_AVAILABLE = False
+    print(f"ℹ️ Daily RL Training System not available: {e}")
+
 def scan_single_token(symbol):
     """Simple, fast token scan"""
     try:
@@ -542,6 +552,70 @@ def run_feedback_evaluation_if_needed():
     except Exception as e:
         print(f"[FEEDBACK SYSTEM ERROR] Failed to run evaluation: {e}")
 
+def daily_self_train_at_night(last_run_file="cache/last_train.txt"):
+    """
+    Automated daily RL training at 02:00 UTC with duplicate prevention
+    Trains RLAgentV3 and generates weight evolution charts
+    """
+    if not DAILY_RL_TRAINING_AVAILABLE:
+        return
+    
+    try:
+        now = datetime.utcnow()
+        today_str = now.strftime("%Y-%m-%d")
+
+        # Run only between 02:00 and 02:10 UTC
+        if now.hour == 2 and now.minute < 10:
+            # Check if already trained today
+            if os.path.exists(last_run_file):
+                try:
+                    with open(last_run_file, "r") as f:
+                        last_run_date = f.read().strip()
+                        if last_run_date == today_str:
+                            return  # Already trained today
+                except Exception:
+                    pass  # File corrupted, proceed with training
+
+            print(f"[RL SELF-TRAIN] 🧠 Starting daily training at {now.strftime('%H:%M:%S')} UTC...")
+            
+            # Train RLAgentV3 from feedback data
+            training_result = train_rl_v3_from_feedback()
+            
+            if training_result.get("status") == "success":
+                updates = training_result.get("total_updates", 0)
+                success_rate = training_result.get("success_rate", 0.0)
+                weights = training_result.get("weights", {})
+                
+                print(f"[RL SELF-TRAIN] ✅ Training completed:")
+                print(f"   • Updates processed: {updates}")
+                print(f"   • Success rate: {success_rate}%")
+                print(f"   • Updated weights: {weights}")
+                
+                # Generate weight evolution charts
+                print("[RL SELF-TRAIN] 📊 Generating weight evolution charts...")
+                chart_results = generate_all_charts()
+                
+                charts_generated = chart_results.get("total_generated", 0)
+                print(f"[RL SELF-TRAIN] ✅ Generated {charts_generated} visualization charts")
+                
+                # Mark training as completed for today
+                os.makedirs(os.path.dirname(last_run_file), exist_ok=True)
+                with open(last_run_file, "w") as f:
+                    f.write(today_str)
+                
+                print(f"[RL SELF-TRAIN] 🎯 Daily training cycle completed successfully")
+                
+            elif training_result.get("status") == "no_data":
+                print("[RL SELF-TRAIN] ℹ️ No feedback data available for training")
+            else:
+                error = training_result.get("error", "Unknown error")
+                print(f"[RL SELF-TRAIN] ❌ Training failed: {error}")
+            
+    except Exception as e:
+        print(f"[RL SELF-TRAIN ERROR] Failed to execute daily training: {e}")
+        import traceback
+        traceback.print_exc()
+
 def main():
     """Main scanning loop with integrated feedback evaluation"""
     print("Starting Crypto Scanner Service (Enhanced with Feedback Loop)")
@@ -584,6 +658,10 @@ def main():
         while True:
             try:
                 clear_scan_warnings()  # Clear warnings at start of each cycle
+                
+                # 🧠 Daily RL Training System - Check for 02:00 UTC training window
+                daily_self_train_at_night()
+                
                 scan_cycle()
                 report_scan_warnings()  # Report warnings at end of cycle
                 
