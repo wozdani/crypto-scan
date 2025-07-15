@@ -902,12 +902,11 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
     """
     
     # 🔍 CRITICAL DEBUG: Add comprehensive debugging to identify fallback score issue
-    print(f"[TJDE DEBUG] Starting scoring for {symbol}")
-    print(f"[TJDE DEBUG] AI Label: {signals.get('ai_label', 'None')}")
-    print(f"[TJDE DEBUG] EMA50: {signals.get('ema50', 'None')}")
-    print(f"[TJDE DEBUG] Candles: {len(market_data.get('candles', []))}")
-    print(f"[TJDE DEBUG] HTF Candles: {len(signals.get('htf_candles', []))}")
-    print(f"[TJDE DEBUG] Market Phase: {signals.get('market_phase', 'None')}")
+    # Legacy TJDE debug logs replaced with modern logging
+    from utils.log_utils import log_debug, log_detector_start
+    log_detector_start('TJDE', symbol)
+    log_debug(f"AI Label: {signals.get('ai_label', 'None')}, EMA50: {signals.get('ema50', 'None')}", 'debug', 'TJDE')
+    log_debug(f"Candles: {len(market_data.get('candles', []))}, HTF: {len(signals.get('htf_candles', []))}, Phase: {signals.get('market_phase', 'None')}", 'debug', 'TJDE')
     
     try:
         # 🚫 CRITICAL: Block scoring for tokens without TradingView charts
@@ -1252,9 +1251,11 @@ def simulate_trader_decision_advanced(symbol: str, market_data: dict, signals: d
         original_clip_confidence = clip_confidence
         original_clip_info = clip_info
         
-        print(f"[TJDE DEBUG] Final decision for {symbol}: {decision}, Score: {score:.3f}")
-        print(f"[TJDE DEBUG] Phase: {market_phase} | CLIP Confidence: {original_clip_confidence:.3f} | Visual Intelligence Active: {original_clip_confidence > 0.4}")
-        logging.debug(f"[TJDE DEBUG] Complete decision for {symbol}: decision={decision}, score={score:.3f}, grade={grade}, phase={market_phase}")
+        # Legacy TJDE debug logs replaced with modern logging
+        from utils.log_utils import log_debug, log_detector_complete
+        log_detector_complete('TJDE', symbol, score, decision != 'avoid')
+        log_debug(f"Phase: {market_phase} | CLIP: {original_clip_confidence:.3f} | Visual: {original_clip_confidence > 0.4}", 'debug', 'TJDE')
+        logging.debug(f"Complete decision for {symbol}: decision={decision}, score={score:.3f}, grade={grade}, phase={market_phase}")
         
         if context_modifiers:
             print(f"[CONTEXT MODIFIERS] Applied: {', '.join(context_modifiers)}")

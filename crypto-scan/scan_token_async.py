@@ -939,8 +939,10 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                                 print(f"[TJDE CALC ERROR] {symbol}: Enhanced calculation failed: {calc_e}")
                         liquidity_pattern_score = debug_info.get("liquidity_pattern_score", 0.0)
                         
-                        print(f"[TJDE SCORE] trend_strength={trend_strength:.3f}, pullback_quality={pullback_quality:.3f}, final_score={final_score:.3f}")
-                        print(f"[TJDE SCORE] volume_behavior_score={volume_behavior_score:.3f}, psych_score={psych_score:.3f}, support_reaction={support_reaction:.3f}")
+                        # Legacy TJDE logs replaced with modern unified logging
+                        from utils.log_utils import log_debug
+                        log_debug(f"Trend analysis: strength={trend_strength:.3f}, pullback={pullback_quality:.3f}, final={final_score:.3f}", 'debug', 'TJDE')
+                        log_debug(f"Volume: {volume_behavior_score:.3f}, Psych: {psych_score:.3f}, Support: {support_reaction:.3f}", 'debug', 'TJDE')
                     
                     # Market phase modifier with trend_strength fallback
                     try:

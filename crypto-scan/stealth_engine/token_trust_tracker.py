@@ -8,7 +8,7 @@ import json
 import os
 import threading
 from typing import Dict, List, Optional, Tuple, Set
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 class TokenTrustTracker:
     """
@@ -62,7 +62,7 @@ class TokenTrustTracker:
                 }
             
             token_data = self.trust_data[token]
-            current_time = datetime.now().isoformat()
+            current_time = datetime.now(timezone.utc).isoformat()
             
             for address in addresses:
                 if address not in token_data["addresses"]:
@@ -186,7 +186,7 @@ class TokenTrustTracker:
     
     def cleanup_old_data(self, days: int = 30):
         """Cleanup old trust data"""
-        cutoff_date = datetime.now() - timedelta(days=days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
         cutoff_str = cutoff_date.isoformat()
         
         with self.lock:

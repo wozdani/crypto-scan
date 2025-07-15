@@ -43,7 +43,9 @@ def compute_market_phase_modifier(market_context: Dict) -> float:
             analysis_candles = htf_candles if htf_candles and len(htf_candles) >= 10 else candles
             
             if analysis_candles and len(analysis_candles) >= 20:
-                print(f"[MARKET MODIFIER] Deriving HTF phase from {len(analysis_candles)} candles")
+                # Legacy market modifier logs replaced with modern logging
+                from utils.log_utils import log_debug
+                log_debug(f"Deriving HTF phase from {len(analysis_candles)} candles", 'debug', 'PHASE')
                 
                 closes = []
                 volumes = []
@@ -113,8 +115,10 @@ def compute_market_phase_modifier(market_context: Dict) -> float:
                     else:
                         volatility_regime = "normal"
                     
-                    print(f"[MARKET MODIFIER] Derived: HTF={htf_phase}, Vol={volume_trend}, Volatility={volatility_regime}")
-                    print(f"[MARKET MODIFIER] Trend change: {trend_change:.4f}, Avg volatility: {avg_volatility:.4f}")
+                    # Legacy market modifier logs replaced
+                    from utils.log_utils import log_debug
+                    log_debug(f"Derived: HTF={htf_phase}, Vol={volume_trend}, Volatility={volatility_regime}", 'debug', 'PHASE')
+                    log_debug(f"Trend change: {trend_change:.4f}, Avg volatility: {avg_volatility:.4f}", 'debug', 'PHASE')
         
         print(f"[MARKET MODIFIER] Final context: HTF={htf_phase}, Volume={volume_trend}, Fear/Greed={fear_greed}, Volatility={volatility_regime}")
         
@@ -182,7 +186,9 @@ def compute_market_phase_modifier(market_context: Dict) -> float:
         # Ogranicz modyfikator do bezpiecznego zakresu
         modifier = max(-0.20, min(0.10, modifier))
         
-        print(f"[MARKET MODIFIER] Final modifier: {modifier}")
+        # Legacy market modifier logs replaced
+        from utils.log_utils import log_debug
+        log_debug(f"Final modifier: {modifier}", 'info', 'PHASE')
         return round(modifier, 3)
         
     except Exception as e:
