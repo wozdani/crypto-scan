@@ -173,3 +173,4 @@
 {"timestamp": "2025-07-15T02:03:08.661081", "symbol": "ADDR_0XDC76CD", "inputs": {"gnn_score": 0.953, "whale_clip_confidence": 0.0, "dex_inflow_flag": false}, "outputs": {"decision": "AVOID", "final_score": 0.3177}, "decision_tier": 7}
 {"timestamp": "2025-07-15T02:03:43.738815", "symbol": "ADDR_0X123456", "inputs": {"gnn_score": 0.953, "whale_clip_confidence": 0.0, "dex_inflow_flag": false}, "outputs": {"decision": "AVOID", "final_score": 0.3177}, "decision_tier": 7}
 {"timestamp": "2025-07-15T02:05:17.669503", "symbol": "ADDR_0X742D35", "inputs": {"gnn_score": 0.953, "whale_clip_confidence": 0.0, "dex_inflow_flag": true}, "outputs": {"decision": "ALERT_CONSIDER", "final_score": 0.6514}, "decision_tier": 7}
+{"timestamp": "2025-07-15T02:05:29.308047", "symbol": "ADDR_0XDC76CD", "inputs": {"gnn_score": 0.953, "whale_clip_confidence": 0.0, "dex_inflow_flag": true}, "outputs": {"decision": "ALERT_CONSIDER", "final_score": 0.6514}, "decision_tier": 7}
