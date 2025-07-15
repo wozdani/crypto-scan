@@ -17,7 +17,7 @@ import json
 import logging
 import numpy as np
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Tuple, Optional, Any
 import sys
 import os
@@ -290,6 +290,8 @@ class DiamondFeedbackLoop:
             
             for entry in logs:
                 alert_time = datetime.fromisoformat(entry["timestamp"])
+                if alert_time.tzinfo is None:
+                    alert_time = alert_time.replace(tzinfo=timezone.utc)
                 time_since_alert = now - alert_time
                 
                 # Skip if too early or too late
@@ -426,6 +428,8 @@ class DiamondFeedbackLoop:
                 
                 for entry in logs:
                     alert_time = datetime.fromisoformat(entry["timestamp"])
+                    if alert_time.tzinfo is None:
+                        alert_time = alert_time.replace(tzinfo=timezone.utc)
                     if alert_time >= last_24h:
                         recent_alerts += 1
                     if entry.get("evaluation_status") == "pending":
