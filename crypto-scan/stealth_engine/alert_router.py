@@ -404,6 +404,12 @@ def route_alert_with_priority(symbol: str, score: float, market_data: Dict,
         print(f"[QUEUE PRIORITY ALERT] Warning for {symbol}: stealth_signals is {type(stealth_signals)}, expected list")
         stealth_signals = []
     
+    # 🎯 CRITICAL BUY FILTER: Only send alerts for BUY decisions
+    consensus_decision = market_data.get("consensus_decision", "HOLD")
+    if consensus_decision != "BUY":
+        print(f"[ALERT FILTER] {symbol} → Consensus decision '{consensus_decision}' != BUY - blocking alert")
+        return None
+    
     try:
         # 1. Generuj tagi
         tags = generate_alert_tags(symbol, market_data, stealth_signals, trust_score, trigger_detected)

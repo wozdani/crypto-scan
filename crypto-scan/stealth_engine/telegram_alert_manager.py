@@ -282,21 +282,13 @@ class TelegramAlertManager:
             symbol = alert_data.get("symbol", "UNKNOWN")
             score = alert_data.get("score", 0)
             
-            # Jeśli consensus jest dostępny, sprawdź decyzję
-            # 🔥 FIXING: Accept both "BUY" and "ALERT" as valid alert triggers
-            if consensus_enabled and consensus_decision:
-                if consensus_decision not in ["BUY", "ALERT"]:
-                    print(f"[TELEGRAM CONSENSUS BLOCK] {symbol} → Consensus decision {consensus_decision} blocks alert (score={score:.3f})")
-                    return False  # Blokuj alert jeśli consensus != BUY/ALERT
-                else:
-                    print(f"[TELEGRAM CONSENSUS PASS] {symbol} → Consensus decision {consensus_decision} allows alert (score={score:.3f})")
-            else:
-                # Fallback - bez consensus, sprawdź score threshold
-                if score < 4.0:
-                    print(f"[TELEGRAM NO CONSENSUS] {symbol} → No consensus, score {score:.3f} < 4.0 threshold - blocking alert")
-                    return False
-                else:
-                    print(f"[TELEGRAM FALLBACK] {symbol} → No consensus, high score {score:.3f} >= 4.0 allows alert")
+            # 🎯 UPDATED: Only check consensus decision - no score fallback
+            # Consensus system is now mandatory - alerts are pre-filtered in route_alert_with_priority
+            if consensus_decision != "BUY":
+                print(f"[TELEGRAM CONSENSUS BLOCK] {symbol} → Consensus decision '{consensus_decision}' != BUY - blocking alert")
+                return False
+            
+            print(f"[TELEGRAM CONSENSUS PASS] {symbol} → Consensus decision '{consensus_decision}' allows alert (score={score:.3f})")
             
             # 🔔 Sformatuj wiadomość alertu z rozszerzonymi informacjami
             priority_score = alert_data.get("priority_score", 0)
@@ -622,6 +614,11 @@ def queue_priority_alert(symbol: str, score: float, market_data: Dict,
             symbol, score, market_data, stealth_signals, trust_score, trigger_detected,
             active_functions, gpt_feedback, ai_confidence
         )
+        
+        # Check if alert was filtered out (returns None for non-BUY decisions)
+        if alert_data is None:
+            print(f"[QUEUE PRIORITY ALERT] {symbol}: Alert filtered out - no BUY decision")
+            return False
         
         # Add to queue
         manager = get_telegram_manager()

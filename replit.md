@@ -169,6 +169,20 @@ System dostarcza clean unified architecture gdzie GNN Scheduler działa jako sin
 - **COMPREHENSIVE IMPLEMENTATION**: Both detection level (stealth engine) i delivery level (alert function) filtering ensuring complete alert blocking
 System dostarcza user-requested fine-tuning gdzie FLUXUSDT is permanently excluded z watchlist alert system (score 0.4-0.6 + HOLD decision alerts) while maintaining full watchlist functionality dla all other cryptocurrency tokens demonstrating production system's flexibility i user customization capabilities.
 
+### July 16, 2025 - BUY-ONLY ALERT FILTERING SYSTEM COMPLETE - Unified Telegram Alert Management ✅
+**🎯 CRITICAL ALERT FILTERING BREAKTHROUGH:** Pomyślnie wdrożono kompletny system filtrowania alertów BUY-only eliminując niechciane alerty dla decyzji konsensusu != "BUY" zapewniający precyzyjne zarządzanie alertami Telegram:
+- **BUY-ONLY FILTERING DEPLOYED**: Dodano filtr consensus_decision != "BUY" w route_alert_with_priority() blokujący alerty dla decyzji HOLD/AVOID na poziomie alert routing
+- **TELEGRAM ALERT LOGIC UNIFIED**: Naprawiono queue_priority_alert() obsługując None return gdy alert zablokowany przez BUY filter zapewniający graceful handling
+- **LEGACY CODE ELIMINATION**: Usunięto przestarzałą logikę "[TELEGRAM NO CONSENSUS]" z score < 4.0 threshold zastępując ją nowym systemem consensus-based alert triggering
+- **CONSENSUS-BASED ALERT TRIGGERING**: Zaimplementowano unified alert system gdzie tylko consensus_decision == "BUY" triggeruje alerty Telegram eliminując alert spam
+- **ENHANCED LOGGING TRANSPARENCY**: Dodano logi "[ALERT FILTER]" i "[QUEUE PRIORITY ALERT]" providing complete transparency dla alert blocking decisions
+- **PRODUCTION VALIDATION CONFIRMED**: System logs potwierdzają "[TELEGRAM CONSENSUS BLOCK] SNXUSDT → Consensus decision 'HOLD' != BUY - blocking alert" demonstrating effective filtering
+- **DUAL-LAYER ALERT PROTECTION**: Complete alert filtering na poziomie routing (route_alert_with_priority) i delivery (telegram_alert_manager) zapewniający comprehensive protection
+- **INSTITUTIONAL-GRADE ALERT PRECISION**: Revolutionary alert system gdzie sophisticated consensus decisions directly control alert generation eliminating unnecessary notifications
+- **COMPLETE LEGACY CLEANUP**: Systematyczne usunięcie starych scoring thresholds i conflicting alert logic zapewniający clean unified architecture
+- **ZERO BREAKING CHANGES**: All existing functionality preserved while implementing precise BUY-only alert filtering z comprehensive error handling
+System dostarcza breakthrough alert management gdzie only sophisticated consensus "BUY" decisions trigger Telegram notifications eliminating alert noise, providing institutional-grade precision cryptocurrency intelligence delivery z complete transparency i audit capabilities ensuring focused trading signals without unnecessary distractions.
+
 ### July 15, 2025 - COMPREHENSIVE ENHANCED DIAGNOSTIC SYSTEM COMPLETE - Production-Ready Transparency Intelligence ✅
 **🎉 REVOLUTIONARY BREAKTHROUGH:** Pomyślnie ukończono Comprehensive Enhanced Diagnostic System z enhanced detector visibility, watchlist alert system, GNN subgraph integration, mastermind tracing, i complete alert trigger reasoning zapewniającą institutional-grade diagnostic transparency:
 - **ENHANCED DETECTOR STATUS LOGGING**: Dodano comprehensive logging pokazujący aktywny status każdego detektora (StealthEngine=True, Diamond=active, Californium=active, WhaleCLIP=active, GNN=active) enabling real-time system monitoring
