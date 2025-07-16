@@ -60,13 +60,13 @@ class StealthV3TelegramAlerts:
         """
         
         # 🔐 CRITICAL CONSENSUS DECISION CHECK FIRST - NAJWAŻNIEJSZE SPRAWDZENIE
-        # 🔥 FIXING: Accept both "BUY" and "ALERT" as valid alert triggers
+        # 🎯 BUY-ONLY FILTERING: Only "BUY" consensus decisions trigger alerts
         consensus_decision = consensus_data.get('decision', 'HOLD')
-        if consensus_decision not in ["BUY", "ALERT"]:
-            logger.info(f"[STEALTH V3 CONSENSUS BLOCK] {symbol} → Consensus decision {consensus_decision} blocks alert")
-            return False  # Blokuj alert jeśli consensus != BUY/ALERT
+        if consensus_decision != "BUY":
+            logger.info(f"[STEALTH V3 CONSENSUS BLOCK] {symbol} → Consensus decision '{consensus_decision}' != BUY - blocking alert")
+            return False  # Blokuj alert jeśli consensus != BUY
         else:
-            logger.info(f"[STEALTH V3 CONSENSUS PASS] {symbol} → Consensus decision {consensus_decision} allows alert")
+            logger.info(f"[STEALTH V3 CONSENSUS PASS] {symbol} → Consensus decision '{consensus_decision}' allows alert")
         
         # Validate credentials
         if not self.bot_token or not self.chat_id:
