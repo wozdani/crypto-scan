@@ -1728,10 +1728,11 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             should_alert = False
             
             # Jeśli mamy consensus, użyj TYLKO jego decyzji - ignoruj score
-            if consensus_result and consensus_result.decision.value == "BUY":
+            # 🔥 FIXING: Accept both "BUY" and "ALERT" as valid alert triggers
+            if consensus_result and consensus_result.decision.value in ["BUY", "ALERT"]:
                 should_alert = True
-                print(f"[STEALTH V3 ALERT] {token_data.get('symbol', 'UNKNOWN')}: Consensus decision BUY triggers alert (score ignored)")
-            elif consensus_result and consensus_result.decision.value in ["HOLD", "AVOID"]:
+                print(f"[STEALTH V3 ALERT] {token_data.get('symbol', 'UNKNOWN')}: Consensus decision {consensus_result.decision.value} triggers alert (score ignored)")
+            elif consensus_result and consensus_result.decision.value in ["HOLD", "AVOID", "NO_ALERT"]:
                 should_alert = False
                 print(f"[STEALTH V3 ALERT BLOCK] {token_data.get('symbol', 'UNKNOWN')}: Consensus decision {consensus_result.decision.value} blocks alert (score={score:.3f})")
             else:
