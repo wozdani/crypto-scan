@@ -433,13 +433,65 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     print(f"[STEALTH DEBUG] {symbol} → Calling compute_stealth_score() with {len(stealth_token_data)} keys")
                 
                 # Wywołaj główny silnik scoringu
+                print(f"[FLOW DEBUG] {symbol}: About to call compute_stealth_score()")
                 stealth_result = compute_stealth_score(stealth_token_data)
+                print(f"[FLOW DEBUG] {symbol}: compute_stealth_score() completed successfully")
                 
                 if os.getenv("DEBUG") == "1":
                     print(f"[STEALTH DEBUG] {symbol} → compute_stealth_score() returned: {type(stealth_result)} = {stealth_result}")
                 
                 stealth_score = stealth_result.get("score", 0.0)
                 active_signals = stealth_result.get("active_signals", [])
+                print(f"[FLOW DEBUG] {symbol}: Extracted stealth_score={stealth_score}, active_signals={len(active_signals)}")
+                
+                # 🚧 EXPLORE MODE - Experimental Cold Start Alerts - INTEGRATION INTO MAIN PIPELINE
+                explore_mode = False
+                explore_trigger_reason = None
+                explore_confidence = 0.0
+                
+                print(f"[EXPLORE MODE CHECK] {symbol}: Score={stealth_score:.3f}, Checking cold start conditions...")
+                print(f"[EXPLORE MODE DEBUG] {symbol}: stealth_result type: {type(stealth_result)}, active_signals: {active_signals}")
+                
+                try:
+                    from utils.stealth_utils import is_cold_start, should_explore_mode_trigger, calculate_explore_mode_confidence, format_explore_mode_reason
+                    
+                    # Przygotuj token data dla explore mode
+                    explore_token_data = {
+                        "trust_addresses": 0,  # Simplified - no trust addresses for new tokens
+                        "feedback_history": [],  # No historical feedback for new tokens
+                        "whale_memory_entries": 0,
+                        "historical_alerts": [],
+                        "active_signals": list(active_signals),
+                        "whale_ping_strength": 1.0 if "whale_ping" in str(active_signals) else 0.0,
+                        "dex_inflow_usd": real_dex_inflow,
+                        "final_score": stealth_score
+                    }
+                    
+                    # Sprawdź czy token kwalifikuje się do explore mode
+                    should_explore, trigger_reason = should_explore_mode_trigger(explore_token_data, stealth_score)
+                    
+                    if should_explore:
+                        explore_mode = True
+                        explore_trigger_reason = trigger_reason
+                        explore_confidence = calculate_explore_mode_confidence(explore_token_data, stealth_score)
+                        
+                        print(f"[EXPLORE MODE] {symbol}: Cold start experimental alert triggered")
+                        print(f"[EXPLORE MODE] {symbol}: Reason: {trigger_reason}")
+                        print(f"[EXPLORE MODE] {symbol}: Synthetic confidence: {explore_confidence:.3f}")
+                        print(f"[EXPLORE MODE] {symbol}: Core signals: {len(set(active_signals).intersection({'whale_ping', 'dex_inflow', 'orderbook_anomaly', 'spoofing_layers'}))}")
+                        
+                        # Update stealth_result z explore mode data
+                        stealth_result["explore_mode"] = True
+                        stealth_result["explore_trigger_reason"] = trigger_reason
+                        stealth_result["explore_confidence"] = explore_confidence
+                        
+                    else:
+                        print(f"[EXPLORE MODE] {symbol}: Cold start check failed: {trigger_reason}")
+                        
+                except ImportError:
+                    print(f"[EXPLORE MODE] {symbol}: Explore mode utilities not available")
+                except Exception as e:
+                    print(f"[EXPLORE MODE ERROR] {symbol}: {e}")
                 
                 # Klasyfikacja alertu
                 alert_type = classify_stealth_alert(stealth_score)

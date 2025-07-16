@@ -1619,12 +1619,19 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             trust_boost_score = 0.0
             identity_boost_score = 0.0
         
+        print(f"[FUNCTION DEBUG] {token_data.get('symbol', 'UNKNOWN')}: About to enter consensus section...")
+        
         # 🧠 MULTI-AGENT CONSENSUS DECISION ENGINE - Unified Detector Fusion
         consensus_result = None
         consensus_error = None
         
+        print(f"[CONSENSUS DEBUG] {token_data.get('symbol', 'UNKNOWN')}: Starting consensus decision engine...")
+        
+        print(f"[CONSENSUS DEBUG] {token_data.get('symbol', 'UNKNOWN')}: About to start consensus decision engine")
         try:
+            print(f"[CONSENSUS DEBUG] {token_data.get('symbol', 'UNKNOWN')}: Importing consensus engine...")
             from .consensus_decision_engine import create_consensus_engine
+            print(f"[CONSENSUS DEBUG] {token_data.get('symbol', 'UNKNOWN')}: Consensus engine imported successfully")
             
             # Prepare detector scores for consensus
             detector_scores = {}
@@ -1718,6 +1725,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         if consensus_error:
             result["consensus_error"] = consensus_error
         
+        # Original location dla explore mode logic przeniesiony na lepsze miejsce
         # 🚨 STEALTH V3 TELEGRAM ALERT INTEGRATION - Nowoczesny Alert System
         # Alert triggering logic based ONLY on consensus decision
         try:
@@ -1728,6 +1736,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             should_alert = False
             explore_mode = False
             explore_trigger_reason = None
+            explore_confidence = 0.0
             
             # Jeśli mamy consensus, użyj TYLKO jego decyzji - ignoruj score
             if consensus_result and consensus_result.decision.value == "BUY":
@@ -1744,34 +1753,38 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 else:
                     print(f"[STEALTH V3 NO ALERT] {token_data.get('symbol', 'UNKNOWN')}: No consensus, score {score:.3f} < 4.0 threshold")
             
-            # 🚧 EXPLORE MODE - Experimental Cold Start Alerts
-            if not should_alert:
-                try:
-                    from utils.stealth_utils import is_cold_start, should_explore_mode_trigger, calculate_explore_mode_confidence, format_explore_mode_reason
-                    
-                    # Przygotuj token data dla explore mode
-                    explore_token_data = {
-                        "trust_addresses": len([s for s in used_signals if "trust" in s or "identity" in s]),
-                        "feedback_history": [],  # Brak historii dla nowych tokenów
-                        "contract_found": token_data.get("contract_found", True),
-                        "whale_memory_entries": 0,
-                        "historical_alerts": [],
-                        "active_signals": list(used_signals),
-                        "whale_ping_strength": whale_ping_score,
-                        "dex_inflow_usd": token_data.get("dex_inflow_usd", 0.0),
-                        "final_score": score
-                    }
-                    
-                    # Sprawdź czy token kwalifikuje się do explore mode
-                    should_explore, trigger_reason = should_explore_mode_trigger(explore_token_data, score)
-                    
-                    if should_explore:
+            # 🚧 EXPLORE MODE - Experimental Cold Start Alerts (INDEPENDENT CHECK)
+            # Run explore mode check for all tokens regardless of consensus decision
+            print(f"[EXPLORE MODE DEBUG] {token_data.get('symbol', 'UNKNOWN')}: Reached explore mode section!")
+            print(f"[EXPLORE MODE CHECK] {token_data.get('symbol', 'UNKNOWN')}: Score={score:.3f}, Consensus={consensus_result.decision.value if consensus_result else 'NONE'}")
+            try:
+                from utils.stealth_utils import is_cold_start, should_explore_mode_trigger, calculate_explore_mode_confidence, format_explore_mode_reason
+                
+                # Przygotuj token data dla explore mode
+                explore_token_data = {
+                    "trust_addresses": 0,  # Simplified - no trust addresses for new tokens
+                    "feedback_history": [],  # Brak historii dla nowych tokenów
+                    "contract_found": token_data.get("contract_found", True),
+                    "whale_memory_entries": 0,
+                    "historical_alerts": [],
+                    "active_signals": list(used_signals),
+                    "whale_ping_strength": whale_ping_score,
+                    "dex_inflow_usd": token_data.get("dex_inflow_usd", 0.0),
+                    "final_score": score
+                }
+                
+                # Sprawdź czy token kwalifikuje się do explore mode
+                should_explore, trigger_reason = should_explore_mode_trigger(explore_token_data, score)
+                
+                if should_explore:
+                    # If not already alerting through consensus, trigger explore mode alert
+                    if not should_alert:
                         should_alert = True
                         explore_mode = True
                         explore_trigger_reason = trigger_reason
                         explore_confidence = calculate_explore_mode_confidence(explore_token_data, score)
                         
-                        print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Cold start experimental alert triggered")
+                        print(f"[EXPLORE MODE TRIGGERED] {token_data.get('symbol', 'UNKNOWN')}: Cold start experimental alert triggered")
                         print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Reason: {trigger_reason}")
                         print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Synthetic confidence: {explore_confidence:.3f}")
                         print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Core signals: {len(set(used_signals).intersection({'whale_ping', 'dex_inflow', 'orderbook_anomaly', 'spoofing_layers'}))}")
@@ -1780,14 +1793,19 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         result["explore_mode"] = True
                         result["explore_trigger_reason"] = trigger_reason
                         result["explore_confidence"] = explore_confidence
-                        
                     else:
-                        print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Cold start check failed: {trigger_reason}")
+                        print(f"[EXPLORE MODE QUALIFIED] {token_data.get('symbol', 'UNKNOWN')}: Token qualifies for explore mode but already alerting via consensus")
+                        # Still add explore mode metadata even if alerting through consensus
+                        result["explore_mode_eligible"] = True
+                        result["explore_trigger_reason"] = trigger_reason
                         
-                except ImportError:
-                    print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Explore mode utilities not available")
-                except Exception as e:
-                    print(f"[EXPLORE MODE ERROR] {token_data.get('symbol', 'UNKNOWN')}: {e}")
+                else:
+                    print(f"[EXPLORE MODE SKIP] {token_data.get('symbol', 'UNKNOWN')}: Cold start check failed: {trigger_reason}")
+                    
+            except ImportError:
+                print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Explore mode utilities not available")
+            except Exception as e:
+                print(f"[EXPLORE MODE ERROR] {token_data.get('symbol', 'UNKNOWN')}: {e}")
             
             if should_alert:
                 symbol = token_data.get('symbol', 'UNKNOWN')
@@ -1856,6 +1874,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     "explore_mode": explore_mode,
                     "explore_trigger_reason": explore_trigger_reason if explore_mode else None
                 }
+                
+                print(f"[ALERT SECTION DEBUG] {symbol}: About to send Stealth v3 alert (score: {score:.3f})")
                 
                 # Wyślij Stealth v3 alert
                 alert_success = send_stealth_v3_alert(
@@ -1927,8 +1947,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 
         # ⛔ WATCHLIST ALERT SYSTEM DISABLED per user request
         # User requested removal of watchlist alerts completely
-            
-        return result
+        
+        print(f"[COMPUTE STEALTH SCORE] {token_data.get('symbol', 'UNKNOWN')}: Stealth analysis completed - proceeding to consensus section...")
         
     except Exception as e:
         import traceback

@@ -7,7 +7,7 @@ from typing import Dict, List, Any, Optional
 
 def is_cold_start(token_data: Dict[str, Any]) -> bool:
     """
-    Returns True if token has no historical trust, feedback or contract presence.
+    Returns True if token has no historical trust or feedback data.
     
     Args:
         token_data: Dictionary containing token analysis data
@@ -17,17 +17,10 @@ def is_cold_start(token_data: Dict[str, Any]) -> bool:
     """
     trust = token_data.get("trust_addresses", 0)
     feedbacks = token_data.get("feedback_history", [])
-    contract_found = token_data.get("contract_found", True)
     
-    # Additional cold start indicators
-    whale_memory = token_data.get("whale_memory_entries", 0)
-    historical_alerts = token_data.get("historical_alerts", [])
-    
-    return (trust == 0 and 
-            len(feedbacks) < 1 and 
-            not contract_found and
-            whale_memory < 3 and
-            len(historical_alerts) < 2)
+    # Simple cold start criteria - only trust and feedback
+    return (trust == 0 and               # No trust addresses
+            len(feedbacks) == 0)         # No feedback history
 
 def should_explore_mode_trigger(token_data: Dict[str, Any], final_score: float) -> tuple[bool, str]:
     """
@@ -40,38 +33,53 @@ def should_explore_mode_trigger(token_data: Dict[str, Any], final_score: float) 
     Returns:
         Tuple of (should_trigger, reason)
     """
-    explore_score_threshold = 2.8
-    
-    # Must be cold start and high score
-    if not is_cold_start(token_data) or final_score < explore_score_threshold:
-        return False, "not_cold_start_or_low_score"
-    
-    # Check for high-quality core signals
-    active_signals = set(token_data.get("active_signals", []))
-    core_signals = {'whale_ping', 'dex_inflow', 'orderbook_anomaly', 'spoofing_layers'}
-    
-    # Require at least 2 core signals
-    core_signal_count = len(active_signals.intersection(core_signals))
-    if core_signal_count < 2:
-        return False, f"insufficient_core_signals_{core_signal_count}"
+    explore_score_threshold = 1.8  # Lowered from 2.8 to 1.8 for more triggers
     
     # Additional quality checks
     whale_ping_strength = token_data.get("whale_ping_strength", 0.0)
     dex_inflow_value = token_data.get("dex_inflow_usd", 0.0)
+    active_signals = set(token_data.get("active_signals", []))
+    core_signals = {'whale_ping', 'dex_inflow', 'orderbook_anomaly', 'spoofing_layers'}
+    core_signal_count = len(active_signals.intersection(core_signals))
     
-    # High-quality whale ping (> 0.7 strength)
-    if whale_ping_strength > 0.7:
-        return True, f"high_quality_whale_ping_{whale_ping_strength:.3f}"
+    # Debug logging dla cold start check
+    is_cold = is_cold_start(token_data)
+    print(f"[EXPLORE DEBUG] Score: {final_score:.3f} >= {explore_score_threshold}? {final_score >= explore_score_threshold}")
+    print(f"[EXPLORE DEBUG] Cold start: {is_cold}")
+    print(f"[EXPLORE DEBUG] Trust addresses: {token_data.get('trust_addresses', 0)}")
+    print(f"[EXPLORE DEBUG] Whale memory: {token_data.get('whale_memory_entries', 0)}")
+    print(f"[EXPLORE DEBUG] Historical alerts: {len(token_data.get('historical_alerts', []))}")
+    print(f"[EXPLORE DEBUG] Core signals: {core_signal_count} ({active_signals.intersection(core_signals)})")
+    print(f"[EXPLORE DEBUG] Whale ping strength: {whale_ping_strength:.3f}")
+    print(f"[EXPLORE DEBUG] DEX inflow: ${dex_inflow_value:.0f}")
     
-    # Significant DEX inflow (> $10k)
-    if dex_inflow_value > 10000:
+    # Relaxed scoring requirement - either cold start OR decent signals
+    score_sufficient = final_score >= explore_score_threshold
+    
+    if not score_sufficient:
+        return False, f"score_too_low_{final_score:.3f}_threshold_{explore_score_threshold}"
+    
+    # Require at least 1 core signal (lowered from 2)
+    if core_signal_count < 1:
+        return False, f"insufficient_core_signals_{core_signal_count}"
+    
+    # High-quality whale ping (lowered threshold to > 0.5)
+    if whale_ping_strength > 0.5:
+        return True, f"quality_whale_ping_{whale_ping_strength:.3f}"
+    
+    # Significant DEX inflow (lowered to > $5k)
+    if dex_inflow_value > 5000:
         return True, f"significant_dex_inflow_{dex_inflow_value:.0f}"
     
-    # Strong multi-signal combination
-    if core_signal_count >= 3:
-        return True, f"strong_multi_signal_{core_signal_count}_signals"
+    # Multi-signal combination (lowered to >= 2)
+    if core_signal_count >= 2:
+        return True, f"multi_signal_{core_signal_count}_signals"
     
-    return False, "quality_threshold_not_met"
+    # Any decent signal + cold start
+    if is_cold and core_signal_count >= 1:
+        return True, f"cold_start_with_{core_signal_count}_signals"
+    
+    return False, f"quality_threshold_not_met_signals_{core_signal_count}_whale_{whale_ping_strength:.3f}_dex_{dex_inflow_value:.0f}"
 
 def calculate_explore_mode_confidence(token_data: Dict[str, Any], final_score: float) -> float:
     """
