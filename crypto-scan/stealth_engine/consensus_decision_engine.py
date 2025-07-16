@@ -52,6 +52,7 @@ class ConsensusResult:
     contributing_detectors: List[str]
     reasoning: str
     consensus_strength: float
+    votes: List[AlertDecision] = None
     alert_sent: bool = False
     timestamp: str = None
 
@@ -841,6 +842,16 @@ class ConsensusDecisionEngine:
         
         contributing_detectors = list(active_detectors.keys())
         
+        # Generuj głosy detektorów dla display
+        detector_votes = []
+        for detector, score in scores.items():
+            if score >= threshold:
+                detector_votes.append(AlertDecision.ALERT)
+            else:
+                detector_votes.append(AlertDecision.NO_ALERT)
+        
+        print(f"[SIMPLE CONSENSUS] Generated {len(detector_votes)} votes: {[v.value for v in detector_votes]}")
+        
         # Zwróć rezultat w ConsensusResult format
         result = ConsensusResult(
             decision=decision,
@@ -850,6 +861,7 @@ class ConsensusDecisionEngine:
             contributing_detectors=contributing_detectors,
             reasoning=reason,
             consensus_strength=consensus_strength,
+            votes=detector_votes,
             alert_sent=alert_sent,
             timestamp=datetime.now().isoformat()
         )

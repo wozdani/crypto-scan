@@ -149,7 +149,14 @@ class AlertQueueManager:
                 "identity_boost": stealth_result.get("identity_boost", 0.0),
                 "trust_boost": stealth_result.get("trust_boost", 0.0),
                 "timestamp": datetime.now().isoformat(),
-                "early_score": self.calculate_early_score(token, stealth_result)
+                "early_score": self.calculate_early_score(token, stealth_result),
+                
+                # === CONSENSUS DECISION ENGINE DATA ===
+                "consensus_decision": stealth_result.get("consensus_decision"),
+                "consensus_score": stealth_result.get("consensus_score"),
+                "consensus_confidence": stealth_result.get("consensus_confidence"),
+                "consensus_detectors": stealth_result.get("consensus_detectors", []),
+                "consensus_votes": stealth_result.get("consensus_votes", [])
             }
             
             # Zapisz zaktualizowane scores

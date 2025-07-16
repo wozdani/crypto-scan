@@ -1706,7 +1706,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             "consensus_decision": consensus_result.decision.value if consensus_result else None,
             "consensus_score": round(consensus_result.final_score, 3) if consensus_result else None,
             "consensus_confidence": round(consensus_result.confidence, 3) if consensus_result else None,
-            "consensus_detectors": consensus_result.contributing_detectors if consensus_result else []
+            "consensus_detectors": consensus_result.contributing_detectors if consensus_result else [],
+            "consensus_votes": [v.value if v.value != "ALERT" else "BUY" for v in consensus_result.votes] if consensus_result and hasattr(consensus_result, 'votes') and consensus_result.votes else []
         }
         
         # Dodaj informacje o błędach jeśli wystąpiły
