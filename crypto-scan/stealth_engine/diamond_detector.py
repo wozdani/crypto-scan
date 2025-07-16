@@ -41,6 +41,7 @@ class TemporalGCN(nn.Module):
         self.temporal_lstm = nn.LSTM(
             input_size=hidden_dim,
             hidden_size=hidden_dim,
+            num_layers=2,
             batch_first=True,
             dropout=0.1
         )
