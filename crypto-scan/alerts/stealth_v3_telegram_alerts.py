@@ -168,7 +168,9 @@ class StealthV3TelegramAlerts:
             votes_detail = f"Confidence: {confidence:.3f}"
         
         # Decision action na podstawie score i decision
-        if decision == "BUY" and confidence >= 2.0:
+        if consensus_data.get("explore_mode", False):
+            action_text = "🚧 EXPERIMENTAL ALERT (Explore Mode)"
+        elif decision == "BUY" and confidence >= 2.0:
             action_text = "STRONG LONG 🚀"
         elif decision == "BUY" and confidence >= 1.5:
             action_text = "LONG Opportunity"
@@ -181,7 +183,49 @@ class StealthV3TelegramAlerts:
         timestamp_utc = datetime.utcnow().strftime("%H:%M:%S UTC")
         
         # Format enhanced message z complete diagnostic breakdown
-        message = f"""🚨 Stealth Alert Detected 🚨
+        if consensus_data.get("explore_mode", False):
+            # 🚧 EXPLORE MODE - Experimental alert format
+            explore_reason = consensus_data.get("explore_trigger_reason", "unknown")
+            
+            message = f"""🚧 EXPERIMENTAL ALERT (Explore Mode) 🚧
+
+🐳 Token: {symbol}
+🔍 Detectors: {', '.join(active_detector_names) if active_detector_names else "None active"}
+📈 Score: {total_score:.3f}
+💬 Pattern: {pattern_text}
+
+🗳️ Agent Votes: {votes_detail}
+🤖 Final Decision: {action_text}
+
+📊 Score Breakdown:
+• 🐳 Whale Ping: {whale_ping_score:.3f}
+• 💧 DEX Inflow: {dex_inflow_score:.3f}
+• 🧠 Mastermind: {mastermind_score:.3f}
+• 📊 Orderbook: {orderbook_score:.3f}
+• 🛰️ WhaleCLIP: {whaleclip_score:.3f}
+• 🔮 Californium: {californium_score:.3f}
+• 💎 Diamond: {diamond_score:.3f}
+• 🔁 Feedback Boost: {feedback_adjust:+.3f}
+
+📋 Meta Analysis:
+• Trust addresses: {trust_addresses}
+• Data coverage: {coverage:.1f}%
+• Historical support: {historical_support}
+
+🚧 Cold Start Information:
+• Explore trigger: {explore_reason}
+• Contract: {'not found' if trust_addresses == 0 else 'found'}
+• Prior alerts: None
+• Feedback history: None
+
+⚠️ Cold Start – system testuje sygnał bez pełnego zaufania
+
+⏰ Time: {timestamp_utc}
+
+#StealthEngine #ExploreMode #ColdStart"""
+        else:
+            # Standard alert format
+            message = f"""🚨 Stealth Alert Detected 🚨
 
 🐳 Token: {symbol}
 🔍 Detectors: {', '.join(active_detector_names) if active_detector_names else "None active"}
