@@ -627,20 +627,20 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         
         symbol = token_data.get("symbol", "UNKNOWN")
         
-        # ⛔ Hard-filter: Skip tokens with too low daily volume
+        # ⛔ Hard-filter: Skip tokens with too low daily volume  
         volume_24h = token_data.get("volume_24h", 0)
+        skip_reason = None
         if volume_24h < 500_000:
-            return {
-                "score": 0.0,
-                "active_signals": [],
-                "skipped": "low_volume"
-            }
-        
-        # LOG: Rozpoczęcie analizy Stealth Engine
-        print(f"[STEALTH] Checking token: {symbol}...")
-        
-        # Walidacja tickera z fallback na cenę ze świeczek
-        price = token_data.get("price_usd", 0)
+            skip_reason = "low_volume"
+            score = 0.0
+            active_signals = []
+            print(f"[STEALTH SKIP] {symbol}: Low volume ({volume_24h:,.0f} < 500,000)")
+        else:
+            # LOG: Rozpoczęcie analizy Stealth Engine
+            print(f"[STEALTH] Checking token: {symbol}...")
+            
+            # Walidacja tickera z fallback na cenę ze świeczek
+            price = token_data.get("price_usd", 0)
         
         # 🔧 PRICE FALLBACK: Use candles_15m close price if ticker price_usd == 0
         if price == 0:
@@ -657,13 +657,11 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             except Exception as e:
                 print(f"[STEALTH PRICE FALLBACK ERROR] {symbol} → Cannot extract fallback price: {e}")
         
-        if price == 0:
-            print(f"[STEALTH SKIPPED] {symbol}: No valid price data (ticker and candles both failed) - blocking STEALTH analysis")
-            return {
-                "score": 0.0,
-                "active_signals": [],
-                "skipped": "no_price_data"
-            }
+            if price == 0:
+                print(f"[STEALTH SKIPPED] {symbol}: No valid price data (ticker and candles both failed) - blocking STEALTH analysis")
+                skip_reason = "no_price_data"
+                score = 0.0
+                active_signals = []
         
         if volume_24h == 0:
             print(f"[STEALTH VOLUME WARNING] {symbol}: 24h volume is 0 - possible data issue")
@@ -848,307 +846,298 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             # Sprawdź czy możemy zastosować fallback scoring dla "quiet microcap"
             spread_pct = getattr(token_data, 'spread_pct', 0.0)
             if spread_pct > 0 and spread_pct < 0.3:  # Tight spread + mały orderbook = potencjalna cicha akumulacja
-                return {
-                    "score": 0.25,
-                    "stealth_score": 0.25, 
-                    "active_signals": ["quiet_microcap"],
-                    "stealth_decision": "stealth_watch",
-                    "partial_scoring": True,
-                    "reason": "quiet_microcap_detected"
-                }
+                skip_reason = "quiet_microcap_detected"
+                score = 0.25
+                active_signals = ["quiet_microcap"]
             else:
-                return {
-                    "score": 0.0,
-                    "stealth_score": 0.0,
-                    "active_signals": [],
-                    "stealth_decision": "none",
-                    "partial_scoring": True,
-                    "reason": "illiquid_orderbook_skipped"
-                }
+                skip_reason = "illiquid_orderbook_skipped"
+                score = 0.0
+                active_signals = []
+        else:
 
-        # Pobierz aktywne sygnały z detektorów (zgodnie z user specification)
-        print(f"[DEBUG FLOW] {symbol} - Starting get_active_stealth_signals() call...")
-        try:
-            signals = detector.get_active_stealth_signals(token_data)
-            print(f"[DEBUG FLOW] {symbol} - get_active_stealth_signals() completed successfully")
-            print(f"[STEALTH DEBUG] {symbol}: Successfully got {len(signals)} signals from detector")
-        except Exception as e:
-            print(f"[DEBUG FLOW] {symbol} - get_active_stealth_signals() FAILED")
-            print(f"[STEALTH ERROR] {symbol}: Failed to get signals from detector: {e}")
-            return {
-                "score": 0.0,
-                "stealth_score": 0.0,
-                "active_signals": [],
-                "stealth_decision": "none",
-                "error": f"signal_detection_failed: {e}"
-            }
-        
-        # Załaduj aktualne wagi (mogą być dostrojone przez feedback loop)
-        weights = load_weights()
-        
-        # Analizuj każdy sygnał
-        signal_status = {}
-        
-        for signal in signals:
-            signal_status[signal.name] = getattr(signal, 'active', False)
-        
-        # Wyloguj kluczowe sygnały
-        whale_ping = signal_status.get('whale_ping', False)
-        spoofing_layers = signal_status.get('spoofing_layers', False) 
-        volume_spike = signal_status.get('volume_spike', False)
-        orderbook_anomaly = signal_status.get('orderbook_anomaly', False)
-        dex_inflow_active = signal_status.get('dex_inflow', False)
-        
-        print(f"[STEALTH] Detected signals for {symbol}: whale={whale_ping}, spoofing={spoofing_layers}, volume_spike={volume_spike}, orderbook={orderbook_anomaly}, dex={dex_inflow_active}")
-        
-        score = 0.0
-        used_signals = []
-        total_signals = len(signals)
-        available_signals = 0  # Sygnały z danymi (niezależnie od aktywności)
-        
-        # Oblicz score tylko z aktywnych sygnałów + liczenie dostępności
-        for signal in signals:
-            # 🔍 FIX 3: Sprawdź czy sygnał ma dane (nie jest placeholder) - poprawiona logika
-            has_data = True
-            if signal.name in ['dex_inflow']:
-                # DEX inflow ma dane jeśli wartość nie jest None lub False
-                dex_value = token_data.get('dex_inflow')
-                has_data = dex_value is not None
-                if not has_data:
-                    print(f"[STEALTH DATA] {symbol}: {signal.name} - no DEX data available")
-            elif signal.name in ['spoofing_layers', 'large_bid_walls', 'orderbook_imbalance']:
-                # Orderbook sygnały mają dane jeśli orderbook istnieje
-                orderbook_data = token_data.get('orderbook', {})
-                has_data = bool(orderbook_data.get('bids')) and bool(orderbook_data.get('asks'))
-                if not has_data:
-                    print(f"[STEALTH DATA] {symbol}: {signal.name} - no orderbook data available")
-            elif signal.name in ['volume_spike']:
-                # Volume spike ma dane jeśli są świece
-                candles_data = token_data.get('candles_15m', [])
-                has_data = len(candles_data) >= 4
-                if not has_data:
-                    print(f"[STEALTH DATA] {symbol}: {signal.name} - insufficient candle data ({len(candles_data)}/4)")
-            
-            if has_data:
-                available_signals += 1
-            
-            if hasattr(signal, 'active') and signal.active:
-                # Pobierz wagę dla tego sygnału (fallback na 1.0)
-                weight = weights.get(signal.name, 1.0)
-                
-                # Wkład sygnału = waga * siła sygnału
-                contribution = weight * signal.strength
-                score += contribution
-                used_signals.append(signal.name)
-                
-                # LOG: Każdy aktywny sygnał
-                if signal.strength > 0:
-                    print(f"[STEALTH] Signal {signal.name}: strength={signal.strength:.3f}, weight={weight:.3f}, contribution=+{contribution:.3f}")
-        
-        # 🧠 PARTIAL SCORING MECHANISM - zgodnie z user request
-        data_coverage = available_signals / total_signals if total_signals > 0 else 0
-        
-        # Jeśli mało danych dostępnych (≤50%), zastosuj scaling
-        if data_coverage <= 0.5 and available_signals >= 3:
-            # Proporcjonalne przeliczenie - scale up score based on data coverage
-            scaling_factor = min(2.0, 1.0 / data_coverage) if data_coverage > 0 else 1.0
-            original_score = score
-            score = score * scaling_factor
-            print(f"[STEALTH PARTIAL] {symbol}: Low data coverage ({data_coverage:.1%}), scaling {original_score:.3f} → {score:.3f} (factor: {scaling_factor:.2f})")
-        
-        # Dodaj bonus zgodnie z nową specyfikacją: +0.025 za każdą aktywną regułę
-        active_rules_bonus = len(used_signals) * 0.025
-        score += active_rules_bonus
-        
-        # Dodaj minimalny baseline score jeśli wykryto jakiekolwiek pozytywne sygnały
-        if len(used_signals) > 0 and score < 0.5:
-            baseline_bonus = 0.3 * len(used_signals) / total_signals
-            score += baseline_bonus
-            print(f"[STEALTH PARTIAL] {symbol}: Added baseline bonus +{baseline_bonus:.3f} for {len(used_signals)} active signals")
-        
-        # === DIAMOND WHALE AI DETECTOR INTEGRATION ===
-        # 🔥 STAGE 2/7: Integrate DiamondWhale AI Temporal Graph + QIRL Detector
-        diamond_score = 0.0
-        diamond_enabled = False
-        diamond_error = None
-        
-        try:
-            # Sprawdź czy token ma kontrakt blockchain dla analizy transakcji
-            from utils.contracts import get_contract
-            contract_info = get_contract(symbol)
-            
-            if contract_info and contract_info.get('address'):
-                print(f"[DIAMOND AI] {symbol}: Starting DiamondWhale AI analysis for contract {contract_info['address'][:10]}...")
-                
-                # Pobierz rzeczywiste transakcje blockchain dla analizy temporal graph
-                from .blockchain_fetcher import fetch_diamond_transactions
-                contract_address = contract_info['address']
-                chain = contract_info.get('chain', 'ethereum')
-                
-                # Fetch real blockchain transactions
-                transactions = fetch_diamond_transactions(contract_address, chain)
-                print(f"[DIAMOND AI] {symbol}: Fetched {len(transactions)} real blockchain transactions")
-                
-                # Wywołaj DiamondWhale AI Detector z rzeczywistymi transakcjami
-                diamond_result = run_diamond_detector(transactions, symbol)
-                
-                if diamond_result and diamond_result.get('diamond_score') is not None:
-                    diamond_score = float(diamond_result['diamond_score'])
-                    diamond_enabled = True
-                    
-                    # Dodaj diamond_score do głównego stealth score (z wagą 0.3)
-                    diamond_contribution = diamond_score * 0.3
-                    score += diamond_contribution
-                    
-                    # Dodaj do listy aktywnych sygnałów jeśli znaczący
-                    if diamond_score > 0.5:
-                        used_signals.append("diamond_whale_detection")
-                    
-                    print(f"[DIAMOND AI] {symbol}: Diamond score={diamond_score:.3f}, contribution=+{diamond_contribution:.3f}")
-                    print(f"[DIAMOND AI] {symbol}: Temporal graph analysis completed successfully")
-                else:
-                    print(f"[DIAMOND AI] {symbol}: No significant diamond activity detected")
-            else:
-                print(f"[DIAMOND AI] {symbol}: No blockchain contract found - skipping temporal analysis")
-                
-        except Exception as e:
-            diamond_error = str(e)
-            print(f"[DIAMOND AI ERROR] {symbol}: Failed to run DiamondWhale detector: {e}")
-            print(f"[DIAMOND AI ERROR] {symbol}: Continuing without diamond analysis")
-
-        # === WHALECLIP AI DETECTOR INTEGRATION ===
-        # 🧠 STAGE: Integrate WhaleCLIP Vision AI Detector
-        whaleclip_score = 0.0
-        whaleclip_enabled = False
-        whaleclip_error = None
-        
-        try:
-            # Sprawdź czy token ma kontrakt blockchain dla analizy transakcji
-            from utils.contracts import get_contract
-            contract_info = get_contract(symbol)
-            
-            if contract_info and contract_info.get('address'):
-                print(f"[WHALECLIP AI] {symbol}: Starting WhaleCLIP AI analysis for contract {contract_info['address'][:10]}...")
-                
-                # Wywołaj WhaleCLIP AI Detector - simplified behavioral analysis
+                # Pobierz aktywne sygnały z detektorów (zgodnie z user specification)
+                print(f"[DEBUG FLOW] {symbol} - Starting get_active_stealth_signals() call...")
                 try:
-                    # Use stealth_engine_advanced WhaleCLIP integration
-                    from stealth_engine_advanced import StealthEngineAdvanced
-                    advanced_engine = StealthEngineAdvanced()
+                    signals = detector.get_active_stealth_signals(token_data)
+                    print(f"[DEBUG FLOW] {symbol} - get_active_stealth_signals() completed successfully")
+                    print(f"[STEALTH DEBUG] {symbol}: Successfully got {len(signals)} signals from detector")
+                except Exception as e:
+                    print(f"[DEBUG FLOW] {symbol} - get_active_stealth_signals() FAILED")
+                    print(f"[STEALTH ERROR] {symbol}: Failed to get signals from detector: {e}")
+                    skip_reason = "signal_detection_failed"
+                    score = 0.0
+                    active_signals = []
+                    signals = []
+                
+                # === CORE STEALTH CALCULATION PROCEEDS ===
+                # Od tego punktu wykonujemy normalną analizę stealth signals
+                if not skip_reason:
+                    # Załaduj aktualne wagi (mogą być dostrojone przez feedback loop)
+                    weights = load_weights()
                     
-                    # Get blockchain address for behavioral analysis
-                    blockchain_address = contract_info['address']
-                    chain = contract_info.get('chain', 'ethereum')
+                    # Analizuj każdy sygnał
+                    signal_status = {}
                     
-                    # Fetch transactions and analyze behavioral patterns
-                    transactions = advanced_engine.fetch_transactions_from_blockchain(blockchain_address, chain, limit=20)
+                    for signal in signals:
+                        signal_status[signal.name] = getattr(signal, 'active', False)
                     
-                    if transactions and len(transactions) > 0:
-                        # Simple WhaleCLIP scoring based on transaction patterns
-                        high_value_txs = [tx for tx in transactions if float(tx.get('value', 0)) > 1000]
-                        total_value = sum(float(tx.get('value', 0)) for tx in transactions)
+                    # Wyloguj kluczowe sygnały
+                    whale_ping = signal_status.get('whale_ping', False)
+                    spoofing_layers = signal_status.get('spoofing_layers', False) 
+                    volume_spike = signal_status.get('volume_spike', False)
+                    orderbook_anomaly = signal_status.get('orderbook_anomaly', False)
+                    dex_inflow_active = signal_status.get('dex_inflow', False)
+                    
+                    print(f"[STEALTH] Detected signals for {symbol}: whale={whale_ping}, spoofing={spoofing_layers}, volume_spike={volume_spike}, orderbook={orderbook_anomaly}, dex={dex_inflow_active}")
+                    
+                    score = 0.0
+                    used_signals = []
+                    total_signals = len(signals)
+                    available_signals = 0  # Sygnały z danymi (niezależnie od aktywności)
+                    
+                    # Oblicz score tylko z aktywnych sygnałów + liczenie dostępności
+                    for signal in signals:
+                        # 🔍 FIX 3: Sprawdź czy sygnał ma dane (nie jest placeholder) - poprawiona logika
+                        has_data = True
+                        if signal.name in ['dex_inflow']:
+                            # DEX inflow ma dane jeśli wartość nie jest None lub False
+                            dex_value = token_data.get('dex_inflow')
+                            has_data = dex_value is not None
+                            if not has_data:
+                                print(f"[STEALTH DATA] {symbol}: {signal.name} - no DEX data available")
+                        elif signal.name in ['spoofing_layers', 'large_bid_walls', 'orderbook_imbalance']:
+                            # Orderbook sygnały mają dane jeśli orderbook istnieje
+                            orderbook_data = token_data.get('orderbook', {})
+                            has_data = bool(orderbook_data.get('bids')) and bool(orderbook_data.get('asks'))
+                            if not has_data:
+                                print(f"[STEALTH DATA] {symbol}: {signal.name} - no orderbook data available")
+                        elif signal.name in ['volume_spike']:
+                            # Volume spike ma dane jeśli są świece
+                            candles_data = token_data.get('candles_15m', [])
+                            has_data = len(candles_data) >= 4
+                            if not has_data:
+                                print(f"[STEALTH DATA] {symbol}: {signal.name} - insufficient candle data ({len(candles_data)}/4)")
                         
-                        # Calculate WhaleCLIP confidence based on transaction behavior
-                        if len(high_value_txs) > len(transactions) * 0.3 and total_value > 10000:
-                            whaleclip_score = min(0.9, (len(high_value_txs) / len(transactions)) * (total_value / 100000))
-                            whaleclip_enabled = True
+                        if has_data:
+                            available_signals += 1
+                        
+                        if hasattr(signal, 'active') and signal.active:
+                            # Pobierz wagę dla tego sygnału (fallback na 1.0)
+                            weight = weights.get(signal.name, 1.0)
                             
-                            # Dodaj whaleclip_score do głównego stealth score (z wagą 0.2)
-                            whaleclip_contribution = whaleclip_score * 0.2
-                            score += whaleclip_contribution
+                            # Wkład sygnału = waga * siła sygnału
+                            contribution = weight * signal.strength
+                            score += contribution
+                            used_signals.append(signal.name)
+                            
+                            # LOG: Każdy aktywny sygnał
+                            if signal.strength > 0:
+                                print(f"[STEALTH] Signal {signal.name}: strength={signal.strength:.3f}, weight={weight:.3f}, contribution=+{contribution:.3f}")
+                    
+                    # 🧠 PARTIAL SCORING MECHANISM - zgodnie z user request
+                    data_coverage = available_signals / total_signals if total_signals > 0 else 0
+                    
+                    # Jeśli mało danych dostępnych (≤50%), zastosuj scaling
+                    if data_coverage <= 0.5 and available_signals >= 3:
+                        # Proporcjonalne przeliczenie - scale up score based on data coverage
+                        scaling_factor = min(2.0, 1.0 / data_coverage) if data_coverage > 0 else 1.0
+                        original_score = score
+                        score = score * scaling_factor
+                        print(f"[STEALTH PARTIAL] {symbol}: Low data coverage ({data_coverage:.1%}), scaling {original_score:.3f} → {score:.3f} (factor: {scaling_factor:.2f})")
+                    
+                    # Dodaj bonus zgodnie z nową specyfikacją: +0.025 za każdą aktywną regułę
+                    active_rules_bonus = len(used_signals) * 0.025
+                    score += active_rules_bonus
+                    
+                    # Dodaj minimalny baseline score jeśli wykryto jakiekolwiek pozytywne sygnały
+                    if len(used_signals) > 0 and score < 0.5:
+                        baseline_bonus = 0.3 * len(used_signals) / total_signals
+                        score += baseline_bonus
+                        print(f"[STEALTH PARTIAL] {symbol}: Added baseline bonus +{baseline_bonus:.3f} for {len(used_signals)} active signals")
+                    
+                    # === DIAMOND WHALE AI DETECTOR INTEGRATION ===
+                    # 🔥 STAGE 2/7: Integrate DiamondWhale AI Temporal Graph + QIRL Detector
+                    diamond_score = 0.0
+                    diamond_enabled = False
+                    diamond_error = None
+                    
+                    try:
+                        # Sprawdź czy token ma kontrakt blockchain dla analizy transakcji
+                        from utils.contracts import get_contract
+                        contract_info = get_contract(symbol)
+                        
+                        if contract_info and contract_info.get('address'):
+                            print(f"[DIAMOND AI] {symbol}: Starting DiamondWhale AI analysis for contract {contract_info['address'][:10]}...")
+                            
+                            # Pobierz rzeczywiste transakcje blockchain dla analizy temporal graph
+                            from .blockchain_fetcher import fetch_diamond_transactions
+                            contract_address = contract_info['address']
+                            chain = contract_info.get('chain', 'ethereum')
+                            
+                            # Fetch real blockchain transactions
+                            transactions = fetch_diamond_transactions(contract_address, chain)
+                            print(f"[DIAMOND AI] {symbol}: Fetched {len(transactions)} real blockchain transactions")
+                            
+                            # Wywołaj DiamondWhale AI Detector z rzeczywistymi transakcjami
+                            diamond_result = run_diamond_detector(transactions, symbol)
+                            
+                            if diamond_result and diamond_result.get('diamond_score') is not None:
+                                diamond_score = float(diamond_result['diamond_score'])
+                                diamond_enabled = True
+                                
+                                # Dodaj diamond_score do głównego stealth score (z wagą 0.3)
+                                diamond_contribution = diamond_score * 0.3
+                                score += diamond_contribution
+                                
+                                # Dodaj do listy aktywnych sygnałów jeśli znaczący
+                                if diamond_score > 0.5:
+                                    used_signals.append("diamond_whale_detection")
+                                
+                                print(f"[DIAMOND AI] {symbol}: Diamond score={diamond_score:.3f}, contribution=+{diamond_contribution:.3f}")
+                                print(f"[DIAMOND AI] {symbol}: Temporal graph analysis completed successfully")
+                            else:
+                                print(f"[DIAMOND AI] {symbol}: No significant diamond activity detected")
+                        else:
+                            print(f"[DIAMOND AI] {symbol}: No blockchain contract found - skipping temporal analysis")
+                            
+                    except Exception as e:
+                        diamond_error = str(e)
+                        print(f"[DIAMOND AI ERROR] {symbol}: Failed to run DiamondWhale detector: {e}")
+                        print(f"[DIAMOND AI ERROR] {symbol}: Continuing without diamond analysis")
+                    
+                    # === WHALECLIP AI DETECTOR INTEGRATION ===
+                    # 🧠 STAGE: Integrate WhaleCLIP Vision AI Detector
+                    whaleclip_score = 0.0
+                    whaleclip_enabled = False
+                    whaleclip_error = None
+                    
+                    try:
+                        # Sprawdź czy token ma kontrakt blockchain dla analizy transakcji
+                        from utils.contracts import get_contract
+                        contract_info = get_contract(symbol)
+                        
+                        if contract_info and contract_info.get('address'):
+                            print(f"[WHALECLIP AI] {symbol}: Starting WhaleCLIP AI analysis for contract {contract_info['address'][:10]}...")
+                            
+                            # Wywołaj WhaleCLIP AI Detector - simplified behavioral analysis
+                            try:
+                                # Use stealth_engine_advanced WhaleCLIP integration
+                                from stealth_engine_advanced import StealthEngineAdvanced
+                                advanced_engine = StealthEngineAdvanced()
+                                
+                                # Get blockchain address for behavioral analysis
+                                blockchain_address = contract_info['address']
+                                chain = contract_info.get('chain', 'ethereum')
+                                
+                                # Fetch transactions and analyze behavioral patterns
+                                transactions = advanced_engine.fetch_transactions_from_blockchain(blockchain_address, chain, limit=20)
+                                
+                                if transactions and len(transactions) > 0:
+                                    # Simple WhaleCLIP scoring based on transaction patterns
+                                    high_value_txs = [tx for tx in transactions if float(tx.get('value', 0)) > 1000]
+                                    total_value = sum(float(tx.get('value', 0)) for tx in transactions)
+                                    
+                                    # Calculate WhaleCLIP confidence based on transaction behavior
+                                    if len(high_value_txs) > len(transactions) * 0.3 and total_value > 10000:
+                                        whaleclip_score = min(0.9, (len(high_value_txs) / len(transactions)) * (total_value / 100000))
+                                        whaleclip_enabled = True
+                                        
+                                        # Dodaj whaleclip_score do głównego stealth score (z wagą 0.2)
+                                        whaleclip_contribution = whaleclip_score * 0.2
+                                        score += whaleclip_contribution
+                                        
+                                        # Dodaj do listy aktywnych sygnałów jeśli znaczący
+                                        if whaleclip_score > 0.3:
+                                            used_signals.append("whaleclip_vision_detection")
+                                        
+                                        print(f"[WHALECLIP AI] {symbol}: WhaleCLIP score={whaleclip_score:.3f}, contribution=+{whaleclip_contribution:.3f}")
+                                        print(f"[WHALECLIP AI] {symbol}: Behavioral vision analysis completed successfully")
+                                    else:
+                                        print(f"[WHALECLIP AI] {symbol}: Insufficient behavioral patterns for WhaleCLIP analysis")
+                                else:
+                                    print(f"[WHALECLIP AI] {symbol}: No transactions available for behavioral analysis")
+                                    print(f"[WHALECLIP AI] {symbol}: Fetched 0 transactions, 0 relevant signals - fallback to score 0.0")
+                                    
+                            except Exception as clip_e:
+                                whaleclip_error = str(clip_e)
+                                print(f"[WHALECLIP AI ERROR] {symbol}: WhaleCLIP analysis failed: {clip_e}")
+                        else:
+                            print(f"[WHALECLIP AI] {symbol}: No blockchain contract found - skipping behavioral analysis")
+                            print(f"[WHALECLIP AI] {symbol}: Fetched 0 transactions, 0 relevant signals - fallback to score 0.0")
+                            
+                    except Exception as e:
+                        whaleclip_error = str(e)
+                        print(f"[WHALECLIP AI ERROR] {symbol}: Failed to run WhaleCLIP detector: {e}")
+                        print(f"[WHALECLIP AI ERROR] {symbol}: Continuing without WhaleCLIP analysis")
+                    
+                    # === CALIFORNIUM WHALE AI DETECTOR INTEGRATION ===
+                    # 🚀 STAGE 3/7: Integrate CaliforniumWhale AI Temporal Graph + QIRL Detector
+                    californium_score = 0.0
+                    californium_enabled = False
+                    californium_error = None
+                    
+                    try:
+                        # Wywołaj CaliforniumWhale AI Score
+                        californium_score = californium_whale_score(symbol)
+                        
+                        if californium_score > 0.0:
+                            californium_enabled = True
+                            
+                            # Dodaj californium_score do głównego stealth score (z wagą 0.25)
+                            californium_contribution = californium_score * 0.25
+                            score += californium_contribution
                             
                             # Dodaj do listy aktywnych sygnałów jeśli znaczący
-                            if whaleclip_score > 0.3:
-                                used_signals.append("whaleclip_vision_detection")
+                            if californium_score > 0.3:
+                                used_signals.append("californium_whale_detection")
                             
-                            print(f"[WHALECLIP AI] {symbol}: WhaleCLIP score={whaleclip_score:.3f}, contribution=+{whaleclip_contribution:.3f}")
-                            print(f"[WHALECLIP AI] {symbol}: Behavioral vision analysis completed successfully")
-                        else:
-                            print(f"[WHALECLIP AI] {symbol}: Insufficient behavioral patterns for WhaleCLIP analysis")
-                    else:
-                        print(f"[WHALECLIP AI] {symbol}: No transactions available for behavioral analysis")
-                        print(f"[WHALECLIP AI] {symbol}: Fetched 0 transactions, 0 relevant signals - fallback to score 0.0")
-                        
-                except Exception as clip_e:
-                    whaleclip_error = str(clip_e)
-                    print(f"[WHALECLIP AI ERROR] {symbol}: WhaleCLIP analysis failed: {clip_e}")
-            else:
-                print(f"[WHALECLIP AI] {symbol}: No blockchain contract found - skipping behavioral analysis")
-                print(f"[WHALECLIP AI] {symbol}: Fetched 0 transactions, 0 relevant signals - fallback to score 0.0")
-                
-        except Exception as e:
-            whaleclip_error = str(e)
-            print(f"[WHALECLIP AI ERROR] {symbol}: Failed to run WhaleCLIP detector: {e}")
-            print(f"[WHALECLIP AI ERROR] {symbol}: Continuing without WhaleCLIP analysis")
-
-        # === CALIFORNIUM WHALE AI DETECTOR INTEGRATION ===
-        # 🚀 STAGE 3/7: Integrate CaliforniumWhale AI Temporal Graph + QIRL Detector
-        californium_score = 0.0
-        californium_enabled = False
-        californium_error = None
-        
-        try:
-            # Wywołaj CaliforniumWhale AI Score
-            californium_score = californium_whale_score(symbol)
-            
-            if californium_score > 0.0:
-                californium_enabled = True
-                
-                # Dodaj californium_score do głównego stealth score (z wagą 0.25)
-                californium_contribution = californium_score * 0.25
-                score += californium_contribution
-                
-                # Dodaj do listy aktywnych sygnałów jeśli znaczący
-                if californium_score > 0.3:
-                    used_signals.append("californium_whale_detection")
-                
-                print(f"[CALIFORNIUM AI] {symbol}: Californium score={californium_score:.3f}, contribution=+{californium_contribution:.3f}")
-                print(f"[CALIFORNIUM AI] {symbol}: Temporal GNN + QIRL analysis completed successfully")
-                
-                # 🚨 STAGE 4/7 - CALIFORNIUM ALERT SYSTEM
-                # Sprawdź czy wysłać alert CaliforniumWhale AI (score > 0.7)
-                if californium_score > 0.7:
-                    try:
-                        from californium_alerts import send_californium_alert
-                        
-                        # Przygotuj market data dla alertu
-                        alert_market_data = {
-                            "price_usd": token_data.get('price', 0),
-                            "volume_24h": token_data.get('volume_24h', 0),
-                            "symbol": symbol
-                        }
-                        
-                        # Przygotuj dodatkowy kontekst
-                        alert_context = {
-                            "stealth_score": score,
-                            "active_signals": used_signals.copy(),
-                            "diamond_score": diamond_score if diamond_enabled else None,
-                            "data_coverage": data_coverage
-                        }
-                        
-                        # Wyślij alert CaliforniumWhale AI
-                        alert_sent = send_californium_alert(
-                            symbol, californium_score, 
-                            alert_market_data, alert_context
-                        )
-                        
-                        if alert_sent:
-                            print(f"[CALIFORNIUM ALERT] ✅ {symbol}: Mastermind alert sent (score: {californium_score:.3f})")
-                        else:
-                            print(f"[CALIFORNIUM ALERT] ℹ️ {symbol}: Alert not sent (cooldown/config)")
+                            print(f"[CALIFORNIUM AI] {symbol}: Californium score={californium_score:.3f}, contribution=+{californium_contribution:.3f}")
+                            print(f"[CALIFORNIUM AI] {symbol}: Temporal GNN + QIRL analysis completed successfully")
                             
-                    except ImportError:
-                        print(f"[CALIFORNIUM ALERT] ⚠️ {symbol}: CaliforniumAlerts module not available")
-                    except Exception as alert_error:
-                        print(f"[CALIFORNIUM ALERT] ❌ {symbol}: Alert error: {alert_error}")
-                        
-            else:
-                print(f"[CALIFORNIUM AI] {symbol}: No significant CaliforniumWhale activity detected")
-                
-        except Exception as e:
-            californium_error = str(e)
-            print(f"[CALIFORNIUM AI ERROR] {symbol}: Failed to run CaliforniumWhale detector: {e}")
-            print(f"[CALIFORNIUM AI ERROR] {symbol}: Continuing without californium analysis")
+                            # 🚨 STAGE 4/7 - CALIFORNIUM ALERT SYSTEM
+                            # Sprawdź czy wysłać alert CaliforniumWhale AI (score > 0.7)
+                            if californium_score > 0.7:
+                                try:
+                                    from californium_alerts import send_californium_alert
+                                    
+                                    # Przygotuj market data dla alertu
+                                    alert_market_data = {
+                                        "price_usd": token_data.get('price', 0),
+                                        "volume_24h": token_data.get('volume_24h', 0),
+                                        "symbol": symbol
+                                    }
+                                    
+                                    # Przygotuj dodatkowy kontekst
+                                    alert_context = {
+                                        "stealth_score": score,
+                                        "active_signals": used_signals.copy(),
+                                        "diamond_score": diamond_score if diamond_enabled else None,
+                                        "data_coverage": data_coverage
+                                    }
+                                    
+                                    # Wyślij alert CaliforniumWhale AI
+                                    alert_sent = send_californium_alert(
+                                        symbol, californium_score, 
+                                        alert_market_data, alert_context
+                                    )
+                                    
+                                    if alert_sent:
+                                        print(f"[CALIFORNIUM ALERT] ✅ {symbol}: Mastermind alert sent (score: {californium_score:.3f})")
+                                    else:
+                                        print(f"[CALIFORNIUM ALERT] ℹ️ {symbol}: Alert not sent (cooldown/config)")
+                                        
+                                except ImportError:
+                                    print(f"[CALIFORNIUM ALERT] ⚠️ {symbol}: CaliforniumAlerts module not available")
+                                except Exception as alert_error:
+                                    print(f"[CALIFORNIUM ALERT] ❌ {symbol}: Alert error: {alert_error}")
+                                    
+                        else:
+                            print(f"[CALIFORNIUM AI] {symbol}: No significant CaliforniumWhale activity detected")
+                            
+                    except Exception as e:
+                        californium_error = str(e)
+                        print(f"[CALIFORNIUM AI ERROR] {symbol}: Failed to run CaliforniumWhale detector: {e}")
+                        print(f"[CALIFORNIUM AI ERROR] {symbol}: Continuing without californium analysis")
 
         # LOG: Finalna decyzja scoringowa z nową implementacją bonusu + All AI Detectors
         decision = "strong" if score >= 3.0 else "weak" if score >= 1.0 else "none"
@@ -1618,6 +1607,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             whale_ping_score = 0.0  
             trust_boost_score = 0.0
             identity_boost_score = 0.0
+            
+        print(f"[COMPONENT V4 DEBUG] {symbol}: Component section completed successfully - continuing to consensus...")
         
         print(f"[FUNCTION DEBUG] {token_data.get('symbol', 'UNKNOWN')}: About to enter consensus section...")
         
@@ -1948,17 +1939,127 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         # ⛔ WATCHLIST ALERT SYSTEM DISABLED per user request
         # User requested removal of watchlist alerts completely
         
+        # At end of try block - check if we should return early or proceed to consensus
+        if skip_reason:
+            print(f"[EARLY EXIT] {symbol}: Returning early due to {skip_reason}")
+            return {
+                "score": score,
+                "stealth_score": score,
+                "active_signals": active_signals,
+                "skipped": skip_reason
+            }
+            
         print(f"[COMPUTE STEALTH SCORE] {token_data.get('symbol', 'UNKNOWN')}: Stealth analysis completed - proceeding to consensus section...")
+        print(f"[EXIT DEBUG] {token_data.get('symbol', 'UNKNOWN')}: About to exit try block normally")
         
     except Exception as e:
         import traceback
         print(f"[COMPUTE STEALTH SCORE ERROR] {symbol}: Exception occurred: {type(e).__name__}: {e}")
         print(f"[COMPUTE STEALTH SCORE ERROR] {symbol}: Traceback: {traceback.format_exc()}")
+        # Store error but continue to consensus section
+        stealth_error = f"compute_stealth_error: {e}"
+        score = 0.0
+        active_signals = []
+
+    # 🧠 MULTI-AGENT CONSENSUS DECISION ENGINE - Unified Detector Fusion (MOVED OUTSIDE TRY BLOCK)
+    print(f"[FUNCTION DEBUG] {token_data.get('symbol', 'UNKNOWN')}: About to enter consensus section...")
+    
+    # Import datetime for consensus section
+    from datetime import datetime
+    
+    consensus_result = None
+    consensus_error = None
+    
+    print(f"[CONSENSUS DEBUG] {token_data.get('symbol', 'UNKNOWN')}: Starting consensus decision engine...")
+    
+    try:
+        print(f"[CONSENSUS DEBUG] {token_data.get('symbol', 'UNKNOWN')}: Importing consensus engine...")
+        from .consensus_decision_engine import create_consensus_engine
+        print(f"[CONSENSUS DEBUG] {token_data.get('symbol', 'UNKNOWN')}: Consensus engine imported successfully")
+        
+        # Prepare detector scores for consensus
+        detector_scores = {}
+        
+        # Classic Stealth Engine
+        if score > 0.0:
+            detector_scores["StealthEngine"] = {
+                "score": score,
+                "confidence": min(data_coverage, 1.0),
+                "weight": 0.25
+            }
+        
+        # DiamondWhale AI
+        if diamond_enabled and diamond_score > 0.0:
+            detector_scores["DiamondWhale"] = {
+                "score": diamond_score,
+                "confidence": 0.85,
+                "weight": 0.25
+            }
+        
+        # CaliforniumWhale AI
+        if californium_enabled and californium_score > 0.0:
+            detector_scores["CaliforniumWhale"] = {
+                "score": californium_score,
+                "confidence": 0.80,
+                "weight": 0.33
+            }
+        
+        # WhaleCLIP
+        if whaleclip_enabled and whaleclip_score > 0.0:
+            detector_scores["WhaleCLIP"] = {
+                "score": whaleclip_score,
+                "confidence": 0.75,
+                "weight": 0.20
+            }
+        
+        print(f"[CONSENSUS DEBUG] {token_data.get('symbol', 'UNKNOWN')}: Prepared {len(detector_scores)} detector scores")
+        
+        # Run consensus decision engine
+        if len(detector_scores) >= 2:
+            print(f"[CONSENSUS DEBUG] {token_data.get('symbol', 'UNKNOWN')}: Running consensus with {len(detector_scores)} detectors")
+            
+            consensus_engine = create_consensus_engine()
+            consensus_result = consensus_engine.run(
+                detector_scores=detector_scores,
+                strategy="weighted_average",  # Default strategy
+                metadata={
+                    "symbol": symbol,
+                    "volume_24h": token_data.get("volume_24h", 0),
+                    "timestamp": datetime.now().isoformat()
+                }
+            )
+            
+            print(f"[CONSENSUS SUCCESS] {symbol}: Decision={consensus_result.decision}, Score={consensus_result.score:.3f}, Confidence={consensus_result.confidence:.3f}")
+            
+        else:
+            print(f"[CONSENSUS SKIP] {symbol}: Insufficient detectors ({len(detector_scores)}) - minimum 2 required")
+            
+    except Exception as consensus_err:
+        print(f"[CONSENSUS ERROR] {symbol}: {consensus_err}")
+        consensus_error = str(consensus_err)
+        
+    # Return final result regardless of consensus outcome
+    if 'stealth_error' in locals():
         return {
             "score": 0.0,
             "active_signals": [],
-            "error": f"compute_stealth_error: {e}"
+            "error": stealth_error
         }
+    
+    # Normal return for successful stealth analysis + consensus
+    result = {
+        "score": score,
+        "active_signals": active_signals,
+        "data_coverage": data_coverage,
+        "signal_strength": score,
+        "alert_threshold": alert_threshold,
+        "stealth_alerts": {"score": score},
+        "consensus_result": consensus_result,
+        "consensus_error": consensus_error
+    }
+    
+    print(f"[COMPUTE STEALTH SCORE COMPLETE] {symbol}: Score={score:.3f}, Consensus={'Success' if consensus_result else 'Error/Skip'}")
+    return result
 
 
 def classify_stealth_alert(stealth_score: float) -> Optional[str]:
