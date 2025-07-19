@@ -233,26 +233,40 @@ class ConsensusDecisionEngine:
         boosted_detectors = []
         
         for detector_name, detector_data in unified_scores.items():
-            # CRITICAL FIX: Extract values with proper type checking
-            if isinstance(detector_data.get('score'), dict):
-                score = detector_data['score'].get('score', 0.0)
-            else:
-                score = detector_data.get('score', 0.0)
-                
-            if isinstance(detector_data.get('confidence'), dict):
-                confidence = detector_data['confidence'].get('confidence', 0.0)
-            else:
-                confidence = detector_data.get('confidence', 0.0)
-                
-            if isinstance(detector_data.get('weight'), dict):
-                weight = detector_data['weight'].get('weight', 0.0)
-            else:
-                weight = detector_data.get('weight', 0.0)
+            # 🔧 CRITICAL FIX #1: Prevent dict * float error from CHZUSDT logs
+            score_raw = detector_data.get('score', 0.0)
+            confidence_raw = detector_data.get('confidence', 0.0)
+            weight_raw = detector_data.get('weight', 0.25)
             
-            # Ensure all values are numeric
-            score = float(score) if score is not None else 0.0
-            confidence = float(confidence) if confidence is not None else 0.0
-            weight = float(weight) if weight is not None else 0.0
+            # Extract nested values if dict format
+            if isinstance(score_raw, dict):
+                score = score_raw.get('score', score_raw.get('value', 0.0))
+            else:
+                score = score_raw
+                
+            if isinstance(confidence_raw, dict):
+                confidence = confidence_raw.get('confidence', confidence_raw.get('value', 0.0))
+            else:
+                confidence = confidence_raw
+                
+            if isinstance(weight_raw, dict):
+                weight = weight_raw.get('weight', weight_raw.get('value', 0.25))
+            else:
+                weight = weight_raw
+            
+            # Robust type conversion with validation
+            try:
+                score = float(score) if score is not None else 0.0
+                confidence = float(confidence) if confidence is not None else 0.0
+                weight = float(weight) if weight is not None else 0.25
+            except (ValueError, TypeError) as e:
+                print(f"[CONSENSUS FIX] {detector_name}: Type conversion error {e}, using defaults")
+                score, confidence, weight = 0.0, 0.0, 0.25
+            
+            # Bounds checking
+            score = max(0.0, min(1.0, score))
+            confidence = max(0.0, min(1.0, confidence))
+            weight = max(0.0, min(2.0, weight))
             
             print(f"[TYPE SAFETY] {detector_name}: score={score:.3f} (type: {type(score)}), confidence={confidence:.3f}, weight={weight:.3f}")
             
@@ -1022,10 +1036,24 @@ class ConsensusDecisionEngine:
             # Pobierz wagę detektora
             base_weight = self.detector_weights.get(detector_score.name, 0.25)
             
-            # Dostosuj wagę przez confidence
-            adjusted_weight = base_weight * detector_score.confidence
+            # 🔧 CRITICAL FIX #1b: Prevent dict multiplication in weighted average
+            # Safely extract score and confidence values
+            score_value = detector_score.score
+            confidence_value = detector_score.confidence
             
-            total_weighted_score += detector_score.score * adjusted_weight
+            if isinstance(score_value, dict):
+                score_value = score_value.get('score', score_value.get('value', 0.0))
+            if isinstance(confidence_value, dict):
+                confidence_value = confidence_value.get('confidence', confidence_value.get('value', 0.0))
+            
+            # Ensure numeric types
+            score_value = float(score_value) if score_value is not None else 0.0
+            confidence_value = float(confidence_value) if confidence_value is not None else 0.0
+            
+            # Dostosuj wagę przez confidence
+            adjusted_weight = base_weight * confidence_value
+            
+            total_weighted_score += score_value * adjusted_weight
             total_weight += adjusted_weight
             contributing_detectors.append(detector_score.name)
         

@@ -2070,17 +2070,32 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         print(f"[CONSENSUS ERROR] {symbol}: {consensus_err}")
         consensus_error = str(consensus_err)
         
+    # 🔧 CRITICAL FIX #6: Prevent score reset to 0.000 after consensus errors
+    # If consensus fails but stealth analysis succeeded, preserve stealth score
+    final_score = score
+    if consensus_result and hasattr(consensus_result, 'final_score') and consensus_result.final_score > 0:
+        # Use consensus score if available and valid
+        final_score = consensus_result.final_score
+        print(f"[SCORE PRESERVE] {symbol}: Using consensus score {final_score:.3f}")
+    elif score > 0:
+        # Fallback to stealth score if consensus failed
+        final_score = score
+        print(f"[SCORE FALLBACK] {symbol}: Consensus failed, preserving stealth score {final_score:.3f}")
+    
     # Return final result regardless of consensus outcome
-    if 'stealth_error' in locals():
+    if 'stealth_error' in locals() and stealth_error:
         return {
             "score": 0.0,
+            "stealth_score": 0.0,
             "active_signals": [],
-            "error": stealth_error
+            "error": stealth_error,
+            "consensus_error": consensus_error
         }
     
     # Normal return for successful stealth analysis + consensus
     result = {
-        "score": score,
+        "score": final_score,
+        "stealth_score": final_score,
         "active_signals": active_signals,
         "data_coverage": data_coverage,
         "signal_strength": score,

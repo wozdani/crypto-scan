@@ -146,37 +146,71 @@ async def get_candles_async(symbol: str, interval: str, session: aiohttp.ClientS
             raise e
         return []
 
-async def get_ticker_async(symbol: str, session: aiohttp.ClientSession) -> Optional[Dict]:
-    """Async ticker data fetch"""
-    try:
-        url = "https://api.bybit.com/v5/market/tickers"
-        params = {"category": "linear", "symbol": symbol}
-        
-        async with session.get(url, params=params, timeout=5) as response:
-            if response.status != 200:
-                if response.status == 403:
-                    raise Exception(f"HTTP 403 Forbidden - geographical restriction for {symbol}")
-                return None
+async def get_ticker_async(symbol: str, session: aiohttp.ClientSession, max_retries: int = 3) -> Optional[Dict]:
+    """🔧 CRITICAL FIX #3: Async ticker with retry mechanism for CHZUSDT invalid ticker"""
+    for attempt in range(max_retries):
+        try:
+            url = "https://api.bybit.com/v5/market/tickers"
+            params = {"category": "linear", "symbol": symbol}
             
-            data = await response.json()
-            if not data.get("result", {}).get("list"):
-                return None
+            async with session.get(url, params=params, timeout=5) as response:
+                if response.status != 200:
+                    print(f"[TICKER RETRY] {symbol} → HTTP {response.status} (attempt {attempt + 1}/{max_retries})")
+                    if response.status == 403:
+                        raise Exception(f"HTTP 403 Forbidden - geographical restriction for {symbol}")
+                    
+                    # Retry on 5xx errors or timeouts
+                    if response.status >= 500 and attempt < max_retries - 1:
+                        await asyncio.sleep(1)  # Wait 1 second before retry
+                        continue
+                    return None
+                
+                data = await response.json()
+                if not data.get("result", {}).get("list"):
+                    print(f"[TICKER RETRY] {symbol} → Empty data (attempt {attempt + 1}/{max_retries})")
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(1)
+                        continue
+                    return None
+                
+                ticker = data["result"]["list"][0]
+                price = float(ticker.get("lastPrice", 0))
+                volume = float(ticker.get("volume24h", 0))
+                
+                # 🔧 VALIDATE TICKER DATA QUALITY (prevent CHZUSDT Price $0.0, Volume 0.0)
+                if price <= 0.0 or volume <= 0.0:
+                    print(f"[TICKER INVALID] {symbol}: Price ${price}, Volume {volume} (attempt {attempt + 1}/{max_retries}) - retrying...")
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(1)  # Wait before retry
+                        continue
+                    else:
+                        print(f"[TICKER FAILED] {symbol}: All {max_retries} attempts returned invalid data")
+                        return None
+                
+                print(f"[TICKER VALID] {symbol} → Price: ${price}, Volume: {volume} (attempt {attempt + 1})")
+                return {
+                    "symbol": symbol,
+                    "price": price,
+                    "volume_24h": volume,
+                    "price_change_24h": float(ticker.get("price24hPcnt", 0)),
+                    "high_24h": float(ticker.get("highPrice24h", 0)),
+                    "low_24h": float(ticker.get("lowPrice24h", 0))
+                }
+                
+        except Exception as e:
+            print(f"[TICKER ERROR] {symbol} → {e} (attempt {attempt + 1}/{max_retries})")
+            # Re-raise HTTP 403 geographical restrictions immediately
+            if "HTTP 403 Forbidden - geographical restriction" in str(e):
+                raise e
             
-            ticker = data["result"]["list"][0]
-            return {
-                "symbol": symbol,
-                "price": float(ticker.get("lastPrice", 0)),
-                "volume_24h": float(ticker.get("volume24h", 0)),
-                "price_change_24h": float(ticker.get("price24hPcnt", 0)),
-                "high_24h": float(ticker.get("highPrice24h", 0)),
-                "low_24h": float(ticker.get("lowPrice24h", 0))
-            }
+            # Retry on other errors
+            if attempt < max_retries - 1:
+                await asyncio.sleep(1)
+                continue
             
-    except Exception as e:
-        # Re-raise HTTP 403 geographical restrictions
-        if "HTTP 403 Forbidden - geographical restriction" in str(e):
-            raise e
-        return None
+            return None
+    
+    return None  # All retries failed
 
 async def get_orderbook_async(symbol: str, session: aiohttp.ClientSession, depth: int = 200) -> Optional[Dict]:
     """Async orderbook fetch with production diagnostics - ENHANCED DEPTH"""
