@@ -1140,8 +1140,16 @@ class ConsensusDecisionEngine:
         # Określ decyzję
         decision = self._determine_decision_from_score(final_score)
         
-        # Oblicz consensus confidence
-        avg_confidence = sum(ds.confidence for ds in detector_scores) / len(detector_scores)
+        # Oblicz consensus confidence with type safety
+        confidence_values = []
+        for ds in detector_scores:
+            conf_val = ds.confidence
+            if isinstance(conf_val, dict):
+                conf_val = conf_val.get('confidence', conf_val.get('value', 0.0))
+            conf_val = float(conf_val) if conf_val is not None else 0.0
+            confidence_values.append(conf_val)
+        
+        avg_confidence = sum(confidence_values) / len(confidence_values) if confidence_values else 0.0
         consensus_strength = min(1.0, total_weight / sum(self.detector_weights.values()))
         
         reasoning = f"Weighted average consensus: {final_score:.3f} from {len(contributing_detectors)} detectors"
@@ -1167,28 +1175,55 @@ class ConsensusDecisionEngine:
         contributing_detectors = []
         
         for detector_score in detector_scores:
-            if detector_score.score >= self.consensus_thresholds['alert_threshold']:
+            # Type-safe score comparison
+            score_val = detector_score.score
+            if isinstance(score_val, dict):
+                score_val = score_val.get('score', score_val.get('value', 0.0))
+            score_val = float(score_val) if score_val is not None else 0.0
+            
+            if score_val >= self.consensus_thresholds['alert_threshold']:
                 alert_votes += 1
-            elif detector_score.score >= self.consensus_thresholds['watch_threshold']:
+            elif score_val >= self.consensus_thresholds['watch_threshold']:
                 watch_votes += 1
             else:
                 no_alert_votes += 1
             
             contributing_detectors.append(detector_score.name)
         
+        # Type-safe score calculation helper function
+        def safe_score_average(detector_scores):
+            score_values = []
+            for ds in detector_scores:
+                score_val = ds.score
+                if isinstance(score_val, dict):
+                    score_val = score_val.get('score', score_val.get('value', 0.0))
+                score_val = float(score_val) if score_val is not None else 0.0
+                score_values.append(score_val)
+            return sum(score_values) / len(score_values) if score_values else 0.0
+
         # Określ zwycięską decyzję
         if alert_votes > (len(detector_scores) / 2):
             decision = AlertDecision.ALERT
-            final_score = sum(ds.score for ds in detector_scores) / len(detector_scores)
+            final_score = safe_score_average(detector_scores)
         elif (alert_votes + watch_votes) > no_alert_votes:
             decision = AlertDecision.WATCH
-            final_score = sum(ds.score for ds in detector_scores) / len(detector_scores)
+            final_score = safe_score_average(detector_scores)
         else:
             decision = AlertDecision.NO_ALERT
-            final_score = sum(ds.score for ds in detector_scores) / len(detector_scores)
+            final_score = safe_score_average(detector_scores)
         
         consensus_strength = max(alert_votes, watch_votes, no_alert_votes) / len(detector_scores)
-        avg_confidence = sum(ds.confidence for ds in detector_scores) / len(detector_scores)
+        
+        # Type-safe confidence calculation
+        confidence_values = []
+        for ds in detector_scores:
+            conf_val = ds.confidence
+            if isinstance(conf_val, dict):
+                conf_val = conf_val.get('confidence', conf_val.get('value', 0.0))
+            conf_val = float(conf_val) if conf_val is not None else 0.0
+            confidence_values.append(conf_val)
+        
+        avg_confidence = sum(confidence_values) / len(confidence_values) if confidence_values else 0.0
         
         reasoning = f"Majority vote: {alert_votes} alert, {watch_votes} watch, {no_alert_votes} no-alert votes"
         
@@ -1232,21 +1267,42 @@ class ConsensusDecisionEngine:
         
         unanimous_threshold = self.consensus_thresholds['unanimous_threshold']
         
-        # Sprawdź czy wszystkie detektory są zgodne
-        high_scores = [ds for ds in detector_scores if ds.score >= unanimous_threshold]
-        low_scores = [ds for ds in detector_scores if ds.score < 0.3]
+        # Sprawdź czy wszystkie detektory są zgodne (with type safety)
+        high_scores = []
+        low_scores = []
+        for ds in detector_scores:
+            score_val = ds.score
+            if isinstance(score_val, dict):
+                score_val = score_val.get('score', score_val.get('value', 0.0))
+            score_val = float(score_val) if score_val is not None else 0.0
+            
+            if score_val >= unanimous_threshold:
+                high_scores.append(ds)
+            if score_val < 0.3:
+                low_scores.append(ds)
         
+        # Type-safe score calculation
+        def safe_score_average(detector_scores):
+            score_values = []
+            for ds in detector_scores:
+                score_val = ds.score
+                if isinstance(score_val, dict):
+                    score_val = score_val.get('score', score_val.get('value', 0.0))
+                score_val = float(score_val) if score_val is not None else 0.0
+                score_values.append(score_val)
+            return sum(score_values) / len(score_values) if score_values else 0.0
+
         if len(high_scores) == len(detector_scores):
             # Wszystkie detektory wskazują alert
             decision = AlertDecision.ALERT
-            final_score = sum(ds.score for ds in detector_scores) / len(detector_scores)
+            final_score = safe_score_average(detector_scores)
             consensus_strength = 1.0
             reasoning = f"Unanimous agreement: all {len(detector_scores)} detectors above {unanimous_threshold}"
         
         elif len(low_scores) == len(detector_scores):
             # Wszystkie detektory wskazują no alert
             decision = AlertDecision.NO_ALERT
-            final_score = sum(ds.score for ds in detector_scores) / len(detector_scores)
+            final_score = safe_score_average(detector_scores)
             consensus_strength = 1.0
             reasoning = f"Unanimous agreement: all {len(detector_scores)} detectors below 0.3"
         
@@ -1258,7 +1314,16 @@ class ConsensusDecisionEngine:
             result.consensus_strength *= 0.5  # Reduce confidence due to disagreement
             return result
         
-        avg_confidence = sum(ds.confidence for ds in detector_scores) / len(detector_scores)
+        # Type-safe confidence calculation
+        confidence_values = []
+        for ds in detector_scores:
+            conf_val = ds.confidence
+            if isinstance(conf_val, dict):
+                conf_val = conf_val.get('confidence', conf_val.get('value', 0.0))
+            conf_val = float(conf_val) if conf_val is not None else 0.0
+            confidence_values.append(conf_val)
+        
+        avg_confidence = sum(confidence_values) / len(confidence_values) if confidence_values else 0.0
         contributing_detectors = [ds.name for ds in detector_scores]
         
         return ConsensusResult(
@@ -1276,32 +1341,59 @@ class ConsensusDecisionEngine:
                                     detector_scores: List[DetectorScore]) -> ConsensusResult:
         """Strategia dominant detector - najwyższy score decyduje"""
         
+        # Type-safe score calculations
+        def safe_score_confidence_product(ds):
+            score_val = ds.score
+            conf_val = ds.confidence
+            
+            if isinstance(score_val, dict):
+                score_val = score_val.get('score', score_val.get('value', 0.0))
+            if isinstance(conf_val, dict):
+                conf_val = conf_val.get('confidence', conf_val.get('value', 0.0))
+                
+            score_val = float(score_val) if score_val is not None else 0.0
+            conf_val = float(conf_val) if conf_val is not None else 0.0
+            
+            return score_val * conf_val
+        
+        def safe_score_value(ds):
+            score_val = ds.score
+            if isinstance(score_val, dict):
+                score_val = score_val.get('score', score_val.get('value', 0.0))
+            return float(score_val) if score_val is not None else 0.0
+
         # Znajdź detektor z najwyższym score
-        dominant_detector = max(detector_scores, key=lambda ds: ds.score * ds.confidence)
+        dominant_detector = max(detector_scores, key=safe_score_confidence_product)
         
         # Sprawdź czy dominant detector ma wystarczającą przewagę
-        other_scores = [ds.score for ds in detector_scores if ds.name != dominant_detector.name]
+        other_scores = [safe_score_value(ds) for ds in detector_scores if ds.name != dominant_detector.name]
         avg_others = sum(other_scores) / len(other_scores) if other_scores else 0.0
         
-        dominance_factor = dominant_detector.score - avg_others
+        dominance_factor = safe_score_value(dominant_detector) - avg_others
         
-        if dominance_factor >= 0.2 and dominant_detector.score >= self.consensus_thresholds['alert_threshold']:
+        dominant_score = safe_score_value(dominant_detector)
+        dominant_confidence = dominant_detector.confidence
+        if isinstance(dominant_confidence, dict):
+            dominant_confidence = dominant_confidence.get('confidence', dominant_confidence.get('value', 0.0))
+        dominant_confidence = float(dominant_confidence) if dominant_confidence is not None else 0.0
+        
+        if dominance_factor >= 0.2 and dominant_score >= self.consensus_thresholds['alert_threshold']:
             decision = AlertDecision.ALERT
             consensus_strength = min(1.0, dominance_factor / 0.5)
-        elif dominant_detector.score >= self.consensus_thresholds['watch_threshold']:
+        elif dominant_score >= self.consensus_thresholds['watch_threshold']:
             decision = AlertDecision.WATCH
             consensus_strength = min(1.0, dominance_factor / 0.3)
         else:
             decision = AlertDecision.NO_ALERT
             consensus_strength = 0.5
         
-        reasoning = f"Dominant detector {dominant_detector.name}: {dominant_detector.score:.3f} (dominance: {dominance_factor:.3f})"
+        reasoning = f"Dominant detector {dominant_detector.name}: {dominant_score:.3f} (dominance: {dominance_factor:.3f})"
         contributing_detectors = [ds.name for ds in detector_scores]
         
         return ConsensusResult(
             decision=decision,
-            final_score=dominant_detector.score,
-            confidence=dominant_detector.confidence,
+            final_score=dominant_score,
+            confidence=dominant_confidence,
             strategy_used=ConsensusStrategy.DOMINANT_DETECTOR,
             contributing_detectors=contributing_detectors,
             reasoning=reasoning,
@@ -1337,8 +1429,16 @@ class ConsensusDecisionEngine:
         
         base_threshold = self.consensus_thresholds['alert_threshold']
         
-        # Dostosuj threshold na podstawie average confidence detektorów
-        avg_confidence = sum(ds.confidence for ds in detector_scores) / len(detector_scores)
+        # Dostosuj threshold na podstawie average confidence detektorów with type safety
+        confidence_values = []
+        for ds in detector_scores:
+            conf_val = ds.confidence
+            if isinstance(conf_val, dict):
+                conf_val = conf_val.get('confidence', conf_val.get('value', 0.0))
+            conf_val = float(conf_val) if conf_val is not None else 0.0
+            confidence_values.append(conf_val)
+        
+        avg_confidence = sum(confidence_values) / len(confidence_values) if confidence_values else 0.0
         
         # Wyższa confidence = niższy threshold, niższa confidence = wyższy threshold
         confidence_adjustment = (0.8 - avg_confidence) * 0.2  # Range: -0.1 to +0.1
@@ -1372,7 +1472,7 @@ class ConsensusDecisionEngine:
             'confidence': result.confidence,
             'strategy': result.strategy_used.value,
             'consensus_strength': result.consensus_strength,
-            'detector_scores': {ds.name: ds.score for ds in detector_scores},
+            'detector_scores': {ds.name: (ds.score.get('score', ds.score.get('value', 0.0)) if isinstance(ds.score, dict) else float(ds.score) if ds.score is not None else 0.0) for ds in detector_scores},
             'reasoning': result.reasoning
         }
         
