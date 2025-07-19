@@ -831,12 +831,12 @@ class ConsensusDecisionEngine:
         """
         print(f"[SIMPLE CONSENSUS] Processing {token} using Etap 2 logic")
         
-        # Threshold dla aktywnych detektorów (zgodnie z specyfikacją)
-        threshold = 0.75
-        global_score_threshold = 0.8
-        min_detectors = 2
+        # 🔧 BELUSDT FIX: Lower consensus thresholds for better alert generation
+        threshold = 0.65  # Reduced from 0.75 to 0.65 for broader detection
+        global_score_threshold = 0.7  # Reduced from 0.8 to 0.7
+        min_detectors = 1  # Reduced from 2 to 1 - allow single strong detector
         
-        # Znajdź aktywne detektory (score >= 0.75)
+        # Znajdź aktywne detektory (score >= 0.65)
         active_detectors = {k: v for k, v in scores.items() if v >= threshold}
         
         print(f"[SIMPLE CONSENSUS] Active detectors (>= {threshold}): {len(active_detectors)}")
@@ -850,8 +850,8 @@ class ConsensusDecisionEngine:
         
         print(f"[SIMPLE CONSENSUS] Global score (avg of active): {global_score:.3f}")
         
-        # Logika decyzyjna zgodnie z Etap 2:
-        # min. 2 detektory > 0.75 AND global_score > 0.8
+        # 🔧 BELUSDT FIX: Updated decision logic:
+        # min. 1 detektor > 0.65 AND global_score > 0.7
         if len(active_detectors) >= min_detectors and global_score > global_score_threshold:
             decision = AlertDecision.ALERT
             reason = f"Simple consensus from {len(active_detectors)} detectors, score={global_score:.2f}"

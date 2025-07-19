@@ -443,22 +443,48 @@ class StealthSignalDetector:
                 has_real_whales = False
                 real_whale_addresses = []
             
-            # 🚀 DECISION LOGIC FIX: Real whales always override adaptive thresholds
+            # 🔧 BELUSDT FIX: Enhanced whale detection logic with better thresholds
             if has_real_whales:
                 # PRAWDZIWE WHALE ADRESY: zawsze aktywuj niezależnie od order size
                 active = True
                 strength = 1.0  # Maksymalna siła dla prawdziwych whale adresów
                 print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MID → REAL WHALES DETECTED: active=True, strength=1.0 (overrides adaptive threshold)")
             else:
-                # BRAK PRAWDZIWYCH WHALE ADRESÓW: zastosuj adaptacyjne progi
-                # Enhanced filter: 50% minimum threshold for orderbook-only detection
-                if max_order_usd < threshold * 0.5:
-                    print(f"[STEALTH] whale_ping skipped for {symbol} – order size too small for threshold (${threshold:.2f})")
+                # BRAK PRAWDZIWYCH WHALE ADRESÓW: zastosuj bardziej elastyczne progi
+                # 🔧 BELUSDT FIX: Reduced minimum threshold to 25% instead of 50%
+                min_threshold = max(threshold * 0.25, 1000.0)  # Minimum $1k always
+                
+                if max_order_usd < min_threshold:
+                    print(f"[STEALTH] whale_ping skipped for {symbol} – order ${max_order_usd:.0f} < minimum ${min_threshold:.0f}")
                     return StealthSignal("whale_ping", False, 0.0)
                 
-                # Standard adaptive threshold logic
-                active = max_order_usd >= threshold
-                strength = min(max_order_usd / (threshold * 2), 1.0) if threshold > 0 else 0.0
+                # Enhanced progressive threshold logic
+                if max_order_usd >= threshold:
+                    # Full threshold met - maximum strength
+                    active = True
+                    strength = 1.0
+                    print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] STRONG → order ${max_order_usd:.0f} >= full threshold ${threshold:.0f}")
+                elif max_order_usd >= threshold * 0.5:
+                    # Medium threshold met - good strength
+                    active = True
+                    strength = 0.75
+                    print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MEDIUM → order ${max_order_usd:.0f} >= medium threshold ${threshold * 0.5:.0f}")
+                else:
+                    # Low threshold met - moderate strength
+                    active = True
+                    strength = 0.5
+                    print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] WEAK → order ${max_order_usd:.0f} >= minimum ${min_threshold:.0f}")
+                
+                # Apply whale memory boost if available
+                try:
+                    from utils.whale_memory import WhaleMemoryManager
+                    whale_memory = WhaleMemoryManager()
+                    memory_boost = whale_memory.get_whale_boost(symbol, max_order_usd)
+                    if memory_boost > 0:
+                        strength = min(1.0, strength + memory_boost)
+                        print(f"[WHALE MEMORY] {symbol}: Applied memory boost +{memory_boost:.3f} → final strength: {strength:.3f}")
+                except Exception as memory_e:
+                    print(f"[WHALE MEMORY] {symbol}: Memory boost failed: {memory_e}")reshold * 2), 1.0) if threshold > 0 else 0.0
                 
                 ratio = max_order_usd / threshold if threshold > 0 else 0
                 print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MID → ADAPTIVE THRESHOLD: ratio={ratio:.3f}, active={active}, strength={strength:.3f}")
@@ -525,8 +551,10 @@ class StealthSignalDetector:
                         
                         if total_trust_boost > 0:
                             final_trust_boost = min(0.5, total_trust_boost)  # Cap at 0.5
+                            prev_strength = strength
                             strength = min(1.0, strength + final_trust_boost)
-                            print(f"[TRUST BOOST] {symbol} whale_ping: Applied +{final_trust_boost:.3f} trust boost from real addresses → strength: {strength:.3f}")
+                            print(f"[TRUST BOOST] {symbol} whale_ping: Applied +{final_trust_boost:.3f} trust boost from real addresses → strength: {prev_strength:.3f} → {strength:.3f}")
+                            print(f"[BOOST TRACKING] {symbol} - Trust boost: +{final_trust_boost:.3f} → strength: {strength:.3f}")
                         
                     except Exception as trust_e:
                         print(f"[TRUST BOOST ERROR] whale_ping for {symbol}: {trust_e}")

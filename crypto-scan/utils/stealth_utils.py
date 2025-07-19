@@ -33,7 +33,8 @@ def should_explore_mode_trigger(token_data: Dict[str, Any]) -> bool:
         True if should trigger explore mode
     """
     final_score = token_data.get("final_score", 0.0)
-    explore_score_threshold = 1.8  # Lowered from 2.8 to 1.8 for more triggers
+    # 🔧 BELUSDT FIX: Much lower explore mode threshold for experimental alerts
+    explore_score_threshold = 0.8  # Lowered from 1.8 to 0.8 for broader experimental detection
     
     # Additional quality checks
     whale_ping_strength = token_data.get("whale_ping_strength", 0.0)
@@ -77,21 +78,21 @@ def should_explore_mode_trigger(token_data: Dict[str, Any]) -> bool:
     
     print(f"[EXPLORE MODE DECISION] ✅ Core signals sufficient: {core_signal_count} >= 1")
     
-    # High-quality whale ping (lowered threshold to > 0.5)
-    if whale_ping_strength > 0.5:
-        print(f"[EXPLORE MODE DECISION] ✅ TRIGGERED: Quality whale ping detected ({whale_ping_strength:.3f} > 0.5)")
+    # 🔧 BELUSDT FIX: Much lower whale ping threshold for whale detection
+    if whale_ping_strength > 0.3:  # Lowered from 0.5 to 0.3
+        print(f"[EXPLORE MODE DECISION] ✅ TRIGGERED: Quality whale ping detected ({whale_ping_strength:.3f} > 0.3)")
         print(f"[EXPLORE MODE DEBUG] ====== EXPLORE MODE TRIGGERED ======")
         return True
     
-    print(f"[EXPLORE MODE DECISION] ⚠️ Whale ping not strong enough: {whale_ping_strength:.3f} <= 0.5")
+    print(f"[EXPLORE MODE DECISION] ⚠️ Whale ping not strong enough: {whale_ping_strength:.3f} <= 0.3")
     
-    # Significant DEX inflow (lowered to > $5k)
-    if dex_inflow_value > 5000:
-        print(f"[EXPLORE MODE DECISION] ✅ TRIGGERED: Significant DEX inflow detected (${dex_inflow_value:.0f} > $5,000)")
+    # 🔧 BELUSDT FIX: Much lower DEX inflow threshold 
+    if dex_inflow_value > 1000:  # Lowered from $5,000 to $1,000
+        print(f"[EXPLORE MODE DECISION] ✅ TRIGGERED: Significant DEX inflow detected (${dex_inflow_value:.0f} > $1,000)")
         print(f"[EXPLORE MODE DEBUG] ====== EXPLORE MODE TRIGGERED ======")
         return True
     
-    print(f"[EXPLORE MODE DECISION] ⚠️ DEX inflow not significant enough: ${dex_inflow_value:.0f} <= $5,000")
+    print(f"[EXPLORE MODE DECISION] ⚠️ DEX inflow not significant enough: ${dex_inflow_value:.0f} <= $1,000")
     
     # Multi-signal combination (lowered to >= 2)
     if core_signal_count >= 2:

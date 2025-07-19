@@ -33,9 +33,10 @@ def compute_adaptive_whale_threshold(volume_24h: float, max_order_usd: float = 0
     - Max order $60 vs $3,075 → Still skip (correctly)
     - Token z $20M volume → $50k threshold (lepsze wykrywanie)
     """
-    base_threshold = 500  # Minimum $500 dla bardzo małych tokenów
-    volume_factor = 0.0025  # 0.25% wolumenu jako próg whale
-    max_threshold = 50_000  # Maksymalny próg $50k dla wielkich tokenów
+    # 🔧 BELUSDT/ETCUSDT FIX: Much lower whale detection thresholds
+    base_threshold = 300  # Minimum $300 dla bardzo małych tokenów (reduced from $500)
+    volume_factor = 0.0008  # 0.08% wolumenu jako próg whale (reduced from 0.25%)
+    max_threshold = 15_000  # Maksymalny próg $15k dla wielkich tokenów (reduced from $50k)
     
     # Oblicz próg bazujący na wolumenie
     volume_based_threshold = volume_24h * volume_factor
