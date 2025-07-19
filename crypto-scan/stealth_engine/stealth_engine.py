@@ -620,12 +620,32 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             "active_signals": list  # Lista nazw aktywnych sygnałów
         }
     """
+    # Initialize all variables at function start to prevent UnboundLocalError
+    score = 0.0
+    active_signals = []
+    data_coverage = 1.0
+    alert_threshold = 3.0
+    used_signals = []
+    stealth_error = None
+    symbol = token_data.get("symbol", "UNKNOWN")
+    
+    # Initialize AI detector variables
+    diamond_enabled = False
+    diamond_score = 0.0
+    diamond_error = None
+    whaleclip_enabled = False
+    whaleclip_score = 0.0
+    whaleclip_error = None
+    californium_enabled = False
+    californium_score = 0.0
+    californium_error = None
+    consensus_result = None
+    consensus_error = None
+    
     try:
         # Import lokalny aby uniknąć circular imports
         from .stealth_signals import StealthSignalDetector
         from .stealth_weights import load_weights
-        
-        symbol = token_data.get("symbol", "UNKNOWN")
         
         # ⛔ Hard-filter: Skip tokens with too low daily volume  
         volume_24h = token_data.get("volume_24h", 0)
