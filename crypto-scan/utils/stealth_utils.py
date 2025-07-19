@@ -70,13 +70,21 @@ def should_explore_mode_trigger(token_data: Dict[str, Any]) -> bool:
     
     print(f"[EXPLORE MODE DECISION] ✅ Score sufficient: {final_score:.3f} >= {explore_score_threshold}")
     
-    # Require at least 1 core signal (lowered from 2)
-    if core_signal_count < 1:
-        print(f"[EXPLORE MODE DECISION] ❌ REJECTED: Insufficient core signals ({core_signal_count} < 1)")
+    # 🔧 ACEUSDT FIX: Allow whale-only activation for strong whale signals
+    # Require at least 1 core signal OR strong whale signal (≥1.0)
+    whale_signal_override = whale_ping_strength >= 1.0  # Strong whale signal can bypass core requirement
+    
+    if core_signal_count < 1 and not whale_signal_override:
+        print(f"[EXPLORE MODE DECISION] ❌ REJECTED: Insufficient core signals ({core_signal_count} < 1) and whale signal not strong enough ({whale_ping_strength:.3f} < 1.0)")
+        print(f"[ACEUSDT EXPLORE FIX] No whale override available - need core signals or whale ≥1.0")
         print(f"[EXPLORE MODE DEBUG] ====== EXPLORE MODE REJECTED ======")
         return False
     
-    print(f"[EXPLORE MODE DECISION] ✅ Core signals sufficient: {core_signal_count} >= 1")
+    if whale_signal_override:
+        print(f"[EXPLORE MODE DECISION] ✅ WHALE OVERRIDE: Strong whale signal ({whale_ping_strength:.3f} ≥ 1.0) bypasses core requirement")
+        print(f"[ACEUSDT EXPLORE FIX] Whale override activated - strong whale signal enabled explore mode")
+    else:
+        print(f"[EXPLORE MODE DECISION] ✅ Core signals sufficient: {core_signal_count} >= 1")
     
     # 🔧 BELUSDT FIX: Much lower whale ping threshold for whale detection
     if whale_ping_strength > 0.3:  # Lowered from 0.5 to 0.3

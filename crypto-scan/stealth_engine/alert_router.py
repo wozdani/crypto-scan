@@ -337,6 +337,7 @@ def create_priority_alert_data(symbol: str, score: float, priority_score: float,
         
         # 🔐 CRITICAL CONSENSUS DECISION DATA - Required for Telegram Alert Manager
         "consensus_decision": market_data.get("consensus_decision", "HOLD"),
+        "consensus_score": market_data.get("consensus_score", 0.0),  # ACEUSDT FIX: Add consensus_score for strong signal override
         "consensus_enabled": market_data.get("consensus_enabled", False),
         "consensus_confidence": market_data.get("consensus_confidence", 0.0),
         "consensus_detectors": market_data.get("consensus_detectors", []),
@@ -404,11 +405,19 @@ def route_alert_with_priority(symbol: str, score: float, market_data: Dict,
         print(f"[QUEUE PRIORITY ALERT] Warning for {symbol}: stealth_signals is {type(stealth_signals)}, expected list")
         stealth_signals = []
     
-    # 🎯 CRITICAL BUY FILTER: Only send alerts for BUY decisions
+    # 🎯 ACEUSDT FIX: Enhanced BUY filter with strong signal override
     consensus_decision = market_data.get("consensus_decision", "HOLD")
-    if consensus_decision != "BUY":
+    consensus_score = market_data.get("consensus_score", 0.0)
+    
+    # Strong signal override for exceptional consensus scores (like ACEUSDT 0.902)
+    strong_signal_override = consensus_score >= 0.85 and score >= 0.85
+    
+    if consensus_decision != "BUY" and not strong_signal_override:
         print(f"[ALERT FILTER] {symbol} → Consensus decision '{consensus_decision}' != BUY - blocking alert")
         return None
+    elif strong_signal_override and consensus_decision != "BUY":
+        print(f"[ACEUSDT ALERT FIX] {symbol} → Strong signal override: consensus_score={consensus_score:.3f} >= 0.85, bypassing BUY filter")
+        print(f"[ALERT FILTER] {symbol} → Override applied - processing alert despite decision '{consensus_decision}'")
     
     try:
         # 1. Generuj tagi

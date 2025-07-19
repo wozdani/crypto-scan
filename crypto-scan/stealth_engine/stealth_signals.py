@@ -854,17 +854,22 @@ class StealthSignalDetector:
             # Enhanced detection logic with real data
             spike_detected = total_inflow_usd > max(avg_recent * 2, 2000) and len(real_addresses) >= 2
             
-            # 🔧 CRITICAL FIX #7: Track strength changes and preserve trust boost applications
+            # 🔧 ACEUSDT FIX: Enhanced trust boost tracking and final strength preservation
             base_strength = min(total_inflow_usd / (avg_recent * 3 + 1), 0.8) if avg_recent > 0 else 0.0
             strength = base_strength
+            enhanced_strength = base_strength  # Track enhanced strength separately
+            
+            print(f"[BOOST TRACKING] {symbol} - Base strength: {base_strength:.3f}")
             
             # Bonus for multiple unique addresses (sign of coordinated activity)
             if len(real_addresses) >= 5:
-                strength = min(1.0, strength + 0.2)
-                print(f"[BOOST TRACKING] {symbol} - Multiple addresses (≥5) boost: +0.2 → strength: {strength:.3f}")
+                enhanced_strength = min(1.0, enhanced_strength + 0.2)
+                print(f"[BOOST TRACKING] {symbol} - Multiple addresses (≥5) boost: +0.2 → enhanced: {base_strength:.3f} → {enhanced_strength:.3f}")
             elif len(real_addresses) >= 3:
-                strength = min(1.0, strength + 0.1)
-                print(f"[BOOST TRACKING] {symbol} - Multiple addresses (≥3) boost: +0.1 → strength: {strength:.3f}")
+                enhanced_strength = min(1.0, enhanced_strength + 0.1)
+                print(f"[BOOST TRACKING] {symbol} - Multiple addresses (≥3) boost: +0.1 → enhanced: {base_strength:.3f} → {enhanced_strength:.3f}")
+            
+            strength = enhanced_strength  # Apply enhanced strength
             
             # MID LOG - calculation details
             ratio = total_inflow_usd / (avg_recent * 2) if avg_recent > 0 else 0
@@ -948,8 +953,9 @@ class StealthSignalDetector:
                             final_trust_boost = min(0.4, total_trust_boost)  # Cap at 0.4
                             prev_strength = strength
                             strength = min(1.0, strength + final_trust_boost)
+                            enhanced_strength = strength  # 🔧 ACEUSDT FIX: Update enhanced strength to preserve trust boost
                             print(f"[TRUST BOOST] {symbol} dex_inflow: Applied +{final_trust_boost:.3f} trust boost from real addresses → strength: {prev_strength:.3f} → {strength:.3f}")
-                            print(f"[BOOST TRACKING] {symbol} - Trust boost: +{final_trust_boost:.3f} → strength: {strength:.3f}")
+                            print(f"[BOOST TRACKING] {symbol} - Trust boost: {prev_strength:.3f} → {enhanced_strength:.3f} (final strength preserved)")
                         
                     except Exception as trust_e:
                         print(f"[TRUST BOOST ERROR] dex_inflow for {symbol}: {trust_e}")
@@ -977,8 +983,9 @@ class StealthSignalDetector:
                             if trust_boost > 0:
                                 prev_strength = strength
                                 strength = min(1.0, strength + trust_boost)
+                                enhanced_strength = strength  # 🔧 ACEUSDT FIX: Update enhanced strength to preserve token trust boost
                                 print(f"[TOKEN TRUST] {symbol} → trust boost +{trust_boost:.3f} → strength: {prev_strength:.3f} → {strength:.3f}")
-                                print(f"[BOOST TRACKING] {symbol} - Token trust boost: +{trust_boost:.3f} → strength: {strength:.3f}")
+                                print(f"[BOOST TRACKING] {symbol} - Token trust boost: {prev_strength:.3f} → {enhanced_strength:.3f} (final strength preserved)")
                             else:
                                 print(f"[TOKEN TRUST] {symbol} → no trust boost applied")
                                 
@@ -1014,8 +1021,9 @@ class StealthSignalDetector:
                             if identity_boost > 0:
                                 prev_strength = strength
                                 strength = min(1.0, strength + identity_boost)
+                                enhanced_strength = strength  # 🔧 ACEUSDT FIX: Update enhanced strength to preserve identity boost
                                 print(f"[IDENTITY BOOST] {symbol} → identity boost +{identity_boost:.3f} → strength: {prev_strength:.3f} → {strength:.3f}")
-                                print(f"[BOOST TRACKING] {symbol} - Identity boost: +{identity_boost:.3f} → strength: {strength:.3f}")
+                                print(f"[BOOST TRACKING] {symbol} - Identity boost: {prev_strength:.3f} → {enhanced_strength:.3f} (final strength preserved)")
                             else:
                                 print(f"[IDENTITY BOOST] {symbol} → no identity boost applied")
                                 
@@ -1062,11 +1070,12 @@ class StealthSignalDetector:
                             )
                             prev_strength = strength
                             strength = boosted_strength
+                            enhanced_strength = strength  # 🔧 ACEUSDT FIX: Update enhanced strength to preserve smart money boost
                             spike_detected = True  # Force spike detection dla smart money
                             
                             print(f"[TRIGGER ALERT] 🚨 {symbol} DEX INFLOW: Smart money detected! "
                                   f"Strength boosted to {strength:.3f} (priority alert: {priority_alert})")
-                            print(f"[BOOST TRACKING] {symbol} - Smart money boost: {prev_strength:.3f} → {strength:.3f}")
+                            print(f"[BOOST TRACKING] {symbol} - Smart money boost: {prev_strength:.3f} → {enhanced_strength:.3f} (final strength preserved)")
                         else:
                             print(f"[DEBUG FLOW] {symbol} - No smart money trigger detected")
                             

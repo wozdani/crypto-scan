@@ -624,8 +624,9 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                             gpt_feedback = market_data.get("gpt_feedback", "")
                             ai_confidence = market_data.get("ai_confidence", 0.0)
                             
-                            # 🔧 CRITICAL FIX: Add consensus data to market_data from cache before queuing alert
+                            # 🔧 ACEUSDT FIX: Add complete consensus data to market_data from cache before queuing alert
                             market_data["consensus_decision"] = consensus_decision
+                            market_data["consensus_score"] = result.get("consensus_score", 0.0)  # Add consensus_score for strong signal override
                             market_data["consensus_enabled"] = consensus_enabled
                             
                             # Queue Stealth alert with priority scoring and enhanced data
@@ -1443,8 +1444,9 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         gpt_feedback = market_data.get("gpt_feedback", f"TJDE Score: {tjde_score:.3f} - {enhanced_decision}")
                         ai_confidence = market_data.get("ai_confidence", tjde_score)
                         
-                        # 🔧 CRITICAL FIX: Add consensus data to market_data from cache before queuing TJDE alert
+                        # 🔧 ACEUSDT FIX: Add complete consensus data to market_data from cache before queuing TJDE alert
                         market_data["consensus_decision"] = consensus_decision
+                        market_data["consensus_score"] = result.get("consensus_score", 0.0)  # Add consensus_score for strong signal override
                         market_data["consensus_enabled"] = consensus_enabled
                         
                         # Queue TJDE alert with priority scoring and enhanced data
