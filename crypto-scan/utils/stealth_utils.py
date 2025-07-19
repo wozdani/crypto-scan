@@ -42,34 +42,56 @@ def should_explore_mode_trigger(token_data: Dict[str, Any], final_score: float) 
     core_signals = {'whale_ping', 'dex_inflow', 'orderbook_anomaly', 'spoofing_layers'}
     core_signal_count = len(active_signals.intersection(core_signals))
     
-    # Debug logging dla cold start check
+    # Enhanced debug logging dla explore mode analysis
     is_cold = is_cold_start(token_data)
-    print(f"[EXPLORE DEBUG] Score: {final_score:.3f} >= {explore_score_threshold}? {final_score >= explore_score_threshold}")
-    print(f"[EXPLORE DEBUG] Cold start: {is_cold}")
-    print(f"[EXPLORE DEBUG] Trust addresses: {token_data.get('trust_addresses', 0)}")
-    print(f"[EXPLORE DEBUG] Whale memory: {token_data.get('whale_memory_entries', 0)}")
-    print(f"[EXPLORE DEBUG] Historical alerts: {len(token_data.get('historical_alerts', []))}")
-    print(f"[EXPLORE DEBUG] Core signals: {core_signal_count} ({active_signals.intersection(core_signals)})")
-    print(f"[EXPLORE DEBUG] Whale ping strength: {whale_ping_strength:.3f}")
-    print(f"[EXPLORE DEBUG] DEX inflow: ${dex_inflow_value:.0f}")
+    print(f"[EXPLORE MODE DEBUG] ====== EXPLORE MODE EVALUATION ======")
+    print(f"[EXPLORE MODE DEBUG] Score check: {final_score:.3f} >= {explore_score_threshold}? {final_score >= explore_score_threshold}")
+    print(f"[EXPLORE MODE DEBUG] Cold start status: {is_cold}")
+    print(f"[EXPLORE MODE DEBUG] Trust addresses: {token_data.get('trust_addresses', 0)}")
+    print(f"[EXPLORE MODE DEBUG] Whale memory entries: {token_data.get('whale_memory_entries', 0)}")
+    print(f"[EXPLORE MODE DEBUG] Historical alerts count: {len(token_data.get('historical_alerts', []))}")
+    print(f"[EXPLORE MODE DEBUG] Active signals: {list(active_signals)}")
+    print(f"[EXPLORE MODE DEBUG] Core signals found: {core_signal_count} out of {len(core_signals)}")
+    print(f"[EXPLORE MODE DEBUG] Core signal intersection: {active_signals.intersection(core_signals)}")
+    print(f"[EXPLORE MODE DEBUG] Whale ping strength: {whale_ping_strength:.3f}")
+    print(f"[EXPLORE MODE DEBUG] DEX inflow value: ${dex_inflow_value:.2f}")
+    print(f"[EXPLORE MODE DEBUG] Contract found: {token_data.get('contract_found', 'unknown')}")
     
     # Relaxed scoring requirement - either cold start OR decent signals
     score_sufficient = final_score >= explore_score_threshold
     
+    print(f"[EXPLORE MODE DEBUG] ----- DECISION LOGIC EVALUATION -----")
+    
     if not score_sufficient:
+        print(f"[EXPLORE MODE DECISION] ❌ REJECTED: Score too low ({final_score:.3f} < {explore_score_threshold})")
+        print(f"[EXPLORE MODE DEBUG] ====== EXPLORE MODE REJECTED ======")
         return False, f"score_too_low_{final_score:.3f}_threshold_{explore_score_threshold}"
+    
+    print(f"[EXPLORE MODE DECISION] ✅ Score sufficient: {final_score:.3f} >= {explore_score_threshold}")
     
     # Require at least 1 core signal (lowered from 2)
     if core_signal_count < 1:
+        print(f"[EXPLORE MODE DECISION] ❌ REJECTED: Insufficient core signals ({core_signal_count} < 1)")
+        print(f"[EXPLORE MODE DEBUG] ====== EXPLORE MODE REJECTED ======")
         return False, f"insufficient_core_signals_{core_signal_count}"
+    
+    print(f"[EXPLORE MODE DECISION] ✅ Core signals sufficient: {core_signal_count} >= 1")
     
     # High-quality whale ping (lowered threshold to > 0.5)
     if whale_ping_strength > 0.5:
+        print(f"[EXPLORE MODE DECISION] ✅ TRIGGERED: Quality whale ping detected ({whale_ping_strength:.3f} > 0.5)")
+        print(f"[EXPLORE MODE DEBUG] ====== EXPLORE MODE TRIGGERED ======")
         return True, f"quality_whale_ping_{whale_ping_strength:.3f}"
+    
+    print(f"[EXPLORE MODE DECISION] ⚠️ Whale ping not strong enough: {whale_ping_strength:.3f} <= 0.5")
     
     # Significant DEX inflow (lowered to > $5k)
     if dex_inflow_value > 5000:
+        print(f"[EXPLORE MODE DECISION] ✅ TRIGGERED: Significant DEX inflow detected (${dex_inflow_value:.0f} > $5,000)")
+        print(f"[EXPLORE MODE DEBUG] ====== EXPLORE MODE TRIGGERED ======")
         return True, f"significant_dex_inflow_{dex_inflow_value:.0f}"
+    
+    print(f"[EXPLORE MODE DECISION] ⚠️ DEX inflow not significant enough: ${dex_inflow_value:.0f} <= $5,000")
     
     # Multi-signal combination (lowered to >= 2)
     if core_signal_count >= 2:

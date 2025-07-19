@@ -1765,10 +1765,17 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         
                         # 🚧 EXPLORE MODE - Experimental Cold Start Alerts (INDEPENDENT CHECK)
                         # Run explore mode check for all tokens regardless of consensus decision
-                        print(f"[EXPLORE MODE DEBUG] {token_data.get('symbol', 'UNKNOWN')}: Reached explore mode section!")
-                        print(f"[EXPLORE MODE CHECK] {token_data.get('symbol', 'UNKNOWN')}: Score={score:.3f}, Consensus={consensus_result.decision.value if consensus_result else 'NONE'}")
+                        print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: ====== STARTING EXPLORE MODE ANALYSIS ======")
+                        print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Score={score:.3f}, Consensus={consensus_result.decision.value if consensus_result else 'NONE'}")
+                        print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Current alert status: should_alert={should_alert}")
+                        print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Active signals: {list(used_signals)}")
+                        print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Whale ping score: {whale_ping_score:.3f}")
+                        print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: DEX inflow: ${token_data.get('dex_inflow_usd', 0.0):.2f}")
+                        
                         try:
                             from utils.stealth_utils import is_cold_start, should_explore_mode_trigger, calculate_explore_mode_confidence, format_explore_mode_reason
+                            
+                            print(f"[EXPLORE MODE SETUP] {token_data.get('symbol', 'UNKNOWN')}: Successfully imported explore mode utilities")
                             
                             # Przygotuj token data dla explore mode
                             explore_token_data = {
@@ -1783,8 +1790,12 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                 "final_score": score
                             }
                             
+                            print(f"[EXPLORE MODE SETUP] {token_data.get('symbol', 'UNKNOWN')}: Prepared explore token data with {len(used_signals)} active signals")
+                            
                             # Sprawdź czy token kwalifikuje się do explore mode
+                            print(f"[EXPLORE MODE EVALUATION] {token_data.get('symbol', 'UNKNOWN')}: Calling should_explore_mode_trigger()...")
                             should_explore, trigger_reason = should_explore_mode_trigger(explore_token_data, score)
+                            print(f"[EXPLORE MODE EVALUATION] {token_data.get('symbol', 'UNKNOWN')}: Result: should_explore={should_explore}, reason='{trigger_reason}'")
                             
                             if should_explore:
                                 # If not already alerting through consensus, trigger explore mode alert
