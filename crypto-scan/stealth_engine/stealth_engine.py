@@ -642,6 +642,11 @@ def compute_stealth_score(token_data: Dict) -> Dict:
     consensus_result = None
     consensus_error = None
     
+    # Initialize explore mode variables
+    explore_mode_triggered = False
+    explore_trigger_reason = None
+    explore_confidence = 0.0
+    
     try:
         # Import lokalny aby uniknąć circular imports
         from .stealth_signals import StealthSignalDetector
@@ -1736,6 +1741,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         result["consensus_error"] = consensus_error
                     
                     # Original location dla explore mode logic przeniesiony na lepsze miejsce
+                    print(f"[ALERT INTEGRATION DEBUG] {token_data.get('symbol', 'UNKNOWN')}: About to enter Stealth V3 alert system")
                     # 🚨 STEALTH V3 TELEGRAM ALERT INTEGRATION - Nowoczesny Alert System
                     # Alert triggering logic based ONLY on consensus decision
                     try:
@@ -1764,69 +1770,14 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             else:
                                 print(f"[STEALTH V3 NO ALERT] {token_data.get('symbol', 'UNKNOWN')}: No consensus, score {score:.3f} < {alert_threshold} threshold")
                         
-                        # 🚧 EXPLORE MODE - Experimental Cold Start Alerts (INDEPENDENT CHECK)
-                        # Run explore mode check for all tokens regardless of consensus decision
-                        print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: ====== STARTING EXPLORE MODE ANALYSIS ======")
-                        print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Score={score:.3f}, Consensus={consensus_result.decision.value if consensus_result else 'NONE'}")
-                        print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Current alert status: should_alert={should_alert}")
-                        print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Active signals: {list(used_signals)}")
-                        print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Whale ping score: {whale_ping_score:.3f}")
-                        print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: DEX inflow: ${token_data.get('dex_inflow_usd', 0.0):.2f}")
+                        # 🚧 INTEGRATE EXPLORE MODE RESULTS 
+                        # Use explore mode results from earlier analysis
+                        explore_mode = explore_mode_triggered
                         
-                        try:
-                            from utils.stealth_utils import is_cold_start, should_explore_mode_trigger, calculate_explore_mode_confidence, format_explore_mode_reason
-                            
-                            print(f"[EXPLORE MODE SETUP] {token_data.get('symbol', 'UNKNOWN')}: Successfully imported explore mode utilities")
-                            
-                            # Przygotuj token data dla explore mode
-                            explore_token_data = {
-                                "trust_addresses": 0,  # Simplified - no trust addresses for new tokens
-                                "feedback_history": [],  # Brak historii dla nowych tokenów
-                                "contract_found": token_data.get("contract_found", True),
-                                "whale_memory_entries": 0,
-                                "historical_alerts": [],
-                                "active_signals": list(used_signals),
-                                "whale_ping_strength": whale_ping_score,
-                                "dex_inflow_usd": token_data.get("dex_inflow_usd", 0.0),
-                                "final_score": score
-                            }
-                            
-                            print(f"[EXPLORE MODE SETUP] {token_data.get('symbol', 'UNKNOWN')}: Prepared explore token data with {len(used_signals)} active signals")
-                            
-                            # Sprawdź czy token kwalifikuje się do explore mode
-                            print(f"[EXPLORE MODE EVALUATION] {token_data.get('symbol', 'UNKNOWN')}: Calling should_explore_mode_trigger()...")
-                            should_explore, trigger_reason = should_explore_mode_trigger(explore_token_data, score)
-                            print(f"[EXPLORE MODE EVALUATION] {token_data.get('symbol', 'UNKNOWN')}: Result: should_explore={should_explore}, reason='{trigger_reason}'")
-                            
-                            if should_explore:
-                                # If not already alerting through consensus, trigger explore mode alert
-                                if not should_alert:
-                                    should_alert = True
-                                    explore_mode = True
-                                    explore_trigger_reason = trigger_reason
-                                    explore_confidence = calculate_explore_mode_confidence(explore_token_data, score)
-                                    
-                                    print(f"[EXPLORE MODE TRIGGERED] {token_data.get('symbol', 'UNKNOWN')}: Cold start experimental alert triggered")
-                                    print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Reason: {trigger_reason}")
-                                    print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Synthetic confidence: {explore_confidence:.3f}")
-                                    print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Core signals: {len(set(used_signals).intersection({'whale_ping', 'dex_inflow', 'orderbook_anomaly', 'spoofing_layers'}))}")
-                                    
-                                    # Update result z explore mode data
-                                    result["explore_mode"] = True
-                                    result["explore_trigger_reason"] = trigger_reason
-                                    result["explore_confidence"] = explore_confidence
-                                else:
-                                    print(f"[EXPLORE MODE QUALIFIED] {token_data.get('symbol', 'UNKNOWN')}: Token qualifies for explore mode but already alerting via consensus")
-                                    # Still add explore mode metadata even if alerting through consensus
-                                    result["explore_mode_eligible"] = True
-                                    result["explore_trigger_reason"] = trigger_reason
-                            else:
-                                print(f"[EXPLORE MODE SKIP] {token_data.get('symbol', 'UNKNOWN')}: Cold start check failed: {trigger_reason}")
-                                
-                        except ImportError:
-                            print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Explore mode utilities not available")
-                        except Exception as e:
-                            print(f"[EXPLORE MODE ERROR] {token_data.get('symbol', 'UNKNOWN')}: {e}")
+                        # Check if explore mode should trigger alert even if normal alert criteria not met
+                        if explore_mode_triggered and not should_alert:
+                            should_alert = True
+                            print(f"[EXPLORE MODE ALERT TRIGGER] {token_data.get('symbol', 'UNKNOWN')}: Explore mode triggering alert (normal criteria not met)")
                         
                         if should_alert:
                             symbol = token_data.get('symbol', 'UNKNOWN')
@@ -1968,18 +1919,110 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     # ⛔ WATCHLIST ALERT SYSTEM DISABLED per user request
                     # User requested removal of watchlist alerts completely
                     
-                    # At end of try block - check if we should return early or proceed to consensus
-                    if skip_reason:
-                        print(f"[EARLY EXIT] {symbol}: Returning early due to {skip_reason}")
-                        return {
-                            "score": score,
-                            "stealth_score": score,
-                            "active_signals": active_signals,
-                            "skipped": skip_reason
-                        }
+            # 🚧 EXPLORE MODE ANALYSIS - MUST RUN BEFORE ANY EARLY RETURNS OR SKIPS
+            # This section MUST execute for ALL tokens regardless of skip_reason or score
+            print(f"[PRE-EXPLORE DEBUG] {token_data.get('symbol', 'UNKNOWN')}: About to run explore mode analysis")
+            
+            # Run explore mode analysis - CRITICAL POSITION
+            try:
+                from utils.stealth_utils import is_cold_start, should_explore_mode_trigger, calculate_explore_mode_confidence, format_explore_mode_reason
+                
+                print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: ====== STARTING EXPLORE MODE ANALYSIS ======")
+                print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Score={score:.3f}")
+                print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Active signals: {list(used_signals)}")
+                
+                # Get whale ping strength safely
+                whale_ping_strength = 0.0
+                if 'whale_ping' in [s for s in used_signals if isinstance(s, str)]:
+                    whale_ping_strength = 1.0  # If whale_ping active, strength = 1.0
+                
+                print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Whale ping strength: {whale_ping_strength:.3f}")
+                print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: DEX inflow: ${token_data.get('dex_inflow_usd', 0.0):.2f}")
+                
+                # Prepare token data for explore mode
+                explore_token_data = {
+                    "trust_addresses": 0,  # Simplified - no trust addresses for new tokens
+                    "feedback_history": [],  # No history for new tokens
+                    "contract_found": token_data.get("contract_found", True),
+                    "whale_memory_entries": 0,
+                    "historical_alerts": [],
+                    "active_signals": list(used_signals),
+                    "whale_ping_strength": whale_ping_strength,
+                    "dex_inflow_usd": token_data.get("dex_inflow_usd", 0.0),
+                    "final_score": score
+                }
+                
+                print(f"[EXPLORE MODE SETUP] {token_data.get('symbol', 'UNKNOWN')}: Prepared explore token data with {len(used_signals)} active signals")
+                
+                # Check if token is cold start (new token without history)
+                is_cold_start_token = is_cold_start(explore_token_data)
+                print(f"[EXPLORE MODE COLD START] {token_data.get('symbol', 'UNKNOWN')}: Is cold start token: {is_cold_start_token}")
+                
+                if is_cold_start_token:
+                    # Check if explore mode should trigger for this cold start token
+                    should_trigger = should_explore_mode_trigger(explore_token_data)
+                    print(f"[EXPLORE MODE TRIGGER CHECK] {token_data.get('symbol', 'UNKNOWN')}: Should trigger: {should_trigger}")
+                    
+                    if should_trigger:
+                        explore_mode_triggered = True
+                        explore_confidence = calculate_explore_mode_confidence(explore_token_data)
+                        explore_trigger_reason = format_explore_mode_reason(explore_token_data)
                         
-                    print(f"[COMPUTE STEALTH SCORE] {token_data.get('symbol', 'UNKNOWN')}: Stealth analysis completed - proceeding to consensus section...")
-                    print(f"[EXIT DEBUG] {token_data.get('symbol', 'UNKNOWN')}: About to exit try block normally")
+                        print(f"[EXPLORE MODE TRIGGERED] {token_data.get('symbol', 'UNKNOWN')}: EXPLORE MODE ACTIVATED!")
+                        print(f"[EXPLORE MODE TRIGGERED] {token_data.get('symbol', 'UNKNOWN')}: Confidence: {explore_confidence:.3f}")
+                        print(f"[EXPLORE MODE TRIGGERED] {token_data.get('symbol', 'UNKNOWN')}: Reason: {explore_trigger_reason}")
+                        
+                        # Save explore mode results
+                        try:
+                            explore_result = {
+                                "symbol": token_data.get('symbol', 'UNKNOWN'),
+                                "timestamp": datetime.now().isoformat(),
+                                "explore_confidence": explore_confidence,
+                                "explore_reason": explore_trigger_reason,
+                                "whale_ping_strength": whale_ping_strength,
+                                "dex_inflow_usd": token_data.get("dex_inflow_usd", 0.0),
+                                "stealth_score": score,
+                                "active_signals": list(used_signals)
+                            }
+                            
+                            os.makedirs("cache/explore_mode", exist_ok=True)
+                            
+                            import json
+                            with open(f"cache/explore_mode/{token_data.get('symbol', 'UNKNOWN')}_explore.json", "w") as f:
+                                json.dump(explore_result, f, indent=2)
+                            
+                            print(f"[EXPLORE MODE SAVE] {token_data.get('symbol', 'UNKNOWN')}: Saved explore mode result to cache")
+                            
+                        except Exception as save_error:
+                            print(f"[EXPLORE MODE SAVE ERROR] {token_data.get('symbol', 'UNKNOWN')}: {save_error}")
+                    else:
+                        print(f"[EXPLORE MODE SKIP] {token_data.get('symbol', 'UNKNOWN')}: Trigger conditions not met")
+                else:
+                    print(f"[EXPLORE MODE SKIP] {token_data.get('symbol', 'UNKNOWN')}: Not a cold start token")
+                    
+            except Exception as explore_error:
+                print(f"[EXPLORE MODE ERROR] {token_data.get('symbol', 'UNKNOWN')}: {explore_error}")
+                explore_mode_triggered = False
+                explore_confidence = 0.0
+                explore_trigger_reason = "error"
+            
+            print(f"[EXPLORE MODE COMPLETE] {token_data.get('symbol', 'UNKNOWN')}: Triggered={explore_mode_triggered}")
+            
+            # At end of try block - check if we should return early or proceed to consensus
+            if skip_reason:
+                print(f"[EARLY EXIT] {symbol}: Returning early due to {skip_reason}")
+                return {
+                    "score": score,
+                    "stealth_score": score,
+                    "active_signals": active_signals,
+                    "skipped": skip_reason,
+                    "explore_mode": explore_mode_triggered,  # Include explore mode result
+                    "explore_confidence": explore_confidence,
+                    "explore_reason": explore_trigger_reason
+                }
+                
+            print(f"[COMPUTE STEALTH SCORE] {token_data.get('symbol', 'UNKNOWN')}: Stealth analysis completed - proceeding to consensus section...")
+            print(f"[EXIT DEBUG] {token_data.get('symbol', 'UNKNOWN')}: About to exit try block normally")
         
     except Exception as e:
         import traceback
@@ -1990,7 +2033,14 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         score = 0.0
         active_signals = []
         data_coverage = 1.0
+        # Initialize explore mode variables in case they weren't set due to exception
+        if 'explore_mode_triggered' not in locals():
+            explore_mode_triggered = False
+            explore_confidence = 0.0
+            explore_trigger_reason = "exception_occurred"
 
+    # (OLD EXPLORE MODE LOGIC REMOVED - MOVED TO PROPER POSITION BEFORE EARLY RETURNS)
+    
     # 🧠 MULTI-AGENT CONSENSUS DECISION ENGINE - Unified Detector Fusion (MOVED OUTSIDE TRY BLOCK)
     print(f"[FUNCTION DEBUG] {token_data.get('symbol', 'UNKNOWN')}: About to enter consensus section...")
     
