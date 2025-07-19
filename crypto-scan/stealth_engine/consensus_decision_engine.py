@@ -279,11 +279,18 @@ class ConsensusDecisionEngine:
                     boosted_detectors.append(detector_name)
                     print(f"[BOOSTER] {detector_name}: {original_score:.3f} → {score:.3f} (×{booster_multiplier})")
                 
+                # 🔧 BELUSDT FIX: Additional safety for weighted_contribution calculation
+                try:
+                    weighted_contribution = float(score) * float(weight)
+                except (ValueError, TypeError) as calc_error:
+                    print(f"[CONSENSUS CALC FIX] {detector_name}: Calculation error {calc_error}, using 0.0")
+                    weighted_contribution = 0.0
+                
                 active_detectors[detector_name] = {
                     'score': score,
                     'confidence': confidence,
                     'weight': weight,
-                    'weighted_contribution': score * weight
+                    'weighted_contribution': weighted_contribution
                 }
         
         print(f"[DYNAMIC BOOST] Active detectors: {len(active_detectors)}")

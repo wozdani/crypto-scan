@@ -55,12 +55,41 @@ def process_async_data_enhanced_with_5m(symbol: str, ticker_data: Optional[Dict]
             price_usd = float(ticker.get("lastPrice", 0)) if ticker.get("lastPrice") else 0.0
             volume_24h = float(ticker.get("volume24h", 0)) if ticker.get("volume24h") else 0.0
             
-            # FIX: Validate ticker data quality - mark as partial if price or volume is 0
+            # 🔧 BELUSDT FIX: Enhanced ticker validation with candle fallback
             if price_usd <= 0.0 or volume_24h <= 0.0:
-                print(f"[TICKER INVALID] {symbol}: Price ${price_usd}, Volume {volume_24h} - rejecting invalid ticker")
-                has_price = False
+                print(f"[TICKER INVALID] {symbol}: Price ${price_usd}, Volume {volume_24h} - will use candle fallback")
                 has_ticker = False
-                ticker_invalid = True  # Flag for partial marking
+                ticker_invalid = True  # Will trigger fallback to candle price
+                
+                # Immediately try candle price fallback
+                candle_price = 0.0
+                if candles_data and candles_data.get("result", {}).get("list"):
+                    try:
+                        latest_candle = candles_data["result"]["list"][0]
+                        candle_price = float(latest_candle[4])  # Close price (OHLCV format)
+                        if candle_price > 0:
+                            price_usd = candle_price
+                            has_price = True
+                            print(f"[CANDLE FALLBACK] {symbol}: Price ${candle_price} from 15M candles")
+                        else:
+                            has_price = False
+                    except (IndexError, ValueError, KeyError) as e:
+                        print(f"[CANDLE FALLBACK ERROR] {symbol}: Cannot extract candle price: {e}")
+                        has_price = False
+                else:
+                    has_price = False
+                    
+                # If no volume from ticker, estimate from candles
+                if volume_24h <= 0.0 and candles_data:
+                    try:
+                        # Use 24 hours of 15M candles for volume estimation
+                        candle_list = candles_data["result"]["list"][:96]  # 24h * 4 candles per hour
+                        estimated_volume = sum(float(candle[5]) for candle in candle_list if len(candle) > 5)
+                        if estimated_volume > 0:
+                            volume_24h = estimated_volume
+                            print(f"[VOLUME FALLBACK] {symbol}: Estimated volume ${volume_24h:.0f} from candles")
+                    except Exception as e:
+                        print(f"[VOLUME FALLBACK ERROR] {symbol}: {e}")
             else:
                 print(f"[TICKER SUCCESS] {symbol}: Price ${price_usd}, Volume {volume_24h}")
                 has_ticker = True
