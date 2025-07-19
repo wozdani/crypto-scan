@@ -199,7 +199,8 @@ class EnhancedDataValidator:
     
     def _fetch_ticker_standard(self, symbol: str, result: DataValidationResult, retry_count: int) -> Optional[Dict]:
         """Fetch ticker from standard tickers endpoint"""
-        url = f"https://api.bybit.com/v5/market/tickers?category=spot&symbol={symbol}"
+        # Try linear category first (most common)
+        url = f"https://api.bybit.com/v5/market/tickers?category=linear&symbol={symbol}"
         
         for attempt in range(retry_count + 1):
             try:
@@ -211,10 +212,21 @@ class EnhancedDataValidator:
                     if data.get("result", {}).get("list"):
                         ticker = data["result"]["list"][0]
                         if ticker.get("lastPrice") and float(ticker["lastPrice"]) > 0:
-                            print(f"[TICKER OK] {symbol}: Standard endpoint - Price ${ticker['lastPrice']}")
+                            print(f"[TICKER OK] {symbol}: Linear endpoint - Price ${ticker['lastPrice']}")
                             return ticker
                 
-                print(f"[TICKER ERROR] {symbol}: Standard endpoint failed - HTTP {response.status_code}")
+                # Fallback to spot category
+                url_spot = f"https://api.bybit.com/v5/market/tickers?category=spot&symbol={symbol}"
+                response = requests.get(url_spot, timeout=10)
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get("result", {}).get("list"):
+                        ticker = data["result"]["list"][0]
+                        if ticker.get("lastPrice") and float(ticker["lastPrice"]) > 0:
+                            print(f"[TICKER OK] {symbol}: Spot endpoint - Price ${ticker['lastPrice']}")
+                            return ticker
+                
+                print(f"[TICKER ERROR] {symbol}: Both linear/spot endpoints failed - HTTP {response.status_code}")
                 if attempt < retry_count:
                     time.sleep(0.5)
                     

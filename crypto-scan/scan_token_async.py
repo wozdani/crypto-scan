@@ -440,7 +440,24 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 if os.getenv("DEBUG") == "1":
                     print(f"[STEALTH DEBUG] {symbol} → compute_stealth_score() returned: {type(stealth_result)} = {stealth_result}")
                 
-                stealth_score = stealth_result.get("score", 0.0)
+                # 🔧 SCORE RESET BUG FIX: Prevent score defaulting to 0.0 when stealth engine fails
+                raw_score = stealth_result.get("score")
+                if raw_score is None or raw_score == 0.0:
+                    # Check for alternative score fields
+                    alternative_score = (
+                        stealth_result.get("stealth_score") or 
+                        stealth_result.get("final_score") or
+                        stealth_result.get("composite_score")
+                    )
+                    if alternative_score and alternative_score > 0:
+                        stealth_score = alternative_score
+                        print(f"[SCORE RECOVERY] {symbol}: Recovered score {stealth_score:.3f} from alternative field")
+                    else:
+                        stealth_score = 0.0
+                        print(f"[SCORE WARNING] {symbol}: No valid score found, defaulting to 0.0 (stealth_result keys: {list(stealth_result.keys())})")
+                else:
+                    stealth_score = raw_score
+                
                 active_signals = stealth_result.get("active_signals", [])
                 print(f"[FLOW DEBUG] {symbol}: Extracted stealth_score={stealth_score}, active_signals={len(active_signals)}")
                 

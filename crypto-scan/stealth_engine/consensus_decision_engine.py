@@ -233,9 +233,28 @@ class ConsensusDecisionEngine:
         boosted_detectors = []
         
         for detector_name, detector_data in unified_scores.items():
-            score = detector_data['score']
-            confidence = detector_data['confidence']
-            weight = detector_data['weight']
+            # CRITICAL FIX: Extract values with proper type checking
+            if isinstance(detector_data.get('score'), dict):
+                score = detector_data['score'].get('score', 0.0)
+            else:
+                score = detector_data.get('score', 0.0)
+                
+            if isinstance(detector_data.get('confidence'), dict):
+                confidence = detector_data['confidence'].get('confidence', 0.0)
+            else:
+                confidence = detector_data.get('confidence', 0.0)
+                
+            if isinstance(detector_data.get('weight'), dict):
+                weight = detector_data['weight'].get('weight', 0.0)
+            else:
+                weight = detector_data.get('weight', 0.0)
+            
+            # Ensure all values are numeric
+            score = float(score) if score is not None else 0.0
+            confidence = float(confidence) if confidence is not None else 0.0
+            weight = float(weight) if weight is not None else 0.0
+            
+            print(f"[TYPE SAFETY] {detector_name}: score={score:.3f} (type: {type(score)}), confidence={confidence:.3f}, weight={weight:.3f}")
             
             # Sprawdź warunki aktywności
             if score >= score_threshold and confidence >= confidence_threshold:

@@ -1756,12 +1756,13 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             should_alert = False
                             print(f"[STEALTH V3 ALERT BLOCK] {token_data.get('symbol', 'UNKNOWN')}: Consensus decision {consensus_result.decision.value} blocks alert (score={score:.3f})")
                         else:
-                            # Fallback - jeśli nie ma consensus, sprawdź tylko wysoki score (4.0+)
-                            if score >= 4.0:
+                            # Fallback - jeśli nie ma consensus, sprawdź score z realnym progiem (0.7+)
+                            alert_threshold = 0.7
+                            if score >= alert_threshold:
                                 should_alert = True
-                                print(f"[STEALTH V3 FALLBACK] {token_data.get('symbol', 'UNKNOWN')}: No consensus, high score {score:.3f} triggers alert")
+                                print(f"[STEALTH V3 FALLBACK] {token_data.get('symbol', 'UNKNOWN')}: No consensus, score {score:.3f} >= {alert_threshold} triggers alert")
                             else:
-                                print(f"[STEALTH V3 NO ALERT] {token_data.get('symbol', 'UNKNOWN')}: No consensus, score {score:.3f} < 4.0 threshold")
+                                print(f"[STEALTH V3 NO ALERT] {token_data.get('symbol', 'UNKNOWN')}: No consensus, score {score:.3f} < {alert_threshold} threshold")
                         
                         # 🚧 EXPLORE MODE - Experimental Cold Start Alerts (INDEPENDENT CHECK)
                         # Run explore mode check for all tokens regardless of consensus decision
@@ -1955,8 +1956,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                 result["alert_sent"] = False
                                 result["alert_skip_reason"] = "cooldown_or_error"
                         else:
-                            alert_threshold = 3.0  # Define the alert threshold
-                            print(f"[STEALTH V3 ALERT] {symbol}: Score {score:.3f} poniżej progu alertów ({alert_threshold})")
+                            print(f"[STEALTH V3 ALERT] {symbol}: Score {score:.3f} poniżej progu alertów (0.7)")
                             result["alert_sent"] = False
                             result["alert_skip_reason"] = "below_threshold"
                             
@@ -1990,7 +1990,6 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         score = 0.0
         active_signals = []
         data_coverage = 1.0
-        alert_threshold = 3.0
 
     # 🧠 MULTI-AGENT CONSENSUS DECISION ENGINE - Unified Detector Fusion (MOVED OUTSIDE TRY BLOCK)
     print(f"[FUNCTION DEBUG] {token_data.get('symbol', 'UNKNOWN')}: About to enter consensus section...")
@@ -2085,7 +2084,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         "active_signals": active_signals,
         "data_coverage": data_coverage,
         "signal_strength": score,
-        "alert_threshold": alert_threshold,
+        "alert_threshold": 0.7,  # Default alert threshold used in scoring
         "stealth_alerts": {"score": score},
         "consensus_result": consensus_result,
         "consensus_error": consensus_error
