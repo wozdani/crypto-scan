@@ -614,6 +614,7 @@ def daily_self_train_at_night(last_run_file="cache/last_train.txt"):
 
 def main():
     """Main scanning loop with integrated feedback evaluation"""
+    global ADAPTIVE_LEARNING_AVAILABLE  # Declare global access to ADAPTIVE_LEARNING_AVAILABLE
     print("Starting Crypto Scanner Service (Enhanced with Feedback Loop)")
     
     # 🔍 COMPREHENSIVE STAGE 1-7 DIAGNOSTIC CHECK

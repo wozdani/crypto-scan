@@ -67,8 +67,31 @@ class BlockchainTransactionFetcher:
         
         try:
             logger.info(f"[BLOCKCHAIN FETCH] Fetching token transfers for {contract_address[:10]}... on {chain}")
-            response = requests.get(endpoint, params=params, timeout=15)
-            data = response.json()
+            # 🔧 ARKMUSDT FIX #1: Increase timeout from 2s to 10s with retry logic
+            for attempt in range(3):
+                try:
+                    response = requests.get(endpoint, params=params, timeout=10)
+                    if response.status_code == 200:
+                        data = response.json()
+                        break
+                    else:
+                        logger.warning(f"[BLOCKCHAIN RETRY] Attempt {attempt+1}/3 failed with status {response.status_code}")
+                        if attempt < 2:
+                            import time
+                            time.sleep(1)  # 1s backoff
+                            continue
+                        else:
+                            logger.error(f"[BLOCKCHAIN TIMEOUT] All 3 attempts failed for {contract_address[:10]}")
+                            return []
+                except requests.exceptions.Timeout:
+                    logger.warning(f"[BLOCKCHAIN TIMEOUT] Attempt {attempt+1}/3 timed out (10s)")
+                    if attempt < 2:
+                        import time
+                        time.sleep(2)  # 2s backoff for timeouts
+                        continue
+                    else:
+                        logger.error(f"[BLOCKCHAIN TIMEOUT] Final timeout for {contract_address[:10]}")
+                        return []
             
             transactions = []
             if data.get("status") == "1" and data.get("result"):

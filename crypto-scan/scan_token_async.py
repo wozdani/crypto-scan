@@ -527,17 +527,17 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         explore_confidence = calculate_explore_mode_confidence(explore_token_data)
                         
                         print(f"[EXPLORE MODE] {symbol}: Cold start experimental alert triggered")
-                        print(f"[EXPLORE MODE] {symbol}: Reason: {trigger_reason}")
+                        print(f"[EXPLORE MODE] {symbol}: Reason: {explore_trigger_reason}")
                         print(f"[EXPLORE MODE] {symbol}: Synthetic confidence: {explore_confidence:.3f}")
                         print(f"[EXPLORE MODE] {symbol}: Core signals: {len(set(active_signals).intersection({'whale_ping', 'dex_inflow', 'orderbook_anomaly', 'spoofing_layers'}))}")
                         
                         # Update stealth_result z explore mode data
                         stealth_result["explore_mode"] = True
-                        stealth_result["explore_trigger_reason"] = trigger_reason
+                        stealth_result["explore_trigger_reason"] = explore_trigger_reason
                         stealth_result["explore_confidence"] = explore_confidence
                         
                     else:
-                        print(f"[EXPLORE MODE] {symbol}: Cold start check failed: {trigger_reason}")
+                        print(f"[EXPLORE MODE] {symbol}: Cold start check failed: {explore_trigger_reason}")
                         
                 except ImportError:
                     print(f"[EXPLORE MODE] {symbol}: Explore mode utilities not available")
