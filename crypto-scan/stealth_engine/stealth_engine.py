@@ -1138,819 +1138,817 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         californium_error = str(e)
                         print(f"[CALIFORNIUM AI ERROR] {symbol}: Failed to run CaliforniumWhale detector: {e}")
                         print(f"[CALIFORNIUM AI ERROR] {symbol}: Continuing without californium analysis")
-
-        # LOG: Finalna decyzja scoringowa z nową implementacją bonusu + All AI Detectors
-        decision = "strong" if score >= 3.0 else "weak" if score >= 1.0 else "none"
-        partial_note = f" (partial: {available_signals}/{total_signals} signals)" if data_coverage < 0.8 else ""
-        diamond_note = f" + Diamond: {diamond_score:.3f}" if diamond_enabled else ""
-        whaleclip_note = f" + WhaleCLIP: {whaleclip_score:.3f}" if whaleclip_enabled else ""
-        californium_note = f" + Californium: {californium_score:.3f}" if californium_enabled else ""
-        
-        print(f"[STEALTH SCORING] {symbol} final calculation:")
-        base_score = score - active_rules_bonus
-        if diamond_enabled:
-            base_score -= diamond_score * 0.3
-        if whaleclip_enabled:
-            base_score -= whaleclip_score * 0.2
-        if californium_enabled:
-            base_score -= californium_score * 0.25
-        print(f"  Base score: {base_score:.3f}")
-        print(f"  Active rules bonus: {len(used_signals)} × 0.025 = +{active_rules_bonus:.3f}")
-        if diamond_enabled:
-            print(f"  Diamond AI contribution: {diamond_score:.3f} × 0.3 = +{diamond_score * 0.3:.3f}")
-        if whaleclip_enabled:
-            print(f"  WhaleCLIP AI contribution: {whaleclip_score:.3f} × 0.2 = +{whaleclip_score * 0.2:.3f}")
-        if californium_enabled:
-            print(f"  CaliforniumWhale AI contribution: {californium_score:.3f} × 0.25 = +{californium_score * 0.25:.3f}")
-        print(f"  Final score: {score:.3f}")
-        print(f"[STEALTH] Final signal for {symbol} → Score: {score:.3f}, Decision: {decision}, Active: {len(used_signals)} signals{partial_note}{diamond_note}{whaleclip_note}{californium_note}")
-        
-        # === GNN SUBGRAPH SCORE INTEGRATION ===
-        # Dodaj GNN subgraph analysis zgodnie z uwagami Szefira
-        gnn_subgraph_score = 0.0
-        gnn_active = False
-        
-        try:
-            # Placeholder dla GNN subgraph + QIRL analysis
-            # TODO: Implementować pełny GNN detector z subgraph analysis
-            from utils.contracts import get_contract
-            contract_info = get_contract(symbol)
-            
-            if contract_info and contract_info.get('address'):
-                # Symuluj GNN subgraph analysis na podstawie dostępnych sygnałów
-                if len(used_signals) >= 2 and score > 1.0:
-                    gnn_subgraph_score = min(score * 0.3, 0.9)  # Derived from stealth signals
-                    gnn_active = True
-                    print(f"[GNN SCORE] {symbol}: Subgraph QIRL score = {gnn_subgraph_score:.3f}")
-                else:
-                    print(f"[GNN SCORE] {symbol}: Insufficient signals for subgraph analysis")
-            else:
-                print(f"[GNN SCORE] {symbol}: No contract address for graph analysis")
-                
-        except Exception as e:
-            print(f"[GNN SCORE ERROR] {symbol}: GNN analysis failed: {e}")
-        
-        # === MASTERMIND TRACING INTEGRATION ===
-        # Dodaj group activity mastermind zgodnie z uwagami Szefira
-        mastermind_addresses = []
-        
-        try:
-            # Placeholder dla mastermind tracing - wykryj powtarzające się adresy
-            if "whale_ping" in used_signals and diamond_enabled:
-                # Symuluj wykrywanie powtarzających się adresów akumulacji
-                if diamond_score > 0.5:
-                    mastermind_addresses = ["0x123...", "0x456...", "0x789..."]  # Przykładowe adresy
-                    print(f"[MASTER AI] {symbol}: {len(mastermind_addresses)} addresses repeat accumulation: {', '.join(mastermind_addresses)}")
-                else:
-                    print(f"[MASTER AI] {symbol}: No significant mastermind pattern detected")
-            else:
-                print(f"[MASTER AI] {symbol}: Insufficient whale activity for mastermind analysis")
-                
-        except Exception as e:
-            print(f"[MASTER AI ERROR] {symbol}: Mastermind tracing failed: {e}")
-        
-        # === DETECTORS ACTIVE STATUS LOG ===
-        # Dodaj log aktywnych detektorów przed konsensusem zgodnie z uwagami Szefira
-        print(f"[DETECTORS ACTIVE] {symbol}: StealthEngine=True, Diamond={diamond_enabled}, Californium={californium_enabled}, WhaleCLIP={whaleclip_enabled}, GNN={gnn_active}")
-        
-        # 🚨 STEALTH V3 TELEGRAM ALERT SYSTEM - QUALITY PRIORITY CHANGE
-        # ✅ CONSENSUS-BASED ALERT LOGIC: Only send alerts when final_decision == "BUY"
-        # This eliminates false positives where high score but agents vote HOLD/AVOID
-        
-        # 🚨 NEW UNIFIED CONSENSUS DECISION ENGINE INTEGRATION
-        # Replace old 5-agent system with new 4-agent consensus: CaliforniumWhale, WhaleCLIP, StealthEngine, DiamondWhale
-        final_decision = "WATCH"  # Default fallback
-        consensus_data = None
-        
-        try:
-            from .decision_consensus import create_decision_consensus_engine
-            
-            # Prepare detector outputs for new consensus system
-            detector_outputs = {}
-            
-            # StealthEngine (Classic Stealth Signals)
-            if score > 0.0:
-                stealth_vote = "BUY" if score > 2.0 else ("HOLD" if score > 1.0 else "AVOID")
-                detector_outputs["StealthEngine"] = {
-                    "vote": stealth_vote,
-                    "score": min(score / 4.0, 1.0),  # Normalize to 0-1
-                    "confidence": min(data_coverage, 1.0),
-                    "weight": 0.25
-                }
-                print(f"[NEW CONSENSUS] {symbol}: StealthEngine → {stealth_vote} (score: {score:.3f})")
-            
-            # CaliforniumWhale AI
-            if californium_enabled and californium_score > 0.0:
-                calif_vote = "BUY" if californium_score > 0.7 else ("HOLD" if californium_score > 0.4 else "AVOID")
-                detector_outputs["CaliforniumWhale"] = {
-                    "vote": calif_vote,
-                    "score": californium_score,
-                    "confidence": 0.85,
-                    "weight": 0.33
-                }
-                print(f"[NEW CONSENSUS] {symbol}: CaliforniumWhale → {calif_vote} (score: {californium_score:.3f})")
-            
-            # DiamondWhale AI
-            if diamond_enabled and diamond_score > 0.0:
-                diamond_vote = "BUY" if diamond_score > 0.6 else ("HOLD" if diamond_score > 0.3 else "AVOID")
-                detector_outputs["DiamondWhale"] = {
-                    "vote": diamond_vote,
-                    "score": diamond_score,
-                    "confidence": 0.80,
-                    "weight": 0.25
-                }
-                print(f"[NEW CONSENSUS] {symbol}: DiamondWhale → {diamond_vote} (score: {diamond_score:.3f})")
-            
-            # WhaleCLIP (derived from whale signals)
-            whale_signal_strength = 0.0
-            if "whale_ping" in used_signals:
-                for signal in signals:
-                    if signal.name == "whale_ping" and hasattr(signal, 'strength'):
-                        whale_signal_strength = signal.strength
-                        break
-                
-                if whale_signal_strength > 0.0:
-                    clip_vote = "BUY" if whale_signal_strength > 0.8 else ("HOLD" if whale_signal_strength > 0.5 else "AVOID")
-                    detector_outputs["WhaleCLIP"] = {
-                        "vote": clip_vote,
-                        "score": whale_signal_strength,
-                        "confidence": 0.75,
-                        "weight": 0.26
-                    }
-                    print(f"[NEW CONSENSUS] {symbol}: WhaleCLIP → {clip_vote} (score: {whale_signal_strength:.3f})")
-            
-            # Run consensus decision if we have detectors
-            if len(detector_outputs) >= 2:
-                consensus_engine = create_decision_consensus_engine()
-                consensus_result = consensus_engine.simulate_decision_consensus(
-                    detector_outputs, 
-                    threshold=0.7, 
-                    token=symbol
-                )
-                
-                final_decision = consensus_result.decision
-                consensus_data = {
-                    "decision": final_decision,
-                    "votes": [f"{det}: {data['vote']}" for det, data in detector_outputs.items()],
-                    "confidence": consensus_result.confidence,
-                    "final_score": consensus_result.final_score,
-                    "threshold_met": consensus_result.threshold_met,
-                    "contributing_detectors": consensus_result.contributing_detectors
-                }
-                
-                print(f"[NEW CONSENSUS] {symbol}: Final decision → {final_decision} (score: {consensus_result.final_score:.3f}, confidence: {consensus_result.confidence:.3f})")
-                print(f"[NEW CONSENSUS] {symbol}: Contributing detectors: {consensus_result.contributing_detectors}")
-                
-            else:
-                print(f"[NEW CONSENSUS] {symbol}: Insufficient detectors ({len(detector_outputs)}) for consensus - defaulting to WATCH")
-                consensus_data = {
-                    "decision": "WATCH",
-                    "votes": [],
-                    "confidence": 0.0,
-                    "final_score": 0.0,
-                    "threshold_met": False,
-                    "contributing_detectors": []
-                }
-                
-        except ImportError:
-            print(f"[NEW CONSENSUS] {symbol}: Consensus engine not available - falling back to legacy logic")
-            # Simplified fallback logic
-            if score > 2.0:
-                final_decision = "BUY"
-            elif score > 1.0:
-                final_decision = "MONITOR"
-            else:
-                final_decision = "WATCH"
-                
-            consensus_data = {
-                "decision": final_decision,
-                "votes": ["fallback_mode"],
-                "confidence": min(score / 4.0, 1.0),
-                "final_score": score,
-                "threshold_met": score > 2.0,
-                "contributing_detectors": ["stealth_fallback"]
-            }
-        except Exception as e:
-            print(f"[NEW CONSENSUS ERROR] {symbol}: {e}")
-            final_decision = "WATCH"
-            consensus_data = {
-                "decision": "WATCH",
-                "votes": [],
-                "confidence": 0.0,
-                "final_score": 0.0,
-                "threshold_met": False,
-                "contributing_detectors": []
-            }
-        
-        # === ALERT TRIGGER DECISION LOG ===
-        # Dodaj pełne uzasadnienie dla decyzji alertu zgodnie z uwagami Szefira
-        active_detectors_count = sum([1 for x in [diamond_enabled, californium_enabled, whaleclip_enabled] if x])
-        alert_eligible = (score >= 0.70 and final_decision == "BUY")
-        
-        # Dodaj informacje o GNN i mastermind do alert reasoning
-        gnn_note = f", GNN={gnn_subgraph_score:.3f}" if gnn_active else ""
-        mastermind_note = f", Mastermind={len(mastermind_addresses)} addresses" if mastermind_addresses else ""
-        
-        print(f"[ALERT TRIGGER] {symbol}: Decision={final_decision}, Score={score:.3f}, Reason={'Alert triggered' if alert_eligible else 'Below threshold or non-BUY consensus'}, Active detectors ({active_detectors_count}/3){gnn_note}{mastermind_note}")
-        print(f"[ALERT LOGIC] {symbol}: Score={score:.3f}, Decision={final_decision} → Alert Eligible: {alert_eligible}")
-        
-        # ✅ NEW ALERT CONDITION: Only send alerts when agents reach BUY consensus
-        if score >= 0.70 and final_decision == "BUY":
-            # Main alert for BUY consensus
-            try:
-                from alerts.stealth_v3_telegram_alerts import send_stealth_v3_alert
-                
-                # Prepare detector_results for alert system using new consensus data
-                detector_results = {}
-                
-                # Extract detector scores for alert display
-                if consensus_data and "contributing_detectors" in consensus_data:
-                    for detector in consensus_data["contributing_detectors"]:
-                        # Map detector names to legacy alert format
-                        if detector == "StealthEngine":
-                            detector_results["whale_ping"] = min(score / 4.0, 1.0)
-                        elif detector == "CaliforniumWhale":
-                            detector_results["mastermind_tracing"] = californium_score if californium_enabled else 0.0
-                        elif detector == "DiamondWhale": 
-                            detector_results["diamond_ai"] = diamond_score if diamond_enabled else 0.0
-                        elif detector == "WhaleCLIP":
-                            detector_results["whaleclip_vision"] = whale_signal_strength
-                
-                # Ensure required detector fields exist for alert compatibility
-                required_detectors = ["whale_ping", "dex_inflow", "orderbook_anomaly", "whaleclip_vision", "mastermind_tracing"]
-                for detector in required_detectors:
-                    if detector not in detector_results:
-                        detector_results[detector] = 0.0
-                
-                # Add classic signal scores
-                for signal in signals:
-                    if hasattr(signal, 'active') and signal.active and hasattr(signal, 'strength'):
-                        weight = weights.get(signal.name, 1.0)
-                        signal_score = weight * signal.strength
+                    
+                    # LOG: Finalna decyzja scoringowa z nową implementacją bonusu + All AI Detectors
+                    decision = "strong" if score >= 3.0 else "weak" if score >= 1.0 else "none"
+                    partial_note = f" (partial: {available_signals}/{total_signals} signals)" if data_coverage < 0.8 else ""
+                    diamond_note = f" + Diamond: {diamond_score:.3f}" if diamond_enabled else ""
+                    whaleclip_note = f" + WhaleCLIP: {whaleclip_score:.3f}" if whaleclip_enabled else ""
+                    californium_note = f" + Californium: {californium_score:.3f}" if californium_enabled else ""
+                    
+                    print(f"[STEALTH SCORING] {symbol} final calculation:")
+                    base_score = score - active_rules_bonus
+                    if diamond_enabled:
+                        base_score -= diamond_score * 0.3
+                    if whaleclip_enabled:
+                        base_score -= whaleclip_score * 0.2
+                    if californium_enabled:
+                        base_score -= californium_score * 0.25
+                    print(f"  Base score: {base_score:.3f}")
+                    print(f"  Active rules bonus: {len(used_signals)} × 0.025 = +{active_rules_bonus:.3f}")
+                    if diamond_enabled:
+                        print(f"  Diamond AI contribution: {diamond_score:.3f} × 0.3 = +{diamond_score * 0.3:.3f}")
+                    if whaleclip_enabled:
+                        print(f"  WhaleCLIP AI contribution: {whaleclip_score:.3f} × 0.2 = +{whaleclip_score * 0.2:.3f}")
+                    if californium_enabled:
+                        print(f"  CaliforniumWhale AI contribution: {californium_score:.3f} × 0.25 = +{californium_score * 0.25:.3f}")
+                    print(f"  Final score: {score:.3f}")
+                    print(f"[STEALTH] Final signal for {symbol} → Score: {score:.3f}, Decision: {decision}, Active: {len(used_signals)} signals{partial_note}{diamond_note}{whaleclip_note}{californium_note}")
+                    
+                    # === GNN SUBGRAPH SCORE INTEGRATION ===
+                    # Dodaj GNN subgraph analysis zgodnie z uwagami Szefira
+                    gnn_subgraph_score = 0.0
+                    gnn_active = False
+                    
+                    try:
+                        # Placeholder dla GNN subgraph + QIRL analysis
+                        # TODO: Implementować pełny GNN detector z subgraph analysis
+                        from utils.contracts import get_contract
+                        contract_info = get_contract(symbol)
                         
-                        if signal.name == "dex_inflow":
-                            detector_results["dex_inflow"] = signal_score
-                        elif signal.name in ["spoofing_layers", "orderbook_imbalance_stealth", "large_bid_walls"]:
-                            detector_results["orderbook_anomaly"] = detector_results.get("orderbook_anomaly", 0.0) + signal_score
-                
-                # Calculate feedback adjustment from component system
-                feedback_adjustment = 0.0
-                try:
-                    from feedback_loop.component_score_updater import get_component_updater
-                    updater = get_component_updater()
-                    if hasattr(updater, 'get_recent_boost'):
-                        feedback_adjustment = updater.get_recent_boost(symbol)
-                except ImportError:
-                    pass
-                
-                # Use consensus_data if available, otherwise create fallback
-                if not consensus_data:
-                    consensus_data = {
-                        "decision": final_decision,
-                        "votes": ["fallback_mode"],
-                        "confidence": min(score / 4.0, 1.0),
-                        "final_score": score,
-                        "threshold_met": score > 2.0,
-                        "contributing_detectors": ["stealth_fallback"]
-                    }
-                
-                # Update consensus_data with feedback adjustment
-                consensus_data["feedback_adjust"] = round(feedback_adjustment, 3)
-                
-                # Przygotuj meta_data z AI detector scores
-                meta_data = {
-                    "trust_addresses": len([s for s in used_signals if "trust" in s or "identity" in s]),
-                    "coverage": round(data_coverage * 100, 1),
-                    "historical_support": "Yes" if score >= 3.0 else "Partial"
-                }
-                
-                if diamond_enabled and diamond_score > 0:
-                    meta_data["diamond_score"] = round(diamond_score, 3)
-                if whaleclip_enabled and whaleclip_score > 0:
-                    meta_data["whaleclip_score"] = round(whaleclip_score, 3)
-                if californium_enabled and californium_score > 0:
-                    meta_data["californium_score"] = round(californium_score, 3)
-                
-                # Enhanced logging z comprehensive diagnostic breakdown
-                try:
-                    from utils.stealth_logger import StealthLogger
-                    stealth_logger = StealthLogger()
-                    stealth_logger.log_stealth_analysis_complete(symbol, detector_results, consensus_data)
-                except ImportError:
-                    pass
-                
-                # Wyślij Stealth v3 alert
-                alert_sent = send_stealth_v3_alert(
-                    symbol=symbol,
-                    detector_results=detector_results,
-                    consensus_data=consensus_data,
-                    meta_data=meta_data
-                )
-                
-                if alert_sent:
-                    print(f"[STEALTH V3 ALERT] ✅ {symbol}: Nowoczesny alert v3 wysłany (score: {score:.3f})")
-                    
-                    # Log pattern identification dla diagnostic transparency
-                    active_detectors = [name for name, score_val in detector_results.items() if score_val > 0.0]
-                    if active_detectors:
-                        print(f"[STEALTH V3 PATTERN] {symbol}: {', '.join(active_detectors)} consensus pattern")
-                    
-                    # Log agent consensus breakdown
-                    votes = consensus_data.get('votes', [])
-                    if isinstance(votes, list) and len(votes) > 0:
-                        buy_votes = votes.count('BUY')
-                        print(f"[STEALTH V3 CONSENSUS] {symbol}: {buy_votes}/{len(votes)} BUY votes → {consensus_data.get('decision', 'UNKNOWN')}")
-                else:
-                    print(f"[STEALTH V3 ALERT] ℹ️ {symbol}: Alert v3 w cooldown lub błąd")
-                    
-            except ImportError:
-                print(f"[STEALTH V3 ALERT] ⚠️ {symbol}: Stealth v3 alert system nie jest dostępny")
-            except Exception as alert_error:
-                print(f"[STEALTH V3 ALERT] ❌ {symbol}: Alert v3 error: {alert_error}")
-        
-        # === COMPONENT-AWARE FEEDBACK LOOP V4 INTEGRATION ===
-        # Enhanced component breakdown calculation z dynamic weight application
-        
-        try:
-            # Import Component Score Engine V4
-            from stealth_engine.component_score_engine import get_component_engine, extract_classic_stealth_components
-            from stealth_engine.component_logger import log_component_feedback, log_dynamic_weights
-            
-            component_engine = get_component_engine()
-            
-            # Build raw component scores from signals
-            raw_component_scores = {
-                "dex": 0.0,
-                "whale": 0.0, 
-                "trust": 0.0,
-                "id": 0.0
-            }
-            
-            # Extract component contributions from active signals
-            for signal in signals:
-                if hasattr(signal, 'active') and signal.active and hasattr(signal, 'strength'):
-                    weight = weights.get(signal.name, 1.0)
-                    contribution = weight * signal.strength
-                    
-                    # Kategoryzuj komponenty według advanced mapping
-                    if signal.name in ['dex_inflow']:
-                        raw_component_scores["dex"] += contribution
-                    elif signal.name in ['whale_ping', 'whale_ping_real', 'whale_ping_real_repeat']:
-                        raw_component_scores["whale"] += contribution
-                    elif signal.name in ['trust_boost', 'token_trust']:
-                        raw_component_scores["trust"] += contribution
-                    elif signal.name in ['identity_boost', 'repeated_address_boost']:
-                        raw_component_scores["id"] += contribution
-            
-            # Add AI detector contributions to component scores
-            if diamond_enabled and diamond_score > 0:
-                raw_component_scores["whale"] += diamond_score * 0.3  # Diamond AI → whale detection
-                raw_component_scores["trust"] += diamond_score * 0.1   # Diamond AI → trust boost
-            
-            if whaleclip_enabled and whaleclip_score > 0:
-                raw_component_scores["whale"] += whaleclip_score * 0.2  # WhaleCLIP AI → whale detection
-                raw_component_scores["trust"] += whaleclip_score * 0.05  # WhaleCLIP AI → trust boost
-            
-            if californium_enabled and californium_score > 0:
-                raw_component_scores["trust"] += californium_score * 0.25  # Californium AI → trust
-                raw_component_scores["whale"] += californium_score * 0.1   # Californium AI → whale detection
-            
-            # Apply Component-Aware Dynamic Weights V4 with Self-Learning Decay
-            weighted_component_scores, component_weighted_total = component_engine.apply_dynamic_weights_to_components(
-                raw_component_scores, "ClassicStealth"
-            )
-            
-            # Update original score with component-weighted total (enhanced precision)
-            if component_weighted_total > 0:
-                # Blend original score with component-weighted score (70/30 mix for stability)
-                enhanced_score = (score * 0.7) + (component_weighted_total * 0.3)
-                print(f"[COMPONENT V4] {symbol}: Enhanced score {score:.3f} → {enhanced_score:.3f} (component boost: +{enhanced_score-score:.3f})")
-                score = enhanced_score
-            
-            # Extract final component values for TOP 5 display
-            dex_inflow_score = weighted_component_scores.get("dex", 0.0)
-            whale_ping_score = weighted_component_scores.get("whale", 0.0)
-            trust_boost_score = weighted_component_scores.get("trust", 0.0)
-            identity_boost_score = weighted_component_scores.get("id", 0.0)
-            
-            # Log Component-Aware Feedback V4 effectiveness with Self-Learning Decay
-            if sum(raw_component_scores.values()) > 0:
-                # Calculate effectiveness percentages
-                total_raw = sum(raw_component_scores.values())
-                effectiveness_percentages = {
-                    comp: (weighted_component_scores.get(comp, 0.0) / raw_component_scores.get(comp, 0.001)) * 100
-                    for comp in raw_component_scores if raw_component_scores[comp] > 0
-                }
-                
-                # Log component feedback according to user specification
-                log_component_feedback(effectiveness_percentages, symbol, "ClassicStealth")
-                
-                # Get dynamic weights with decay application
-                try:
-                    from feedback_loop.component_score_updater import get_component_updater
-                    updater = get_component_updater()
-                    applied_weights = updater.load_current_weights()
-                    
-                    # Log decay-adjusted weights
-                    log_dynamic_weights(applied_weights, symbol, "ClassicStealth")
-                    
-                    # Log Self-Learning Decay status
-                    if hasattr(updater, 'enable_decay') and updater.enable_decay:
-                        print(f"[SELF-LEARNING DECAY] {symbol}: Active - weights auto-adjusted based on historical performance")
-                    
-                except ImportError:
-                    # Fallback to basic weights loader
-                    from feedback_loop.weights_loader import get_dynamic_component_weights
-                    applied_weights = get_dynamic_component_weights()
-                    log_dynamic_weights(applied_weights, symbol, "ClassicStealth")
-            
-            # Enhanced component logging with V4 format
-            print(f"[STEALTH COMPONENTS V4] {symbol} | DEX: {dex_inflow_score:.3f} | WHALE: {whale_ping_score:.3f} | TRUST: {trust_boost_score:.3f} | ID: {identity_boost_score:.3f}")
-            print(f"[COMPONENT V4] {symbol}: Component-weighted total: {component_weighted_total:.3f}")
-            
-        except ImportError as e:
-            print(f"[COMPONENT V4] {symbol}: Component system not available: {e}")
-            # Fallback to original component calculation
-            dex_inflow_score = 0.0
-            whale_ping_score = 0.0
-            trust_boost_score = 0.0
-            identity_boost_score = 0.0
-            
-            for signal in signals:
-                if hasattr(signal, 'active') and signal.active and hasattr(signal, 'strength'):
-                    weight = weights.get(signal.name, 1.0)
-                    contribution = weight * signal.strength
-                    
-                    if signal.name in ['dex_inflow']:
-                        dex_inflow_score += contribution
-                    elif signal.name in ['whale_ping', 'whale_ping_real', 'whale_ping_real_repeat']:
-                        whale_ping_score += contribution
-                    elif signal.name in ['trust_boost', 'token_trust']:
-                        trust_boost_score += contribution
-                    elif signal.name in ['identity_boost', 'repeated_address_boost']:
-                        identity_boost_score += contribution
-            
-            # Add AI contributions (fallback)
-            if diamond_enabled and diamond_score > 0:
-                whale_ping_score += diamond_score * 0.3
-            if whaleclip_enabled and whaleclip_score > 0:
-                whale_ping_score += whaleclip_score * 0.2
-            if californium_enabled and californium_score > 0:
-                trust_boost_score += californium_score * 0.25
-                
-            print(f"[STEALTH COMPONENTS] {symbol} | DEX: {dex_inflow_score:.3f} | WHALE: {whale_ping_score:.3f} | TRUST: {trust_boost_score:.3f} | ID: {identity_boost_score:.3f}")
-        
-        except Exception as e:
-            print(f"[COMPONENT V4 ERROR] {symbol}: Component system error: {e}")
-            # Safe fallback values
-            dex_inflow_score = 0.0
-            whale_ping_score = 0.0  
-            trust_boost_score = 0.0
-            identity_boost_score = 0.0
-            
-        print(f"[COMPONENT V4 DEBUG] {symbol}: Component section completed successfully - continuing to consensus...")
-        
-        print(f"[FUNCTION DEBUG] {token_data.get('symbol', 'UNKNOWN')}: About to enter consensus section...")
-        
-        # 🧠 MULTI-AGENT CONSENSUS DECISION ENGINE - Unified Detector Fusion
-        consensus_result = None
-        consensus_error = None
-        
-        print(f"[CONSENSUS DEBUG] {token_data.get('symbol', 'UNKNOWN')}: Starting consensus decision engine...")
-        
-        print(f"[CONSENSUS DEBUG] {token_data.get('symbol', 'UNKNOWN')}: About to start consensus decision engine")
-        try:
-            print(f"[CONSENSUS DEBUG] {token_data.get('symbol', 'UNKNOWN')}: Importing consensus engine...")
-            from .consensus_decision_engine import create_consensus_engine
-            print(f"[CONSENSUS DEBUG] {token_data.get('symbol', 'UNKNOWN')}: Consensus engine imported successfully")
-            
-            # Prepare detector scores for consensus
-            detector_scores = {}
-            
-            # Classic Stealth Engine
-            if score > 0.0:
-                detector_scores["StealthEngine"] = {
-                    "score": score,
-                    "confidence": min(data_coverage, 1.0),
-                    "weight": 0.25
-                }
-            
-            # DiamondWhale AI
-            if diamond_enabled and diamond_score > 0.0:
-                detector_scores["DiamondWhale"] = {
-                    "score": diamond_score,
-                    "confidence": 0.85,  # High confidence temporal analysis
-                    "weight": 0.25
-                }
-            
-            # CaliforniumWhale AI
-            if californium_enabled and californium_score > 0.0:
-                detector_scores["CaliforniumWhale"] = {
-                    "score": californium_score,
-                    "confidence": 0.80,  # Good confidence TGN+QIRL
-                    "weight": 0.30
-                }
-            
-            # WhaleCLIP (mock for now - could be integrated later)
-            if "whale_ping" in used_signals:
-                detector_scores["WhaleCLIP"] = {
-                    "score": min(score * 0.8, 1.0),  # Derive from whale signals
-                    "confidence": 0.75,
-                    "weight": 0.20
-                }
-            
-            # Run consensus if we have multiple detectors
-            if len(detector_scores) >= 2:
-                consensus_engine = create_consensus_engine()
-                
-                # Use simple consensus for production
-                consensus_result = consensus_engine.run(
-                    symbol, 
-                    {k: v["score"] for k, v in detector_scores.items()},
-                    use_simple_consensus=True
-                )
-                
-                print(f"[CONSENSUS ENGINE] {symbol}: {consensus_result.decision.value} (score: {consensus_result.final_score:.3f})")
-                print(f"[CONSENSUS ENGINE] {symbol}: Active detectors: {consensus_result.contributing_detectors}")
-                print(f"[CONSENSUS ENGINE] {symbol}: Reasoning: {consensus_result.reasoning}")
-                
-            else:
-                print(f"[CONSENSUS ENGINE] {symbol}: Insufficient detectors ({len(detector_scores)}) for consensus analysis")
-                
-        except ImportError:
-            print(f"[CONSENSUS ENGINE] {symbol}: Consensus engine not available")
-        except Exception as e:
-            consensus_error = str(e)
-            print(f"[CONSENSUS ENGINE ERROR] {symbol}: Failed to run consensus: {e}")
-        
-        # Przygotuj rezultat z integracją DiamondWhale AI + CaliforniumWhale AI + Component Breakdown + Consensus
-        result = {
-            "score": round(score, 3),
-            "active_signals": used_signals,
-            "data_coverage": round(data_coverage, 2),
-            "partial_scoring": data_coverage < 0.8,
-            "diamond_score": round(diamond_score, 3) if diamond_enabled else None,
-            "diamond_enabled": diamond_enabled,
-            "californium_score": round(californium_score, 3) if californium_enabled else None,
-            "californium_enabled": californium_enabled,
-            
-            # === COMPONENT BREAKDOWN FOR TOP 5 DISPLAY ===
-            "dex_inflow": round(dex_inflow_score, 3),
-            "whale_ping": round(whale_ping_score, 3),
-            "trust_boost": round(trust_boost_score, 3),
-            "identity_boost": round(identity_boost_score, 3),
-            
-            # === CONSENSUS DECISION ENGINE RESULTS ===
-            "consensus_decision": consensus_result.decision.value if consensus_result else None,
-            "consensus_score": round(consensus_result.final_score, 3) if consensus_result else None,
-            "consensus_confidence": round(consensus_result.confidence, 3) if consensus_result else None,
-            "consensus_detectors": consensus_result.contributing_detectors if consensus_result else [],
-            "consensus_votes": [v.value if v.value != "ALERT" else "BUY" for v in consensus_result.votes] if consensus_result and hasattr(consensus_result, 'votes') and consensus_result.votes else []
-        }
-        
-        # Dodaj informacje o błędach jeśli wystąpiły
-        if diamond_error:
-            result["diamond_error"] = diamond_error
-        if californium_error:
-            result["californium_error"] = californium_error
-        if consensus_error:
-            result["consensus_error"] = consensus_error
-        
-        # Original location dla explore mode logic przeniesiony na lepsze miejsce
-        # 🚨 STEALTH V3 TELEGRAM ALERT INTEGRATION - Nowoczesny Alert System
-        # Alert triggering logic based ONLY on consensus decision
-        try:
-            # Import nowego systemu alertów Stealth v3
-            from alerts.stealth_v3_telegram_alerts import send_stealth_v3_alert
-            
-            # 🔐 CRITICAL CONSENSUS DECISION ONLY - IGNORE SCORE THRESHOLDS
-            should_alert = False
-            explore_mode = False
-            explore_trigger_reason = None
-            explore_confidence = 0.0
-            
-            # Jeśli mamy consensus, użyj TYLKO jego decyzji - ignoruj score
-            if consensus_result and consensus_result.decision.value == "BUY":
-                should_alert = True
-                print(f"[STEALTH V3 ALERT] {token_data.get('symbol', 'UNKNOWN')}: Consensus decision {consensus_result.decision.value} triggers alert (score ignored)")
-            elif consensus_result and consensus_result.decision.value in ["HOLD", "AVOID", "NO_ALERT"]:
-                should_alert = False
-                print(f"[STEALTH V3 ALERT BLOCK] {token_data.get('symbol', 'UNKNOWN')}: Consensus decision {consensus_result.decision.value} blocks alert (score={score:.3f})")
-            else:
-                # Fallback - jeśli nie ma consensus, sprawdź tylko wysoki score (4.0+)
-                if score >= 4.0:
-                    should_alert = True
-                    print(f"[STEALTH V3 FALLBACK] {token_data.get('symbol', 'UNKNOWN')}: No consensus, high score {score:.3f} triggers alert")
-                else:
-                    print(f"[STEALTH V3 NO ALERT] {token_data.get('symbol', 'UNKNOWN')}: No consensus, score {score:.3f} < 4.0 threshold")
-            
-            # 🚧 EXPLORE MODE - Experimental Cold Start Alerts (INDEPENDENT CHECK)
-            # Run explore mode check for all tokens regardless of consensus decision
-            print(f"[EXPLORE MODE DEBUG] {token_data.get('symbol', 'UNKNOWN')}: Reached explore mode section!")
-            print(f"[EXPLORE MODE CHECK] {token_data.get('symbol', 'UNKNOWN')}: Score={score:.3f}, Consensus={consensus_result.decision.value if consensus_result else 'NONE'}")
-            try:
-                from utils.stealth_utils import is_cold_start, should_explore_mode_trigger, calculate_explore_mode_confidence, format_explore_mode_reason
-                
-                # Przygotuj token data dla explore mode
-                explore_token_data = {
-                    "trust_addresses": 0,  # Simplified - no trust addresses for new tokens
-                    "feedback_history": [],  # Brak historii dla nowych tokenów
-                    "contract_found": token_data.get("contract_found", True),
-                    "whale_memory_entries": 0,
-                    "historical_alerts": [],
-                    "active_signals": list(used_signals),
-                    "whale_ping_strength": whale_ping_score,
-                    "dex_inflow_usd": token_data.get("dex_inflow_usd", 0.0),
-                    "final_score": score
-                }
-                
-                # Sprawdź czy token kwalifikuje się do explore mode
-                should_explore, trigger_reason = should_explore_mode_trigger(explore_token_data, score)
-                
-                if should_explore:
-                    # If not already alerting through consensus, trigger explore mode alert
-                    if not should_alert:
-                        should_alert = True
-                        explore_mode = True
-                        explore_trigger_reason = trigger_reason
-                        explore_confidence = calculate_explore_mode_confidence(explore_token_data, score)
-                        
-                        print(f"[EXPLORE MODE TRIGGERED] {token_data.get('symbol', 'UNKNOWN')}: Cold start experimental alert triggered")
-                        print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Reason: {trigger_reason}")
-                        print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Synthetic confidence: {explore_confidence:.3f}")
-                        print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Core signals: {len(set(used_signals).intersection({'whale_ping', 'dex_inflow', 'orderbook_anomaly', 'spoofing_layers'}))}")
-                        
-                        # Update result z explore mode data
-                        result["explore_mode"] = True
-                        result["explore_trigger_reason"] = trigger_reason
-                        result["explore_confidence"] = explore_confidence
-                    else:
-                        print(f"[EXPLORE MODE QUALIFIED] {token_data.get('symbol', 'UNKNOWN')}: Token qualifies for explore mode but already alerting via consensus")
-                        # Still add explore mode metadata even if alerting through consensus
-                        result["explore_mode_eligible"] = True
-                        result["explore_trigger_reason"] = trigger_reason
-                        
-                else:
-                    print(f"[EXPLORE MODE SKIP] {token_data.get('symbol', 'UNKNOWN')}: Cold start check failed: {trigger_reason}")
-                    
-            except ImportError:
-                print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Explore mode utilities not available")
-            except Exception as e:
-                print(f"[EXPLORE MODE ERROR] {token_data.get('symbol', 'UNKNOWN')}: {e}")
-            
-            if should_alert:
-                symbol = token_data.get('symbol', 'UNKNOWN')
-                
-                # Przygotuj detector results - mapuj aktywne sygnały na detektory
-                detector_results = {}
-                
-                # Mapuj klasyczne stealth signals na detektory
-                for signal in used_signals:
-                    if signal == "whale_ping":
-                        detector_results["whale_ping"] = True
-                    elif signal == "dex_inflow":
-                        detector_results["dex_inflow"] = True
-                    elif signal == "spoofing_layers":
-                        detector_results["orderbook_anomaly"] = True
-                
-                # Dodaj AI detektory
-                if diamond_enabled and diamond_score > 0.3:
-                    detector_results["diamond_ai"] = True
-                if californium_enabled and californium_score > 0.3:
-                    detector_results["mastermind_tracing"] = True
-                
-                # Przygotuj consensus data
-                consensus_data = {}
-                if consensus_result:
-                    consensus_data = {
-                        "decision": consensus_result.decision.value,
-                        "votes": f"{len(consensus_result.contributing_detectors)}/{len(detector_scores) if 'detector_scores' in locals() else 4}",
-                        "confidence": round(consensus_result.final_score, 3),
-                        "feedback_adjust": 0.0  # Placeholder dla przyszłych implementacji
-                    }
-                elif explore_mode:
-                    # 🚧 EXPLORE MODE - Experimental alert consensus data
-                    consensus_data = {
-                        "decision": "BUY",  # BUY-only enforcement - explore mode qualifies as BUY
-                        "votes": f"{len(used_signals)}/4 (EXPLORE)",
-                        "confidence": round(explore_confidence, 3),
-                        "feedback_adjust": 0.0,
-                        "explore_mode": True,
-                        "explore_trigger_reason": explore_trigger_reason
-                    }
-                else:
-                    # Fallback consensus data based on stealth score
-                    if score >= 4.0:
-                        consensus_data = {
-                            "decision": "BUY",
-                            "votes": f"{len(used_signals)}/4",
-                            "confidence": round(min(score / 4.0, 1.0), 3),
-                            "feedback_adjust": 0.0
-                        }
-                    elif score >= 2.5:
-                        consensus_data = {
-                            "decision": "MONITOR",
-                            "votes": f"{len(used_signals)}/4", 
-                            "confidence": round(score / 4.0, 3),
-                            "feedback_adjust": 0.0
-                        }
-                
-                # Przygotuj meta data
-                meta_data = {
-                    "trust_addresses": len([s for s in used_signals if "trust" in s or "identity" in s]),
-                    "coverage": round(data_coverage * 100, 1),
-                    "historical_support": "Yes" if score >= 3.0 else "Partial",
-                    "californium_score": round(californium_score, 3) if californium_enabled else None,
-                    "diamond_score": round(diamond_score, 3) if diamond_enabled else None,
-                    "explore_mode": explore_mode,
-                    "explore_trigger_reason": explore_trigger_reason if explore_mode else None
-                }
-                
-                print(f"[ALERT SECTION DEBUG] {symbol}: About to send Stealth v3 alert (score: {score:.3f})")
-                
-                # Wyślij Stealth v3 alert
-                alert_success = send_stealth_v3_alert(
-                    symbol=symbol,
-                    detector_results=detector_results,
-                    consensus_data=consensus_data,
-                    meta_data=meta_data
-                )
-                
-                if alert_success:
-                    print(f"[STEALTH V3 ALERT SUCCESS] {symbol}: Nowoczesny alert wysłany (score: {score:.3f})")
-                    result["alert_sent"] = True
-                    result["alert_type"] = "stealth_v3"
-                    
-                    # 🚧 EXPLORE MODE FEEDBACK LOGGING
-                    if explore_mode:
-                        try:
-                            from utils.stealth_utils import log_explore_mode_feedback
+                        if contract_info and contract_info.get('address'):
+                            # Symuluj GNN subgraph analysis na podstawie dostępnych sygnałów
+                            if len(used_signals) >= 2 and score > 1.0:
+                                gnn_subgraph_score = min(score * 0.3, 0.9)  # Derived from stealth signals
+                                gnn_active = True
+                                print(f"[GNN SCORE] {symbol}: Subgraph QIRL score = {gnn_subgraph_score:.3f}")
+                            else:
+                                print(f"[GNN SCORE] {symbol}: Insufficient signals for subgraph analysis")
+                        else:
+                            print(f"[GNN SCORE] {symbol}: No contract address for graph analysis")
                             
-                            # Log explore mode feedback dla future learning
-                            feedback_entry = log_explore_mode_feedback(
-                                symbol=symbol,
-                                final_score=score,
-                                confidence=explore_confidence,
-                                decision="BUY",
-                                explore_mode=True,
-                                token_data=explore_token_data
+                    except Exception as e:
+                        print(f"[GNN SCORE ERROR] {symbol}: GNN analysis failed: {e}")
+                    
+                    # === MASTERMIND TRACING INTEGRATION ===
+                    # Dodaj group activity mastermind zgodnie z uwagami Szefira
+                    mastermind_addresses = []
+                    
+                    try:
+                        # Placeholder dla mastermind tracing - wykryj powtarzające się adresy
+                        if "whale_ping" in used_signals and diamond_enabled:
+                            # Symuluj wykrywanie powtarzających się adresów akumulacji
+                            if diamond_score > 0.5:
+                                mastermind_addresses = ["0x123...", "0x456...", "0x789..."]  # Przykładowe adresy
+                                print(f"[MASTER AI] {symbol}: {len(mastermind_addresses)} addresses repeat accumulation: {', '.join(mastermind_addresses)}")
+                            else:
+                                print(f"[MASTER AI] {symbol}: No significant mastermind pattern detected")
+                        else:
+                            print(f"[MASTER AI] {symbol}: Insufficient whale activity for mastermind analysis")
+                            
+                    except Exception as e:
+                        print(f"[MASTER AI ERROR] {symbol}: Mastermind tracing failed: {e}")
+                    
+                    # === DETECTORS ACTIVE STATUS LOG ===
+                    # Dodaj log aktywnych detektorów przed konsensusem zgodnie z uwagami Szefira
+                    print(f"[DETECTORS ACTIVE] {symbol}: StealthEngine=True, Diamond={diamond_enabled}, Californium={californium_enabled}, WhaleCLIP={whaleclip_enabled}, GNN={gnn_active}")
+                    
+                    # 🚨 STEALTH V3 TELEGRAM ALERT SYSTEM - QUALITY PRIORITY CHANGE
+                    # ✅ CONSENSUS-BASED ALERT LOGIC: Only send alerts when final_decision == "BUY"
+                    # This eliminates false positives where high score but agents vote HOLD/AVOID
+                    
+                    # 🚨 NEW UNIFIED CONSENSUS DECISION ENGINE INTEGRATION
+                    # Replace old 5-agent system with new 4-agent consensus: CaliforniumWhale, WhaleCLIP, StealthEngine, DiamondWhale
+                    final_decision = "WATCH"  # Default fallback
+                    consensus_data = None
+                    
+                    try:
+                        from .decision_consensus import create_decision_consensus_engine
+                        
+                        # Prepare detector outputs for new consensus system
+                        detector_outputs = {}
+                        
+                        # StealthEngine (Classic Stealth Signals)
+                        if score > 0.0:
+                            stealth_vote = "BUY" if score > 2.0 else ("HOLD" if score > 1.0 else "AVOID")
+                            detector_outputs["StealthEngine"] = {
+                                "vote": stealth_vote,
+                                "score": min(score / 4.0, 1.0),  # Normalize to 0-1
+                                "confidence": min(data_coverage, 1.0),
+                                "weight": 0.25
+                            }
+                            print(f"[NEW CONSENSUS] {symbol}: StealthEngine → {stealth_vote} (score: {score:.3f})")
+                        
+                        # CaliforniumWhale AI
+                        if californium_enabled and californium_score > 0.0:
+                            calif_vote = "BUY" if californium_score > 0.7 else ("HOLD" if californium_score > 0.4 else "AVOID")
+                            detector_outputs["CaliforniumWhale"] = {
+                                "vote": calif_vote,
+                                "score": californium_score,
+                                "confidence": 0.85,
+                                "weight": 0.33
+                            }
+                            print(f"[NEW CONSENSUS] {symbol}: CaliforniumWhale → {calif_vote} (score: {californium_score:.3f})")
+                        
+                        # DiamondWhale AI
+                        if diamond_enabled and diamond_score > 0.0:
+                            diamond_vote = "BUY" if diamond_score > 0.6 else ("HOLD" if diamond_score > 0.3 else "AVOID")
+                            detector_outputs["DiamondWhale"] = {
+                                "vote": diamond_vote,
+                                "score": diamond_score,
+                                "confidence": 0.80,
+                                "weight": 0.25
+                            }
+                            print(f"[NEW CONSENSUS] {symbol}: DiamondWhale → {diamond_vote} (score: {diamond_score:.3f})")
+                        
+                        # WhaleCLIP (derived from whale signals)
+                        whale_signal_strength = 0.0
+                        if "whale_ping" in used_signals:
+                            for signal in signals:
+                                if signal.name == "whale_ping" and hasattr(signal, 'strength'):
+                                    whale_signal_strength = signal.strength
+                                    break
+                            
+                            if whale_signal_strength > 0.0:
+                                clip_vote = "BUY" if whale_signal_strength > 0.8 else ("HOLD" if whale_signal_strength > 0.5 else "AVOID")
+                                detector_outputs["WhaleCLIP"] = {
+                                    "vote": clip_vote,
+                                    "score": whale_signal_strength,
+                                    "confidence": 0.75,
+                                    "weight": 0.26
+                                }
+                                print(f"[NEW CONSENSUS] {symbol}: WhaleCLIP → {clip_vote} (score: {whale_signal_strength:.3f})")
+                        
+                        # Run consensus decision if we have detectors
+                        if len(detector_outputs) >= 2:
+                            consensus_engine = create_decision_consensus_engine()
+                            consensus_result = consensus_engine.simulate_decision_consensus(
+                                detector_outputs, 
+                                threshold=0.7, 
+                                token=symbol
                             )
                             
-                            # Save to explore mode feedback file
-                            import json
-                            import os
-                            os.makedirs("cache/explore_mode", exist_ok=True)
-                            feedback_file = "cache/explore_mode/feedback_log.json"
+                            final_decision = consensus_result.decision
+                            consensus_data = {
+                                "decision": final_decision,
+                                "votes": [f"{det}: {data['vote']}" for det, data in detector_outputs.items()],
+                                "confidence": consensus_result.confidence,
+                                "final_score": consensus_result.final_score,
+                                "threshold_met": consensus_result.threshold_met,
+                                "contributing_detectors": consensus_result.contributing_detectors
+                            }
                             
-                            # Load existing feedback log
-                            if os.path.exists(feedback_file):
-                                with open(feedback_file, 'r') as f:
-                                    feedback_log = json.load(f)
+                            print(f"[NEW CONSENSUS] {symbol}: Final decision → {final_decision} (score: {consensus_result.final_score:.3f}, confidence: {consensus_result.confidence:.3f})")
+                            print(f"[NEW CONSENSUS] {symbol}: Contributing detectors: {consensus_result.contributing_detectors}")
+                            
+                        else:
+                            print(f"[NEW CONSENSUS] {symbol}: Insufficient detectors ({len(detector_outputs)}) for consensus - defaulting to WATCH")
+                            consensus_data = {
+                                "decision": "WATCH",
+                                "votes": [],
+                                "confidence": 0.0,
+                                "final_score": 0.0,
+                                "threshold_met": False,
+                                "contributing_detectors": []
+                            }
+                            
+                    except ImportError:
+                        print(f"[NEW CONSENSUS] {symbol}: Consensus engine not available - falling back to legacy logic")
+                        # Simplified fallback logic
+                        if score > 2.0:
+                            final_decision = "BUY"
+                        elif score > 1.0:
+                            final_decision = "MONITOR"
+                        else:
+                            final_decision = "WATCH"
+                            
+                        consensus_data = {
+                            "decision": final_decision,
+                            "votes": ["fallback_mode"],
+                            "confidence": min(score / 4.0, 1.0),
+                            "final_score": score,
+                            "threshold_met": score > 2.0,
+                            "contributing_detectors": ["stealth_fallback"]
+                        }
+                    except Exception as e:
+                        print(f"[NEW CONSENSUS ERROR] {symbol}: {e}")
+                        final_decision = "WATCH"
+                        consensus_data = {
+                            "decision": "WATCH",
+                            "votes": [],
+                            "confidence": 0.0,
+                            "final_score": 0.0,
+                            "threshold_met": False,
+                            "contributing_detectors": []
+                        }
+                    
+                    # === ALERT TRIGGER DECISION LOG ===
+                    # Dodaj pełne uzasadnienie dla decyzji alertu zgodnie z uwagami Szefira
+                    active_detectors_count = sum([1 for x in [diamond_enabled, californium_enabled, whaleclip_enabled] if x])
+                    alert_eligible = (score >= 0.70 and final_decision == "BUY")
+                    
+                    # Dodaj informacje o GNN i mastermind do alert reasoning
+                    gnn_note = f", GNN={gnn_subgraph_score:.3f}" if gnn_active else ""
+                    mastermind_note = f", Mastermind={len(mastermind_addresses)} addresses" if mastermind_addresses else ""
+                    
+                    print(f"[ALERT TRIGGER] {symbol}: Decision={final_decision}, Score={score:.3f}, Reason={'Alert triggered' if alert_eligible else 'Below threshold or non-BUY consensus'}, Active detectors ({active_detectors_count}/3){gnn_note}{mastermind_note}")
+                    print(f"[ALERT LOGIC] {symbol}: Score={score:.3f}, Decision={final_decision} → Alert Eligible: {alert_eligible}")
+                    
+                    # ✅ NEW ALERT CONDITION: Only send alerts when agents reach BUY consensus
+                    if score >= 0.70 and final_decision == "BUY":
+                        # Main alert for BUY consensus
+                        try:
+                            from alerts.stealth_v3_telegram_alerts import send_stealth_v3_alert
+                            
+                            # Prepare detector_results for alert system using new consensus data
+                            detector_results = {}
+                            
+                            # Extract detector scores for alert display
+                            if consensus_data and "contributing_detectors" in consensus_data:
+                                for detector in consensus_data["contributing_detectors"]:
+                                    # Map detector names to legacy alert format
+                                    if detector == "StealthEngine":
+                                        detector_results["whale_ping"] = min(score / 4.0, 1.0)
+                                    elif detector == "CaliforniumWhale":
+                                        detector_results["mastermind_tracing"] = californium_score if californium_enabled else 0.0
+                                    elif detector == "DiamondWhale": 
+                                        detector_results["diamond_ai"] = diamond_score if diamond_enabled else 0.0
+                                    elif detector == "WhaleCLIP":
+                                        detector_results["whaleclip_vision"] = whale_signal_strength
+                            
+                            # Ensure required detector fields exist for alert compatibility
+                            required_detectors = ["whale_ping", "dex_inflow", "orderbook_anomaly", "whaleclip_vision", "mastermind_tracing"]
+                            for detector in required_detectors:
+                                if detector not in detector_results:
+                                    detector_results[detector] = 0.0
+                            
+                            # Add classic signal scores
+                            for signal in signals:
+                                if hasattr(signal, 'active') and signal.active and hasattr(signal, 'strength'):
+                                    weight = weights.get(signal.name, 1.0)
+                                    signal_score = weight * signal.strength
+                                    
+                                    if signal.name == "dex_inflow":
+                                        detector_results["dex_inflow"] = signal_score
+                                    elif signal.name in ["spoofing_layers", "orderbook_imbalance_stealth", "large_bid_walls"]:
+                                        detector_results["orderbook_anomaly"] = detector_results.get("orderbook_anomaly", 0.0) + signal_score
+                            
+                            # Calculate feedback adjustment from component system
+                            feedback_adjustment = 0.0
+                            try:
+                                from feedback_loop.component_score_updater import get_component_updater
+                                updater = get_component_updater()
+                                if hasattr(updater, 'get_recent_boost'):
+                                    feedback_adjustment = updater.get_recent_boost(symbol)
+                            except ImportError:
+                                pass
+                            
+                            # Use consensus_data if available, otherwise create fallback
+                            if not consensus_data:
+                                consensus_data = {
+                                    "decision": final_decision,
+                                    "votes": ["fallback_mode"],
+                                    "confidence": min(score / 4.0, 1.0),
+                                    "final_score": score,
+                                    "threshold_met": score > 2.0,
+                                    "contributing_detectors": ["stealth_fallback"]
+                                }
+                            
+                            # Update consensus_data with feedback adjustment
+                            consensus_data["feedback_adjust"] = round(feedback_adjustment, 3)
+                            
+                            # Przygotuj meta_data z AI detector scores
+                            meta_data = {
+                                "trust_addresses": len([s for s in used_signals if "trust" in s or "identity" in s]),
+                                "coverage": round(data_coverage * 100, 1),
+                                "historical_support": "Yes" if score >= 3.0 else "Partial"
+                            }
+                            
+                            if diamond_enabled and diamond_score > 0:
+                                meta_data["diamond_score"] = round(diamond_score, 3)
+                            if whaleclip_enabled and whaleclip_score > 0:
+                                meta_data["whaleclip_score"] = round(whaleclip_score, 3)
+                            if californium_enabled and californium_score > 0:
+                                meta_data["californium_score"] = round(californium_score, 3)
+                            
+                            # Enhanced logging z comprehensive diagnostic breakdown
+                            try:
+                                from utils.stealth_logger import StealthLogger
+                                stealth_logger = StealthLogger()
+                                stealth_logger.log_stealth_analysis_complete(symbol, detector_results, consensus_data)
+                            except ImportError:
+                                pass
+                            
+                            # Wyślij Stealth v3 alert
+                            alert_sent = send_stealth_v3_alert(
+                                symbol=symbol,
+                                detector_results=detector_results,
+                                consensus_data=consensus_data,
+                                meta_data=meta_data
+                            )
+                            
+                            if alert_sent:
+                                print(f"[STEALTH V3 ALERT] ✅ {symbol}: Nowoczesny alert v3 wysłany (score: {score:.3f})")
+                                
+                                # Log pattern identification dla diagnostic transparency
+                                active_detectors = [name for name, score_val in detector_results.items() if score_val > 0.0]
+                                if active_detectors:
+                                    print(f"[STEALTH V3 PATTERN] {symbol}: {', '.join(active_detectors)} consensus pattern")
+                                
+                                # Log agent consensus breakdown
+                                votes = consensus_data.get('votes', [])
+                                if isinstance(votes, list) and len(votes) > 0:
+                                    buy_votes = votes.count('BUY')
+                                    print(f"[STEALTH V3 CONSENSUS] {symbol}: {buy_votes}/{len(votes)} BUY votes → {consensus_data.get('decision', 'UNKNOWN')}")
                             else:
-                                feedback_log = []
+                                print(f"[STEALTH V3 ALERT] ℹ️ {symbol}: Alert v3 w cooldown lub błąd")
+                                
+                        except ImportError:
+                            print(f"[STEALTH V3 ALERT] ⚠️ {symbol}: Stealth v3 alert system nie jest dostępny")
+                        except Exception as alert_error:
+                            print(f"[STEALTH V3 ALERT] ❌ {symbol}: Alert v3 error: {alert_error}")
+                    
+                    # === COMPONENT-AWARE FEEDBACK LOOP V4 INTEGRATION ===
+                    # Enhanced component breakdown calculation z dynamic weight application
+                    
+                    try:
+                        # Import Component Score Engine V4
+                        from stealth_engine.component_score_engine import get_component_engine, extract_classic_stealth_components
+                        from stealth_engine.component_logger import log_component_feedback, log_dynamic_weights
+                        
+                        component_engine = get_component_engine()
+                        
+                        # Build raw component scores from signals
+                        raw_component_scores = {
+                            "dex": 0.0,
+                            "whale": 0.0, 
+                            "trust": 0.0,
+                            "id": 0.0
+                        }
+                        
+                        # Extract component contributions from active signals
+                        for signal in signals:
+                            if hasattr(signal, 'active') and signal.active and hasattr(signal, 'strength'):
+                                weight = weights.get(signal.name, 1.0)
+                                contribution = weight * signal.strength
+                                
+                                # Kategoryzuj komponenty według advanced mapping
+                                if signal.name in ['dex_inflow']:
+                                    raw_component_scores["dex"] += contribution
+                                elif signal.name in ['whale_ping', 'whale_ping_real', 'whale_ping_real_repeat']:
+                                    raw_component_scores["whale"] += contribution
+                                elif signal.name in ['trust_boost', 'token_trust']:
+                                    raw_component_scores["trust"] += contribution
+                                elif signal.name in ['identity_boost', 'repeated_address_boost']:
+                                    raw_component_scores["id"] += contribution
+                        
+                        # Add AI detector contributions to component scores
+                        if diamond_enabled and diamond_score > 0:
+                            raw_component_scores["whale"] += diamond_score * 0.3  # Diamond AI → whale detection
+                            raw_component_scores["trust"] += diamond_score * 0.1   # Diamond AI → trust boost
+                        
+                        if whaleclip_enabled and whaleclip_score > 0:
+                            raw_component_scores["whale"] += whaleclip_score * 0.2  # WhaleCLIP AI → whale detection
+                            raw_component_scores["trust"] += whaleclip_score * 0.05  # WhaleCLIP AI → trust boost
+                        
+                        if californium_enabled and californium_score > 0:
+                            raw_component_scores["trust"] += californium_score * 0.25  # Californium AI → trust
+                            raw_component_scores["whale"] += californium_score * 0.1   # Californium AI → whale detection
+                        
+                        # Apply Component-Aware Dynamic Weights V4 with Self-Learning Decay
+                        weighted_component_scores, component_weighted_total = component_engine.apply_dynamic_weights_to_components(
+                            raw_component_scores, "ClassicStealth"
+                        )
+                        
+                        # Update original score with component-weighted total (enhanced precision)
+                        if component_weighted_total > 0:
+                            # Blend original score with component-weighted score (70/30 mix for stability)
+                            enhanced_score = (score * 0.7) + (component_weighted_total * 0.3)
+                            print(f"[COMPONENT V4] {symbol}: Enhanced score {score:.3f} → {enhanced_score:.3f} (component boost: +{enhanced_score-score:.3f})")
+                            score = enhanced_score
+                        
+                        # Extract final component values for TOP 5 display
+                        dex_inflow_score = weighted_component_scores.get("dex", 0.0)
+                        whale_ping_score = weighted_component_scores.get("whale", 0.0)
+                        trust_boost_score = weighted_component_scores.get("trust", 0.0)
+                        identity_boost_score = weighted_component_scores.get("id", 0.0)
+                        
+                        # Log Component-Aware Feedback V4 effectiveness with Self-Learning Decay
+                        if sum(raw_component_scores.values()) > 0:
+                            # Calculate effectiveness percentages
+                            total_raw = sum(raw_component_scores.values())
+                            effectiveness_percentages = {
+                                comp: (weighted_component_scores.get(comp, 0.0) / raw_component_scores.get(comp, 0.001)) * 100
+                                for comp in raw_component_scores if raw_component_scores[comp] > 0
+                            }
                             
-                            # Append new feedback
-                            feedback_log.append(feedback_entry)
+                            # Log component feedback according to user specification
+                            log_component_feedback(effectiveness_percentages, symbol, "ClassicStealth")
                             
-                            # Save updated feedback log
-                            with open(feedback_file, 'w') as f:
-                                json.dump(feedback_log, f, indent=2)
+                            # Get dynamic weights with decay application
+                            try:
+                                from feedback_loop.component_score_updater import get_component_updater
+                                updater = get_component_updater()
+                                applied_weights = updater.load_current_weights()
+                                
+                                # Log decay-adjusted weights
+                                log_dynamic_weights(applied_weights, symbol, "ClassicStealth")
+                                
+                                # Log Self-Learning Decay status
+                                if hasattr(updater, 'enable_decay') and updater.enable_decay:
+                                    print(f"[SELF-LEARNING DECAY] {symbol}: Active - weights auto-adjusted based on historical performance")
+                                
+                            except ImportError:
+                                # Fallback to basic weights loader
+                                from feedback_loop.weights_loader import get_dynamic_component_weights
+                                applied_weights = get_dynamic_component_weights()
+                                log_dynamic_weights(applied_weights, symbol, "ClassicStealth")
+                        
+                        # Enhanced component logging with V4 format
+                        print(f"[STEALTH COMPONENTS V4] {symbol} | DEX: {dex_inflow_score:.3f} | WHALE: {whale_ping_score:.3f} | TRUST: {trust_boost_score:.3f} | ID: {identity_boost_score:.3f}")
+                        print(f"[COMPONENT V4] {symbol}: Component-weighted total: {component_weighted_total:.3f}")
+                        
+                    except ImportError as e:
+                        print(f"[COMPONENT V4] {symbol}: Component system not available: {e}")
+                        # Fallback to original component calculation
+                        dex_inflow_score = 0.0
+                        whale_ping_score = 0.0
+                        trust_boost_score = 0.0
+                        identity_boost_score = 0.0
+                        
+                        for signal in signals:
+                            if hasattr(signal, 'active') and signal.active and hasattr(signal, 'strength'):
+                                weight = weights.get(signal.name, 1.0)
+                                contribution = weight * signal.strength
+                                
+                                if signal.name in ['dex_inflow']:
+                                    dex_inflow_score += contribution
+                                elif signal.name in ['whale_ping', 'whale_ping_real', 'whale_ping_real_repeat']:
+                                    whale_ping_score += contribution
+                                elif signal.name in ['trust_boost', 'token_trust']:
+                                    trust_boost_score += contribution
+                                elif signal.name in ['identity_boost', 'repeated_address_boost']:
+                                    identity_boost_score += contribution
+                        
+                        # Add AI contributions (fallback)
+                        if diamond_enabled and diamond_score > 0:
+                            whale_ping_score += diamond_score * 0.3
+                        if whaleclip_enabled and whaleclip_score > 0:
+                            whale_ping_score += whaleclip_score * 0.2
+                        if californium_enabled and californium_score > 0:
+                            trust_boost_score += californium_score * 0.25
+                        
+                        print(f"[STEALTH COMPONENTS] {symbol} | DEX: {dex_inflow_score:.3f} | WHALE: {whale_ping_score:.3f} | TRUST: {trust_boost_score:.3f} | ID: {identity_boost_score:.3f}")
+                    
+                    except Exception as e:
+                        print(f"[COMPONENT V4 ERROR] {symbol}: Component system error: {e}")
+                        # Safe fallback values
+                        dex_inflow_score = 0.0
+                        whale_ping_score = 0.0  
+                        trust_boost_score = 0.0
+                        identity_boost_score = 0.0
+                        
+                    print(f"[COMPONENT V4 DEBUG] {symbol}: Component section completed successfully - continuing to consensus...")
+                    
+                    print(f"[FUNCTION DEBUG] {token_data.get('symbol', 'UNKNOWN')}: About to enter consensus section...")
+                    
+                    # 🧠 MULTI-AGENT CONSENSUS DECISION ENGINE - Unified Detector Fusion
+                    consensus_result = None
+                    consensus_error = None
+                    
+                    print(f"[CONSENSUS DEBUG] {token_data.get('symbol', 'UNKNOWN')}: Starting consensus decision engine...")
+                    
+                    print(f"[CONSENSUS DEBUG] {token_data.get('symbol', 'UNKNOWN')}: About to start consensus decision engine")
+                    try:
+                        print(f"[CONSENSUS DEBUG] {token_data.get('symbol', 'UNKNOWN')}: Importing consensus engine...")
+                        from .consensus_decision_engine import create_consensus_engine
+                        print(f"[CONSENSUS DEBUG] {token_data.get('symbol', 'UNKNOWN')}: Consensus engine imported successfully")
+                        
+                        # Prepare detector scores for consensus
+                        detector_scores = {}
+                        
+                        # Classic Stealth Engine
+                        if score > 0.0:
+                            detector_scores["StealthEngine"] = {
+                                "score": score,
+                                "confidence": min(data_coverage, 1.0),
+                                "weight": 0.25
+                            }
+                        
+                        # DiamondWhale AI
+                        if diamond_enabled and diamond_score > 0.0:
+                            detector_scores["DiamondWhale"] = {
+                                "score": diamond_score,
+                                "confidence": 0.85,  # High confidence temporal analysis
+                                "weight": 0.25
+                            }
+                        
+                        # CaliforniumWhale AI
+                        if californium_enabled and californium_score > 0.0:
+                            detector_scores["CaliforniumWhale"] = {
+                                "score": californium_score,
+                                "confidence": 0.80,  # Good confidence TGN+QIRL
+                                "weight": 0.30
+                            }
+                        
+                        # WhaleCLIP (mock for now - could be integrated later)
+                        if "whale_ping" in used_signals:
+                            detector_scores["WhaleCLIP"] = {
+                                "score": min(score * 0.8, 1.0),  # Derive from whale signals
+                                "confidence": 0.75,
+                                "weight": 0.20
+                            }
+                        
+                        # Run consensus if we have multiple detectors
+                        if len(detector_scores) >= 2:
+                            consensus_engine = create_consensus_engine()
                             
-                            print(f"[EXPLORE MODE FEEDBACK] {symbol}: Logged experimental alert feedback")
+                            # Use simple consensus for production
+                            consensus_result = consensus_engine.run(
+                                symbol, 
+                                {k: v["score"] for k, v in detector_scores.items()},
+                                use_simple_consensus=True
+                            )
                             
+                            print(f"[CONSENSUS ENGINE] {symbol}: {consensus_result.decision.value} (score: {consensus_result.final_score:.3f})")
+                            print(f"[CONSENSUS ENGINE] {symbol}: Active detectors: {consensus_result.contributing_detectors}")
+                            print(f"[CONSENSUS ENGINE] {symbol}: Reasoning: {consensus_result.reasoning}")
+                        else:
+                            print(f"[CONSENSUS ENGINE] {symbol}: Insufficient detectors ({len(detector_scores)}) for consensus analysis")
+                            
+                    except ImportError:
+                        print(f"[CONSENSUS ENGINE] {symbol}: Consensus engine not available")
+                    except Exception as e:
+                        consensus_error = str(e)
+                        print(f"[CONSENSUS ENGINE ERROR] {symbol}: Failed to run consensus: {e}")
+                    
+                    # Przygotuj rezultat z integracją DiamondWhale AI + CaliforniumWhale AI + Component Breakdown + Consensus
+                    result = {
+                        "score": round(score, 3),
+                        "active_signals": used_signals,
+                        "data_coverage": round(data_coverage, 2),
+                        "partial_scoring": data_coverage < 0.8,
+                        "diamond_score": round(diamond_score, 3) if diamond_enabled else None,
+                        "diamond_enabled": diamond_enabled,
+                        "californium_score": round(californium_score, 3) if californium_enabled else None,
+                        "californium_enabled": californium_enabled,
+                        
+                        # === COMPONENT BREAKDOWN FOR TOP 5 DISPLAY ===
+                        "dex_inflow": round(dex_inflow_score, 3),
+                        "whale_ping": round(whale_ping_score, 3),
+                        "trust_boost": round(trust_boost_score, 3),
+                        "identity_boost": round(identity_boost_score, 3),
+                        
+                        # === CONSENSUS DECISION ENGINE RESULTS ===
+                        "consensus_decision": consensus_result.decision.value if consensus_result else None,
+                        "consensus_score": round(consensus_result.final_score, 3) if consensus_result else None,
+                        "consensus_confidence": round(consensus_result.confidence, 3) if consensus_result else None,
+                        "consensus_detectors": consensus_result.contributing_detectors if consensus_result else [],
+                        "consensus_votes": [v.value if v.value != "ALERT" else "BUY" for v in consensus_result.votes] if consensus_result and hasattr(consensus_result, 'votes') and consensus_result.votes else []
+                    }
+                    
+                    # Dodaj informacje o błędach jeśli wystąpiły
+                    if diamond_error:
+                        result["diamond_error"] = diamond_error
+                    if californium_error:
+                        result["californium_error"] = californium_error
+                    if consensus_error:
+                        result["consensus_error"] = consensus_error
+                    
+                    # Original location dla explore mode logic przeniesiony na lepsze miejsce
+                    # 🚨 STEALTH V3 TELEGRAM ALERT INTEGRATION - Nowoczesny Alert System
+                    # Alert triggering logic based ONLY on consensus decision
+                    try:
+                        # Import nowego systemu alertów Stealth v3
+                        from alerts.stealth_v3_telegram_alerts import send_stealth_v3_alert
+                        
+                        # 🔐 CRITICAL CONSENSUS DECISION ONLY - IGNORE SCORE THRESHOLDS
+                        should_alert = False
+                        explore_mode = False
+                        explore_trigger_reason = None
+                        explore_confidence = 0.0
+                        
+                        # Jeśli mamy consensus, użyj TYLKO jego decyzji - ignoruj score
+                        if consensus_result and consensus_result.decision.value == "BUY":
+                            should_alert = True
+                            print(f"[STEALTH V3 ALERT] {token_data.get('symbol', 'UNKNOWN')}: Consensus decision {consensus_result.decision.value} triggers alert (score ignored)")
+                        elif consensus_result and consensus_result.decision.value in ["HOLD", "AVOID", "NO_ALERT"]:
+                            should_alert = False
+                            print(f"[STEALTH V3 ALERT BLOCK] {token_data.get('symbol', 'UNKNOWN')}: Consensus decision {consensus_result.decision.value} blocks alert (score={score:.3f})")
+                        else:
+                            # Fallback - jeśli nie ma consensus, sprawdź tylko wysoki score (4.0+)
+                            if score >= 4.0:
+                                should_alert = True
+                                print(f"[STEALTH V3 FALLBACK] {token_data.get('symbol', 'UNKNOWN')}: No consensus, high score {score:.3f} triggers alert")
+                            else:
+                                print(f"[STEALTH V3 NO ALERT] {token_data.get('symbol', 'UNKNOWN')}: No consensus, score {score:.3f} < 4.0 threshold")
+                        
+                        # 🚧 EXPLORE MODE - Experimental Cold Start Alerts (INDEPENDENT CHECK)
+                        # Run explore mode check for all tokens regardless of consensus decision
+                        print(f"[EXPLORE MODE DEBUG] {token_data.get('symbol', 'UNKNOWN')}: Reached explore mode section!")
+                        print(f"[EXPLORE MODE CHECK] {token_data.get('symbol', 'UNKNOWN')}: Score={score:.3f}, Consensus={consensus_result.decision.value if consensus_result else 'NONE'}")
+                        try:
+                            from utils.stealth_utils import is_cold_start, should_explore_mode_trigger, calculate_explore_mode_confidence, format_explore_mode_reason
+                            
+                            # Przygotuj token data dla explore mode
+                            explore_token_data = {
+                                "trust_addresses": 0,  # Simplified - no trust addresses for new tokens
+                                "feedback_history": [],  # Brak historii dla nowych tokenów
+                                "contract_found": token_data.get("contract_found", True),
+                                "whale_memory_entries": 0,
+                                "historical_alerts": [],
+                                "active_signals": list(used_signals),
+                                "whale_ping_strength": whale_ping_score,
+                                "dex_inflow_usd": token_data.get("dex_inflow_usd", 0.0),
+                                "final_score": score
+                            }
+                            
+                            # Sprawdź czy token kwalifikuje się do explore mode
+                            should_explore, trigger_reason = should_explore_mode_trigger(explore_token_data, score)
+                            
+                            if should_explore:
+                                # If not already alerting through consensus, trigger explore mode alert
+                                if not should_alert:
+                                    should_alert = True
+                                    explore_mode = True
+                                    explore_trigger_reason = trigger_reason
+                                    explore_confidence = calculate_explore_mode_confidence(explore_token_data, score)
+                                    
+                                    print(f"[EXPLORE MODE TRIGGERED] {token_data.get('symbol', 'UNKNOWN')}: Cold start experimental alert triggered")
+                                    print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Reason: {trigger_reason}")
+                                    print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Synthetic confidence: {explore_confidence:.3f}")
+                                    print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Core signals: {len(set(used_signals).intersection({'whale_ping', 'dex_inflow', 'orderbook_anomaly', 'spoofing_layers'}))}")
+                                    
+                                    # Update result z explore mode data
+                                    result["explore_mode"] = True
+                                    result["explore_trigger_reason"] = trigger_reason
+                                    result["explore_confidence"] = explore_confidence
+                                else:
+                                    print(f"[EXPLORE MODE QUALIFIED] {token_data.get('symbol', 'UNKNOWN')}: Token qualifies for explore mode but already alerting via consensus")
+                                    # Still add explore mode metadata even if alerting through consensus
+                                    result["explore_mode_eligible"] = True
+                                    result["explore_trigger_reason"] = trigger_reason
+                            else:
+                                print(f"[EXPLORE MODE SKIP] {token_data.get('symbol', 'UNKNOWN')}: Cold start check failed: {trigger_reason}")
+                                
+                        except ImportError:
+                            print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Explore mode utilities not available")
                         except Exception as e:
-                            print(f"[EXPLORE MODE FEEDBACK ERROR] {symbol}: {e}")
+                            print(f"[EXPLORE MODE ERROR] {token_data.get('symbol', 'UNKNOWN')}: {e}")
+                        
+                        if should_alert:
+                            symbol = token_data.get('symbol', 'UNKNOWN')
                             
-                else:
-                    print(f"[STEALTH V3 ALERT SKIP] {symbol}: Alert w cooldown lub błąd wysyłania")
-                    result["alert_sent"] = False
-                    result["alert_skip_reason"] = "cooldown_or_error"
-            else:
-                alert_threshold = 3.0  # Define the alert threshold
-                print(f"[STEALTH V3 ALERT] {symbol}: Score {score:.3f} poniżej progu alertów ({alert_threshold})")
-                result["alert_sent"] = False
-                result["alert_skip_reason"] = "below_threshold"
-                
-        except Exception as stealth_alert_error:
-            print(f"[STEALTH V3 ALERT ERROR] {symbol}: {stealth_alert_error}")
-            result["alert_sent"] = False
-            result["alert_skip_reason"] = f"stealth_alert_error: {stealth_alert_error}"
-                
-        # ⛔ WATCHLIST ALERT SYSTEM DISABLED per user request
-        # User requested removal of watchlist alerts completely
-        
-        # At end of try block - check if we should return early or proceed to consensus
-        if skip_reason:
-            print(f"[EARLY EXIT] {symbol}: Returning early due to {skip_reason}")
-            return {
-                "score": score,
-                "stealth_score": score,
-                "active_signals": active_signals,
-                "skipped": skip_reason
-            }
-            
-        print(f"[COMPUTE STEALTH SCORE] {token_data.get('symbol', 'UNKNOWN')}: Stealth analysis completed - proceeding to consensus section...")
-        print(f"[EXIT DEBUG] {token_data.get('symbol', 'UNKNOWN')}: About to exit try block normally")
+                            # Przygotuj detector results - mapuj aktywne sygnały na detektory
+                            detector_results = {}
+                            
+                            # Mapuj klasyczne stealth signals na detektory
+                            for signal in used_signals:
+                                if signal == "whale_ping":
+                                    detector_results["whale_ping"] = True
+                                elif signal == "dex_inflow":
+                                    detector_results["dex_inflow"] = True
+                                elif signal == "spoofing_layers":
+                                    detector_results["orderbook_anomaly"] = True
+                            
+                            # Dodaj AI detektory
+                            if diamond_enabled and diamond_score > 0.3:
+                                detector_results["diamond_ai"] = True
+                            if californium_enabled and californium_score > 0.3:
+                                detector_results["mastermind_tracing"] = True
+                            
+                            # Przygotuj consensus data
+                            consensus_data = {}
+                            if consensus_result:
+                                consensus_data = {
+                                    "decision": consensus_result.decision.value,
+                                    "votes": f"{len(consensus_result.contributing_detectors)}/{len(detector_scores) if 'detector_scores' in locals() else 4}",
+                                    "confidence": round(consensus_result.final_score, 3),
+                                    "feedback_adjust": 0.0  # Placeholder dla przyszłych implementacji
+                                }
+                            elif explore_mode:
+                                # 🚧 EXPLORE MODE - Experimental alert consensus data
+                                consensus_data = {
+                                    "decision": "BUY",  # BUY-only enforcement - explore mode qualifies as BUY
+                                    "votes": f"{len(used_signals)}/4 (EXPLORE)",
+                                    "confidence": round(explore_confidence, 3),
+                                    "feedback_adjust": 0.0,
+                                    "explore_mode": True,
+                                    "explore_trigger_reason": explore_trigger_reason
+                                }
+                            else:
+                                # Fallback consensus data based on stealth score
+                                if score >= 4.0:
+                                    consensus_data = {
+                                        "decision": "BUY",
+                                        "votes": f"{len(used_signals)}/4",
+                                        "confidence": round(min(score / 4.0, 1.0), 3),
+                                        "feedback_adjust": 0.0
+                                    }
+                                elif score >= 2.5:
+                                    consensus_data = {
+                                        "decision": "MONITOR",
+                                        "votes": f"{len(used_signals)}/4", 
+                                        "confidence": round(score / 4.0, 3),
+                                        "feedback_adjust": 0.0
+                                    }
+                            
+                            # Przygotuj meta data
+                            meta_data = {
+                                "trust_addresses": len([s for s in used_signals if "trust" in s or "identity" in s]),
+                                "coverage": round(data_coverage * 100, 1),
+                                "historical_support": "Yes" if score >= 3.0 else "Partial",
+                                "californium_score": round(californium_score, 3) if californium_enabled else None,
+                                "diamond_score": round(diamond_score, 3) if diamond_enabled else None,
+                                "explore_mode": explore_mode,
+                                "explore_trigger_reason": explore_trigger_reason if explore_mode else None
+                            }
+                            
+                            print(f"[ALERT SECTION DEBUG] {symbol}: About to send Stealth v3 alert (score: {score:.3f})")
+                            
+                            # Wyślij Stealth v3 alert
+                            alert_success = send_stealth_v3_alert(
+                                symbol=symbol,
+                                detector_results=detector_results,
+                                consensus_data=consensus_data,
+                                meta_data=meta_data
+                            )
+                            
+                            if alert_success:
+                                print(f"[STEALTH V3 ALERT SUCCESS] {symbol}: Nowoczesny alert wysłany (score: {score:.3f})")
+                                result["alert_sent"] = True
+                                result["alert_type"] = "stealth_v3"
+                                
+                                # 🚧 EXPLORE MODE FEEDBACK LOGGING
+                                if explore_mode:
+                                    try:
+                                        from utils.stealth_utils import log_explore_mode_feedback
+                                        
+                                        # Log explore mode feedback dla future learning
+                                        feedback_entry = log_explore_mode_feedback(
+                                            symbol=symbol,
+                                            final_score=score,
+                                            confidence=explore_confidence,
+                                            decision="BUY",
+                                            explore_mode=True,
+                                            token_data=explore_token_data
+                                        )
+                                        
+                                        # Save to explore mode feedback file
+                                        import json
+                                        import os
+                                        os.makedirs("cache/explore_mode", exist_ok=True)
+                                        feedback_file = "cache/explore_mode/feedback_log.json"
+                                        
+                                        # Load existing feedback log
+                                        if os.path.exists(feedback_file):
+                                            with open(feedback_file, 'r') as f:
+                                                feedback_log = json.load(f)
+                                        else:
+                                            feedback_log = []
+                                        
+                                        # Append new feedback
+                                        feedback_log.append(feedback_entry)
+                                        
+                                        # Save updated feedback log
+                                        with open(feedback_file, 'w') as f:
+                                            json.dump(feedback_log, f, indent=2)
+                                        
+                                        print(f"[EXPLORE MODE FEEDBACK] {symbol}: Logged experimental alert feedback")
+                                        
+                                    except Exception as e:
+                                        print(f"[EXPLORE MODE FEEDBACK ERROR] {symbol}: {e}")
+                                        
+                            else:
+                                print(f"[STEALTH V3 ALERT SKIP] {symbol}: Alert w cooldown lub błąd wysyłania")
+                                result["alert_sent"] = False
+                                result["alert_skip_reason"] = "cooldown_or_error"
+                        else:
+                            alert_threshold = 3.0  # Define the alert threshold
+                            print(f"[STEALTH V3 ALERT] {symbol}: Score {score:.3f} poniżej progu alertów ({alert_threshold})")
+                            result["alert_sent"] = False
+                            result["alert_skip_reason"] = "below_threshold"
+                            
+                    except Exception as stealth_alert_error:
+                        print(f"[STEALTH V3 ALERT ERROR] {symbol}: {stealth_alert_error}")
+                        result["alert_sent"] = False
+                        result["alert_skip_reason"] = f"stealth_alert_error: {stealth_alert_error}"
+                        
+                    # ⛔ WATCHLIST ALERT SYSTEM DISABLED per user request
+                    # User requested removal of watchlist alerts completely
+                    
+                    # At end of try block - check if we should return early or proceed to consensus
+                    if skip_reason:
+                        print(f"[EARLY EXIT] {symbol}: Returning early due to {skip_reason}")
+                        return {
+                            "score": score,
+                            "stealth_score": score,
+                            "active_signals": active_signals,
+                            "skipped": skip_reason
+                        }
+                        
+                    print(f"[COMPUTE STEALTH SCORE] {token_data.get('symbol', 'UNKNOWN')}: Stealth analysis completed - proceeding to consensus section...")
+                    print(f"[EXIT DEBUG] {token_data.get('symbol', 'UNKNOWN')}: About to exit try block normally")
         
     except Exception as e:
         import traceback
