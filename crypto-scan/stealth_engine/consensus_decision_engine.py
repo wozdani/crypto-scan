@@ -409,6 +409,13 @@ class ConsensusDecisionEngine:
             score = data.get('score', 0.0)
             confidence = data.get('confidence', 0.0)
             
+            # Type safety - ensure float values before comparison
+            try:
+                score = float(score) if score is not None else 0.0
+                confidence = float(confidence) if confidence is not None else 0.0
+            except (ValueError, TypeError):
+                score, confidence = 0.0, 0.0
+            
             if score >= fallback_threshold and confidence >= min_confidence:
                 print(f"[FALLBACK CHECK] {detector_name}: score={score:.3f} >= {fallback_threshold}, conf={confidence:.3f} >= {min_confidence} → TRIGGER")
                 return True, detector_name
@@ -678,29 +685,63 @@ class ConsensusDecisionEngine:
         lines.append("")
         lines.append("🔍 Detector Breakdown:")
         
-        # Sort detectors by contribution (score × weight)
+        # Sort detectors by contribution (score × weight) with type safety
+        def safe_sort_key(item):
+            data = item[1]
+            try:
+                score_val = float(data.get('score', 0.0))
+                weight_val = float(data.get('weight', 0.0))
+                return score_val * weight_val
+            except (ValueError, TypeError):
+                return 0.0
+        
         sorted_detectors = sorted(
             active_detectors.items(),
-            key=lambda x: x[1]['score'] * x[1]['weight'],
+            key=safe_sort_key,
             reverse=True
         )
         
-        total_weight = sum(data['weight'] for data in active_detectors.values())
-        total_contribution = sum(data['score'] * data['weight'] for data in active_detectors.values())
+        # Type safety for sum calculations
+        total_weight = 0.0
+        total_contribution = 0.0
+        for data in active_detectors.values():
+            try:
+                weight_val = float(data.get('weight', 0.0))
+                score_val = float(data.get('score', 0.0))
+                total_weight += weight_val
+                total_contribution += score_val * weight_val
+            except (ValueError, TypeError):
+                continue  # Skip invalid entries
         
         for detector_name, data in sorted_detectors:
             is_boosted = detector_name in boosted_detectors
-            contribution = data['score'] * data['weight']
+            
+            # Type safety for calculation operations
+            score_val = data.get('score', 0.0)
+            weight_val = data.get('weight', 0.0)
+            try:
+                score_val = float(score_val) if score_val is not None else 0.0
+                weight_val = float(weight_val) if weight_val is not None else 0.0
+            except (ValueError, TypeError):
+                score_val, weight_val = 0.0, 0.0
+                
+            contribution = score_val * weight_val
             contribution_pct = (contribution / total_contribution * 100) if total_contribution > 0 else 0
             
-            # Enhanced detector icons based on performance
+            # Enhanced detector icons based on performance - type safety
+            confidence_val = data.get('confidence', 0.0)
+            try:
+                confidence_val = float(confidence_val) if confidence_val is not None else 0.0
+            except (ValueError, TypeError):
+                confidence_val = 0.0
+                
             if is_boosted:
                 icon = "🔥⚡"
-            elif data['confidence'] >= 0.80:
+            elif confidence_val >= 0.80:
                 icon = "💎"
-            elif data['confidence'] >= 0.70:
+            elif confidence_val >= 0.70:
                 icon = "⭐"
-            elif data['confidence'] >= 0.60:
+            elif confidence_val >= 0.60:
                 icon = "💫"
             else:
                 icon = "⚡"
