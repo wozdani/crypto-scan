@@ -21,6 +21,15 @@ except ImportError:
 # Global scan warnings system
 SCAN_WARNINGS = []
 
+# Global adaptive learning availability flag
+try:
+    from feedback_loop.adaptive_threshold_integration import run_adaptive_threshold_maintenance, get_adaptive_system_status
+    ADAPTIVE_LEARNING_AVAILABLE = True
+    print("[ADAPTIVE LEARNING] Adaptive threshold learning system loaded globally")
+except ImportError:
+    ADAPTIVE_LEARNING_AVAILABLE = False
+    print("[ADAPTIVE LEARNING] Adaptive threshold learning system not available")
+
 def log_warning(label, exception=None, additional_info=None):
     """
     Bezpieczne logowanie ostrzeżeń podczas skanu
@@ -509,13 +518,7 @@ def run_feedback_evaluation_if_needed():
     try:
         from feedback_loop.feedback_integration import should_run_evaluation_cycle, run_feedback_evaluation_cycle, update_label_weights_from_performance
         
-        # Import adaptive threshold learning system
-        try:
-            from feedback_loop.adaptive_threshold_integration import run_adaptive_threshold_maintenance, get_adaptive_system_status
-            ADAPTIVE_LEARNING_AVAILABLE = True
-        except ImportError:
-            print("[ADAPTIVE LEARNING] Adaptive threshold learning system not available")
-            ADAPTIVE_LEARNING_AVAILABLE = False
+        # Adaptive threshold learning system already imported globally
         import asyncio
         
         # Sprawdź czy należy uruchomić ewaluację

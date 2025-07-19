@@ -519,12 +519,12 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     }
                     
                     # Sprawdź czy token kwalifikuje się do explore mode
-                    should_explore, trigger_reason = should_explore_mode_trigger(explore_token_data, stealth_score)
+                    should_explore = should_explore_mode_trigger(explore_token_data)
                     
                     if should_explore:
                         explore_mode = True
-                        explore_trigger_reason = trigger_reason
-                        explore_confidence = calculate_explore_mode_confidence(explore_token_data, stealth_score)
+                        explore_trigger_reason = "explore_triggered"
+                        explore_confidence = calculate_explore_mode_confidence(explore_token_data)
                         
                         print(f"[EXPLORE MODE] {symbol}: Cold start experimental alert triggered")
                         print(f"[EXPLORE MODE] {symbol}: Reason: {trigger_reason}")

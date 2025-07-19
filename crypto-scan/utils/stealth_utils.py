@@ -245,7 +245,7 @@ def get_cold_start_statistics(token_data_list: List[Dict[str, Any]]) -> Dict[str
     
     # Calculate explore mode eligibility
     explore_eligible = sum(1 for token in cold_start_tokens 
-                          if should_explore_mode_trigger(token, token.get("final_score", 0.0))[0])
+                          if should_explore_mode_trigger(token))
     
     # Average score of cold start tokens
     avg_score = sum(token.get("final_score", 0.0) for token in cold_start_tokens) / cold_start_count
