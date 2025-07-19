@@ -1688,10 +1688,10 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         if len(detector_scores) >= 2:
                             consensus_engine = create_consensus_engine()
                             
-                            # Use simple consensus for production
+                            # Use simple consensus for production - pass full detector data structure
                             consensus_result = consensus_engine.run(
                                 symbol, 
-                                {k: v["score"] for k, v in detector_scores.items()},
+                                detector_scores,  # Pass full dict with score, confidence, weight
                                 use_simple_consensus=True
                             )
                             
