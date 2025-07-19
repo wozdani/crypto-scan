@@ -1919,92 +1919,92 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     # ⛔ WATCHLIST ALERT SYSTEM DISABLED per user request
                     # User requested removal of watchlist alerts completely
                     
-            # 🚧 EXPLORE MODE ANALYSIS - MUST RUN BEFORE ANY EARLY RETURNS OR SKIPS
-            # This section MUST execute for ALL tokens regardless of skip_reason or score
-            print(f"[PRE-EXPLORE DEBUG] {token_data.get('symbol', 'UNKNOWN')}: About to run explore mode analysis")
+        # 🚧 EXPLORE MODE ANALYSIS - MUST RUN BEFORE ANY EARLY RETURNS OR SKIPS
+        # This section MUST execute for ALL tokens regardless of skip_reason or score
+        print(f"[PRE-EXPLORE DEBUG] {token_data.get('symbol', 'UNKNOWN')}: About to run explore mode analysis")
+        
+        # Run explore mode analysis - CRITICAL POSITION
+        try:
+            from utils.stealth_utils import is_cold_start, should_explore_mode_trigger, calculate_explore_mode_confidence, format_explore_mode_reason
             
-            # Run explore mode analysis - CRITICAL POSITION
-            try:
-                from utils.stealth_utils import is_cold_start, should_explore_mode_trigger, calculate_explore_mode_confidence, format_explore_mode_reason
+            print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: ====== STARTING EXPLORE MODE ANALYSIS ======")
+            print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Score={score:.3f}")
+            print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Active signals: {list(used_signals)}")
+            
+            # Get whale ping strength safely
+            whale_ping_strength = 0.0
+            if 'whale_ping' in [s for s in used_signals if isinstance(s, str)]:
+                whale_ping_strength = 1.0  # If whale_ping active, strength = 1.0
+            
+            print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Whale ping strength: {whale_ping_strength:.3f}")
+            print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: DEX inflow: ${token_data.get('dex_inflow_usd', 0.0):.2f}")
+            
+            # Prepare token data for explore mode
+            explore_token_data = {
+                "trust_addresses": 0,  # Simplified - no trust addresses for new tokens
+                "feedback_history": [],  # No history for new tokens
+                "contract_found": token_data.get("contract_found", True),
+                "whale_memory_entries": 0,
+                "historical_alerts": [],
+                "active_signals": list(used_signals),
+                "whale_ping_strength": whale_ping_strength,
+                "dex_inflow_usd": token_data.get("dex_inflow_usd", 0.0),
+                "final_score": score
+            }
+            
+            print(f"[EXPLORE MODE SETUP] {token_data.get('symbol', 'UNKNOWN')}: Prepared explore token data with {len(used_signals)} active signals")
+            
+            # Check if token is cold start (new token without history)
+            is_cold_start_token = is_cold_start(explore_token_data)
+            print(f"[EXPLORE MODE COLD START] {token_data.get('symbol', 'UNKNOWN')}: Is cold start token: {is_cold_start_token}")
+            
+            if is_cold_start_token:
+                # Check if explore mode should trigger for this cold start token
+                should_trigger = should_explore_mode_trigger(explore_token_data)
+                print(f"[EXPLORE MODE TRIGGER CHECK] {token_data.get('symbol', 'UNKNOWN')}: Should trigger: {should_trigger}")
                 
-                print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: ====== STARTING EXPLORE MODE ANALYSIS ======")
-                print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Score={score:.3f}")
-                print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Active signals: {list(used_signals)}")
-                
-                # Get whale ping strength safely
-                whale_ping_strength = 0.0
-                if 'whale_ping' in [s for s in used_signals if isinstance(s, str)]:
-                    whale_ping_strength = 1.0  # If whale_ping active, strength = 1.0
-                
-                print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Whale ping strength: {whale_ping_strength:.3f}")
-                print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: DEX inflow: ${token_data.get('dex_inflow_usd', 0.0):.2f}")
-                
-                # Prepare token data for explore mode
-                explore_token_data = {
-                    "trust_addresses": 0,  # Simplified - no trust addresses for new tokens
-                    "feedback_history": [],  # No history for new tokens
-                    "contract_found": token_data.get("contract_found", True),
-                    "whale_memory_entries": 0,
-                    "historical_alerts": [],
-                    "active_signals": list(used_signals),
-                    "whale_ping_strength": whale_ping_strength,
-                    "dex_inflow_usd": token_data.get("dex_inflow_usd", 0.0),
-                    "final_score": score
-                }
-                
-                print(f"[EXPLORE MODE SETUP] {token_data.get('symbol', 'UNKNOWN')}: Prepared explore token data with {len(used_signals)} active signals")
-                
-                # Check if token is cold start (new token without history)
-                is_cold_start_token = is_cold_start(explore_token_data)
-                print(f"[EXPLORE MODE COLD START] {token_data.get('symbol', 'UNKNOWN')}: Is cold start token: {is_cold_start_token}")
-                
-                if is_cold_start_token:
-                    # Check if explore mode should trigger for this cold start token
-                    should_trigger = should_explore_mode_trigger(explore_token_data)
-                    print(f"[EXPLORE MODE TRIGGER CHECK] {token_data.get('symbol', 'UNKNOWN')}: Should trigger: {should_trigger}")
+                if should_trigger:
+                    explore_mode_triggered = True
+                    explore_confidence = calculate_explore_mode_confidence(explore_token_data)
+                    explore_trigger_reason = format_explore_mode_reason(explore_token_data)
                     
-                    if should_trigger:
-                        explore_mode_triggered = True
-                        explore_confidence = calculate_explore_mode_confidence(explore_token_data)
-                        explore_trigger_reason = format_explore_mode_reason(explore_token_data)
+                    print(f"[EXPLORE MODE TRIGGERED] {token_data.get('symbol', 'UNKNOWN')}: EXPLORE MODE ACTIVATED!")
+                    print(f"[EXPLORE MODE TRIGGERED] {token_data.get('symbol', 'UNKNOWN')}: Confidence: {explore_confidence:.3f}")
+                    print(f"[EXPLORE MODE TRIGGERED] {token_data.get('symbol', 'UNKNOWN')}: Reason: {explore_trigger_reason}")
+                    
+                    # Save explore mode results
+                    try:
+                        explore_result = {
+                            "symbol": token_data.get('symbol', 'UNKNOWN'),
+                            "timestamp": datetime.now().isoformat(),
+                            "explore_confidence": explore_confidence,
+                            "explore_reason": explore_trigger_reason,
+                            "whale_ping_strength": whale_ping_strength,
+                            "dex_inflow_usd": token_data.get("dex_inflow_usd", 0.0),
+                            "stealth_score": score,
+                            "active_signals": list(used_signals)
+                        }
                         
-                        print(f"[EXPLORE MODE TRIGGERED] {token_data.get('symbol', 'UNKNOWN')}: EXPLORE MODE ACTIVATED!")
-                        print(f"[EXPLORE MODE TRIGGERED] {token_data.get('symbol', 'UNKNOWN')}: Confidence: {explore_confidence:.3f}")
-                        print(f"[EXPLORE MODE TRIGGERED] {token_data.get('symbol', 'UNKNOWN')}: Reason: {explore_trigger_reason}")
+                        os.makedirs("cache/explore_mode", exist_ok=True)
                         
-                        # Save explore mode results
-                        try:
-                            explore_result = {
-                                "symbol": token_data.get('symbol', 'UNKNOWN'),
-                                "timestamp": datetime.now().isoformat(),
-                                "explore_confidence": explore_confidence,
-                                "explore_reason": explore_trigger_reason,
-                                "whale_ping_strength": whale_ping_strength,
-                                "dex_inflow_usd": token_data.get("dex_inflow_usd", 0.0),
-                                "stealth_score": score,
-                                "active_signals": list(used_signals)
-                            }
-                            
-                            os.makedirs("cache/explore_mode", exist_ok=True)
-                            
-                            import json
-                            with open(f"cache/explore_mode/{token_data.get('symbol', 'UNKNOWN')}_explore.json", "w") as f:
-                                json.dump(explore_result, f, indent=2)
-                            
-                            print(f"[EXPLORE MODE SAVE] {token_data.get('symbol', 'UNKNOWN')}: Saved explore mode result to cache")
-                            
-                        except Exception as save_error:
-                            print(f"[EXPLORE MODE SAVE ERROR] {token_data.get('symbol', 'UNKNOWN')}: {save_error}")
-                    else:
-                        print(f"[EXPLORE MODE SKIP] {token_data.get('symbol', 'UNKNOWN')}: Trigger conditions not met")
+                        import json
+                        with open(f"cache/explore_mode/{token_data.get('symbol', 'UNKNOWN')}_explore.json", "w") as f:
+                            json.dump(explore_result, f, indent=2)
+                        
+                        print(f"[EXPLORE MODE SAVE] {token_data.get('symbol', 'UNKNOWN')}: Saved explore mode result to cache")
+                        
+                    except Exception as save_error:
+                        print(f"[EXPLORE MODE SAVE ERROR] {token_data.get('symbol', 'UNKNOWN')}: {save_error}")
                 else:
-                    print(f"[EXPLORE MODE SKIP] {token_data.get('symbol', 'UNKNOWN')}: Not a cold start token")
-                    
-            except Exception as explore_error:
-                print(f"[EXPLORE MODE ERROR] {token_data.get('symbol', 'UNKNOWN')}: {explore_error}")
-                explore_mode_triggered = False
-                explore_confidence = 0.0
-                explore_trigger_reason = "error"
+                    print(f"[EXPLORE MODE SKIP] {token_data.get('symbol', 'UNKNOWN')}: Trigger conditions not met")
+            else:
+                print(f"[EXPLORE MODE SKIP] {token_data.get('symbol', 'UNKNOWN')}: Not a cold start token")
+                
+        except Exception as explore_error:
+            print(f"[EXPLORE MODE ERROR] {token_data.get('symbol', 'UNKNOWN')}: {explore_error}")
+            explore_mode_triggered = False
+            explore_confidence = 0.0
+            explore_trigger_reason = "error"
             
             print(f"[EXPLORE MODE COMPLETE] {token_data.get('symbol', 'UNKNOWN')}: Triggered={explore_mode_triggered}")
             

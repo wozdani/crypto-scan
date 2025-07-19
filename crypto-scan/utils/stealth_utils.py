@@ -22,17 +22,17 @@ def is_cold_start(token_data: Dict[str, Any]) -> bool:
     return (trust == 0 and               # No trust addresses
             len(feedbacks) == 0)         # No feedback history
 
-def should_explore_mode_trigger(token_data: Dict[str, Any], final_score: float) -> tuple[bool, str]:
+def should_explore_mode_trigger(token_data: Dict[str, Any]) -> bool:
     """
     Check if token should trigger explore mode experimental alert.
     
     Args:
         token_data: Token analysis data
-        final_score: Final stealth score
         
     Returns:
-        Tuple of (should_trigger, reason)
+        True if should trigger explore mode
     """
+    final_score = token_data.get("final_score", 0.0)
     explore_score_threshold = 1.8  # Lowered from 2.8 to 1.8 for more triggers
     
     # Additional quality checks
@@ -65,7 +65,7 @@ def should_explore_mode_trigger(token_data: Dict[str, Any], final_score: float) 
     if not score_sufficient:
         print(f"[EXPLORE MODE DECISION] ❌ REJECTED: Score too low ({final_score:.3f} < {explore_score_threshold})")
         print(f"[EXPLORE MODE DEBUG] ====== EXPLORE MODE REJECTED ======")
-        return False, f"score_too_low_{final_score:.3f}_threshold_{explore_score_threshold}"
+        return False
     
     print(f"[EXPLORE MODE DECISION] ✅ Score sufficient: {final_score:.3f} >= {explore_score_threshold}")
     
@@ -73,7 +73,7 @@ def should_explore_mode_trigger(token_data: Dict[str, Any], final_score: float) 
     if core_signal_count < 1:
         print(f"[EXPLORE MODE DECISION] ❌ REJECTED: Insufficient core signals ({core_signal_count} < 1)")
         print(f"[EXPLORE MODE DEBUG] ====== EXPLORE MODE REJECTED ======")
-        return False, f"insufficient_core_signals_{core_signal_count}"
+        return False
     
     print(f"[EXPLORE MODE DECISION] ✅ Core signals sufficient: {core_signal_count} >= 1")
     
@@ -81,7 +81,7 @@ def should_explore_mode_trigger(token_data: Dict[str, Any], final_score: float) 
     if whale_ping_strength > 0.5:
         print(f"[EXPLORE MODE DECISION] ✅ TRIGGERED: Quality whale ping detected ({whale_ping_strength:.3f} > 0.5)")
         print(f"[EXPLORE MODE DEBUG] ====== EXPLORE MODE TRIGGERED ======")
-        return True, f"quality_whale_ping_{whale_ping_strength:.3f}"
+        return True
     
     print(f"[EXPLORE MODE DECISION] ⚠️ Whale ping not strong enough: {whale_ping_strength:.3f} <= 0.5")
     
@@ -89,32 +89,32 @@ def should_explore_mode_trigger(token_data: Dict[str, Any], final_score: float) 
     if dex_inflow_value > 5000:
         print(f"[EXPLORE MODE DECISION] ✅ TRIGGERED: Significant DEX inflow detected (${dex_inflow_value:.0f} > $5,000)")
         print(f"[EXPLORE MODE DEBUG] ====== EXPLORE MODE TRIGGERED ======")
-        return True, f"significant_dex_inflow_{dex_inflow_value:.0f}"
+        return True
     
     print(f"[EXPLORE MODE DECISION] ⚠️ DEX inflow not significant enough: ${dex_inflow_value:.0f} <= $5,000")
     
     # Multi-signal combination (lowered to >= 2)
     if core_signal_count >= 2:
-        return True, f"multi_signal_{core_signal_count}_signals"
+        return True
     
     # Any decent signal + cold start
     if is_cold and core_signal_count >= 1:
-        return True, f"cold_start_with_{core_signal_count}_signals"
+        return True
     
-    return False, f"quality_threshold_not_met_signals_{core_signal_count}_whale_{whale_ping_strength:.3f}_dex_{dex_inflow_value:.0f}"
+    return False
 
-def calculate_explore_mode_confidence(token_data: Dict[str, Any], final_score: float) -> float:
+def calculate_explore_mode_confidence(token_data: Dict[str, Any]) -> float:
     """
     Calculate synthetic confidence boost for explore mode.
     
     Args:
         token_data: Token analysis data
-        final_score: Final stealth score
         
     Returns:
         Synthetic confidence score
     """
     base_confidence = 1.5  # Base explore mode confidence
+    final_score = token_data.get("final_score", 0.0)
     
     # Boost based on signal quality
     whale_ping_strength = token_data.get("whale_ping_strength", 0.0)
@@ -148,13 +148,12 @@ def calculate_explore_mode_confidence(token_data: Dict[str, Any], final_score: f
     
     return round(base_confidence, 3)
 
-def format_explore_mode_reason(token_data: Dict[str, Any], trigger_reason: str) -> str:
+def format_explore_mode_reason(token_data: Dict[str, Any]) -> str:
     """
     Format explore mode reasoning for transparency.
     
     Args:
         token_data: Token analysis data
-        trigger_reason: Reason for explore mode trigger
         
     Returns:
         Formatted reason string
@@ -162,9 +161,20 @@ def format_explore_mode_reason(token_data: Dict[str, Any], trigger_reason: str) 
     active_signals = token_data.get("active_signals", [])
     core_signals = {'whale_ping', 'dex_inflow', 'orderbook_anomaly', 'spoofing_layers'}
     active_core = [sig for sig in active_signals if sig in core_signals]
+    final_score = token_data.get("final_score", 0.0)
+    
+    # Generate trigger reason based on available data
+    trigger_reason = "experimental_cold_start"
+    if token_data.get("whale_ping_strength", 0) > 0.5:
+        trigger_reason = "quality_whale_ping"
+    elif token_data.get("dex_inflow_usd", 0) > 5000:
+        trigger_reason = "significant_dex_inflow"
+    elif len(active_core) >= 2:
+        trigger_reason = "multi_signal_combination"
     
     reason_parts = [
         f"EXPLORE MODE: {trigger_reason}",
+        f"Score: {final_score:.3f}",
         f"Core signals: {', '.join(active_core)}",
         f"Trust: {token_data.get('trust_addresses', 0)}",
         f"Contract: {'not found' if not token_data.get('contract_found', True) else 'found'}",
