@@ -406,69 +406,109 @@ def get_symbol_stats(symbol: str) -> Dict:
         return {"symbol": symbol, "recent_score": 0.0, "alert_count": 0}
 
 
-def compute_combined_scores(signals: Dict, symbol: str = None) -> Tuple[float, Dict, str]:
+def compute_combined_scores(signals: Dict, symbol: str = None) -> Dict:
     """
-    Legacy compute_combined_scores function for backward compatibility with stage_minus2_1
+    Legacy compute_combined_scores function returning dict format for stage_minus2_1
     
     Args:
         signals: Dictionary of detected signals
         symbol: Trading symbol (optional)
         
     Returns:
-        Tuple[final_score, structure_dict, quality_assessment]
+        Dict with scoring results (compatible with stage_minus2_1.py)
     """
     try:
         # Basic PPWCS-style scoring
-        base_score = compute_ppwcs(signals, symbol)
+        base_ppwcs = 0
         
-        # Structure analysis
-        structure = {
-            "whale_detected": signals.get("whale_activity", False),
-            "dex_flow": signals.get("dex_inflow", False),
-            "volume_spike": signals.get("volume_spike", False),
-            "compression": signals.get("stage_minus1_detected", False),
-            "shadow_sync": signals.get("shadow_sync_active", False)
+        # Count active signals for PPWCS calculation
+        whale_active = signals.get("whale_activity", False)
+        dex_active = signals.get("dex_inflow", False)
+        volume_active = signals.get("volume_spike_active", False)
+        shadow_active = signals.get("shadow_sync_active", False)
+        compression_active = signals.get("compressed", False)
+        
+        # PPWCS base calculation
+        if whale_active:
+            base_ppwcs += 15
+        if dex_active:
+            base_ppwcs += 12
+        if volume_active:
+            base_ppwcs += 8
+        if shadow_active:
+            base_ppwcs += 10
+        if compression_active:
+            base_ppwcs += 5
+        
+        # Checklist calculation
+        checklist_items = [
+            whale_active, dex_active, volume_active, 
+            shadow_active, compression_active,
+            signals.get("heatmap_exhaustion", False),
+            signals.get("spoofing_suspected", False),
+            signals.get("vwap_pinned", False)
+        ]
+        
+        active_count = sum(1 for item in checklist_items if item)
+        checklist_score = min(active_count * 10, 90)
+        
+        # Summary for checklist
+        checklist_summary = []
+        if whale_active:
+            checklist_summary.append("whale_activity")
+        if dex_active:
+            checklist_summary.append("dex_inflow")
+        if volume_active:
+            checklist_summary.append("volume_spike")
+        if shadow_active:
+            checklist_summary.append("shadow_sync")
+        if compression_active:
+            checklist_summary.append("compression")
+        
+        # Total combined score
+        total_combined = base_ppwcs + checklist_score
+        
+        # Signal counts
+        hard_signals = sum([whale_active, dex_active, volume_active])
+        soft_signals = sum([shadow_active, compression_active])
+        
+        return {
+            "ppwcs": base_ppwcs,
+            "checklist_score": checklist_score,
+            "checklist_summary": checklist_summary,
+            "total_combined": total_combined,
+            "hard_signal_count": hard_signals,
+            "soft_signal_count": soft_signals
         }
-        
-        # Quality assessment
-        active_signals = sum(1 for v in structure.values() if v)
-        
-        if active_signals >= 4:
-            quality = "excellent"
-        elif active_signals >= 3:
-            quality = "strong"
-        elif active_signals >= 2:
-            quality = "moderate"
-        else:
-            quality = "weak"
-        
-        # Adjust score based on structure
-        structure_bonus = active_signals * 5
-        final_score = min(base_score + structure_bonus, 100.0)
-        
-        return final_score, structure, quality
         
     except Exception as e:
         print(f"⚠️ Error in compute_combined_scores: {e}")
-        return 0.0, {}, "error"
+        return {
+            "ppwcs": 0,
+            "checklist_score": 0, 
+            "checklist_summary": [],
+            "total_combined": 0,
+            "hard_signal_count": 0,
+            "soft_signal_count": 0
+        }
 
 
-def compute_checklist_score(signals: Dict) -> Tuple[float, Dict]:
+def compute_checklist_score(signals: Dict) -> Tuple[float, List[str]]:
     """
-    Legacy checklist scoring function for backward compatibility
+    Legacy checklist scoring function returning score and summary list
     
     Args:
         signals: Dictionary of signals
         
     Returns:
-        Tuple[checklist_score, summary_dict]
+        Tuple[checklist_score, summary_list] compatible with stage_minus2_1.py
     """
     try:
         checklist_items = {
             "whale_activity": signals.get("whale_activity", False),
             "dex_inflow": signals.get("dex_inflow", False),
-            "volume_spike": signals.get("volume_spike", False),
-            "compression": signals.get("stage_minus1_detected", False),
+            "volume_spike": signals.get("volume_spike_active", False),
+            "compression": signals.get("compressed", False),
             "shadow_sync": signals.get("shadow_sync_active", False),
             "heatmap_exhaustion": signals.get("heatmap_exhaustion", False),
             "spoofing": signals.get("spoofing_suspected", False)
@@ -479,18 +519,17 @@ def compute_checklist_score(signals: Dict) -> Tuple[float, Dict]:
         total_possible = len(checklist_items)
         checklist_score = (active_count / total_possible) * 100
         
-        summary = {
-            "active_signals": active_count,
-            "total_signals": total_possible,
-            "percentage": checklist_score,
-            "items": checklist_items
-        }
+        # Create summary list of active items
+        summary_list = []
+        for key, value in checklist_items.items():
+            if value:
+                summary_list.append(key)
         
-        return checklist_score, summary
+        return checklist_score, summary_list
         
     except Exception as e:
         print(f"⚠️ Error in compute_checklist_score: {e}")
-        return 0.0, {"error": str(e)}
+        return 0.0, []
 
 
 def get_alert_level(ppwcs_score: float, checklist_score: float) -> int:

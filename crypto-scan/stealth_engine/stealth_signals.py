@@ -484,7 +484,7 @@ class StealthSignalDetector:
                         strength = min(1.0, strength + memory_boost)
                         print(f"[WHALE MEMORY] {symbol}: Applied memory boost +{memory_boost:.3f} → final strength: {strength:.3f}")
                 except Exception as memory_e:
-                    print(f"[WHALE MEMORY] {symbol}: Memory boost failed: {memory_e}")reshold * 2), 1.0) if threshold > 0 else 0.0
+                    print(f"[WHALE MEMORY] {symbol}: Memory boost failed: {memory_e}")
                 
                 ratio = max_order_usd / threshold if threshold > 0 else 0
                 print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MID → ADAPTIVE THRESHOLD: ratio={ratio:.3f}, active={active}, strength={strength:.3f}")
