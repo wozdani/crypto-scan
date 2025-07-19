@@ -826,18 +826,21 @@ class StealthSignalDetector:
             # Enhanced detection logic with real data
             spike_detected = total_inflow_usd > max(avg_recent * 2, 2000) and len(real_addresses) >= 2
             
-            # Strength calculation based on real inflow magnitude
-            strength = min(total_inflow_usd / (avg_recent * 3 + 1), 0.8) if avg_recent > 0 else 0.0
+            # 🔧 CRITICAL FIX #7: Track strength changes and preserve trust boost applications
+            base_strength = min(total_inflow_usd / (avg_recent * 3 + 1), 0.8) if avg_recent > 0 else 0.0
+            strength = base_strength
             
             # Bonus for multiple unique addresses (sign of coordinated activity)
             if len(real_addresses) >= 5:
                 strength = min(1.0, strength + 0.2)
+                print(f"[BOOST TRACKING] {symbol} - Multiple addresses (≥5) boost: +0.2 → strength: {strength:.3f}")
             elif len(real_addresses) >= 3:
                 strength = min(1.0, strength + 0.1)
+                print(f"[BOOST TRACKING] {symbol} - Multiple addresses (≥3) boost: +0.1 → strength: {strength:.3f}")
             
             # MID LOG - calculation details
             ratio = total_inflow_usd / (avg_recent * 2) if avg_recent > 0 else 0
-            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MID → spike_ratio={ratio:.3f}, address_count={len(real_addresses)}, enhanced_strength={strength:.3f}")
+            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MID → spike_ratio={ratio:.3f}, address_count={len(real_addresses)}, base_strength={base_strength:.3f}, enhanced_strength={strength:.3f}")
             
             # Address tracking with REAL addresses from blockchain
             if spike_detected and real_addresses:
@@ -879,8 +882,10 @@ class StealthSignalDetector:
                     # Zastosuj łączny boost (ale ograniczony do 0.6 max)
                     if total_repeat_boost > 0:
                         final_repeat_boost = min(0.6, total_repeat_boost)
+                        prev_strength = strength
                         strength = min(1.0, strength + final_repeat_boost)
-                        print(f"[WHALE MEMORY] {symbol} repeat DEX whales detected! Count: {repeat_whales_found}, Total boost: +{final_repeat_boost:.3f} → strength: {strength:.3f}")
+                        print(f"[WHALE MEMORY] {symbol} repeat DEX whales detected! Count: {repeat_whales_found}, Total boost: +{final_repeat_boost:.3f} → strength: {prev_strength:.3f} → {strength:.3f}")
+                        print(f"[BOOST TRACKING] {symbol} - Whale memory boost: +{final_repeat_boost:.3f} → strength: {strength:.3f}")
                         
                         # Etap 4: Zwiększ priorytet tokena w kolejce skanowania
                         try:
@@ -913,8 +918,10 @@ class StealthSignalDetector:
                         
                         if total_trust_boost > 0:
                             final_trust_boost = min(0.4, total_trust_boost)  # Cap at 0.4
+                            prev_strength = strength
                             strength = min(1.0, strength + final_trust_boost)
-                            print(f"[TRUST BOOST] {symbol} dex_inflow: Applied +{final_trust_boost:.3f} trust boost from real addresses → strength: {strength:.3f}")
+                            print(f"[TRUST BOOST] {symbol} dex_inflow: Applied +{final_trust_boost:.3f} trust boost from real addresses → strength: {prev_strength:.3f} → {strength:.3f}")
+                            print(f"[BOOST TRACKING] {symbol} - Trust boost: +{final_trust_boost:.3f} → strength: {strength:.3f}")
                         
                     except Exception as trust_e:
                         print(f"[TRUST BOOST ERROR] dex_inflow for {symbol}: {trust_e}")
@@ -940,8 +947,10 @@ class StealthSignalDetector:
                             signal.alarm(0)  # Cancel timeout
                             
                             if trust_boost > 0:
+                                prev_strength = strength
                                 strength = min(1.0, strength + trust_boost)
-                                print(f"[TOKEN TRUST] {symbol} → trust boost +{trust_boost:.3f} → strength: {strength:.3f}")
+                                print(f"[TOKEN TRUST] {symbol} → trust boost +{trust_boost:.3f} → strength: {prev_strength:.3f} → {strength:.3f}")
+                                print(f"[BOOST TRACKING] {symbol} - Token trust boost: +{trust_boost:.3f} → strength: {strength:.3f}")
                             else:
                                 print(f"[TOKEN TRUST] {symbol} → no trust boost applied")
                                 
@@ -975,8 +984,10 @@ class StealthSignalDetector:
                             signal.alarm(0)  # Cancel timeout
                             
                             if identity_boost > 0:
+                                prev_strength = strength
                                 strength = min(1.0, strength + identity_boost)
-                                print(f"[IDENTITY BOOST] {symbol} → identity boost +{identity_boost:.3f} → strength: {strength:.3f}")
+                                print(f"[IDENTITY BOOST] {symbol} → identity boost +{identity_boost:.3f} → strength: {prev_strength:.3f} → {strength:.3f}")
+                                print(f"[BOOST TRACKING] {symbol} - Identity boost: +{identity_boost:.3f} → strength: {strength:.3f}")
                             else:
                                 print(f"[IDENTITY BOOST] {symbol} → no identity boost applied")
                                 
@@ -1021,11 +1032,13 @@ class StealthSignalDetector:
                             boosted_strength, priority_alert = apply_smart_money_boost(
                                 symbol, strength, trigger_addresses, "dex_inflow"
                             )
+                            prev_strength = strength
                             strength = boosted_strength
                             spike_detected = True  # Force spike detection dla smart money
                             
                             print(f"[TRIGGER ALERT] 🚨 {symbol} DEX INFLOW: Smart money detected! "
                                   f"Strength boosted to {strength:.3f} (priority alert: {priority_alert})")
+                            print(f"[BOOST TRACKING] {symbol} - Smart money boost: {prev_strength:.3f} → {strength:.3f}")
                         else:
                             print(f"[DEBUG FLOW] {symbol} - No smart money trigger detected")
                             
@@ -1046,8 +1059,10 @@ class StealthSignalDetector:
             
             print(f"[DEBUG FLOW] {symbol} - All DEX inflow processing completed, preparing result...")
             
-            # RESULT LOG - końcowa decyzja i siła sygnału
-            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] RESULT → active={spike_detected}, strength={strength:.3f}")
+            # 🔧 CRITICAL FIX #7: FINAL RESULT LOG with strength tracking summary
+            strength_change = strength - base_strength if 'base_strength' in locals() else 0.0
+            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] FINAL RESULT → active={spike_detected}, final_strength={strength:.3f} (base: {base_strength:.3f}, boosts: +{strength_change:.3f})")
+            print(f"[BOOST TRACKING] {symbol} - FINAL SUMMARY: All boosts applied, final strength: {strength:.3f}")
             print(f"[DEBUG FLOW] {symbol} - DEX inflow function returning signal")
             
             # CRITICAL FIX: Return StealthSignal object (was missing!)

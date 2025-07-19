@@ -75,10 +75,14 @@ class StealthV3TelegramAlerts:
         
         # Check cooldown for symbol
         if not self._check_symbol_cooldown(symbol, consensus_data.get('confidence', 0.0)):
+            logger.info(f"[STEALTH V3 COOLDOWN BLOCK] {symbol} → Alert blocked by cooldown protection")
             return False
         
         # Format message using new v3 template
         message = self._format_stealth_v3_message(symbol, detector_results, consensus_data, meta_data)
+        
+        # 🔧 CRITICAL FIX #5: Enhanced error detection for ACHUSDT alert debugging
+        logger.info(f"[STEALTH V3 ATTEMPT] {symbol} → Attempting to send alert...")
         
         # Send alert
         success = self._send_telegram_message(message)
@@ -89,7 +93,14 @@ class StealthV3TelegramAlerts:
         if success:
             logger.info(f"[STEALTH V3 SENT] {symbol} | Consensus: {consensus_data.get('decision', 'UNKNOWN')} | Confidence: {consensus_data.get('confidence', 0.0):.3f}")
         else:
-            logger.error(f"[STEALTH V3 FAILED] {symbol}")
+            # Enhanced error logging to identify root cause of ACHUSDT alert failures
+            logger.error(f"[STEALTH V3 FAILED] {symbol} | Failed to send alert")
+            logger.error(f"[STEALTH V3 DEBUG] Credentials check: bot_token={'***' if self.bot_token else 'MISSING'}, chat_id={'***' if self.chat_id else 'MISSING'}")
+            logger.error(f"[STEALTH V3 DEBUG] Message length: {len(message)} chars")
+            
+            # Log first 200 chars of message for debugging (without sensitive data)
+            safe_message = message[:200].replace(self.bot_token or '', '***').replace(self.chat_id or '', '***')
+            logger.error(f"[STEALTH V3 DEBUG] Message preview: {safe_message}...")
         
         return success
     
@@ -302,7 +313,7 @@ class StealthV3TelegramAlerts:
         return True
     
     def _send_telegram_message(self, message: str) -> bool:
-        """Send message to Telegram"""
+        """🔧 CRITICAL FIX #5: Enhanced Telegram error logging for ACHUSDT alert debugging"""
         try:
             url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
             params = {
@@ -312,10 +323,29 @@ class StealthV3TelegramAlerts:
             }
             
             response = requests.get(url, params=params, timeout=10)
-            return response.status_code == 200
             
+            if response.status_code == 200:
+                logger.info(f"[STEALTH V3 TELEGRAM SUCCESS] Message sent successfully")
+                return True
+            else:
+                # Detailed error logging for debugging ACHUSDT alert failures
+                logger.error(f"[STEALTH V3 TELEGRAM FAIL] HTTP {response.status_code}: {response.text}")
+                try:
+                    error_data = response.json()
+                    if 'description' in error_data:
+                        logger.error(f"[STEALTH V3 TELEGRAM] API Error: {error_data['description']}")
+                except:
+                    pass
+                return False
+            
+        except requests.exceptions.Timeout:
+            logger.error(f"[STEALTH V3 TELEGRAM ERROR] Request timeout after 10s")
+            return False
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"[STEALTH V3 TELEGRAM ERROR] Connection error: {e}")
+            return False
         except Exception as e:
-            logger.error(f"[STEALTH V3 TELEGRAM ERROR] Failed to send message: {e}")
+            logger.error(f"[STEALTH V3 TELEGRAM ERROR] Unexpected error: {type(e).__name__}: {e}")
             return False
     
     def _update_alert_history(self, symbol: str, detector_results: Dict[str, bool], 
