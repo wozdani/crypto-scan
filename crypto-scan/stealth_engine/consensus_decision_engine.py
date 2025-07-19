@@ -877,8 +877,20 @@ class ConsensusDecisionEngine:
         global_score_threshold = 0.7  # Reduced from 0.8 to 0.7
         min_detectors = 1  # Reduced from 2 to 1 - allow single strong detector
         
-        # Znajdź aktywne detektory (score >= 0.65)
-        active_detectors = {k: v for k, v in scores.items() if v >= threshold}
+        # Znajdź aktywne detektory (score >= 0.65) with type safety
+        active_detectors = {}
+        for k, v in scores.items():
+            try:
+                # Handle both dict and float format
+                if isinstance(v, dict):
+                    score_val = float(v.get('score', 0.0))
+                else:
+                    score_val = float(v) if v is not None else 0.0
+                
+                if score_val >= threshold:
+                    active_detectors[k] = score_val
+            except (ValueError, TypeError):
+                continue  # Skip invalid entries
         
         print(f"[SIMPLE CONSENSUS] Active detectors (>= {threshold}): {len(active_detectors)}")
         print(f"[SIMPLE CONSENSUS] Active scores: {active_detectors}")
@@ -923,13 +935,22 @@ class ConsensusDecisionEngine:
         
         contributing_detectors = list(active_detectors.keys())
         
-        # Generuj głosy detektorów dla display
+        # Generuj głosy detektorów dla display with type safety
         detector_votes = []
         for detector, score in scores.items():
-            if score >= threshold:
-                detector_votes.append(AlertDecision.ALERT)
-            else:
-                detector_votes.append(AlertDecision.NO_ALERT)
+            try:
+                # Handle both dict and float format
+                if isinstance(score, dict):
+                    score_val = float(score.get('score', 0.0))
+                else:
+                    score_val = float(score) if score is not None else 0.0
+                
+                if score_val >= threshold:
+                    detector_votes.append(AlertDecision.ALERT)
+                else:
+                    detector_votes.append(AlertDecision.NO_ALERT)
+            except (ValueError, TypeError):
+                detector_votes.append(AlertDecision.NO_ALERT)  # Default to NO_ALERT for invalid entries
         
         print(f"[SIMPLE CONSENSUS] Generated {len(detector_votes)} votes: {[v.value for v in detector_votes]}")
         
