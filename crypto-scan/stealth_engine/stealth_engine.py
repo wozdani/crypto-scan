@@ -1958,6 +1958,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         stealth_error = f"compute_stealth_error: {e}"
         score = 0.0
         active_signals = []
+        data_coverage = 1.0
+        alert_threshold = 3.0
 
     # 🧠 MULTI-AGENT CONSENSUS DECISION ENGINE - Unified Detector Fusion (MOVED OUTSIDE TRY BLOCK)
     print(f"[FUNCTION DEBUG] {token_data.get('symbol', 'UNKNOWN')}: About to enter consensus section...")
@@ -2017,9 +2019,11 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             print(f"[CONSENSUS DEBUG] {token_data.get('symbol', 'UNKNOWN')}: Running consensus with {len(detector_scores)} detectors")
             
             consensus_engine = create_consensus_engine()
+            from .consensus_decision_engine import ConsensusStrategy
             consensus_result = consensus_engine.run(
-                detector_scores=detector_scores,
-                strategy="weighted_average",  # Default strategy
+                token=symbol,
+                scores=detector_scores,
+                strategy=ConsensusStrategy.WEIGHTED_AVERAGE,  # Default strategy
                 metadata={
                     "symbol": symbol,
                     "volume_24h": token_data.get("volume_24h", 0),
@@ -2027,7 +2031,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 }
             )
             
-            print(f"[CONSENSUS SUCCESS] {symbol}: Decision={consensus_result.decision}, Score={consensus_result.score:.3f}, Confidence={consensus_result.confidence:.3f}")
+            print(f"[CONSENSUS SUCCESS] {symbol}: Decision={consensus_result.decision}, Score={consensus_result.final_score:.3f}, Confidence={consensus_result.confidence:.3f}")
             
         else:
             print(f"[CONSENSUS SKIP] {symbol}: Insufficient detectors ({len(detector_scores)}) - minimum 2 required")
