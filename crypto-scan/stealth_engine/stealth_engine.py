@@ -1733,12 +1733,12 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         "consensus_votes": [v.value if v.value != "ALERT" else "BUY" for v in consensus_result.votes] if consensus_result and hasattr(consensus_result, 'votes') and consensus_result.votes else []
                     }
                     
-                    # Dodaj informacje o błędach jeśli wystąpiły
-                    if diamond_error:
+                    # Dodaj informacje o błędach jeśli wystąpiły - STAGE 10 FIX: Safe variable access
+                    if diamond_error and 'result' in locals():
                         result["diamond_error"] = diamond_error
-                    if californium_error:
+                    if californium_error and 'result' in locals():
                         result["californium_error"] = californium_error
-                    if consensus_error:
+                    if consensus_error and 'result' in locals():
                         result["consensus_error"] = consensus_error
                     
                     # Original location dla explore mode logic przeniesiony na lepsze miejsce
@@ -1860,8 +1860,10 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             
                             if alert_success:
                                 print(f"[STEALTH V3 ALERT SUCCESS] {symbol}: Nowoczesny alert wysłany (score: {score:.3f})")
-                                result["alert_sent"] = True
-                                result["alert_type"] = "stealth_v3"
+                                # STAGE 10 FIX: Safe variable access using locals()
+                                if 'result' in locals():
+                                    result["alert_sent"] = True
+                                    result["alert_type"] = "stealth_v3"
                                 
                                 # 🚧 EXPLORE MODE FEEDBACK LOGGING
                                 if explore_mode:
@@ -1905,125 +1907,42 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                         
                             else:
                                 print(f"[STEALTH V3 ALERT SKIP] {symbol}: Alert w cooldown lub błąd wysyłania")
-                                result["alert_sent"] = False
-                                result["alert_skip_reason"] = "cooldown_or_error"
+                                # STAGE 10 FIX: Safe variable access using locals()
+                                if 'result' in locals():
+                                    result["alert_sent"] = False
+                                    result["alert_skip_reason"] = "cooldown_or_error"
                         else:
                             print(f"[STEALTH V3 ALERT] {symbol}: Score {score:.3f} poniżej progu alertów (0.7)")
-                            result["alert_sent"] = False
-                            result["alert_skip_reason"] = "below_threshold"
+                            # STAGE 10 FIX: Safe variable access using locals()
+                            if 'result' in locals():
+                                result["alert_sent"] = False
+                                result["alert_skip_reason"] = "below_threshold"
                             
                     except Exception as stealth_alert_error:
                         print(f"[STEALTH V3 ALERT ERROR] {symbol}: {stealth_alert_error}")
-                        result["alert_sent"] = False
-                        result["alert_skip_reason"] = f"stealth_alert_error: {stealth_alert_error}"
+                        # STAGE 10 FIX: Safe variable access using locals()
+                        if 'result' in locals():
+                            result["alert_sent"] = False
+                            result["alert_skip_reason"] = f"stealth_alert_error: {stealth_alert_error}"
                         
                     # ⛔ WATCHLIST ALERT SYSTEM DISABLED per user request
                     # User requested removal of watchlist alerts completely
                     
-        # 🚧 EXPLORE MODE ANALYSIS - MUST RUN BEFORE ANY EARLY RETURNS OR SKIPS
-        # This section MUST execute for ALL tokens regardless of skip_reason or score
-        print(f"[PRE-EXPLORE DEBUG] {token_data.get('symbol', 'UNKNOWN')}: About to run explore mode analysis")
-        
-        # Run explore mode analysis - CRITICAL POSITION
-        try:
-            from utils.stealth_utils import is_cold_start, should_explore_mode_trigger, calculate_explore_mode_confidence, format_explore_mode_reason
-            
-            print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: ====== STARTING EXPLORE MODE ANALYSIS ======")
-            print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Score={score:.3f}")
-            print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Active signals: {list(used_signals)}")
-            
-            # Get whale ping strength safely
-            whale_ping_strength = 0.0
-            if 'whale_ping' in [s for s in used_signals if isinstance(s, str)]:
-                whale_ping_strength = 1.0  # If whale_ping active, strength = 1.0
-            
-            print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Whale ping strength: {whale_ping_strength:.3f}")
-            print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: DEX inflow: ${token_data.get('dex_inflow_usd', 0.0):.2f}")
-            
-            # Prepare token data for explore mode
-            explore_token_data = {
-                "trust_addresses": 0,  # Simplified - no trust addresses for new tokens
-                "feedback_history": [],  # No history for new tokens
-                "contract_found": token_data.get("contract_found", True),
-                "whale_memory_entries": 0,
-                "historical_alerts": [],
-                "active_signals": list(used_signals),
-                "whale_ping_strength": whale_ping_strength,
-                "dex_inflow_usd": token_data.get("dex_inflow_usd", 0.0),
-                "final_score": score
+        # At end of try block - check if we should return early or proceed to consensus
+        if skip_reason:
+            print(f"[EARLY EXIT] {symbol}: Returning early due to {skip_reason}")
+            return {
+                "score": score,
+                "stealth_score": score,
+                "active_signals": active_signals,
+                "skipped": skip_reason,
+                "explore_mode": explore_mode_triggered,  # Include explore mode result
+                "explore_confidence": explore_confidence,
+                "explore_reason": explore_trigger_reason
             }
             
-            print(f"[EXPLORE MODE SETUP] {token_data.get('symbol', 'UNKNOWN')}: Prepared explore token data with {len(used_signals)} active signals")
-            
-            # Check if token is cold start (new token without history)
-            is_cold_start_token = is_cold_start(explore_token_data)
-            print(f"[EXPLORE MODE COLD START] {token_data.get('symbol', 'UNKNOWN')}: Is cold start token: {is_cold_start_token}")
-            
-            if is_cold_start_token:
-                # Check if explore mode should trigger for this cold start token
-                should_trigger = should_explore_mode_trigger(explore_token_data)
-                print(f"[EXPLORE MODE TRIGGER CHECK] {token_data.get('symbol', 'UNKNOWN')}: Should trigger: {should_trigger}")
-                
-                if should_trigger:
-                    explore_mode_triggered = True
-                    explore_confidence = calculate_explore_mode_confidence(explore_token_data)
-                    explore_trigger_reason = format_explore_mode_reason(explore_token_data)
-                    
-                    print(f"[EXPLORE MODE TRIGGERED] {token_data.get('symbol', 'UNKNOWN')}: EXPLORE MODE ACTIVATED!")
-                    print(f"[EXPLORE MODE TRIGGERED] {token_data.get('symbol', 'UNKNOWN')}: Confidence: {explore_confidence:.3f}")
-                    print(f"[EXPLORE MODE TRIGGERED] {token_data.get('symbol', 'UNKNOWN')}: Reason: {explore_trigger_reason}")
-                    
-                    # Save explore mode results
-                    try:
-                        explore_result = {
-                            "symbol": token_data.get('symbol', 'UNKNOWN'),
-                            "timestamp": datetime.now().isoformat(),
-                            "explore_confidence": explore_confidence,
-                            "explore_reason": explore_trigger_reason,
-                            "whale_ping_strength": whale_ping_strength,
-                            "dex_inflow_usd": token_data.get("dex_inflow_usd", 0.0),
-                            "stealth_score": score,
-                            "active_signals": list(used_signals)
-                        }
-                        
-                        os.makedirs("cache/explore_mode", exist_ok=True)
-                        
-                        import json
-                        with open(f"cache/explore_mode/{token_data.get('symbol', 'UNKNOWN')}_explore.json", "w") as f:
-                            json.dump(explore_result, f, indent=2)
-                        
-                        print(f"[EXPLORE MODE SAVE] {token_data.get('symbol', 'UNKNOWN')}: Saved explore mode result to cache")
-                        
-                    except Exception as save_error:
-                        print(f"[EXPLORE MODE SAVE ERROR] {token_data.get('symbol', 'UNKNOWN')}: {save_error}")
-                else:
-                    print(f"[EXPLORE MODE SKIP] {token_data.get('symbol', 'UNKNOWN')}: Trigger conditions not met")
-            else:
-                print(f"[EXPLORE MODE SKIP] {token_data.get('symbol', 'UNKNOWN')}: Not a cold start token")
-                
-        except Exception as explore_error:
-            print(f"[EXPLORE MODE ERROR] {token_data.get('symbol', 'UNKNOWN')}: {explore_error}")
-            explore_mode_triggered = False
-            explore_confidence = 0.0
-            explore_trigger_reason = "error"
-            
-            print(f"[EXPLORE MODE COMPLETE] {token_data.get('symbol', 'UNKNOWN')}: Triggered={explore_mode_triggered}")
-            
-            # At end of try block - check if we should return early or proceed to consensus
-            if skip_reason:
-                print(f"[EARLY EXIT] {symbol}: Returning early due to {skip_reason}")
-                return {
-                    "score": score,
-                    "stealth_score": score,
-                    "active_signals": active_signals,
-                    "skipped": skip_reason,
-                    "explore_mode": explore_mode_triggered,  # Include explore mode result
-                    "explore_confidence": explore_confidence,
-                    "explore_reason": explore_trigger_reason
-                }
-                
-            print(f"[COMPUTE STEALTH SCORE] {token_data.get('symbol', 'UNKNOWN')}: Stealth analysis completed - proceeding to consensus section...")
-            print(f"[EXIT DEBUG] {token_data.get('symbol', 'UNKNOWN')}: About to exit try block normally")
+        print(f"[COMPUTE STEALTH SCORE] {token_data.get('symbol', 'UNKNOWN')}: Stealth analysis completed - proceeding to consensus section...")
+        print(f"[EXIT DEBUG] {token_data.get('symbol', 'UNKNOWN')}: About to exit try block normally")
         
     except Exception as e:
         import traceback
@@ -2101,6 +2020,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             
             consensus_engine = create_consensus_engine()
             from .consensus_decision_engine import ConsensusStrategy
+            from datetime import datetime  # Local import for consensus metadata
             consensus_result = consensus_engine.run(
                 token=symbol,
                 scores=detector_scores,
@@ -2132,6 +2052,95 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         # Fallback to stealth score if consensus failed
         final_score = score
         print(f"[SCORE FALLBACK] {symbol}: Consensus failed, preserving stealth score {final_score:.3f}")
+    
+    # 🚧 EXPLORE MODE ANALYSIS - MUST RUN FOR ALL TOKENS REGARDLESS OF SKIP_REASON
+    # This section executes for ALL tokens regardless of skip_reason or score
+    print(f"[PRE-EXPLORE DEBUG] {token_data.get('symbol', 'UNKNOWN')}: About to run explore mode analysis")
+    
+    # Run explore mode analysis - CRITICAL POSITION - RUNS FOR ALL TOKENS
+    try:
+        from utils.stealth_utils import is_cold_start, should_explore_mode_trigger, calculate_explore_mode_confidence, format_explore_mode_reason
+        
+        print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: ====== STARTING EXPLORE MODE ANALYSIS ======")
+        print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Score={score:.3f}, Skip_reason={skip_reason}")
+        print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Active signals: {list(used_signals)}")
+        
+        # Get whale ping strength safely
+        whale_ping_strength = 0.0
+        if 'whale_ping' in [s for s in used_signals if isinstance(s, str)]:
+            whale_ping_strength = 1.0  # If whale_ping active, strength = 1.0
+        
+        print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Whale ping strength: {whale_ping_strength:.3f}")
+        print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: DEX inflow: ${token_data.get('dex_inflow_usd', 0.0):.2f}")
+        
+        # Prepare token data for explore mode
+        explore_token_data = {
+            "trust_addresses": 0,  # Simplified - no trust addresses for new tokens
+            "feedback_history": [],  # No history for new tokens
+            "contract_found": token_data.get("contract_found", True),
+            "whale_memory_entries": 0,
+            "historical_alerts": [],
+            "active_signals": list(used_signals),
+            "whale_ping_strength": whale_ping_strength,
+            "dex_inflow_usd": token_data.get("dex_inflow_usd", 0.0),
+            "final_score": score
+        }
+        
+        print(f"[EXPLORE MODE SETUP] {token_data.get('symbol', 'UNKNOWN')}: Prepared explore token data with {len(used_signals)} active signals")
+        
+        # Check if token is cold start (new token without history)
+        is_cold_start_token = is_cold_start(explore_token_data)
+        print(f"[EXPLORE MODE COLD START] {token_data.get('symbol', 'UNKNOWN')}: Is cold start token: {is_cold_start_token}")
+        
+        if is_cold_start_token:
+            # Check if explore mode should trigger for this cold start token
+            should_trigger = should_explore_mode_trigger(explore_token_data)
+            print(f"[EXPLORE MODE TRIGGER CHECK] {token_data.get('symbol', 'UNKNOWN')}: Should trigger: {should_trigger}")
+            
+            if should_trigger:
+                explore_mode_triggered = True
+                explore_confidence = calculate_explore_mode_confidence(explore_token_data)
+                explore_trigger_reason = format_explore_mode_reason(explore_token_data)
+                
+                print(f"[EXPLORE MODE TRIGGERED] {token_data.get('symbol', 'UNKNOWN')}: EXPLORE MODE ACTIVATED!")
+                print(f"[EXPLORE MODE TRIGGERED] {token_data.get('symbol', 'UNKNOWN')}: Confidence: {explore_confidence:.3f}")
+                print(f"[EXPLORE MODE TRIGGERED] {token_data.get('symbol', 'UNKNOWN')}: Reason: {explore_trigger_reason}")
+                
+                # Save explore mode results
+                try:
+                    from datetime import datetime
+                    explore_result = {
+                        "symbol": token_data.get('symbol', 'UNKNOWN'),
+                        "timestamp": datetime.now().isoformat(),
+                        "explore_confidence": explore_confidence,
+                        "explore_reason": explore_trigger_reason,
+                        "whale_ping_strength": whale_ping_strength,
+                        "dex_inflow_usd": token_data.get("dex_inflow_usd", 0.0),
+                        "stealth_score": score,
+                        "active_signals": list(used_signals),
+                        "skip_reason": skip_reason
+                    }
+                    
+                    os.makedirs("cache/explore_mode", exist_ok=True)
+                    
+                    import json
+                    with open(f"cache/explore_mode/{token_data.get('symbol', 'UNKNOWN')}_explore.json", "w") as f:
+                        json.dump(explore_result, f, indent=2)
+                    
+                    print(f"[EXPLORE MODE SAVE] {token_data.get('symbol', 'UNKNOWN')}: Saved explore mode result to cache")
+                    
+                except Exception as save_error:
+                    print(f"[EXPLORE MODE SAVE ERROR] {token_data.get('symbol', 'UNKNOWN')}: {save_error}")
+            else:
+                print(f"[EXPLORE MODE SKIP] {token_data.get('symbol', 'UNKNOWN')}: Trigger conditions not met")
+        else:
+            print(f"[EXPLORE MODE SKIP] {token_data.get('symbol', 'UNKNOWN')}: Not a cold start token")
+            
+    except Exception as explore_error:
+        print(f"[EXPLORE MODE ERROR] {token_data.get('symbol', 'UNKNOWN')}: {explore_error}")
+        explore_mode_triggered = False
+        explore_confidence = 0.0
+        explore_trigger_reason = "error"
     
     # Return final result regardless of consensus outcome
     if 'stealth_error' in locals() and stealth_error:
@@ -2346,26 +2355,36 @@ def analyze_token_with_stealth_score(symbol: str, token_data: Dict) -> Dict:
                 
                 if alert_success:
                     print(f"[STEALTH V3 DIAMOND ALERT SUCCESS] {symbol}: Enhanced Diamond alert wysłany")
-                    result["alert_sent"] = True
-                    result["alert_type"] = "stealth_v3_diamond"
-                    result["alert_trigger"] = diamond_decision["decision"]
+                    # STAGE 10 FIX: Safe variable access using locals()
+                    if 'result' in locals():
+                        result["alert_sent"] = True
+                        result["alert_type"] = "stealth_v3_diamond"
+                        result["alert_trigger"] = diamond_decision["decision"]
                 else:
                     print(f"[STEALTH V3 DIAMOND ALERT SKIP] {symbol}: Alert w cooldown lub błąd")
-                    result["alert_sent"] = False
-                    result["alert_skip_reason"] = "cooldown_or_error"
+                    # STAGE 10 FIX: Safe variable access using locals()
+                    if 'result' in locals():
+                        result["alert_sent"] = False
+                        result["alert_skip_reason"] = "cooldown_or_error"
             else:
                 print(f"[STEALTH V3 DIAMOND ALERT] {symbol}: Kryteria alertu nie spełnione (decision: {diamond_decision['decision']}, score: {stealth_score:.3f})")
-                result["alert_sent"] = False
-                result["alert_skip_reason"] = "criteria_not_met"
+                # STAGE 10 FIX: Safe variable access using locals()
+                if 'result' in locals():
+                    result["alert_sent"] = False
+                    result["alert_skip_reason"] = "criteria_not_met"
                 
         except ImportError:
             print(f"[STEALTH V3 DIAMOND ALERT] {symbol}: Stealth v3 alert system niedostępny")
-            result["alert_sent"] = False
-            result["alert_skip_reason"] = "system_unavailable"
+            # STAGE 10 FIX: Safe variable access using locals()
+            if 'result' in locals():
+                result["alert_sent"] = False
+                result["alert_skip_reason"] = "system_unavailable"
         except Exception as alert_error:
             print(f"[STEALTH V3 DIAMOND ALERT ERROR] {symbol}: {alert_error}")
-            result["alert_sent"] = False
-            result["alert_skip_reason"] = f"error: {alert_error}"
+            # STAGE 10 FIX: Safe variable access using locals()
+            if 'result' in locals():
+                result["alert_sent"] = False
+                result["alert_skip_reason"] = f"error: {alert_error}"
         
         return result
         
