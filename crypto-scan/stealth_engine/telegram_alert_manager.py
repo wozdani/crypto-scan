@@ -282,18 +282,10 @@ class TelegramAlertManager:
             symbol = alert_data.get("symbol", "UNKNOWN")
             score = alert_data.get("score", 0)
             
-            # 🎯 ACEUSDT FIX: Enhanced consensus check with strong signal override
-            consensus_score = alert_data.get("consensus_score", 0.0)
-            
-            # Strong signal override for exceptional cases
-            strong_signal_override = consensus_score >= 0.85 and score >= 0.85
-            
-            if consensus_decision != "BUY" and not strong_signal_override:
+            # STRICT BUY-ONLY FILTERING - No exceptions per user request
+            if consensus_decision != "BUY":
                 print(f"[TELEGRAM CONSENSUS BLOCK] {symbol} → Consensus decision '{consensus_decision}' != BUY - blocking alert")
                 return False
-            elif strong_signal_override and consensus_decision != "BUY":
-                print(f"[ACEUSDT ALERT FIX] {symbol} → Strong signal override in telegram manager: consensus_score={consensus_score:.3f} >= 0.85")
-                print(f"[TELEGRAM CONSENSUS OVERRIDE] {symbol} → Override applied - processing alert despite decision '{consensus_decision}'")
             
             print(f"[TELEGRAM CONSENSUS PASS] {symbol} → Consensus decision '{consensus_decision}' allows alert (score={score:.3f})")
             
