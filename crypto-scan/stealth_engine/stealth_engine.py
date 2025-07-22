@@ -1763,8 +1763,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             should_alert = False
                             print(f"[STEALTH V3 ALERT BLOCK] {token_data.get('symbol', 'UNKNOWN')}: Consensus decision {consensus_result.decision.value} blocks alert (score={score:.3f})")
                         else:
-                            # Fallback - jeśli nie ma consensus, sprawdź score z realnym progiem (0.7+)
-                            alert_threshold = 0.7
+                            # Fallback - jeśli nie ma consensus, sprawdź score z wyższym progiem (2.5+)
+                            alert_threshold = 2.5  # Raised from 0.7 to prevent low score alerts
                             if score >= alert_threshold:
                                 should_alert = True
                                 print(f"[STEALTH V3 FALLBACK] {token_data.get('symbol', 'UNKNOWN')}: No consensus, score {score:.3f} >= {alert_threshold} triggers alert")
@@ -1775,10 +1775,10 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         # Use explore mode results from earlier analysis
                         explore_mode = explore_mode_triggered
                         
-                        # Check if explore mode should trigger alert even if normal alert criteria not met
-                        if explore_mode_triggered and not should_alert:
-                            should_alert = True
-                            print(f"[EXPLORE MODE ALERT TRIGGER] {token_data.get('symbol', 'UNKNOWN')}: Explore mode triggering alert (normal criteria not met)")
+                        # DISABLED: Explore mode alerts per user request - causing unwanted alerts
+                        # if explore_mode_triggered and not should_alert:
+                        #     should_alert = True
+                        #     print(f"[EXPLORE MODE ALERT TRIGGER] {token_data.get('symbol', 'UNKNOWN')}: Explore mode triggering alert (normal criteria not met)")
                         
                         if should_alert:
                             symbol = token_data.get('symbol', 'UNKNOWN')
