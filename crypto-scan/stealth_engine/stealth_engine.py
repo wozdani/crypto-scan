@@ -2109,6 +2109,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 # Save explore mode results
                 try:
                     from datetime import datetime
+                    import os  # EXPLORE MODE FIX: Add missing os import
+                    
                     explore_result = {
                         "symbol": token_data.get('symbol', 'UNKNOWN'),
                         "timestamp": datetime.now().isoformat(),
