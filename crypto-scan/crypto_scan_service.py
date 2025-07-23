@@ -110,8 +110,12 @@ def display_top5_stealth_tokens():
                                 'trust_boost': data.get('trust_boost', 0.0),
                                 'identity_boost': data.get('identity_boost', 0.0),
                                 'stealth_signals': data.get('stealth_signals', []),
-                                'consensus_vote': data.get('consensus_vote', 'UNKNOWN'),
-                                'consensus_count': data.get('consensus_count', '0/0'),
+                                # Używamy nowych pól consensus
+                                'consensus_decision': data.get('consensus_decision', 'UNKNOWN'),
+                                'consensus_votes': data.get('consensus_votes', []),
+                                'consensus_score': data.get('consensus_score', 0.0),
+                                'consensus_confidence': data.get('consensus_confidence', 0.0),
+                                'consensus_detectors': data.get('consensus_detectors', []),
                                 'feedback_adjust': data.get('feedback_adjust', 0.0)
                             }
                             converted_tokens.append(token_data)

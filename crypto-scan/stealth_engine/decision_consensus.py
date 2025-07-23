@@ -91,11 +91,19 @@ class DecisionConsensusEngine:
         # Aplikuj dynamiczne wagi jeśli nie podano w input
         updated_outputs = self._apply_dynamic_weights(detector_outputs)
         
-        # Oblicz ważone głosy dla każdego detektora
+        # Oblicz ważone głosy dla każdego detektora - NOWA LOGIKA: tylko aktywne detektory
+        active_count = 0
         for detector_name, result in updated_outputs.items():
             vote = result.get("vote", "HOLD")
             score = result.get("score", 0.0)
             weight = result.get("weight", 0.0)
+            
+            # 🛠️ NOWA LOGIKA: Pomiń detektory ze score = 0
+            if score <= 0.0:
+                print(f"[CONSENSUS SKIP] {detector_name}: Inactive detector (score=0.0), skipping")
+                continue
+            
+            active_count += 1
             
             # Walidacja vote
             if vote not in weighted_scores:
@@ -113,10 +121,23 @@ class DecisionConsensusEngine:
         # Debug weighted scores
         print(f"[CONSENSUS DEBUG] Weighted vote scores: {weighted_scores}")
         print(f"[CONSENSUS DEBUG] Total weight: {total_weight:.3f}")
+        print(f"[CONSENSUS DEBUG] Active detectors: {active_count}")
+        
+        # 🛠️ SPECJALNY PRZYPADEK: Jeśli tylko 2 detektory aktywne i oba głosują BUY
+        if active_count == 2 and weighted_scores["BUY"] > 0:
+            # Sprawdź czy oba detektory głosują na BUY
+            buy_votes = sum(1 for name, result in updated_outputs.items() 
+                          if result.get("score", 0.0) > 0 and result.get("vote") == "BUY")
+            if buy_votes == 2:
+                print(f"[CONSENSUS SPECIAL] 2 active detectors, both voting BUY - applying special logic")
+                # Boost BUY score dla 2-detector consensus
+                if total_weight > 0:
+                    buy_boost = 1.2  # 20% boost
+                    weighted_scores["BUY"] *= buy_boost
         
         # Finalna decyzja - najwyższy ważony score
         if total_weight > 0:
-            # Normalizuj scores przez total weight
+            # Normalizuj scores przez total weight (tylko aktywnych detektorów)
             normalized_scores = {k: v / total_weight for k, v in weighted_scores.items()}
             decision = max(normalized_scores.items(), key=lambda x: x[1])[0]
             final_score = normalized_scores[decision]
@@ -125,12 +146,18 @@ class DecisionConsensusEngine:
             final_score = 0.0
             normalized_scores = weighted_scores.copy()
         
-        # Sprawdź czy przekracza threshold
-        threshold_met = final_score >= threshold
+        # Sprawdź czy przekracza threshold - ZMIENIONE: bardziej liberalne dla małej liczby detektorów
+        adjusted_threshold = threshold
+        if active_count <= 2:
+            # Obniż próg dla małej liczby aktywnych detektorów
+            adjusted_threshold = threshold * 0.8  # 20% niższy próg
+            print(f"[CONSENSUS] Adjusting threshold for {active_count} detectors: {threshold} → {adjusted_threshold:.3f}")
+        
+        threshold_met = final_score >= adjusted_threshold
         
         # Jeśli nie przekracza threshold, domyślnie HOLD
         if not threshold_met:
-            print(f"[CONSENSUS] Score {final_score:.3f} below threshold {threshold}, defaulting to HOLD")
+            print(f"[CONSENSUS] Score {final_score:.3f} below threshold {adjusted_threshold:.3f}, defaulting to HOLD")
             if decision != "HOLD":
                 decision = "HOLD"
         

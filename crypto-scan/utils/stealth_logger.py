@@ -91,7 +91,6 @@ class StealthLogger:
         dex_inflow = self._extract_detector_value(token_data.get('dex_inflow', 0.0))
         orderbook = self._extract_detector_value(token_data.get('orderbook_anomaly', 0.0))
         whaleclip = self._extract_detector_value(token_data.get('whaleclip_vision', 0.0))
-        consensus_votes = token_data.get('consensus_votes', "UNKNOWN")
         feedback_adjust = self._extract_detector_value(token_data.get('feedback_adjust', 0.0))
         total_score = self._extract_detector_value(token_data.get('base_score', 0.0))
         
@@ -100,17 +99,6 @@ class StealthLogger:
         print(f" - 💧 dex_inflow:         {dex_inflow:.2f}")
         print(f" - 📊 orderbook_anomaly:   {orderbook:.2f}")
         print(f" - 🛰️ WhaleCLIP (vision):  {whaleclip:.2f}")
-        
-        # Consensus info
-        if isinstance(consensus_votes, list):
-            buy_count = consensus_votes.count('BUY') if consensus_votes else 0
-            total_count = len(consensus_votes) if consensus_votes else 0
-            print(f" - 🎯 consensus_vote:    {consensus_votes} ({buy_count}/{total_count})")
-        else:
-            print(f" - 🎯 consensus_vote:    {consensus_votes} (0/0)")
-        
-        print(f" - 🔁 feedback_adjust:   {feedback_adjust:+.2f}")
-        print(f" - 🔐 total_score:       {total_score:.3f}")
     
     def log_stealth_analysis_complete(self, symbol: str, detector_results: Dict[str, float], 
                                     consensus_data: Dict[str, Any]) -> None:
@@ -213,10 +201,24 @@ class StealthLogger:
         print(f" - 📊 orderbook_anomaly:  {detector_scores.get('orderbook_anomaly', 0.0):5.2f}")
         print(f" - 🛰️ WhaleCLIP (vision): {detector_scores.get('whaleclip_vision', 0.0):5.2f}")
         
-        # Consensus vote
-        consensus_vote = token_data.get('consensus_vote', 'UNKNOWN')
-        consensus_count = token_data.get('consensus_count', '0/0')
-        print(f" - 🎯 consensus_vote:    {consensus_vote} ({consensus_count})")
+        # Consensus decision (używamy nowych pól)
+        consensus_decision = token_data.get('consensus_decision', 'UNKNOWN')
+        consensus_votes = token_data.get('consensus_votes', [])
+        consensus_score = token_data.get('consensus_score', 0.0)
+        consensus_confidence = token_data.get('consensus_confidence', 0.0)
+        
+        # Policz głosy BUY/HOLD/AVOID
+        if isinstance(consensus_votes, list) and consensus_votes:
+            buy_count = consensus_votes.count('BUY')
+            hold_count = consensus_votes.count('HOLD')
+            avoid_count = consensus_votes.count('AVOID')
+            total_count = len(consensus_votes)
+            votes_str = f"BUY:{buy_count}, HOLD:{hold_count}, AVOID:{avoid_count}"
+            print(f" - 🎯 consensus_decision: {consensus_decision} ({votes_str})")
+            print(f" - 📊 consensus_score:    {consensus_score:.3f} (confidence: {consensus_confidence:.2f})")
+        else:
+            print(f" - 🎯 consensus_decision: {consensus_decision} (no votes)")
+            print(f" - 📊 consensus_score:    {consensus_score:.3f}")
         
         # Feedback adjustment
         feedback_adjust = token_data.get('feedback_adjust', 0.0)
@@ -253,11 +255,14 @@ class StealthLogger:
     
     def _check_consensus_alert(self, token: str, token_data: Dict) -> None:
         """
-        Sprawdź czy consensus vote == BUY i wygeneruj alert
+        Sprawdź czy consensus decision == BUY i wygeneruj alert
         """
-        consensus_vote = token_data.get('consensus_vote', '')
+        # Używamy nowego pola consensus_decision zamiast consensus_vote
+        consensus_decision = token_data.get('consensus_decision', 'UNKNOWN')
+        consensus_votes = token_data.get('consensus_votes', [])
+        consensus_confidence = token_data.get('consensus_confidence', 0.0)
         
-        if consensus_vote == 'BUY':
+        if consensus_decision == 'BUY':
             total_score = token_data.get('base_score', 0.0)
             
             # Znajdź dominujące źródła

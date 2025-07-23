@@ -227,7 +227,14 @@ class AlertQueueManager:
                     "whale_ping": data.get("whale_ping", 0.0),
                     "identity_boost": data.get("identity_boost", 0.0),
                     "trust_boost": data.get("trust_boost", 0.0),
-                    "timestamp": data.get("timestamp", "")
+                    "timestamp": data.get("timestamp", ""),
+                    # Dodaj nowe pola consensus
+                    "consensus_decision": data.get("consensus_decision", "UNKNOWN"),
+                    "consensus_votes": data.get("consensus_votes", []),
+                    "consensus_score": data.get("consensus_score", 0.0),
+                    "consensus_confidence": data.get("consensus_confidence", 0.0),
+                    "consensus_detectors": data.get("consensus_detectors", []),
+                    "feedback_adjust": data.get("feedback_adjust", 0.0)
                 })
             
             # Sortuj według early_score

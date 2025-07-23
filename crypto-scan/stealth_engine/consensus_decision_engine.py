@@ -215,11 +215,11 @@ class ConsensusDecisionEngine:
             print(f"[FALLBACK ALERT] {fallback_detector} exceeded threshold - instant alert!")
             return self._create_fallback_alert_result(token, unified_scores, fallback_detector)
         
-        # Thresholds dla Etap 3
-        score_threshold = 0.75
-        confidence_threshold = 0.60
-        global_score_threshold = 0.8
-        min_detectors = 2
+        # Thresholds dla Etap 3 - ZMIENIONE: bardziej liberalne podejście
+        score_threshold = 0.0  # Nieużywane teraz - każdy detektor z score > 0 jest aktywny
+        confidence_threshold = 0.0  # Nieużywane teraz - nie wymagamy minimum confidence
+        global_score_threshold = 0.7  # Obniżone z 0.8 na 0.7
+        min_detectors = 1  # Zmienione z 2 na 1 - nawet 1 silny detektor może wywołać alert
         
         # Booster thresholds
         booster_confidence_threshold = 0.85
@@ -228,7 +228,7 @@ class ConsensusDecisionEngine:
         
         print(f"[DYNAMIC BOOST] Unified scores: {unified_scores}")
         
-        # Znajdź aktywne detektory (score >= 0.75 AND confidence >= 0.60)
+        # Znajdź aktywne detektory (tylko te które mają score > 0 i nie są None)
         active_detectors = {}
         boosted_detectors = []
         
@@ -270,8 +270,8 @@ class ConsensusDecisionEngine:
             
             print(f"[TYPE SAFETY] {detector_name}: score={score:.3f} (type: {type(score)}), confidence={confidence:.3f}, weight={weight:.3f}")
             
-            # Sprawdź warunki aktywności
-            if score >= score_threshold and confidence >= confidence_threshold:
+            # 🛠️ NOWA LOGIKA: Detektor jest aktywny jeśli ma score > 0 (niezależnie od confidence)
+            if score > 0.0:
                 # Zastosuj booster jeśli spełnia warunki
                 if confidence > booster_confidence_threshold and score > booster_score_threshold:
                     original_score = score
@@ -296,18 +296,29 @@ class ConsensusDecisionEngine:
         print(f"[DYNAMIC BOOST] Active detectors: {len(active_detectors)}")
         print(f"[DYNAMIC BOOST] Boosted detectors: {boosted_detectors}")
         
-        # Oblicz weighted global_score
+        # Oblicz weighted global_score - NOWA LOGIKA: normalizuj tylko na podstawie aktywnych detektorów
         if active_detectors:
-            global_score = sum(d['weighted_contribution'] for d in active_detectors.values())
+            total_weighted_contribution = sum(d['weighted_contribution'] for d in active_detectors.values())
             total_weight = sum(d['weight'] for d in active_detectors.values())
+            # Normalizuj wynik tylko względem wag aktywnych detektorów
+            global_score = total_weighted_contribution / total_weight if total_weight > 0 else 0.0
         else:
             global_score = 0.0
             total_weight = 0.0
         
-        print(f"[DYNAMIC BOOST] Weighted global score: {global_score:.3f} (total weight: {total_weight:.3f})")
+        print(f"[DYNAMIC BOOST] Normalized global score: {global_score:.3f} (active weight: {total_weight:.3f})")
         
-        # Logika decyzyjna Etap 3:
-        # min. 2 detektory aktywne AND global_score > 0.8
+        # SPECJALNY PRZYPADEK: Jeśli dokładnie 2 detektory są aktywne i oba silne, to alert
+        if len(active_detectors) == 2:
+            # Sprawdź czy oba detektory mają wysokie score
+            detector_scores = [d['score'] for d in active_detectors.values()]
+            if all(score >= 0.8 for score in detector_scores):
+                print(f"[CONSENSUS SPECIAL] 2 active detectors with high scores: {detector_scores}")
+                # Wymuś alert dla 2 silnych detektorów
+                global_score = max(global_score, 0.75)  # Boost score jeśli za niski
+        
+        # Logika decyzyjna Etap 3 - ZMIENIONA:
+        # min. 1 detektor aktywny AND global_score > 0.7
         if len(active_detectors) >= min_detectors and global_score > global_score_threshold:
             decision = AlertDecision.ALERT
             reason = f"Dynamic consensus from {len(active_detectors)} detectors, weighted_score={global_score:.2f}"
@@ -332,10 +343,11 @@ class ConsensusDecisionEngine:
             
             print(f"[DYNAMIC BOOST] NO ALERT: {reason}")
         
-        # Oblicz confidence na podstawie weighted average confidence
+        # Oblicz confidence na podstawie weighted average confidence - ZMIENIONE: nie penalizuj za nieaktywne
         if active_detectors:
-            weighted_confidence = sum(d['confidence'] * d['weight'] for d in active_detectors.values()) / total_weight
-            confidence = min(1.0, weighted_confidence * (len(active_detectors) / len(unified_scores)))
+            weighted_confidence = sum(d['confidence'] * d['weight'] for d in active_detectors.values()) / total_weight if total_weight > 0 else 0.0
+            # Nie mnóż przez (len(active_detectors) / len(unified_scores)) - używaj tylko aktywnych
+            confidence = min(1.0, weighted_confidence)
         else:
             confidence = 0.0
         
@@ -872,12 +884,12 @@ class ConsensusDecisionEngine:
         """
         print(f"[SIMPLE CONSENSUS] Processing {token} using Etap 2 logic")
         
-        # 🔧 BELUSDT FIX: Lower consensus thresholds for better alert generation
-        threshold = 0.65  # Reduced from 0.75 to 0.65 for broader detection
-        global_score_threshold = 0.7  # Reduced from 0.8 to 0.7
-        min_detectors = 1  # Reduced from 2 to 1 - allow single strong detector
+        # 🛠️ NOWA LOGIKA: Bardziej liberalne podejście
+        threshold = 0.0  # ZMIENIONE: Każdy detektor ze score > 0 jest aktywny
+        global_score_threshold = 0.7  # Utrzymane na 0.7
+        min_detectors = 1  # Utrzymane - nawet 1 detektor może wywołać alert
         
-        # Znajdź aktywne detektory (score >= 0.65) with type safety
+        # Znajdź aktywne detektory (score > 0) with type safety
         active_detectors = {}
         for k, v in scores.items():
             try:
@@ -887,12 +899,13 @@ class ConsensusDecisionEngine:
                 else:
                     score_val = float(v) if v is not None else 0.0
                 
-                if score_val >= threshold:
+                # ZMIENIONE: Detektor jest aktywny jeśli score > 0
+                if score_val > 0.0:
                     active_detectors[k] = score_val
             except (ValueError, TypeError):
                 continue  # Skip invalid entries
         
-        print(f"[SIMPLE CONSENSUS] Active detectors (>= {threshold}): {len(active_detectors)}")
+        print(f"[SIMPLE CONSENSUS] Active detectors (> 0): {len(active_detectors)}")
         print(f"[SIMPLE CONSENSUS] Active scores: {active_detectors}")
         
         # Oblicz global_score jako średnią z aktywnych sygnałów
@@ -900,6 +913,12 @@ class ConsensusDecisionEngine:
             global_score = sum(active_detectors.values()) / len(active_detectors)
         else:
             global_score = 0.0
+        
+        # 🛠️ SPECJALNY PRZYPADEK: Jeśli dokładnie 2 detektory aktywne z wysokimi score
+        if len(active_detectors) == 2 and all(score >= 0.8 for score in active_detectors.values()):
+            print(f"[SIMPLE CONSENSUS SPECIAL] 2 strong detectors detected: {list(active_detectors.values())}")
+            # Boost score dla 2 silnych detektorów
+            global_score = max(global_score, 0.75)
         
         print(f"[SIMPLE CONSENSUS] Global score (avg of active): {global_score:.3f}")
         
@@ -935,9 +954,10 @@ class ConsensusDecisionEngine:
             
             print(f"[SIMPLE CONSENSUS] NO ALERT: {reason}")
         
-        # Oblicz confidence na podstawie aktywnych detektorów
+        # Oblicz confidence na podstawie aktywnych detektorów - ZMIENIONE: nie penalizuj za nieaktywne
         if active_detectors:
-            confidence = min(1.0, global_score * (len(active_detectors) / len(scores)))
+            # Nie dziel przez len(scores) - używaj tylko aktywnych detektorów
+            confidence = min(1.0, global_score)
         else:
             confidence = 0.0
         
@@ -1103,16 +1123,14 @@ class ConsensusDecisionEngine:
     
     def _weighted_average_consensus(self, token: str, 
                                    detector_scores: List[DetectorScore]) -> ConsensusResult:
-        """Strategia ważonej średniej z confidence weighting"""
+        """Strategia ważonej średniej z confidence weighting - ZMIENIONA: tylko aktywne detektory"""
         
         total_weighted_score = 0.0
         total_weight = 0.0
         contributing_detectors = []
+        active_count = 0
         
         for detector_score in detector_scores:
-            # Pobierz wagę detektora
-            base_weight = self.detector_weights.get(detector_score.name, 0.25)
-            
             # 🔧 CRITICAL FIX #1b: Prevent dict multiplication in weighted average
             # Safely extract score and confidence values
             score_value = detector_score.score
@@ -1127,22 +1145,40 @@ class ConsensusDecisionEngine:
             score_value = float(score_value) if score_value is not None else 0.0
             confidence_value = float(confidence_value) if confidence_value is not None else 0.0
             
+            # 🛠️ NOWA LOGIKA: Pomiń detektory ze score = 0
+            if score_value <= 0.0:
+                continue
+            
+            active_count += 1
+            
+            # Pobierz wagę detektora
+            base_weight = self.detector_weights.get(detector_score.name, 0.25)
+            
             # Dostosuj wagę przez confidence
-            adjusted_weight = base_weight * confidence_value
+            adjusted_weight = base_weight * confidence_value if confidence_value > 0 else base_weight * 0.5
             
             total_weighted_score += score_value * adjusted_weight
             total_weight += adjusted_weight
             contributing_detectors.append(detector_score.name)
         
-        # Oblicz final score
+        # Oblicz final score - normalizuj tylko na podstawie aktywnych detektorów
         final_score = total_weighted_score / total_weight if total_weight > 0 else 0.0
         
         # Określ decyzję
         decision = self._determine_decision_from_score(final_score)
         
-        # Oblicz consensus confidence with type safety
+        # Oblicz consensus confidence with type safety - ZMIENIONE: tylko aktywne detektory
         confidence_values = []
         for ds in detector_scores:
+            # Pomiń detektory ze score = 0
+            score_val = ds.score
+            if isinstance(score_val, dict):
+                score_val = score_val.get('score', score_val.get('value', 0.0))
+            score_val = float(score_val) if score_val is not None else 0.0
+            
+            if score_val <= 0.0:
+                continue
+                
             conf_val = ds.confidence
             if isinstance(conf_val, dict):
                 conf_val = conf_val.get('confidence', conf_val.get('value', 0.0))
@@ -1150,7 +1186,8 @@ class ConsensusDecisionEngine:
             confidence_values.append(conf_val)
         
         avg_confidence = sum(confidence_values) / len(confidence_values) if confidence_values else 0.0
-        consensus_strength = min(1.0, total_weight / sum(self.detector_weights.values()))
+        # Consensus strength bazuje tylko na aktywnych detektorach
+        consensus_strength = min(1.0, active_count / max(2, len(contributing_detectors)))
         
         reasoning = f"Weighted average consensus: {final_score:.3f} from {len(contributing_detectors)} detectors"
         
