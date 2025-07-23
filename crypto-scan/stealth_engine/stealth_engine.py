@@ -1928,18 +1928,10 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     # ⛔ WATCHLIST ALERT SYSTEM DISABLED per user request
                     # User requested removal of watchlist alerts completely
                     
-        # At end of try block - check if we should return early or proceed to consensus
+        # At end of try block - DO NOT RETURN EARLY - consensus must run for ALL tokens
         if skip_reason:
-            print(f"[EARLY EXIT] {symbol}: Returning early due to {skip_reason}")
-            return {
-                "score": score,
-                "stealth_score": score,
-                "active_signals": active_signals,
-                "skipped": skip_reason,
-                "explore_mode": explore_mode_triggered,  # Include explore mode result
-                "explore_confidence": explore_confidence,
-                "explore_reason": explore_trigger_reason
-            }
+            print(f"[SKIP REASON SET] {symbol}: Skip reason: {skip_reason} - but continuing to consensus")
+            # Do NOT return here - consensus must run even for skipped tokens
             
         print(f"[COMPUTE STEALTH SCORE] {token_data.get('symbol', 'UNKNOWN')}: Stealth analysis completed - proceeding to consensus section...")
         print(f"[EXIT DEBUG] {token_data.get('symbol', 'UNKNOWN')}: About to exit try block normally")

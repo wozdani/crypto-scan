@@ -668,6 +668,38 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 market_data["stealth_score"] = stealth_score
                 market_data["stealth_signals"] = active_signals
                 
+                # 🔧 CONSENSUS ENGINE INTEGRATION: Extract consensus data from stealth_result
+                print(f"[CONSENSUS DEBUG] {symbol}: stealth_result keys = {list(stealth_result.keys()) if isinstance(stealth_result, dict) else 'Not a dict'}")
+                
+                if stealth_result.get("consensus_result"):
+                    consensus_result = stealth_result["consensus_result"]
+                    print(f"[CONSENSUS DEBUG] {symbol}: consensus_result type = {type(consensus_result)}, content = {consensus_result}")
+                    
+                    # Convert AlertDecision enum to BUY/HOLD/AVOID string
+                    if hasattr(consensus_result, 'decision'):
+                        # Map AlertDecision enum values to expected string format
+                        decision_mapping = {
+                            "ALERT": "BUY",
+                            "ESCALATE": "BUY", 
+                            "WATCH": "HOLD",
+                            "NO_ALERT": "AVOID"
+                        }
+                        consensus_decision_enum = str(consensus_result.decision).split('.')[-1]  # Get enum value
+                        consensus_decision = decision_mapping.get(consensus_decision_enum, "HOLD")
+                        
+                        market_data["consensus_decision"] = consensus_decision
+                        market_data["consensus_score"] = getattr(consensus_result, 'final_score', stealth_score)
+                        market_data["consensus_confidence"] = getattr(consensus_result, 'confidence', 0.0)
+                        market_data["consensus_enabled"] = True
+                        
+                        print(f"[CONSENSUS INTEGRATION] {symbol}: Decision={consensus_decision}, Score={market_data['consensus_score']:.3f}, Confidence={market_data['consensus_confidence']:.3f}")
+                    else:
+                        print(f"[CONSENSUS WARNING] {symbol}: consensus_result has no decision attribute")
+                        market_data["consensus_enabled"] = False
+                else:
+                    print(f"[CONSENSUS INFO] {symbol}: No consensus_result in stealth_result")
+                    market_data["consensus_enabled"] = False
+                
                 # 🎯 TOP 5 STEALTH FIX: Aktualizuj stealth scores cache dla TOP 5 display
                 try:
                     from stealth_engine.priority_scheduler import AlertQueueManager
@@ -1444,10 +1476,13 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         gpt_feedback = market_data.get("gpt_feedback", f"TJDE Score: {tjde_score:.3f} - {enhanced_decision}")
                         ai_confidence = market_data.get("ai_confidence", tjde_score)
                         
-                        # 🔧 ACEUSDT FIX: Add complete consensus data to market_data from cache before queuing TJDE alert
-                        market_data["consensus_decision"] = locals().get("consensus_decision", "NONE")
-                        market_data["consensus_score"] = locals().get("consensus_score", tjde_score)  # Add consensus_score for strong signal override
-                        market_data["consensus_enabled"] = locals().get("consensus_enabled", False)
+                        # 🔧 ACEUSDT FIX: Consensus data already in market_data from stealth analysis
+                        # No need to use locals() - data is already populated in lines 674-700
+                        # market_data["consensus_decision"] already set
+                        # market_data["consensus_score"] already set  
+                        # Just add consensus_enabled if missing
+                        if "consensus_enabled" not in market_data:
+                            market_data["consensus_enabled"] = bool(market_data.get("consensus_decision"))
                         
                         # Queue TJDE alert with priority scoring and enhanced data
                         tjde_queued = queue_priority_alert(
