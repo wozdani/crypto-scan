@@ -26,7 +26,10 @@ class AdaptiveThresholdManager:
         self.analysis_schedule_file = "feedback_loop/last_analysis.json"
         
     def log_token_result(self, symbol: str, basic_score: float, final_score: float,
-                        decision: str, price_at_scan: float) -> str:
+                        decision: str, price_at_scan: float,
+                        consensus_decision: str = None,
+                        consensus_score: float = None,
+                        consensus_enabled: bool = False) -> str:
         """
         Loguje wynik tokena do systemu uczenia się progu
         
@@ -36,12 +39,16 @@ class AdaptiveThresholdManager:
             final_score: Finalny wynik TJDE
             decision: Decyzja systemu
             price_at_scan: Cena w momencie skanu
+            consensus_decision: Decyzja konsensusu (BUY/HOLD/AVOID)
+            consensus_score: Wynik konsensusu
+            consensus_enabled: Czy konsensus był włączony
             
         Returns:
             ID wpisu
         """
         return self.logger.log_basic_score_result(
-            symbol, basic_score, final_score, decision, price_at_scan
+            symbol, basic_score, final_score, decision, price_at_scan,
+            consensus_decision, consensus_score, consensus_enabled
         )
     
     async def run_scheduled_evaluation(self) -> int:
@@ -232,7 +239,10 @@ def get_adaptive_threshold_manager() -> AdaptiveThresholdManager:
 # Convenience functions dla łatwego używania
 
 def log_token_for_adaptive_learning(symbol: str, basic_score: float, final_score: float,
-                                   decision: str, price_at_scan: float) -> str:
+                                   decision: str, price_at_scan: float,
+                                   consensus_decision: str = None,
+                                   consensus_score: float = None,
+                                   consensus_enabled: bool = False) -> str:
     """
     Loguje token do systemu adaptacyjnego uczenia się progu
     
@@ -242,12 +252,16 @@ def log_token_for_adaptive_learning(symbol: str, basic_score: float, final_score
         final_score: Finalny wynik TJDE
         decision: Decyzja systemu
         price_at_scan: Cena w momencie skanu
+        consensus_decision: Decyzja konsensusu (BUY/HOLD/AVOID)
+        consensus_score: Wynik konsensusu
+        consensus_enabled: Czy konsensus był włączony
         
     Returns:
         ID wpisu
     """
     manager = get_adaptive_threshold_manager()
-    return manager.log_token_result(symbol, basic_score, final_score, decision, price_at_scan)
+    return manager.log_token_result(symbol, basic_score, final_score, decision, price_at_scan,
+                                  consensus_decision, consensus_score, consensus_enabled)
 
 
 async def run_adaptive_threshold_maintenance():

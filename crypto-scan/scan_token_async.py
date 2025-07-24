@@ -1579,7 +1579,10 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     basic_score=basic_score,
                     final_score=tjde_score,
                     decision=tjde_decision,
-                    price_at_scan=price
+                    price_at_scan=price,
+                    consensus_decision=market_data.get("consensus_decision"),
+                    consensus_score=market_data.get("consensus_score"),
+                    consensus_enabled=market_data.get("consensus_enabled", False)
                 )
                 print(f"[ADAPTIVE LEARNING] {symbol}: Logged for threshold learning (ID: {entry_id[:8]}...)")
             except Exception as adaptive_error:

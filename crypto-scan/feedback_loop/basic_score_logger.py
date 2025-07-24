@@ -32,7 +32,10 @@ class BasicScoreLogger:
     
     def log_basic_score_result(self, symbol: str, basic_score: float, 
                              final_score: float, decision: str, 
-                             price_at_scan: float) -> str:
+                             price_at_scan: float,
+                             consensus_decision: str = None,
+                             consensus_score: float = None,
+                             consensus_enabled: bool = False) -> str:
         """
         Loguje wynik tokena do pliku JSONL
         
@@ -42,6 +45,9 @@ class BasicScoreLogger:
             final_score: Finalny wynik TJDE
             decision: Decyzja systemu
             price_at_scan: Cena w momencie skanu
+            consensus_decision: Decyzja konsensusu (BUY/HOLD/AVOID)
+            consensus_score: Wynik konsensusu
+            consensus_enabled: Czy konsensus był włączony
             
         Returns:
             ID wpisu dla późniejszej aktualizacji
@@ -56,6 +62,9 @@ class BasicScoreLogger:
                 "final_score": final_score,
                 "decision": decision,
                 "price_at_scan": price_at_scan,
+                "consensus_decision": consensus_decision,
+                "consensus_score": consensus_score,
+                "consensus_enabled": consensus_enabled,
                 "timestamp": datetime.now().isoformat(),
                 "price_after_6h": None,  # Będzie uzupełnione później
                 "result_pct_6h": None,
@@ -67,7 +76,7 @@ class BasicScoreLogger:
             with open(self.log_file, 'a') as f:
                 f.write(json.dumps(log_entry) + '\n')
             
-            print(f"[BASIC SCORE LOG] {symbol}: logged with ID {entry_id}")
+            print(f"[BASIC SCORE LOG] {symbol}: logged with ID {entry_id} (consensus: {consensus_enabled})")
             return entry_id
             
         except Exception as e:
