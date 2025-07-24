@@ -103,6 +103,11 @@ class StealthLogger:
         consensus_votes = token_data.get('consensus_votes', [])
         consensus_score = token_data.get('consensus_score', 0.0)
         consensus_confidence = token_data.get('consensus_confidence', 0.0)
+        # Handle None values
+        if consensus_score is None:
+            consensus_score = 0.0
+        if consensus_confidence is None:
+            consensus_confidence = 0.0
         
         # Policz głosy BUY/HOLD/AVOID
         if isinstance(consensus_votes, list) and consensus_votes:
@@ -112,10 +117,18 @@ class StealthLogger:
             total_count = len(consensus_votes)
             votes_str = f"BUY:{buy_count}, HOLD:{hold_count}, AVOID:{avoid_count}"
             print(f" - 🎯 consensus_decision: {consensus_decision} ({votes_str})")
-            print(f" - 📊 consensus_score:    {consensus_score:.3f} (confidence: {consensus_confidence:.2f})")
+            # Handle None consensus_score in vote display
+            if consensus_score is not None:
+                print(f" - 📊 consensus_score:    {consensus_score:.3f} (confidence: {consensus_confidence:.2f}")
+            else:
+                print(f" - 📊 consensus_score:    0.000 (confidence: {consensus_confidence:.2f}")
         else:
             print(f" - 🎯 consensus_decision: {consensus_decision} (no votes)")
-            print(f" - 📊 consensus_score:    {consensus_score:.3f}")
+            # Handle None consensus_score
+            if consensus_score is not None:
+                print(f" - 📊 consensus_score:    {consensus_score:.3f}")
+            else:
+                print(f" - 📊 consensus_score:    0.000")
         
         # Feedback adjustment
         feedback_adjust = token_data.get('feedback_adjust', 0.0)

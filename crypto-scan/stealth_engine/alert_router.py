@@ -405,12 +405,18 @@ def route_alert_with_priority(symbol: str, score: float, market_data: Dict,
         print(f"[QUEUE PRIORITY ALERT] Warning for {symbol}: stealth_signals is {type(stealth_signals)}, expected list")
         stealth_signals = []
     
-    # STRICT BUY-ONLY FILTERING - No exceptions per user request
+    # BUY-ONLY FILTERING with strong signal override (ACEUSDT fix)
     consensus_decision = market_data.get("consensus_decision", "HOLD")
+    consensus_score = market_data.get("consensus_score", 0.0)
     
+    # 🔧 ACEUSDT FIX: Allow strong signals even if consensus != "BUY"
+    # If consensus_score >= 0.85 AND score >= 0.85, override the BUY-only filter
     if consensus_decision != "BUY":
-        print(f"[ALERT FILTER] {symbol} → Consensus decision '{consensus_decision}' != BUY - blocking alert")
-        return None
+        if consensus_score >= 0.85 and score >= 0.85:
+            print(f"[ACEUSDT ALERT FIX] {symbol} → Strong signal override: consensus_score={consensus_score:.3f}, score={score:.3f} - allowing alert despite consensus '{consensus_decision}'")
+        else:
+            print(f"[ALERT FILTER] {symbol} → Consensus decision '{consensus_decision}' != BUY - blocking alert")
+            return None
     
     try:
         # 1. Generuj tagi
