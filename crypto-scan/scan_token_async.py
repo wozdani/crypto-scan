@@ -671,7 +671,20 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 # 🔧 CONSENSUS ENGINE INTEGRATION: Extract consensus data from stealth_result
                 print(f"[CONSENSUS DEBUG] {symbol}: stealth_result keys = {list(stealth_result.keys()) if isinstance(stealth_result, dict) else 'Not a dict'}")
                 
-                if stealth_result.get("consensus_result"):
+                # 🔧 FIXED: Also check for consensus_decision directly in stealth_result
+                if stealth_result.get("consensus_decision"):
+                    # Consensus data is directly in stealth_result (new format)
+                    consensus_decision = stealth_result.get("consensus_decision", "HOLD")
+                    market_data["consensus_decision"] = consensus_decision
+                    market_data["consensus_score"] = stealth_result.get("consensus_score", stealth_score)
+                    market_data["consensus_confidence"] = stealth_result.get("consensus_confidence", 0.0)
+                    market_data["consensus_enabled"] = True
+                    market_data["consensus_votes"] = stealth_result.get("consensus_votes", [])
+                    
+                    print(f"[CONSENSUS INTEGRATION V2] {symbol}: Decision={consensus_decision}, Score={market_data['consensus_score']:.3f}, Confidence={market_data['consensus_confidence']:.3f}")
+                    print(f"[CONSENSUS VOTES] {symbol}: {market_data['consensus_votes']}")
+                    
+                elif stealth_result.get("consensus_result"):
                     consensus_result = stealth_result["consensus_result"]
                     print(f"[CONSENSUS DEBUG] {symbol}: consensus_result type = {type(consensus_result)}, content = {consensus_result}")
                     
