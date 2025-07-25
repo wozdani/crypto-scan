@@ -1680,6 +1680,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         "diamond_enabled": diamond_enabled,
                         "californium_score": round(californium_score, 3) if californium_enabled else None,
                         "californium_enabled": californium_enabled,
+                        "whaleclip_score": round(whaleclip_score, 3) if whaleclip_enabled else None,
+                        "stealth_engine_score": round(score, 3),  # Stealth Engine's own score
                         
                         # === COMPONENT BREAKDOWN FOR TOP 5 DISPLAY ===
                         "dex_inflow": round(dex_inflow_score, 3),
@@ -2072,6 +2074,11 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         "stealth_alerts": {"score": score},
         "consensus_result": consensus_result,
         "consensus_error": consensus_error,
+        # AI DETECTOR SCORES - CRITICAL FOR TOP 5 DISPLAY
+        "diamond_score": diamond_score if 'diamond_score' in locals() else 0.0,
+        "californium_score": californium_score if 'californium_score' in locals() else 0.0,
+        "whaleclip_score": whaleclip_score if 'whaleclip_score' in locals() else 0.0,
+        "stealth_engine_score": score,  # This is the main stealth engine score
         # NEW CONSENSUS DATA - BUY/HOLD/AVOID decision
         "consensus_decision": final_decision if 'final_decision' in locals() else "WATCH",
         "consensus_data": consensus_data if 'consensus_data' in locals() else None,

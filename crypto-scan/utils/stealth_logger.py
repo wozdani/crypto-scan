@@ -92,11 +92,26 @@ class StealthLogger:
         orderbook = self._extract_detector_value(token_data.get('orderbook_anomaly', 0.0))
         whaleclip = self._extract_detector_value(token_data.get('whaleclip_vision', 0.0))
         
+        # Dodaj AI detektory
+        diamond_score = self._extract_detector_value(token_data.get('diamond_score', 0.0))
+        californium_score = self._extract_detector_value(token_data.get('californium_score', 0.0))
+        stealth_engine_score = self._extract_detector_value(token_data.get('stealth_engine_score', token_data.get('base_score', 0.0)))
+        
         print(f" - 🐳 whale_ping:         {whale_ping:.2f}")
         print(f" - 🧠 mastermind_tracing:  {mastermind:.2f}")
         print(f" - 💧 dex_inflow:         {dex_inflow:.2f}")
         print(f" - 📊 orderbook_anomaly:   {orderbook:.2f}")
         print(f" - 🛰️ WhaleCLIP (vision):  {whaleclip:.2f}")
+        print(f" - 💎 DiamondWhale AI:     {diamond_score:.2f}")
+        print(f" - 🌊 CaliforniumWhale:    {californium_score:.2f}")
+        print(f" - 🎯 StealthEngine:       {stealth_engine_score:.2f}")
+        
+        # Pokaż aktywne detektory
+        consensus_detectors = token_data.get('consensus_detectors', [])
+        if consensus_detectors:
+            print(f" - ✅ Active detectors:   {len(consensus_detectors)} ({', '.join(consensus_detectors)})")
+        else:
+            print(f" - ⚠️  Active detectors:   0 (insufficient data)")
         
         # Consensus decision (używamy nowych pól)
         consensus_decision = token_data.get('consensus_decision', 'UNKNOWN')

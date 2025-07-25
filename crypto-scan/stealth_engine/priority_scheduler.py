@@ -151,6 +151,12 @@ class AlertQueueManager:
                 "timestamp": datetime.now().isoformat(),
                 "early_score": self.calculate_early_score(token, stealth_result),
                 
+                # === AI DETECTOR SCORES ===
+                "diamond_score": stealth_result.get("diamond_score", 0.0),
+                "californium_score": stealth_result.get("californium_score", 0.0),
+                "whaleclip_score": stealth_result.get("whaleclip_score", 0.0),
+                "stealth_engine_score": stealth_result.get("stealth_engine_score", stealth_result.get("score", 0.0)),
+                
                 # === CONSENSUS DECISION ENGINE DATA ===
                 "consensus_decision": stealth_result.get("consensus_decision"),
                 "consensus_score": stealth_result.get("consensus_score"),
@@ -228,6 +234,11 @@ class AlertQueueManager:
                     "identity_boost": data.get("identity_boost", 0.0),
                     "trust_boost": data.get("trust_boost", 0.0),
                     "timestamp": data.get("timestamp", ""),
+                    # Dodaj pola AI detektorów
+                    "diamond_score": data.get("diamond_score", 0.0),
+                    "californium_score": data.get("californium_score", 0.0),
+                    "whaleclip_score": data.get("whaleclip_score", 0.0),
+                    "stealth_engine_score": data.get("stealth_engine_score", data.get("score", 0.0)),
                     # Dodaj nowe pola consensus
                     "consensus_decision": data.get("consensus_decision", "UNKNOWN"),
                     "consensus_votes": data.get("consensus_votes", []),

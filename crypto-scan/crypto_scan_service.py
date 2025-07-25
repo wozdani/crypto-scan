@@ -110,6 +110,11 @@ def display_top5_stealth_tokens():
                                 'trust_boost': data.get('trust_boost', 0.0),
                                 'identity_boost': data.get('identity_boost', 0.0),
                                 'stealth_signals': data.get('stealth_signals', []),
+                                # Dodaj AI detektory
+                                'diamond_score': data.get('diamond_score', 0.0),
+                                'californium_score': data.get('californium_score', 0.0),
+                                'whaleclip_score': data.get('whaleclip_score', 0.0),
+                                'stealth_engine_score': data.get('stealth_engine_score', data.get('score', 0.0)),
                                 # Używamy nowych pól consensus
                                 'consensus_decision': data.get('consensus_decision', 'UNKNOWN'),
                                 'consensus_votes': data.get('consensus_votes', []),
