@@ -1313,8 +1313,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         print(f"[CONSENSUS DEBUG] {symbol}: Detector outputs: {list(detector_outputs.keys())}")
                         
                         if len(detector_outputs) >= 2:
-                            # Create consensus engine with multi-agent support enabled
-                            consensus_engine = create_decision_consensus_engine(enable_multi_agent=True)
+                            # Create consensus engine - multi-agent is now primary system
+                            consensus_engine = create_decision_consensus_engine()
                             consensus_result = consensus_engine.simulate_decision_consensus(
                                 detector_outputs, 
                                 threshold=0.7, 

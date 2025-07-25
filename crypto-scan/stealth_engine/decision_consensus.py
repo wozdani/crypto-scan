@@ -7,7 +7,7 @@ Integruje CaliforniumWhale AI, WhaleCLIP, Stealth Engine, DiamondWhale AI w unif
 import json
 import os
 from datetime import datetime
-from typing import Dict, Any, Tuple, List
+from typing import Dict, Any, Tuple, List, Optional
 from dataclasses import dataclass, asdict
 
 @dataclass
@@ -38,18 +38,17 @@ class DecisionConsensusEngine:
     Tworzy skonsolidowaną decyzję na podstawie ważonych głosów detektorów
     """
     
-    def __init__(self, cache_dir: str = "crypto-scan/cache", enable_multi_agent: bool = False):
+    def __init__(self, cache_dir: str = "crypto-scan/cache"):
         """
         Inicjalizacja Decision Consensus Engine
+        Multi-agent system jest teraz głównym mechanizmem konsensusu
         
         Args:
             cache_dir: Katalog dla cache'owania wag i historii
-            enable_multi_agent: Whether to enable 5-agent multi-agent system
         """
         self.cache_dir = cache_dir
         self.weights_file = os.path.join(cache_dir, "consensus_detector_weights.json")
         self.decisions_file = os.path.join(cache_dir, "consensus_decisions.json")
-        self.enable_multi_agent = enable_multi_agent
         
         # Default detector weights
         self.default_weights = {
@@ -85,38 +84,34 @@ class DecisionConsensusEngine:
         Returns:
             ConsensusResult z finalną decyzją i metadanami
         """
-        # Check if multi-agent system should be used
-        if self.enable_multi_agent and market_data:
-            try:
-                from .multi_agent_decision import MultiAgentDecisionSystem
+        # Always use multi-agent system as primary consensus mechanism
+        try:
+            if market_data:
+                print(f"[MULTI-AGENT PRIMARY] Processing {token} with 5-agent system as primary consensus")
                 
-                print(f"[CONSENSUS] Using 5-agent multi-agent system for {token}")
-                multi_agent = MultiAgentDecisionSystem()
-                
-                # Evaluate with multi-agent system (synchronous version)
-                multi_agent_result = multi_agent._evaluate_with_multi_agents_sync(
+                # Use multi-agent evaluation directly
+                multi_agent_decision = self._run_multi_agent_consensus(
                     detector_outputs, 
                     market_data, 
-                    token
+                    token,
+                    threshold
                 )
                 
-                # Convert multi-agent result to ConsensusResult
-                if multi_agent_result and multi_agent_result.get("decision"):
-                    return ConsensusResult(
-                        decision=multi_agent_result["decision"],
-                        final_score=multi_agent_result.get("confidence", 0.0),
-                        confidence=multi_agent_result.get("confidence", 0.0),
-                        contributing_detectors=list(detector_outputs.keys()),
-                        weighted_scores=detector_outputs,
-                        reasoning=f"5-Agent Override: {multi_agent_result.get('override_reason', 'Multi-agent consensus')}",
-                        timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        threshold_met=multi_agent_result.get("decision") == "BUY",
-                        votes=multi_agent_result.get("agent_votes", [])
-                    )
-            except Exception as e:
-                print(f"[CONSENSUS ERROR] Multi-agent system failed: {e}. Falling back to standard consensus.")
+                if multi_agent_decision:
+                    print(f"[MULTI-AGENT PRIMARY] Decision: {multi_agent_decision.decision}, Score: {multi_agent_decision.final_score:.3f}")
+                    return multi_agent_decision
+                else:
+                    print(f"[MULTI-AGENT ERROR] Failed to get multi-agent decision, using fallback")
+            else:
+                print(f"[MULTI-AGENT WARNING] No market_data provided, using fallback weighted voting")
                 
-        print(f"[CONSENSUS] Processing {token} with {len(detector_outputs)} detectors")
+        except ImportError:
+            print(f"[MULTI-AGENT INFO] Multi-agent module not available, using fallback weighted voting")
+        except Exception as e:
+            print(f"[MULTI-AGENT ERROR] System failed: {e}. Using fallback weighted voting.")
+                
+        # Fallback to simple weighted voting only if multi-agent fails
+        print(f"[FALLBACK VOTING] Processing {token} with weighted voting (multi-agent unavailable)")
         
         # Inicjalizacja ważonych scores dla każdej decyzji
         weighted_scores = {"BUY": 0.0, "HOLD": 0.0, "AVOID": 0.0}
@@ -525,14 +520,129 @@ class DecisionConsensusEngine:
             print(f"[HISTORY] Saved {len(self.decision_history)} decisions to {self.decisions_file}")
         except Exception as e:
             print(f"[HISTORY ERROR] Failed to save decision history: {e}")
-
-def create_decision_consensus_engine(enable_multi_agent: bool = True) -> DecisionConsensusEngine:
-    """Factory function dla Decision Consensus Engine
     
-    Args:
-        enable_multi_agent: Whether to enable 5-agent multi-agent system (default: True)
+    def _run_multi_agent_consensus(
+        self, 
+        detector_outputs: Dict[str, Dict[str, Any]], 
+        market_data: Dict[str, Any], 
+        token: str,
+        threshold: float
+    ) -> Optional[ConsensusResult]:
+        """
+        Run multi-agent consensus as primary decision mechanism
+        Each detector gets evaluated by 5 agents (Analyzer, Reasoner, Voter, Debater, Decider)
+        
+        Returns:
+            ConsensusResult with multi-agent decision
+        """
+        try:
+            from .multi_agent_decision import evaluate_detector_with_agents
+            import asyncio
+            
+            print(f"[MULTI-AGENT] Evaluating {len(detector_outputs)} detectors with 5-agent system")
+            
+            # Collect all agent evaluations
+            agent_decisions = {}
+            agent_confidences = {}
+            all_logs = []
+            
+            # Run multi-agent evaluation for each detector
+            for detector_name, detector_data in detector_outputs.items():
+                score = detector_data.get("score", 0.0)
+                
+                # Skip detectors with zero score
+                if score <= 0:
+                    continue
+                
+                # Prepare signal data (empty for now, can be enhanced later)
+                signal_data = {}
+                
+                # Run 5-agent evaluation synchronously
+                try:
+                    # Create new event loop for sync context
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    decision, confidence, log = loop.run_until_complete(
+                        evaluate_detector_with_agents(
+                            detector_name=detector_name,
+                            score=score,
+                            signal_data=signal_data,
+                            market_data=market_data,
+                            threshold=threshold
+                        )
+                    )
+                    loop.close()
+                    
+                    agent_decisions[detector_name] = decision
+                    agent_confidences[detector_name] = confidence
+                    all_logs.append(log)
+                    
+                    print(f"[MULTI-AGENT] {detector_name}: Decision={decision}, Confidence={confidence:.3f}")
+                    
+                except Exception as e:
+                    print(f"[MULTI-AGENT ERROR] Failed to evaluate {detector_name}: {e}")
+                    continue
+            
+            # Aggregate multi-agent decisions into final consensus
+            if agent_decisions:
+                # Count YES/NO votes
+                yes_votes = sum(1 for d in agent_decisions.values() if d == "YES")
+                no_votes = sum(1 for d in agent_decisions.values() if d == "NO")
+                total_votes = len(agent_decisions)
+                
+                # Calculate average confidence
+                avg_confidence = sum(agent_confidences.values()) / len(agent_confidences)
+                
+                # Determine final decision
+                if yes_votes > no_votes:
+                    final_decision = "BUY"
+                    decision_strength = yes_votes / total_votes
+                elif no_votes > yes_votes:
+                    final_decision = "AVOID"
+                    decision_strength = no_votes / total_votes
+                else:
+                    final_decision = "HOLD"
+                    decision_strength = 0.5
+                
+                # Create reasoning
+                reasoning = f"5-Agent Multi-Agent Consensus: {yes_votes} YES, {no_votes} NO votes. "
+                reasoning += f"Average confidence: {avg_confidence:.3f}. "
+                reasoning += f"Detectors evaluated: {', '.join(agent_decisions.keys())}. "
+                reasoning += f"Primary decision mechanism using 5 agents per detector."
+                
+                # Create ConsensusResult
+                result = ConsensusResult(
+                    decision=final_decision,
+                    final_score=decision_strength,
+                    confidence=avg_confidence,
+                    contributing_detectors=list(agent_decisions.keys()),
+                    weighted_scores=detector_outputs,
+                    reasoning=reasoning,
+                    timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    threshold_met=decision_strength >= threshold,
+                    votes=[final_decision] * yes_votes + ["HOLD"] * (total_votes - yes_votes)
+                )
+                
+                # Save decision
+                self._save_decision_history()
+                
+                # Log decision
+                print(f"[FINAL DECISION] {token}: {final_decision} (score: {decision_strength:.3f}, confidence: {avg_confidence:.3f})")
+                
+                return result
+            else:
+                print(f"[MULTI-AGENT WARNING] No valid agent decisions generated")
+                return None
+                
+        except Exception as e:
+            print(f"[MULTI-AGENT ERROR] Failed to run multi-agent consensus: {e}")
+            return None
+
+def create_decision_consensus_engine() -> DecisionConsensusEngine:
+    """Factory function dla Decision Consensus Engine
+    Multi-agent system jest teraz głównym mechanizmem konsensusu
     """
-    return DecisionConsensusEngine(enable_multi_agent=enable_multi_agent)
+    return DecisionConsensusEngine()
 
 def test_decision_consensus():
     """Test funkcja dla Decision Consensus Engine"""
