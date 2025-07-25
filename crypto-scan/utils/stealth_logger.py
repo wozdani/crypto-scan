@@ -111,17 +111,26 @@ class StealthLogger:
         
         # Policz głosy BUY/HOLD/AVOID
         if isinstance(consensus_votes, list) and consensus_votes:
-            buy_count = consensus_votes.count('BUY')
-            hold_count = consensus_votes.count('HOLD')
-            avoid_count = consensus_votes.count('AVOID')
+            # Parse głosy z formatu "DetectorName: VOTE"
+            buy_count = 0
+            hold_count = 0
+            avoid_count = 0
+            for vote in consensus_votes:
+                if ": BUY" in vote:
+                    buy_count += 1
+                elif ": HOLD" in vote:
+                    hold_count += 1
+                elif ": AVOID" in vote:
+                    avoid_count += 1
+            
             total_count = len(consensus_votes)
             votes_str = f"BUY:{buy_count}, HOLD:{hold_count}, AVOID:{avoid_count}"
             print(f" - 🎯 consensus_decision: {consensus_decision} ({votes_str})")
             # Handle None consensus_score in vote display
             if consensus_score is not None:
-                print(f" - 📊 consensus_score:    {consensus_score:.3f} (confidence: {consensus_confidence:.2f}")
+                print(f" - 📊 consensus_score:    {consensus_score:.3f} (confidence: {consensus_confidence:.2f})")
             else:
-                print(f" - 📊 consensus_score:    0.000 (confidence: {consensus_confidence:.2f}")
+                print(f" - 📊 consensus_score:    0.000 (confidence: {consensus_confidence:.2f})")
         else:
             print(f" - 🎯 consensus_decision: {consensus_decision} (no votes)")
             # Handle None consensus_score

@@ -30,6 +30,7 @@ class ConsensusResult:
     reasoning: str
     timestamp: str
     threshold_met: bool
+    votes: List[str] = None  # Lista głosów detektorów: ["BUY", "HOLD", "AVOID", ...]
 
 class DecisionConsensusEngine:
     """
@@ -169,6 +170,15 @@ class DecisionConsensusEngine:
         reasoning = self._generate_reasoning(decision, final_score, threshold_met, 
                                            normalized_scores, contributing_detectors)
         
+        # Zbierz głosy detektorów w formacie "DetectorName: VOTE"
+        detector_votes = []
+        for detector_name, result_data in updated_outputs.items():
+            if result_data.get("score", 0.0) > 0:
+                vote = result_data.get("vote", "HOLD")
+                # Format głosu jako "DetectorName: VOTE" dla zgodności z systemem wyświetlania
+                formatted_vote = f"{detector_name}: {vote}"
+                detector_votes.append(formatted_vote)
+        
         # Utwórz wynik
         result = ConsensusResult(
             decision=decision,
@@ -178,7 +188,8 @@ class DecisionConsensusEngine:
             weighted_scores=normalized_scores,
             reasoning=reasoning,
             timestamp=datetime.now().isoformat(),
-            threshold_met=threshold_met
+            threshold_met=threshold_met,
+            votes=detector_votes  # Dodaj listę głosów
         )
         
         # Zapisz decyzję do historii
