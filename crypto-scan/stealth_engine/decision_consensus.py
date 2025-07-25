@@ -38,16 +38,18 @@ class DecisionConsensusEngine:
     Tworzy skonsolidowaną decyzję na podstawie ważonych głosów detektorów
     """
     
-    def __init__(self, cache_dir: str = "crypto-scan/cache"):
+    def __init__(self, cache_dir: str = "crypto-scan/cache", enable_multi_agent: bool = False):
         """
         Inicjalizacja Decision Consensus Engine
         
         Args:
             cache_dir: Katalog dla cache'owania wag i historii
+            enable_multi_agent: Whether to enable 5-agent multi-agent system
         """
         self.cache_dir = cache_dir
         self.weights_file = os.path.join(cache_dir, "consensus_detector_weights.json")
         self.decisions_file = os.path.join(cache_dir, "consensus_decisions.json")
+        self.enable_multi_agent = enable_multi_agent
         
         # Default detector weights
         self.default_weights = {
@@ -65,7 +67,8 @@ class DecisionConsensusEngine:
     
     def simulate_decision_consensus(self, detector_outputs: Dict[str, Dict[str, Any]], 
                                   threshold: float = 0.7, 
-                                  token: str = "UNKNOWN") -> ConsensusResult:
+                                  token: str = "UNKNOWN",
+                                  market_data: Dict[str, Any] = None) -> ConsensusResult:
         """
         ETAP 7: Główna funkcja konsensusu - finalna decyzja na podstawie ważonych głosów
         
@@ -82,6 +85,37 @@ class DecisionConsensusEngine:
         Returns:
             ConsensusResult z finalną decyzją i metadanami
         """
+        # Check if multi-agent system should be used
+        if self.enable_multi_agent and market_data:
+            try:
+                from .multi_agent_decision import MultiAgentDecisionSystem
+                
+                print(f"[CONSENSUS] Using 5-agent multi-agent system for {token}")
+                multi_agent = MultiAgentDecisionSystem()
+                
+                # Evaluate with multi-agent system (synchronous version)
+                multi_agent_result = multi_agent._evaluate_with_multi_agents_sync(
+                    detector_outputs, 
+                    market_data, 
+                    token
+                )
+                
+                # Convert multi-agent result to ConsensusResult
+                if multi_agent_result and multi_agent_result.get("decision"):
+                    return ConsensusResult(
+                        decision=multi_agent_result["decision"],
+                        final_score=multi_agent_result.get("confidence", 0.0),
+                        confidence=multi_agent_result.get("confidence", 0.0),
+                        contributing_detectors=list(detector_outputs.keys()),
+                        weighted_scores=detector_outputs,
+                        reasoning=f"5-Agent Override: {multi_agent_result.get('override_reason', 'Multi-agent consensus')}",
+                        timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        threshold_met=multi_agent_result.get("decision") == "BUY",
+                        votes=multi_agent_result.get("agent_votes", [])
+                    )
+            except Exception as e:
+                print(f"[CONSENSUS ERROR] Multi-agent system failed: {e}. Falling back to standard consensus.")
+                
         print(f"[CONSENSUS] Processing {token} with {len(detector_outputs)} detectors")
         
         # Inicjalizacja ważonych scores dla każdej decyzji
@@ -492,9 +526,13 @@ class DecisionConsensusEngine:
         except Exception as e:
             print(f"[HISTORY ERROR] Failed to save decision history: {e}")
 
-def create_decision_consensus_engine() -> DecisionConsensusEngine:
-    """Factory function dla Decision Consensus Engine"""
-    return DecisionConsensusEngine()
+def create_decision_consensus_engine(enable_multi_agent: bool = True) -> DecisionConsensusEngine:
+    """Factory function dla Decision Consensus Engine
+    
+    Args:
+        enable_multi_agent: Whether to enable 5-agent multi-agent system (default: True)
+    """
+    return DecisionConsensusEngine(enable_multi_agent=enable_multi_agent)
 
 def test_decision_consensus():
     """Test funkcja dla Decision Consensus Engine"""

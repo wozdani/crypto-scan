@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Any, Tuple, Union
 from dataclasses import dataclass
 from enum import Enum
+import asyncio
 
 
 class ConsensusStrategy(Enum):
@@ -96,13 +97,18 @@ class ConsensusDecisionEngine:
         self.decision_history = []
         self.detector_performance = {}
         
+        # Multi-agent decision system
+        self.enable_multi_agent = False  # Flag to enable/disable 5-agent system
+        self.multi_agent_override_threshold = 0.5  # Override if agents vote YES even with low score
+        
         print("[CONSENSUS ENGINE] Initialized multi-agent decision layer")
     
     def run(self, token: str, scores: Union[Dict[str, float], Dict[str, Dict[str, float]]], 
             strategy: ConsensusStrategy = ConsensusStrategy.WEIGHTED_AVERAGE,
             metadata: Dict[str, Any] = None, 
             use_simple_consensus: bool = False,
-            use_dynamic_boosting: bool = False) -> ConsensusResult:
+            use_dynamic_boosting: bool = False,
+            market_data: Dict[str, Any] = None) -> ConsensusResult:
         """
         Główna funkcja uruchamiająca consensus decision process
         
@@ -130,6 +136,13 @@ class ConsensusDecisionEngine:
         # Walidacja input data
         if not scores:
             return self._create_no_alert_result("No detector scores provided", strategy)
+        
+        # Multi-Agent 5-Agent Decision System Integration
+        if self.enable_multi_agent and market_data:
+            multi_agent_override = self._evaluate_with_multi_agents_sync(token, scores, market_data, metadata)
+            if multi_agent_override:
+                print(f"[CONSENSUS ENGINE] ⚡ MULTI-AGENT OVERRIDE detected for {token}")
+                return multi_agent_override
         
         # ETAP 3: Dynamic Boosting Logic Implementation
         if use_dynamic_boosting:
@@ -163,6 +176,169 @@ class ConsensusDecisionEngine:
         print(f"[CONSENSUS ENGINE] Reasoning: {result.reasoning}")
         
         return result
+    
+    async def _evaluate_with_multi_agents(
+        self, 
+        token: str, 
+        scores: Dict[str, Any], 
+        market_data: Dict[str, Any],
+        metadata: Dict[str, Any] = None
+    ) -> Optional[ConsensusResult]:
+        """
+        Evaluate each detector with 5-agent system
+        
+        Args:
+            token: Token symbol
+            scores: Detector scores
+            market_data: Market data for context
+            metadata: Additional metadata
+            
+        Returns:
+            ConsensusResult if override triggered, None otherwise
+        """
+        from .multi_agent_decision import evaluate_detector_with_agents
+        
+        print(f"[MULTI-AGENT] Evaluating {len(scores)} detectors with 5-agent system")
+        
+        # Normalize scores to get detector data
+        normalized_scores = self._normalize_to_extended_format(scores)
+        
+        # Prepare signal data from metadata
+        signal_data = metadata.get('signal_data', {}) if metadata else {}
+        
+        # Track override decisions
+        override_detectors = []
+        agent_logs = []
+        
+        # Evaluate each detector with 5 agents
+        for detector_name, detector_data in normalized_scores.items():
+            score = detector_data.get('score', 0.0)
+            
+            # Skip detectors with zero score
+            if score <= 0:
+                continue
+            
+            # Get detector-specific signal data
+            detector_signals = signal_data.get(detector_name, {})
+            
+            # Run 5-agent evaluation
+            decision, confidence, log = await evaluate_detector_with_agents(
+                detector_name=detector_name,
+                score=score,
+                signal_data=detector_signals,
+                market_data=market_data,
+                threshold=self.multi_agent_override_threshold
+            )
+            
+            agent_logs.append(log)
+            
+            # Check for override
+            if decision == "YES" and score < self.multi_agent_override_threshold:
+                print(f"[MULTI-AGENT] ⚡ OVERRIDE: {detector_name} agents voted YES despite low score {score:.3f}")
+                override_detectors.append({
+                    'detector': detector_name,
+                    'score': score,
+                    'agent_confidence': confidence,
+                    'decision': decision
+                })
+        
+        # If any detector triggered override, create override result
+        if override_detectors:
+            # Calculate aggregate confidence
+            avg_confidence = sum(d['agent_confidence'] for d in override_detectors) / len(override_detectors)
+            
+            # Create override reasoning
+            override_reasoning = f"Multi-Agent Override: {len(override_detectors)} detector(s) triggered agent override. "
+            override_reasoning += f"Detectors: {', '.join(d['detector'] for d in override_detectors)}. "
+            override_reasoning += f"Despite low scores, agent analysis indicates strong signal."
+            
+            # Create override result
+            result = ConsensusResult(
+                decision=AlertDecision.ALERT,
+                final_score=max(d['score'] for d in override_detectors),
+                confidence=avg_confidence,
+                strategy_used=ConsensusStrategy.DOMINANT_DETECTOR,
+                contributing_detectors=[d['detector'] for d in override_detectors],
+                reasoning=override_reasoning,
+                consensus_strength=avg_confidence,
+                votes=[AlertDecision.ALERT] * len(override_detectors),
+                alert_sent=False,
+                timestamp=datetime.now().isoformat()
+            )
+            
+            # Log the override
+            print("\n[MULTI-AGENT] Override Summary:")
+            for log in agent_logs:
+                if "OVERRIDE ALERT" in log:
+                    print(log)
+            
+            return result
+        
+        # No override triggered
+        return None
+    
+    def _evaluate_with_multi_agents_sync(
+        self, 
+        token: str, 
+        scores: Dict[str, Any], 
+        market_data: Dict[str, Any],
+        metadata: Dict[str, Any] = None
+    ) -> Optional[ConsensusResult]:
+        """
+        Synchronous version of multi-agent evaluation
+        
+        Args:
+            token: Token symbol
+            scores: Detector scores
+            market_data: Market data for context
+            metadata: Additional metadata
+            
+        Returns:
+            ConsensusResult if override triggered, None otherwise
+        """
+        # Try to run async function in sync context
+        try:
+            # Check if event loop is already running
+            try:
+                loop = asyncio.get_running_loop()
+                # Already in async context - create new thread
+                import concurrent.futures
+                import threading
+                
+                result = None
+                exception = None
+                
+                def run_in_thread():
+                    nonlocal result, exception
+                    try:
+                        # Create new event loop in thread
+                        new_loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(new_loop)
+                        result = new_loop.run_until_complete(
+                            self._evaluate_with_multi_agents(token, scores, market_data, metadata)
+                        )
+                        new_loop.close()
+                    except Exception as e:
+                        exception = e
+                
+                thread = threading.Thread(target=run_in_thread)
+                thread.start()
+                thread.join(timeout=30)  # 30 second timeout
+                
+                if exception:
+                    raise exception
+                    
+                return result
+                
+            except RuntimeError:
+                # No event loop running - safe to use asyncio.run()
+                return asyncio.run(
+                    self._evaluate_with_multi_agents(token, scores, market_data, metadata)
+                )
+                
+        except Exception as e:
+            print(f"[MULTI-AGENT ERROR] Failed to run multi-agent evaluation: {e}")
+            return None
     
     def _is_extended_score_format(self, scores: Dict) -> bool:
         """
