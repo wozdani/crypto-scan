@@ -2024,7 +2024,9 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             whale_ping_strength = 1.0  # If whale_ping active, strength = 1.0
         
         print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Whale ping strength: {whale_ping_strength:.3f}")
-        print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: DEX inflow: ${token_data.get('dex_inflow_usd', 0.0):.2f}")
+        # Extract real DEX inflow value from token data (corrected from scan_token_async.py)
+        real_dex_inflow = token_data.get("dex_inflow", 0.0)  # Use actual dex_inflow from stealth analysis
+        print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: DEX inflow: ${real_dex_inflow:.2f}")
         
         # Prepare token data for explore mode
         explore_token_data = {
@@ -2035,7 +2037,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             "historical_alerts": [],
             "active_signals": list(used_signals),
             "whale_ping_strength": whale_ping_strength,
-            "dex_inflow_usd": token_data.get("dex_inflow_usd", 0.0),
+            "dex_inflow_usd": real_dex_inflow,  # Use real DEX inflow value
             "final_score": score
         }
         
@@ -2099,7 +2101,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         "explore_confidence": explore_confidence,
                         "explore_reason": explore_trigger_reason,
                         "whale_ping_strength": whale_ping_strength,
-                        "dex_inflow_usd": token_data.get("dex_inflow_usd", 0.0),
+                        "dex_inflow_usd": real_dex_inflow,  # Use real DEX inflow value
                         "stealth_score": score,
                         "active_signals": list(used_signals),
                         "skip_reason": skip_reason,
