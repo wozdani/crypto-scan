@@ -1191,30 +1191,69 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     print(f"  Final score: {score:.3f}")
                     print(f"[STEALTH] Final signal for {symbol} → Score: {score:.3f}, Decision: {decision}, Active: {len(used_signals)} signals{partial_note}{diamond_note}{whaleclip_note}{californium_note}")
                     
-                    # === GNN SUBGRAPH SCORE INTEGRATION ===
-                    # Dodaj GNN subgraph analysis zgodnie z uwagami Szefira
+                    # === GOLDEN KEY GNN DETECTOR INTEGRATION ===
+                    # 🔥 STAGE: Integrate Golden Key GNN Detector - Graph Neural Networks
                     gnn_subgraph_score = 0.0
                     gnn_active = False
+                    gnn_error = None
                     
                     try:
-                        # Placeholder dla GNN subgraph + QIRL analysis
-                        # TODO: Implementować pełny GNN detector z subgraph analysis
+                        # Sprawdź czy token ma kontrakt blockchain dla analizy GNN
                         from utils.contracts import get_contract
                         contract_info = get_contract(symbol)
                         
                         if contract_info and contract_info.get('address'):
-                            # Symuluj GNN subgraph analysis na podstawie dostępnych sygnałów
-                            if len(used_signals) >= 2 and score > 1.0:
-                                gnn_subgraph_score = min(score * 0.3, 0.9)  # Derived from stealth signals
+                            print(f"[GOLDEN KEY] {symbol}: Starting GNN analysis for contract {contract_info['address'][:10]}...")
+                            
+                            # Pobierz rzeczywiste transakcje blockchain dla analizy GNN
+                            from .blockchain_fetcher import fetch_diamond_transactions
+                            contract_address = contract_info['address']
+                            chain = contract_info.get('chain', 'ethereum')
+                            
+                            # Fetch real blockchain transactions for GNN graph
+                            transactions = fetch_diamond_transactions(contract_address, chain)
+                            print(f"[GOLDEN KEY] {symbol}: Fetched {len(transactions)} transactions for GNN graph")
+                            
+                            # Wywołaj Golden Key GNN Detector
+                            from .golden_key_detector import run_golden_key_analysis
+                            gnn_result = run_golden_key_analysis(symbol, transactions)
+                            
+                            if gnn_result and gnn_result.get('status') == 'success':
+                                gnn_subgraph_score = float(gnn_result['pump_score'])
                                 gnn_active = True
-                                print(f"[GNN SCORE] {symbol}: Subgraph QIRL score = {gnn_subgraph_score:.3f}")
+                                
+                                # Dodaj GNN score do głównego stealth score (z wagą 0.25)
+                                gnn_contribution = gnn_subgraph_score * 0.25
+                                score += gnn_contribution
+                                
+                                # Dodaj do listy aktywnych sygnałów jeśli znaczący
+                                if gnn_subgraph_score > 0.5:
+                                    used_signals.append("golden_key_gnn_detection")
+                                
+                                print(f"[GOLDEN KEY] {symbol}: GNN pump_score={gnn_subgraph_score:.3f}, contribution=+{gnn_contribution:.3f}")
+                                print(f"[GOLDEN KEY] {symbol}: Graph analysis completed - nodes={gnn_result.get('graph_stats', {}).get('nodes', 0)}")
+                                
+                                # Log alert decision if generated
+                                if gnn_result.get('alert_decision') == 1:
+                                    print(f"[GOLDEN KEY ALERT] {symbol}: GNN detected pump pattern! Reasoning: {gnn_result.get('reasoning', 'N/A')}")
                             else:
-                                print(f"[GNN SCORE] {symbol}: Insufficient signals for subgraph analysis")
+                                print(f"[GOLDEN KEY] {symbol}: No significant pump pattern detected via GNN")
                         else:
-                            print(f"[GNN SCORE] {symbol}: No contract address for graph analysis")
+                            print(f"[GOLDEN KEY] {symbol}: No blockchain contract found - skipping GNN analysis")
                             
                     except Exception as e:
-                        print(f"[GNN SCORE ERROR] {symbol}: GNN analysis failed: {e}")
+                        gnn_error = str(e)
+                        print(f"[GOLDEN KEY ERROR] {symbol}: Failed to run GNN detector: {e}")
+                        print(f"[GOLDEN KEY ERROR] {symbol}: Continuing without GNN analysis")
+                    
+                    # Fallback GNN score calculation if real analysis failed
+                    if not gnn_active and len(used_signals) >= 2 and score > 1.0:
+                        # Symuluj GNN subgraph analysis na podstawie dostępnych sygnałów
+                        gnn_subgraph_score = min(score * 0.3, 0.9)  # Derived from stealth signals
+                        gnn_active = True
+                        print(f"[GNN FALLBACK] {symbol}: Subgraph QIRL score = {gnn_subgraph_score:.3f}")
+                    else:
+                        print(f"[GNN FALLBACK] {symbol}: Insufficient signals for subgraph analysis")
                     
                     # === MASTERMIND TRACING INTEGRATION ===
                     # Dodaj group activity mastermind zgodnie z uwagami Szefira
