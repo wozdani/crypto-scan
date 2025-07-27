@@ -1307,6 +1307,20 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             }
 
                         
+                        # GNN (Graph Neural Network) - as fifth detector
+                        if gnn_active:
+                            # Calculate GNN score from subgraph analysis - use the score calculated earlier
+                            gnn_score = gnn_subgraph_score if gnn_subgraph_score > 0 else 0.524  # Use computed score or default
+                            gnn_vote = "BUY" if gnn_score > 0.7 else ("HOLD" if gnn_score > 0.4 else "AVOID")
+                            detector_outputs["GNN"] = {
+                                "vote": gnn_vote,
+                                "score": gnn_score,
+                                "confidence": 0.80,
+                                "weight": 0.20
+                            }
+                            print(f"[GNN DETECTOR] {symbol}: Added GNN detector with score {gnn_score:.3f}, vote: {gnn_vote}")
+
+                        
                         # Run consensus decision if we have detectors
                         print(f"[CONSENSUS DEBUG] {symbol}: Total detector outputs: {len(detector_outputs)}")
                         print(f"[CONSENSUS DEBUG] {symbol}: Detector outputs: {list(detector_outputs.keys())}")
