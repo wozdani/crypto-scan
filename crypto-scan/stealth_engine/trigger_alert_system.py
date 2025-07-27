@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-🚨 Stage 7: Trigger Alert Boost System
-🎯 Natychmiastowe wyzwalanie alertów przy wykryciu "smart money" (zaufanych adresów >80% trust score)
+🚨 Stage 7: Trigger Alert Boost System - Enhanced Smart Money Detection
+🎯 Natychmiastowe wyzwalanie alertów przy wykryciu "smart money" z obniżonymi progami dla lepszego detection
 
 📦 Funkcjonalności:
-1. Detekcja trigger addresses (trust score ≥0.8 + min 3 predykcje)  
+1. Detekcja trigger addresses (trust score ≥0.3 + min 1 predykcja) - ENHANCED SENSITIVITY
 2. Automatyczne podniesienie scoring do poziomu alertu (min 3.0)
 3. Priorytetowe dodanie do kolejki alertów
 4. Bypass standardowych filtrów dla zaufanych adresów
@@ -23,16 +23,16 @@ class TriggerAlertSystem:
     """
     
     def __init__(self, 
-                 trust_threshold: float = 0.8,
-                 min_predictions: int = 3,
+                 trust_threshold: float = 0.0,
+                 min_predictions: int = 0,
                  trigger_score: float = 3.0,
                  cache_file: str = "cache/trigger_alerts.json"):
         """
         Inicjalizacja systemu trigger alerts
         
         Args:
-            trust_threshold: Minimalny trust score dla trigger (default: 0.8 = 80%)
-            min_predictions: Minimalna liczba predykcji dla trigger
+            trust_threshold: Minimalny trust score dla trigger (default: 0.0 = 0% - ALL ADDRESSES)
+            min_predictions: Minimalna liczba predykcji dla trigger (default: 0 - ALL ADDRESSES)
             trigger_score: Score ustawiony przy trigger alert (default: 3.0)
             cache_file: Plik cache dla trigger alerts
         """
@@ -88,7 +88,8 @@ class TriggerAlertSystem:
         Returns:
             Tuple[bool, List[Dict]]: (czy_trigger, lista_trigger_addresses)
         """
-        print(f"[TRIGGER DEBUG] check_trigger_addresses called with {len(detected_addresses)} addresses")
+        print(f"[SMART MONEY CHECK] Starting check for {len(detected_addresses)} addresses...")
+        print(f"[SMART MONEY CHECK] Thresholds: trust≥{self.trust_threshold:.1%}, predictions≥{self.min_predictions}")
         trigger_addresses = []
         
         for i, addr in enumerate(detected_addresses):

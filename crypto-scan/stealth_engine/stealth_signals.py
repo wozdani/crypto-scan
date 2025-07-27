@@ -599,14 +599,17 @@ class StealthSignalDetector:
                         print(f"[IDENTITY BOOST ERROR] whale_ping for {symbol}: {identity_e}")
                         print(f"[DEBUG WHALE_PING] {symbol} - Identity boost calculation failed, continuing...")
                     
-                    # Etap 7: Trigger Alert System z RZECZYWISTYMI adresami
+                    # Etap 7: Trigger Alert System z RZECZYWISTYMI adresami - Enhanced Logging
                     try:
+                        print(f"[WHALE SMART MONEY] {symbol} - Starting smart money trigger check for whale_ping...")
                         from stealth_engine.trigger_alert_system import check_smart_money_trigger, apply_smart_money_boost
                         from stealth_engine.address_trust_manager import get_trust_manager
                         
                         # Sprawdź czy wykryto trigger addresses (smart money) wśród RZECZYWISTYCH adresów
                         trust_manager = get_trust_manager()
+                        print(f"[WHALE SMART MONEY] {symbol} - Checking {len(addresses_to_process[:10])} addresses for smart money trigger...")
                         is_trigger, trigger_addresses = check_smart_money_trigger(addresses_to_process[:10], trust_manager)
+                        print(f"[WHALE SMART MONEY] {symbol} - Smart money check result: {is_trigger} ({len(trigger_addresses)} trigger addresses)")
                         
                         if is_trigger:
                             # Zastosuj trigger boost - minimum score 3.0 dla instant alert
@@ -617,9 +620,13 @@ class StealthSignalDetector:
                             
                             print(f"[TRIGGER ALERT] 🚨 {symbol} WHALE PING: Smart money detected! "
                                   f"Strength boosted to {strength:.3f} (priority alert: {priority_alert})")
+                        else:
+                            print(f"[WHALE SMART MONEY] {symbol} - No smart money trigger detected for whale_ping")
                         
                     except Exception as trigger_e:
                         print(f"[TRIGGER ALERT ERROR] whale_ping for {symbol}: {trigger_e}")
+                        import traceback
+                        traceback.print_exc()
                     
                 except Exception as memory_e:
                     print(f"[WHALE MEMORY] Error for {symbol}: {memory_e}")
@@ -1060,9 +1067,10 @@ class StealthSignalDetector:
                     print(f"[DEBUG FLOW] {symbol} - Trust manager loaded")
                     
                     try:
-                        print(f"[DEBUG FLOW] {symbol} - Calling check_smart_money_trigger with {len(real_addresses[:10])} addresses...")
+                        print(f"[DEX SMART MONEY] {symbol} - Starting smart money trigger check for dex_inflow...")
+                        print(f"[DEX SMART MONEY] {symbol} - Checking {len(real_addresses[:10])} addresses for smart money trigger...")
                         is_trigger, trigger_addresses = check_smart_money_trigger(real_addresses[:10], trust_manager)
-                        print(f"[DEBUG FLOW] {symbol} - Smart money check completed: {is_trigger}")
+                        print(f"[DEX SMART MONEY] {symbol} - Smart money check result: {is_trigger} ({len(trigger_addresses)} trigger addresses)")
                         
                         if is_trigger:
                             # Zastosuj trigger boost - minimum score 3.0 dla instant alert
