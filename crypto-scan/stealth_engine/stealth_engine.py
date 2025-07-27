@@ -1383,8 +1383,18 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         print(f"[MASTER AI ERROR] {symbol}: Mastermind tracing failed: {e}")
                     
                     # === DETECTORS ACTIVE STATUS LOG ===
+                    # Fix WhaleCLIP status inconsistency - use actual signal strength for status
+                    whale_signal_strength = 0.0
+                    for signal in signals:
+                        if signal.name in ["whale_ping", "whale_ping_real", "whale_ping_real_repeat"] and hasattr(signal, 'active') and signal.active and hasattr(signal, 'strength'):
+                            whale_signal_strength = max(whale_signal_strength, signal.strength)
+                    
+                    # Update WhaleCLIP status based on actual signal strength
+                    whaleclip_status_corrected = (whaleclip_enabled or whale_signal_strength > 0.0 or whaleclip_score > 0.0)
+                    
                     # Dodaj log aktywnych detektorów przed konsensusem zgodnie z uwagami Szefira
-                    print(f"[DETECTORS ACTIVE] {symbol}: StealthEngine=True, Diamond={diamond_enabled}, Californium={californium_enabled}, WhaleCLIP={whaleclip_enabled}, GNN={gnn_active}")
+                    print(f"[DETECTORS ACTIVE] {symbol}: StealthEngine=True, Diamond={diamond_enabled}, Californium={californium_enabled}, WhaleCLIP={whaleclip_status_corrected}, GNN={gnn_active}")
+                    print(f"[WHALECLIP STATUS FIX] {symbol}: whaleclip_enabled={whaleclip_enabled}, whale_signal_strength={whale_signal_strength:.3f}, whaleclip_score={whaleclip_score:.3f} → Status={whaleclip_status_corrected}")
                     
                     # 🚨 STEALTH V3 TELEGRAM ALERT SYSTEM - QUALITY PRIORITY CHANGE
                     # ✅ CONSENSUS-BASED ALERT LOGIC: Only send alerts when final_decision == "BUY"
@@ -1437,21 +1447,19 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             }
 
                         
-                        # WhaleCLIP (derived from whale signals)
-                        whale_signal_strength = 0.0
-                        # Check all whale-related signals for whale strength
-                        for signal in signals:
-                            if signal.name in ["whale_ping", "whale_ping_real", "whale_ping_real_repeat"] and hasattr(signal, 'active') and signal.active and hasattr(signal, 'strength'):
-                                whale_signal_strength = max(whale_signal_strength, signal.strength)
+                        # WhaleCLIP (use corrected status logic - combine blockchain analysis + whale signals)
+                        # Use whale signal strength OR blockchain WhaleCLIP score for status
+                        whaleclip_final_score = max(whale_signal_strength, whaleclip_score)
                         
-                        if whale_signal_strength > 0.0:
-                            clip_vote = "BUY" if whale_signal_strength > 0.8 else ("HOLD" if whale_signal_strength > 0.5 else "AVOID")
+                        if whaleclip_final_score > 0.0:
+                            clip_vote = "BUY" if whaleclip_final_score > 0.8 else ("HOLD" if whaleclip_final_score > 0.5 else "AVOID")
                             detector_outputs["WhaleCLIP"] = {
                                 "vote": clip_vote,
-                                "score": whale_signal_strength,
+                                "score": whaleclip_final_score,  # Use combined score (whale signals + blockchain analysis)
                                 "confidence": 0.75,
                                 "weight": 0.26
                             }
+                            print(f"[WHALECLIP CONSENSUS FIX] {symbol}: Combined score={whaleclip_final_score:.3f} (whale_signals={whale_signal_strength:.3f} + blockchain={whaleclip_score:.3f}), vote={clip_vote}")
 
                         
                         # GNN (Graph Neural Network) - as fifth detector
