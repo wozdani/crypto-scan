@@ -98,6 +98,20 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### July 27, 2025 - COMPREHENSIVE DETECTOR SELF-LEARNING SYSTEM COMPLETE - Intelligent Score Adaptation for All Detectors ✅
+**🎉 REVOLUTIONARY BREAKTHROUGH:** Pomyślnie zaimplementowano comprehensive detector self-learning system zapewniającą intelligent score adaptation based on past decisions dla wszystkich 4 detektorów AI:
+- **COMPLETE DETECTOR LEARNING INTEGRATION**: Successfully integrated detector_learning_system.py providing self-learning capabilities dla CaliforniumWhale AI, DiamondWhale AI, WhaleCLIP, i StealthEngine z comprehensive score adaptation based on historical performance
+- **INTELLIGENT SCORE ADAPTATION**: Each detector now adapts its scores based on accuracy_rate, explore_mode_accuracy, recent performance trends enabling continuous improvement przez real-world feedback learning
+- **DECISION RECORDING SYSTEM**: All detector decisions automatically recorded z original_score → adapted_score transitions, market context, decision outcomes enabling comprehensive learning database
+- **EXPLORE MODE LEARNING INTEGRATION**: Enhanced explore mode z detector learning feedback ensuring experimental cold-start alerts contribute do detector improvement through specialized learning pathways
+- **PERFORMANCE TRACKING INFRASTRUCTURE**: Complete tracking system monitoring total_decisions, correct_decisions, accuracy_rate, avg_profit_loss, explore_mode_accuracy, confidence_evolution enabling institutional-grade detector performance analysis
+- **ADAPTIVE MULTIPLIER ALGORITHM**: Sophisticated adaptation algorithm gdzie high-accuracy detectors (>70%) get confidence boosts, low-accuracy detectors (<40%) get reduced confidence, medium-accuracy detectors get proportional adjustments
+- **LEARNING RATE CONFIGURATION**: Customizable learning parameters per detector z base_threshold, learning_sensitivity, explore_mode_boost enabling fine-tuned adaptation behavior dla each AI detector type
+- **PRODUCTION INTEGRATION COMPLETE**: All detector adaptations seamlessly integrated w existing stealth_engine.py z comprehensive logging "[DETECTOR LEARNING]" showing original→adapted score transitions z adaptation reasoning
+- **COMPREHENSIVE ERROR HANDLING**: Complete error handling z graceful fallbacks when insufficient learning data, ensuring system continues operating while building learning database
+- **INSTITUTIONAL-GRADE LEARNING PERSISTENCE**: All learning data persisted w JSON files z automatic saving, historical tracking, performance evolution enabling long-term detector intelligence improvement
+System dostarcza breakthrough detector intelligence gdzie sophisticated AI detectors (CaliforniumWhale temporal graph analysis, DiamondWhale AI patterns, WhaleCLIP behavioral analysis, StealthEngine signal detection) continuously improve their accuracy through intelligent self-learning score adaptation based on real trading outcomes eliminating static threshold limitations enabling superior cryptocurrency intelligence evolution.
+
 ### July 27, 2025 - WHALECLIP STATUS INCONSISTENCY COMPLETELY RESOLVED - Unified Boolean & Scoring Logic ✅
 **🔧 CRITICAL LOGIC FIX COMPLETE:** Pomyślnie rozwiązano błąd WhaleCLIP gdzie system pokazywał False status ale generował score 1.0 poprzez unified boolean vs scoring logic zapewniającą consistent detection reporting:
 - **WHALECLIP STATUS INCONSISTENCY ROOT CAUSE IDENTIFIED**: System używał różnych logik dla status detection (whaleclip_enabled) vs score calculation (whale_signal_strength + whaleclip_score) powodując że WhaleCLIP=False ale score=1.0

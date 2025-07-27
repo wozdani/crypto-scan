@@ -1414,37 +1414,78 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         # Prepare detector outputs for new consensus system
                         detector_outputs = {}
                         
-                        # StealthEngine (Classic Stealth Signals)
+                        # StealthEngine (Classic Stealth Signals) + SELF-LEARNING ADAPTATION
                         if score > 0.0:
-                            stealth_vote = "BUY" if score > 2.0 else ("HOLD" if score > 1.0 else "AVOID")
+                            # Apply intelligent self-learning score adaptation
+                            adapted_stealth_score, adaptation_reason = adapt_detector_score(
+                                "StealthEngine", score, symbol, market_data
+                            )
+                            
+                            stealth_vote = "BUY" if adapted_stealth_score > 2.0 else ("HOLD" if adapted_stealth_score > 1.0 else "AVOID")
                             detector_outputs["StealthEngine"] = {
                                 "vote": stealth_vote,
-                                "score": score,  # Use RAW score for multi-agent evaluation (no normalization)
+                                "score": adapted_stealth_score,  # Use adapted score for multi-agent evaluation
                                 "confidence": min(data_coverage, 1.0),
                                 "weight": 0.25
                             }
+                            
+                            # Record decision for future learning
+                            record_detector_decision(
+                                "StealthEngine", symbol, score, adapted_stealth_score, 
+                                stealth_vote, explore_mode=False, market_context=market_data
+                            )
+                            
+                            print(f"[STEALTH LEARNING] {symbol}: {score:.3f} → {adapted_stealth_score:.3f} ({adaptation_reason})")
 
                         
-                        # CaliforniumWhale AI
+                        # CaliforniumWhale AI + SELF-LEARNING ADAPTATION
                         if californium_enabled and californium_score > 0.0:
-                            calif_vote = "BUY" if californium_score > 0.7 else ("HOLD" if californium_score > 0.4 else "AVOID")
+                            # Apply intelligent self-learning score adaptation
+                            from .detector_learning_system import adapt_detector_score, record_detector_decision
+                            
+                            adapted_californium_score, adaptation_reason = adapt_detector_score(
+                                "CaliforniumWhale", californium_score, symbol, market_data
+                            )
+                            
+                            calif_vote = "BUY" if adapted_californium_score > 0.7 else ("HOLD" if adapted_californium_score > 0.4 else "AVOID")
                             detector_outputs["CaliforniumWhale"] = {
                                 "vote": calif_vote,
-                                "score": californium_score,
+                                "score": adapted_californium_score,
                                 "confidence": 0.85,
                                 "weight": 0.33
                             }
+                            
+                            # Record decision for future learning
+                            record_detector_decision(
+                                "CaliforniumWhale", symbol, californium_score, adapted_californium_score, 
+                                calif_vote, explore_mode=False, market_context=market_data
+                            )
+                            
+                            print(f"[CALIFORNIUM LEARNING] {symbol}: {californium_score:.3f} → {adapted_californium_score:.3f} ({adaptation_reason})")
 
                         
-                        # DiamondWhale AI
+                        # DiamondWhale AI + SELF-LEARNING ADAPTATION
                         if diamond_enabled and diamond_score > 0.0:
-                            diamond_vote = "BUY" if diamond_score > 0.6 else ("HOLD" if diamond_score > 0.3 else "AVOID")
+                            # Apply intelligent self-learning score adaptation
+                            adapted_diamond_score, adaptation_reason = adapt_detector_score(
+                                "DiamondWhale", diamond_score, symbol, market_data
+                            )
+                            
+                            diamond_vote = "BUY" if adapted_diamond_score > 0.6 else ("HOLD" if adapted_diamond_score > 0.3 else "AVOID")
                             detector_outputs["DiamondWhale"] = {
                                 "vote": diamond_vote,
-                                "score": diamond_score,
+                                "score": adapted_diamond_score,
                                 "confidence": 0.80,
                                 "weight": 0.25
                             }
+                            
+                            # Record decision for future learning
+                            record_detector_decision(
+                                "DiamondWhale", symbol, diamond_score, adapted_diamond_score, 
+                                diamond_vote, explore_mode=False, market_context=market_data
+                            )
+                            
+                            print(f"[DIAMOND LEARNING] {symbol}: {diamond_score:.3f} → {adapted_diamond_score:.3f} ({adaptation_reason})")
 
                         
                         # WhaleCLIP (use corrected status logic - combine blockchain analysis + whale signals)
@@ -1452,13 +1493,26 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         whaleclip_final_score = max(whale_signal_strength, whaleclip_score)
                         
                         if whaleclip_final_score > 0.0:
-                            clip_vote = "BUY" if whaleclip_final_score > 0.8 else ("HOLD" if whaleclip_final_score > 0.5 else "AVOID")
+                            # Apply intelligent self-learning score adaptation for WhaleCLIP
+                            adapted_whaleclip_score, adaptation_reason = adapt_detector_score(
+                                "WhaleCLIP", whaleclip_final_score, symbol, market_data
+                            )
+                            
+                            clip_vote = "BUY" if adapted_whaleclip_score > 0.8 else ("HOLD" if adapted_whaleclip_score > 0.5 else "AVOID")
                             detector_outputs["WhaleCLIP"] = {
                                 "vote": clip_vote,
-                                "score": whaleclip_final_score,  # Use combined score (whale signals + blockchain analysis)
+                                "score": adapted_whaleclip_score,  # Use adapted score for voting
                                 "confidence": 0.75,
                                 "weight": 0.26
                             }
+                            
+                            # Record decision for future learning
+                            record_detector_decision(
+                                "WhaleCLIP", symbol, whaleclip_final_score, adapted_whaleclip_score, 
+                                clip_vote, explore_mode=False, market_context=market_data
+                            )
+                            
+                            print(f"[WHALECLIP LEARNING] {symbol}: {whaleclip_final_score:.3f} → {adapted_whaleclip_score:.3f} ({adaptation_reason})")
                             print(f"[WHALECLIP CONSENSUS FIX] {symbol}: Combined score={whaleclip_final_score:.3f} (whale_signals={whale_signal_strength:.3f} + blockchain={whaleclip_score:.3f}), vote={clip_vote}")
 
                         
@@ -1920,6 +1974,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                 from datetime import datetime
                                 import json
                                 
+                                # Enhanced explore mode data z detector learning information
                                 explore_data = {
                                     "symbol": token_data.get('symbol', 'UNKNOWN'),
                                     "score": score,
@@ -1928,7 +1983,22 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                     "agents_decision": stored_consensus_data.get("decision", "NONE") if 'stored_consensus_data' in locals() else "NO_CONSENSUS",
                                     "agents_votes": stored_consensus_data.get('votes', []) if 'stored_consensus_data' in locals() else [],
                                     "detectors": stored_consensus_data.get('contributing_detectors', []) if 'stored_consensus_data' in locals() else [],
-                                    "awaiting_pump_verification": True  # Agenci sprawdzą czy był pump
+                                    "awaiting_pump_verification": True,  # Agenci sprawdzą czy był pump
+                                    # Enhanced detector learning integration
+                                    "confidence_sources": {
+                                        "stealth_engine": {"score": score, "confidence": min(data_coverage, 1.0)},
+                                        "diamond_whale": {"score": diamond_score if diamond_enabled else 0.0, "enabled": diamond_enabled},
+                                        "californium_whale": {"score": californium_score if californium_enabled else 0.0, "enabled": californium_enabled},
+                                        "whaleclip": {"score": whaleclip_final_score if 'whaleclip_final_score' in locals() else 0.0, "enabled": whaleclip_status_corrected}
+                                    },
+                                    "detector_scores": {
+                                        "stealth": score,
+                                        "diamond": diamond_score if diamond_enabled else 0.0,
+                                        "californium": californium_score if californium_enabled else 0.0,
+                                        "whaleclip": whaleclip_final_score if 'whaleclip_final_score' in locals() else 0.0
+                                    },
+                                    "mastermind_tracing": mastermind_data if 'mastermind_data' in locals() else None,
+                                    "graph_features": {"gnn_active": gnn_active, "gnn_score": gnn_subgraph_score if 'gnn_subgraph_score' in locals() else 0.0}
                                 }
                                 
                                 # Save explore mode learning data
@@ -1948,7 +2018,45 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                 with open(explore_file, 'w') as f:
                                     json.dump(explore_history, f, indent=2)
                                 
-                                print(f"[EXPLORE SAVE] {token_data.get('symbol', 'UNKNOWN')}: Learning data saved dla future agent training")
+                                print(f"[EXPLORE SAVE] {token_data.get('symbol', 'UNKNOWN')}: Enhanced learning data saved dla detector training")
+                                
+                                # Record explore mode decisions for individual detector learning
+                                try:
+                                    # Record explore mode decision for each active detector
+                                    if score > 0.0:
+                                        record_detector_decision(
+                                            "StealthEngine", token_data.get('symbol', 'UNKNOWN'), 
+                                            score, score, "EXPLORE", explore_mode=True, 
+                                            market_context=market_data
+                                        )
+                                        
+                                    if diamond_enabled and diamond_score > 0.0:
+                                        record_detector_decision(
+                                            "DiamondWhale", token_data.get('symbol', 'UNKNOWN'), 
+                                            diamond_score, diamond_score, "EXPLORE", explore_mode=True, 
+                                            market_context=market_data
+                                        )
+                                        
+                                    if californium_enabled and californium_score > 0.0:
+                                        record_detector_decision(
+                                            "CaliforniumWhale", token_data.get('symbol', 'UNKNOWN'), 
+                                            californium_score, californium_score, "EXPLORE", explore_mode=True, 
+                                            market_context=market_data
+                                        )
+                                        
+                                    if 'whaleclip_final_score' in locals() and whaleclip_final_score > 0.0:
+                                        record_detector_decision(
+                                            "WhaleCLIP", token_data.get('symbol', 'UNKNOWN'), 
+                                            whaleclip_final_score, whaleclip_final_score, "EXPLORE", explore_mode=True, 
+                                            market_context=market_data
+                                        )
+                                        
+                                    print(f"[DETECTOR LEARNING] {token_data.get('symbol', 'UNKNOWN')}: Explore mode decisions recorded dla wszystkich active detectors")
+                                    
+                                except Exception as learning_error:
+                                    print(f"[DETECTOR LEARNING ERROR] {token_data.get('symbol', 'UNKNOWN')}: Failed to record explore decisions: {learning_error}")
+                                    
+                                print(f"[EXPLORE SAVE] {token_data.get('symbol', 'UNKNOWN')}: Enhanced learning data saved dla detector training")
                                 
                             except Exception as e:
                                 print(f"[EXPLORE ERROR] {token_data.get('symbol', 'UNKNOWN')}: Failed to save learning data: {e}")
