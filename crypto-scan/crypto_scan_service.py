@@ -742,6 +742,16 @@ def main():
         
         print("✅ [STAGE 11] Priority Learning Memory system uruchomiony - inteligentne priorytetowanie tokenów aktywne")
         
+        # 🎓 PUMP VERIFICATION SCHEDULER - Agent Learning System
+        try:
+            from agent_learning.pump_verification_scheduler import start_pump_verification_scheduler
+            start_pump_verification_scheduler()
+            print("✅ [STAGE 11+] Pump Verification Scheduler uruchomiony - agent learning z pump verification co 6h")
+        except ImportError:
+            print("ℹ️ [STAGE 11+] Pump Verification Scheduler niedostępny")
+        except Exception as pump_error:
+            print(f"⚠️ [STAGE 11+] Błąd uruchamiania Pump Verification Scheduler: {pump_error}")
+        
         # Pokaż statystyki uczenia
         learning_stats = priority_memory.get_learning_statistics()
         print(f"ℹ️ [STAGE 11] Pamięć uczenia: {learning_stats['total_entries']} wpisów, "

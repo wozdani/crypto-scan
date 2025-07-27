@@ -1292,21 +1292,22 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         
                         # WhaleCLIP (derived from whale signals)
                         whale_signal_strength = 0.0
-                        if "whale_ping" in used_signals:
-                            for signal in signals:
-                                if signal.name == "whale_ping" and hasattr(signal, 'strength'):
-                                    whale_signal_strength = signal.strength
-                                    break
-                            
-                            if whale_signal_strength > 0.0:
-                                clip_vote = "BUY" if whale_signal_strength > 0.8 else ("HOLD" if whale_signal_strength > 0.5 else "AVOID")
-                                detector_outputs["WhaleCLIP"] = {
-                                    "vote": clip_vote,
-                                    "score": whale_signal_strength,
-                                    "confidence": 0.75,
-                                    "weight": 0.26
-                                }
-                                print(f"[NEW CONSENSUS] {symbol}: WhaleCLIP → {clip_vote} (score: {whale_signal_strength:.3f})")
+                        # Check all whale-related signals for whale strength
+                        for signal in signals:
+                            if signal.name in ["whale_ping", "whale_ping_real", "whale_ping_real_repeat"] and hasattr(signal, 'active') and signal.active and hasattr(signal, 'strength'):
+                                whale_signal_strength = max(whale_signal_strength, signal.strength)
+                        
+                        if whale_signal_strength > 0.0:
+                            clip_vote = "BUY" if whale_signal_strength > 0.8 else ("HOLD" if whale_signal_strength > 0.5 else "AVOID")
+                            detector_outputs["WhaleCLIP"] = {
+                                "vote": clip_vote,
+                                "score": whale_signal_strength,
+                                "confidence": 0.75,
+                                "weight": 0.26
+                            }
+                            print(f"[NEW CONSENSUS] {symbol}: WhaleCLIP → {clip_vote} (score: {whale_signal_strength:.3f})")
+                        else:
+                            print(f"[NEW CONSENSUS] {symbol}: WhaleCLIP → No whale signals detected")
                         
                         # Run consensus decision if we have detectors
                         print(f"[CONSENSUS DEBUG] {symbol}: Total detector outputs: {len(detector_outputs)}")
@@ -1721,30 +1722,74 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         explore_trigger_reason = None
                         explore_confidence = 0.0
                         
-                        # Jeśli mamy consensus, użyj TYLKO jego decyzji - ignoruj score
-                        if consensus_data and consensus_data.get("decision") == "BUY":
+                        # 🎯 CONSENSUS VOTE ONLY LOGIC - jak requestował user
+                        # Alert logic based ONLY on consensus decision - ignore score thresholds completely
+                        if 'stored_consensus_data' in locals() and stored_consensus_data and stored_consensus_data.get("decision") == "BUY":
                             should_alert = True
-                            print(f"[STEALTH V3 ALERT] {token_data.get('symbol', 'UNKNOWN')}: Consensus decision {consensus_data.get('decision')} triggers alert (score ignored)")
-                        elif consensus_data and consensus_data.get("decision") in ["HOLD", "AVOID", "NO_ALERT"]:
-                            should_alert = False
-                            print(f"[STEALTH V3 ALERT BLOCK] {token_data.get('symbol', 'UNKNOWN')}: Consensus decision {consensus_data.get('decision')} blocks alert (score={score:.3f})")
+                            print(f"[CONSENSUS VOTE ALERT] {token_data.get('symbol', 'UNKNOWN')}: Majority agents vote BUY → ALERT TRIGGERED")
+                            print(f"[CONSENSUS VOTE ALERT] {token_data.get('symbol', 'UNKNOWN')}: Votes: {stored_consensus_data.get('votes', [])}")
+                            print(f"[CONSENSUS VOTE ALERT] {token_data.get('symbol', 'UNKNOWN')}: Contributing detectors: {stored_consensus_data.get('contributing_detectors', [])}")
+                        elif 'stored_consensus_data' in locals() and stored_consensus_data and stored_consensus_data.get("decision") in ["HOLD", "AVOID", "WATCH"]:
+                            should_alert = False  
+                            print(f"[CONSENSUS VOTE BLOCK] {token_data.get('symbol', 'UNKNOWN')}: Majority agents vote {stored_consensus_data.get('decision')} → NO ALERT")
+                            print(f"[CONSENSUS VOTE BLOCK] {token_data.get('symbol', 'UNKNOWN')}: Score {score:.3f} ignored (consensus-based logic)")
                         else:
-                            # Fallback - jeśli nie ma consensus, sprawdź score z wyższym progiem (2.5+)
-                            alert_threshold = 2.5  # Raised from 0.7 to prevent low score alerts
-                            if score >= alert_threshold:
-                                should_alert = True
-                                print(f"[STEALTH V3 FALLBACK] {token_data.get('symbol', 'UNKNOWN')}: No consensus, score {score:.3f} >= {alert_threshold} triggers alert")
-                            else:
-                                print(f"[STEALTH V3 NO ALERT] {token_data.get('symbol', 'UNKNOWN')}: No consensus, score {score:.3f} < {alert_threshold} threshold")
+                            # No consensus available - default to no alert (explore mode can handle edge cases)
+                            should_alert = False
+                            print(f"[CONSENSUS VOTE] {token_data.get('symbol', 'UNKNOWN')}: No consensus available → NO ALERT (score {score:.3f} ignored)")
+                            print(f"[CONSENSUS VOTE] {token_data.get('symbol', 'UNKNOWN')}: Agents need to learn from historical data to vote")
                         
-                        # 🚧 INTEGRATE EXPLORE MODE RESULTS 
+                        # 🎓 EXPLORE MODE LEARNING SYSTEM - zapisuj wysokie score dla uczenia agentów
                         # Use explore mode results from earlier analysis
                         explore_mode = explore_mode_triggered
                         
-                        # DISABLED: Explore mode alerts per user request - causing unwanted alerts
-                        # if explore_mode_triggered and not should_alert:
-                        #     should_alert = True
-                        #     print(f"[EXPLORE MODE ALERT TRIGGER] {token_data.get('symbol', 'UNKNOWN')}: Explore mode triggering alert (normal criteria not met)")
+                        # EXPLORE MODE: Zapisuj wysokie score dla future agent learning
+                        if explore_mode_triggered:
+                            print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Wysokie score {score:.3f} zapisane dla agent learning")
+                            print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Trigger reason: {explore_trigger_reason}")
+                            print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Agenci będą sprawdzać czy był pump w przyszłości")
+                            
+                            # Zapisz explore mode data dla agent feedback learning
+                            try:
+                                from datetime import datetime
+                                import json
+                                
+                                explore_data = {
+                                    "symbol": token_data.get('symbol', 'UNKNOWN'),
+                                    "score": score,
+                                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                    "trigger_reason": explore_trigger_reason,
+                                    "agents_decision": stored_consensus_data.get("decision", "NONE") if 'stored_consensus_data' in locals() else "NO_CONSENSUS",
+                                    "agents_votes": stored_consensus_data.get('votes', []) if 'stored_consensus_data' in locals() else [],
+                                    "detectors": stored_consensus_data.get('contributing_detectors', []) if 'stored_consensus_data' in locals() else [],
+                                    "awaiting_pump_verification": True  # Agenci sprawdzą czy był pump
+                                }
+                                
+                                # Save explore mode learning data
+                                explore_file = "crypto-scan/cache/explore_learning_data.json"
+                                try:
+                                    with open(explore_file, 'r') as f:
+                                        explore_history = json.load(f)
+                                except:
+                                    explore_history = []
+                                
+                                explore_history.append(explore_data)
+                                
+                                # Keep only last 1000 explore entries
+                                if len(explore_history) > 1000:
+                                    explore_history = explore_history[-1000:]
+                                
+                                with open(explore_file, 'w') as f:
+                                    json.dump(explore_history, f, indent=2)
+                                
+                                print(f"[EXPLORE SAVE] {token_data.get('symbol', 'UNKNOWN')}: Learning data saved dla future agent training")
+                                
+                            except Exception as e:
+                                print(f"[EXPLORE ERROR] {token_data.get('symbol', 'UNKNOWN')}: Failed to save learning data: {e}")
+                            
+                            # W explore mode nie wysyłamy alertów - tylko zbieramy dane do nauki
+                            should_alert = False
+                            print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: No alert sent - collecting learning data only")
                         
                         if should_alert:
                             symbol = token_data.get('symbol', 'UNKNOWN')
@@ -1878,7 +1923,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                     result["alert_sent"] = False
                                     result["alert_skip_reason"] = "cooldown_or_error"
                         else:
-                            print(f"[STEALTH V3 ALERT] {symbol}: Score {score:.3f} poniżej progu alertów (0.7)")
+                            print(f"[STEALTH V3 ALERT] {symbol}: Score {score:.3f} poniżej progu alertów (1.5)")
                             # STAGE 10 FIX: Safe variable access using locals()
                             if 'result' in locals():
                                 result["alert_sent"] = False
