@@ -141,11 +141,11 @@ async def send_stealth_alert(symbol: str, stealth_score: float, active_signals: 
             print(f"[STEALTH CONSENSUS PASS] {symbol} → Consensus decision BUY allows alert (score={stealth_score:.3f})")
     else:
         # Fallback - bez consensus, sprawdź score threshold
-        if stealth_score < 4.0:
-            print(f"[STEALTH NO CONSENSUS] {symbol} → No consensus, score {stealth_score:.3f} < 4.0 threshold - blocking alert")
+        if stealth_score < 0.7:
+            print(f"[STEALTH NO CONSENSUS] {symbol} → No consensus, score {stealth_score:.3f} < 0.7 threshold - blocking alert")
             return
         else:
-            print(f"[STEALTH FALLBACK] {symbol} → No consensus, high score {stealth_score:.3f} >= 4.0 allows alert")
+            print(f"[STEALTH FALLBACK] {symbol} → No consensus, valid score {stealth_score:.3f} >= 0.7 allows alert")
     
     # Sprawdź intelligent cooldown z current score
     if not stealth_alert_manager.should_send_alert(symbol, stealth_score):

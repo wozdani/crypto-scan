@@ -211,11 +211,11 @@ class UnifiedTelegramAlerts:
                 logger.info(f"[UNIFIED CONSENSUS PASS] {token_symbol} → Consensus decision BUY allows alert ({detector_name}, score={score:.3f})")
         else:
             # Fallback - bez consensus, sprawdź score threshold
-            if score < 4.0:
-                logger.info(f"[UNIFIED NO CONSENSUS] {token_symbol} → No consensus, score {score:.3f} < 4.0 threshold - blocking alert ({detector_name})")
+            if score < 0.7:
+                logger.info(f"[UNIFIED NO CONSENSUS] {token_symbol} → No consensus, score {score:.3f} < 0.7 threshold - blocking alert ({detector_name})")
                 return False
             else:
-                logger.info(f"[UNIFIED FALLBACK] {token_symbol} → No consensus, high score {score:.3f} >= 4.0 allows alert ({detector_name})")
+                logger.info(f"[UNIFIED FALLBACK] {token_symbol} → No consensus, valid score {score:.3f} >= 0.7 allows alert ({detector_name})")
         
         # Validate credentials
         if not self.bot_token or not self.chat_id:

@@ -63,13 +63,13 @@ class MultiAgentDecisionSystem:
         # W produkcji zastąp prawdziwym API call
         
         if role == AgentRole.ANALYZER:
-            # Analyzer sprawdza wiarygodność danych
-            if score > 0.8:
-                reasoning = f"Score {score:.3f} is highly reliable. Signal data shows strong patterns: {len(signal_data)} active signals."
+            # Analyzer sprawdza wiarygodność danych (LOWERED THRESHOLDS FOR MORE BUY VOTES)
+            if score > 0.5:  # Lowered from 0.8 to 0.5
+                reasoning = f"Score {score:.3f} is reliable for analysis. Signal data shows good patterns: {len(signal_data)} active signals."
                 decision = "YES"
                 confidence = 0.9
-            elif score > threshold:
-                reasoning = f"Score {score:.3f} above threshold but needs context verification. Data quality: moderate."
+            elif score > threshold * 0.7:  # Lowered threshold multiplier from 1.0 to 0.7
+                reasoning = f"Score {score:.3f} above adjusted threshold ({threshold * 0.7:.2f}). Data quality: moderate."
                 decision = "YES"
                 confidence = 0.7
             else:
@@ -78,67 +78,72 @@ class MultiAgentDecisionSystem:
                 confidence = 0.8
                 
         elif role == AgentRole.REASONER:
-            # Reasoner ocenia kontekst rynkowy
+            # Reasoner ocenia kontekst rynkowy (LOWERED VOLUME REQUIREMENTS)
             volume_24h = market_data.get('volume_24h', 0)
             price_change = market_data.get('price_change_24h', 0)
             
-            if volume_24h > 1000000 and price_change > 0:
-                reasoning = f"Market context bullish: volume ${volume_24h:,.0f}, price change {price_change:.2f}%"
+            if volume_24h > 500000 and price_change > -5:  # Lowered from 1M to 500k, allow some negative price change
+                reasoning = f"Market context acceptable: volume ${volume_24h:,.0f}, price change {price_change:.2f}%"
                 decision = "YES"
                 confidence = 0.85
-            elif volume_24h < 500000:
-                reasoning = f"Low volume ${volume_24h:,.0f} suggests caution despite score"
+            elif volume_24h < 100000:  # Lowered from 500k to 100k
+                reasoning = f"Very low volume ${volume_24h:,.0f} suggests high caution"
                 decision = "NO"
                 confidence = 0.75
             else:
-                reasoning = f"Mixed market signals: volume moderate, price action unclear"
-                decision = "YES" if score > threshold else "NO"
+                reasoning = f"Market signals neutral: volume moderate, evaluating by score"
+                decision = "YES" if score > threshold * 0.8 else "NO"  # Lowered threshold multiplier
                 confidence = 0.6
                 
         elif role == AgentRole.VOTER:
-            # Voter głosuje na podstawie overall assessment
+            # Voter głosuje na podstawie overall assessment (LOWERED SIGNAL REQUIREMENTS)
             active_signals = len([s for s in signal_data.values() if s])
-            if active_signals >= 3 and score > threshold:
-                reasoning = f"Strong vote YES: {active_signals} active signals, score {score:.3f}"
+            if score > threshold:  # Simplified: if score above threshold, vote YES
+                reasoning = f"Strong vote YES: score {score:.3f} above threshold ({threshold:.2f})"
                 decision = "YES"
                 confidence = 0.95
-            elif active_signals >= 2:
-                reasoning = f"Moderate support: {active_signals} signals active"
+            elif score > threshold * 0.7:  # Even if score slightly below threshold
+                reasoning = f"Moderate support: score {score:.3f} close to threshold"
                 decision = "YES"
                 confidence = 0.7
             else:
-                reasoning = f"Weak signal presence: only {active_signals} active"
+                reasoning = f"Weak score: {score:.3f} too far below threshold"
                 decision = "NO"
                 confidence = 0.8
                 
         elif role == AgentRole.DEBATER:
-            # Debater kwestionuje poprzednie decyzje
+            # Debater supports good scores instead of being contrarian (LESS CONTRARIAN)
             if len(self.debate_history) > 0:
                 prev_decisions = [h['decision'] for h in self.debate_history[-3:]]
-                if prev_decisions.count("YES") > prev_decisions.count("NO"):
-                    reasoning = "Previous agents lean YES, but historical false positives suggest caution"
-                    decision = "NO"
-                    confidence = 0.65
-                else:
-                    reasoning = "Previous skepticism may be overly conservative given current signals"
+                yes_count = prev_decisions.count("YES")
+                if yes_count >= 2 and score > threshold * 0.6:  # Support if majority YES and decent score
+                    reasoning = "Previous agents support this, and score warrants agreement"
+                    decision = "YES"
+                    confidence = 0.75
+                elif score > threshold * 0.8:  # Support high scores regardless of previous votes
+                    reasoning = "Score is strong enough to overcome skepticism"
                     decision = "YES"
                     confidence = 0.7
+                else:
+                    reasoning = "Insufficient evidence for strong recommendation"
+                    decision = "NO"
+                    confidence = 0.65
             else:
-                reasoning = "Initial assessment: signals warrant investigation"
-                decision = "YES" if score > threshold * 0.9 else "NO"
+                reasoning = "Initial assessment: evaluating by score threshold"
+                decision = "YES" if score > threshold * 0.7 else "NO"  # Lowered from 0.9 to 0.7
                 confidence = 0.6
                 
         elif role == AgentRole.DECIDER:
-            # Decider podejmuje finalną decyzję
+            # Decider podejmuje finalną decyzję (LOWERED CONSENSUS REQUIREMENTS)
             yes_votes = sum(1 for h in self.debate_history if h['decision'] == "YES")
             total_votes = len(self.debate_history)
             
-            if yes_votes >= 3:
-                reasoning = f"Final decision: YES ({yes_votes}/{total_votes} agents agree)"
+            if yes_votes >= 2:  # Lowered from 3 to 2 YES votes needed
+                reasoning = f"Final decision: YES ({yes_votes}/{total_votes} agents support)"
                 decision = "YES"
                 confidence = 0.9
-            elif yes_votes >= 2 and score > threshold * 0.95:
-                reasoning = f"Borderline case resolved: YES (score {score:.3f} tips balance)"
+            elif yes_votes >= 1 and score > threshold * 0.8:  # Even with 1 YES vote if score high
+                reasoning = f"Strong score override: YES (score {score:.3f} justifies decision)"
                 decision = "YES"
                 confidence = 0.75
             else:

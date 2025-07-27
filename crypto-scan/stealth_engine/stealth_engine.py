@@ -1262,7 +1262,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             stealth_vote = "BUY" if score > 2.0 else ("HOLD" if score > 1.0 else "AVOID")
                             detector_outputs["StealthEngine"] = {
                                 "vote": stealth_vote,
-                                "score": min(score / 4.0, 1.0),  # Normalize to 0-1
+                                "score": score,  # Use RAW score for multi-agent evaluation (no normalization)
                                 "confidence": min(data_coverage, 1.0),
                                 "weight": 0.25
                             }
@@ -2024,8 +2024,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             whale_ping_strength = 1.0  # If whale_ping active, strength = 1.0
         
         print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Whale ping strength: {whale_ping_strength:.3f}")
-        # Extract real DEX inflow value from token data (corrected from scan_token_async.py)
-        real_dex_inflow = token_data.get("dex_inflow", 0.0)  # Use actual dex_inflow from stealth analysis
+        # Extract real DEX inflow value from token data (use dex_inflow_usd which contains stealth-calculated value)
+        real_dex_inflow = token_data.get("dex_inflow_usd", 0.0)  # Use actual stealth-calculated dex_inflow_usd value
         print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: DEX inflow: ${real_dex_inflow:.2f}")
         
         # Prepare token data for explore mode
