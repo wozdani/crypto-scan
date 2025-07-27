@@ -44,9 +44,21 @@ class MultiAgentDecisionSystem:
     def __init__(self):
         self.decision_log_file = "cache/multi_agent_decisions.json"
         self.debate_history = []
-        # Initialize OpenAI client
-        self.openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-        self.use_real_llm = os.environ.get("OPENAI_API_KEY") is not None
+        # Initialize OpenAI client with proper error handling
+        try:
+            api_key = os.environ.get("OPENAI_API_KEY")
+            if api_key and api_key.strip():
+                self.openai_client = OpenAI(api_key=api_key)
+                self.use_real_llm = True
+                print(f"[MULTI-AGENT] ✅ OpenAI client initialized successfully")
+            else:
+                self.openai_client = None
+                self.use_real_llm = False
+                print(f"[MULTI-AGENT] ⚠️ No valid OpenAI API key - using enhanced simulation")
+        except Exception as e:
+            self.openai_client = None
+            self.use_real_llm = False
+            print(f"[MULTI-AGENT] ⚠️ OpenAI initialization failed: {e} - using enhanced simulation")
         
     async def llm_reasoning(self, role: AgentRole, context: Dict[str, Any]) -> AgentResponse:
         """

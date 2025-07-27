@@ -1004,13 +1004,46 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             transactions = fetch_diamond_transactions(contract_address, chain)
                             print(f"[DIAMOND AI] {symbol}: Fetched {len(transactions)} real blockchain transactions")
                             
-                            # Wywołaj DiamondWhale AI Detector z rzeczywistymi transakcjami
-                            diamond_result = run_diamond_detector(transactions, symbol)
-                            
-                            if diamond_result and diamond_result.get('diamond_score') is not None:
-                                diamond_score = float(diamond_result['diamond_score'])
-                                diamond_enabled = True
+                            # Wywołaj Enhanced DiamondWhale AI z TGN + QIRL
+                            try:
+                                from .enhanced_diamond_detector import run_enhanced_diamond_analysis
+                                enhanced_result = run_enhanced_diamond_analysis(symbol, transactions)
                                 
+                                if enhanced_result and enhanced_result.get('status') == 'success':
+                                    diamond_score = float(enhanced_result['pump_score'])
+                                    diamond_enabled = True
+                                    
+                                    # Enhanced TGN + QIRL analysis details
+                                    alert_decision = enhanced_result.get('alert_decision', 0)
+                                    graph_stats = enhanced_result.get('graph_stats', {})
+                                    qirl_stats = enhanced_result.get('qirl_stats', {})
+                                    
+                                    print(f"[ENHANCED DIAMOND] {symbol}: TGN pump_score={diamond_score:.3f}, QIRL decision={alert_decision}")
+                                    print(f"[ENHANCED DIAMOND] {symbol}: Graph nodes={graph_stats.get('nodes', 0)}, whale_nodes={graph_stats.get('whale_nodes', 0)}")
+                                    print(f"[ENHANCED DIAMOND] {symbol}: QIRL accuracy={qirl_stats.get('accuracy', 0):.3f}")
+                                    
+                                    # Alert for high-confidence TGN + QIRL detection
+                                    if diamond_score > 0.7 and alert_decision == 1:
+                                        reasoning = enhanced_result.get('reasoning', 'TGN + QIRL P&D pattern detected')
+                                        print(f"[ENHANCED DIAMOND ALERT] {symbol}: 🚨 {reasoning}")
+                                    
+                                else:
+                                    # Fallback to basic DiamondWhale detector
+                                    diamond_result = run_diamond_detector(transactions, symbol)
+                                    if diamond_result and diamond_result.get('diamond_score') is not None:
+                                        diamond_score = float(diamond_result['diamond_score'])
+                                        diamond_enabled = True
+                                        print(f"[DIAMOND FALLBACK] {symbol}: Basic Diamond score={diamond_score:.3f}")
+                                        
+                            except ImportError:
+                                # Fallback to basic DiamondWhale detector
+                                diamond_result = run_diamond_detector(transactions, symbol)
+                                if diamond_result and diamond_result.get('diamond_score') is not None:
+                                    diamond_score = float(diamond_result['diamond_score'])
+                                    diamond_enabled = True
+                                    print(f"[DIAMOND FALLBACK] {symbol}: Basic Diamond score={diamond_score:.3f}")
+                            
+                            if diamond_enabled:
                                 # Dodaj diamond_score do głównego stealth score (z wagą 0.3)
                                 diamond_contribution = diamond_score * 0.3
                                 score += diamond_contribution
