@@ -1266,7 +1266,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                 "confidence": min(data_coverage, 1.0),
                                 "weight": 0.25
                             }
-                            print(f"[NEW CONSENSUS] {symbol}: StealthEngine → {stealth_vote} (score: {score:.3f})")
+
                         
                         # CaliforniumWhale AI
                         if californium_enabled and californium_score > 0.0:
@@ -1277,7 +1277,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                 "confidence": 0.85,
                                 "weight": 0.33
                             }
-                            print(f"[NEW CONSENSUS] {symbol}: CaliforniumWhale → {calif_vote} (score: {californium_score:.3f})")
+
                         
                         # DiamondWhale AI
                         if diamond_enabled and diamond_score > 0.0:
@@ -1288,7 +1288,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                 "confidence": 0.80,
                                 "weight": 0.25
                             }
-                            print(f"[NEW CONSENSUS] {symbol}: DiamondWhale → {diamond_vote} (score: {diamond_score:.3f})")
+
                         
                         # WhaleCLIP (derived from whale signals)
                         whale_signal_strength = 0.0
@@ -1305,9 +1305,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                 "confidence": 0.75,
                                 "weight": 0.26
                             }
-                            print(f"[NEW CONSENSUS] {symbol}: WhaleCLIP → {clip_vote} (score: {whale_signal_strength:.3f})")
-                        else:
-                            print(f"[NEW CONSENSUS] {symbol}: WhaleCLIP → No whale signals detected")
+
                         
                         # Run consensus decision if we have detectors
                         print(f"[CONSENSUS DEBUG] {symbol}: Total detector outputs: {len(detector_outputs)}")
@@ -1333,8 +1331,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                 "contributing_detectors": consensus_result.contributing_detectors
                             }
                             
-                            print(f"[NEW CONSENSUS] {symbol}: Final decision → {final_decision} (score: {consensus_result.final_score:.3f}, confidence: {consensus_result.confidence:.3f})")
-                            print(f"[NEW CONSENSUS] {symbol}: Contributing detectors: {consensus_result.contributing_detectors}")
+
                             
                             # Store consensus data for later use in final return
                             stored_final_decision = final_decision
@@ -1342,7 +1339,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             stored_consensus_result = consensus_result
                             
                         else:
-                            print(f"[NEW CONSENSUS] {symbol}: Insufficient detectors ({len(detector_outputs)}) for consensus - defaulting to WATCH")
+
                             consensus_data = {
                                 "decision": "WATCH",
                                 "votes": [],
@@ -1358,7 +1355,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             stored_consensus_result = None
                             
                     except ImportError:
-                        print(f"[NEW CONSENSUS] {symbol}: Consensus engine not available - falling back to legacy logic")
+
                         # Simplified fallback logic
                         if score > 2.0:
                             final_decision = "BUY"
@@ -1382,7 +1379,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         stored_consensus_result = None
                         
                     except Exception as e:
-                        print(f"[NEW CONSENSUS ERROR] {symbol}: {e}")
+
                         final_decision = "WATCH"
                         consensus_data = {
                             "decision": "WATCH",
@@ -2162,7 +2159,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         "californium_score": californium_score if 'californium_score' in locals() else 0.0,
         "whaleclip_score": whaleclip_score if 'whaleclip_score' in locals() else 0.0,
         "stealth_engine_score": score,  # This is the main stealth engine score
-        # NEW CONSENSUS DATA - BUY/HOLD/AVOID decision
+        # MULTI-AGENT PRIMARY CONSENSUS - BUY/HOLD/AVOID decision
         "consensus_decision": final_decision if 'final_decision' in locals() else "WATCH",
         "consensus_data": consensus_data if 'consensus_data' in locals() else None,
         "consensus_votes": consensus_data.get("votes", []) if consensus_data else [],

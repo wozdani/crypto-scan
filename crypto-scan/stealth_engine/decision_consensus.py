@@ -559,19 +559,34 @@ class DecisionConsensusEngine:
                 
                 # Run 5-agent evaluation synchronously
                 try:
-                    # Create new event loop for sync context
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    decision, confidence, log = loop.run_until_complete(
-                        evaluate_detector_with_agents(
-                            detector_name=detector_name,
-                            score=score,
-                            signal_data=signal_data,
-                            market_data=market_data,
-                            threshold=threshold
+                    # Check if event loop is already running
+                    try:
+                        loop = asyncio.get_running_loop()
+                        # If loop is running, create task in existing loop
+                        import concurrent.futures
+                        with concurrent.futures.ThreadPoolExecutor() as executor:
+                            future = executor.submit(
+                                asyncio.run,
+                                evaluate_detector_with_agents(
+                                    detector_name=detector_name,
+                                    score=score,
+                                    signal_data=signal_data,
+                                    market_data=market_data,
+                                    threshold=threshold
+                                )
+                            )
+                            decision, confidence, log = future.result(timeout=10)
+                    except RuntimeError:
+                        # No loop running, safe to create new one
+                        decision, confidence, log = asyncio.run(
+                            evaluate_detector_with_agents(
+                                detector_name=detector_name,
+                                score=score,
+                                signal_data=signal_data,
+                                market_data=market_data,
+                                threshold=threshold
+                            )
                         )
-                    )
-                    loop.close()
                     
                     agent_decisions[detector_name] = decision
                     agent_confidences[detector_name] = confidence
