@@ -221,6 +221,11 @@ class MultiAgentDecisionSystem:
         Returns:
             Tuple (decision, confidence, detailed_log)
         """
+        # WARUNEK WSTĘPNY: Blokuj głosowanie dla score < 0.6
+        if score < 0.6:
+            print(f"[MULTI-AGENT SKIP] {detector_name} score {score:.3f} < 0.6 - skipping agent voting")
+            return "NO", 0.0, f"Score {score:.3f} below voting threshold (0.6) - no agent evaluation needed"
+        
         print(f"\n[MULTI-AGENT] Starting 5-agent decision for {detector_name} (score: {score:.3f})")
         
         # Reset historii debaty dla nowej decyzji
@@ -497,21 +502,21 @@ Respond with JSON format:
             reasoning = f"Market reasoning: Volume ${volume:,.0f}, score context acceptable"
             
         elif role == AgentRole.VOTER:
-            decision = "YES" if score > threshold * 0.7 else "NO"
+            decision = "YES" if score > 0.6 else "NO"
             confidence = 0.9
-            reasoning = f"Vote: Score {score:.3f} {'meets' if decision == 'YES' else 'fails'} voting criteria"
+            reasoning = f"Vote: Score {score:.3f} {'meets' if decision == 'YES' else 'fails'} voting criteria (threshold: 0.6)"
             
         elif role == AgentRole.DEBATER:
             yes_count = sum(1 for h in self.debate_history if h.get('decision') == 'YES')
-            decision = "YES" if (yes_count >= 2 and score > threshold * 0.6) or score > threshold * 0.8 else "NO"
+            decision = "YES" if (yes_count >= 1 and score > 0.6) or score > 0.8 else "NO"
             confidence = 0.75
-            reasoning = f"Debate: {'Supporting' if decision == 'YES' else 'Opposing'} based on evidence"
+            reasoning = f"Debate: {'Supporting' if decision == 'YES' else 'Opposing'} based on evidence (threshold: 0.6)"
             
         elif role == AgentRole.DECIDER:
             yes_votes = sum(1 for h in self.debate_history if h.get('decision') == 'YES')
-            decision = "YES" if yes_votes >= 2 else "NO"
+            decision = "YES" if yes_votes >= 2 and score > 0.6 else "NO"
             confidence = 0.9
-            reasoning = f"Final decision: {yes_votes}/{len(self.debate_history)} agents support"
+            reasoning = f"Final decision: {yes_votes}/{len(self.debate_history)} agents support (score threshold: 0.6)"
             
         return AgentResponse(role=role, decision=decision, reasoning=reasoning, confidence=confidence)
     
@@ -571,19 +576,19 @@ Respond with JSON format:
             return f"Reasoning: Kontekst {trend}, risk {risk}, score analysis"
             
         elif role == AgentRole.VOTER:
-            if score > threshold:
-                return "YES: Alert warranted based on score"
+            if score > 0.6:
+                return "YES: Alert warranted based on score (threshold: 0.6)"
             else:
-                return "NO: Score below threshold"
+                return "NO: Score below threshold (0.6)"
                 
         elif role == AgentRole.DEBATER:
             stance = "supporting" if score > threshold * 0.8 else "questioning"
             return f"Debata: {stance} decision, check historical patterns"
             
         elif role == AgentRole.DECIDER:
-            decision = "YES" if score > threshold else "NO"
+            decision = "YES" if score > 0.6 else "NO"
             confidence = min(0.95, score + 0.2)
-            return f"Final: {decision} z confidence {confidence:.2f}"
+            return f"Final: {decision} z confidence {confidence:.2f} (threshold: 0.6)"
         
         return "Generic response"
     
@@ -591,6 +596,11 @@ Respond with JSON format:
         """
         Multi-agent decision dla jednego detektora (z standalone kodu)
         """
+        # WARUNEK WSTĘPNY: Blokuj głosowanie dla score < 0.6
+        if score < 0.6:
+            print(f"[MULTI-AGENT SKIP] {detector} score {score:.3f} < 0.6 - skipping agent voting")
+            return "NO", 0.0, f"Score {score:.3f} below voting threshold (0.6) - no agent evaluation needed"
+        
         roles = ["Analyzer", "Reasoner", "Voter", "Debater", "Decider"]
         output_queue = Queue()
         threads = []
@@ -624,8 +634,8 @@ Respond with JSON format:
         confidence = (score + (yes_count / len(roles))) / 2.0
         confidence = min(1.0, max(0.0, confidence))
 
-        # Decision: Majority YES i score > threshold
-        decision = "YES" if yes_count >= len(roles) // 2 + 1 and score > threshold else "NO"
+        # Decision: Majority YES i score > 0.6 (voting threshold)
+        decision = "YES" if yes_count >= len(roles) // 2 + 1 and score > 0.6 else "NO"
 
         log = f"{datetime.now()} - {detector} Agents Results: {results}\nDecision: {decision}, Confidence: {confidence:.2f}, Votes YES: {yes_count}/{len(roles)}"
         
@@ -647,6 +657,13 @@ Respond with JSON format:
         for detector, data in detectors_data.items():
             score = data.get('score', 0.0)
             context = data.get('context', "No context provided")
+            
+            # WARUNEK WSTĘPNY: Blokuj głosowanie dla score < 0.6
+            if score < 0.6:
+                print(f"[MULTI-AGENT SKIP] {detector} score {score:.3f} < 0.6 - skipping agent voting")
+                decisions[detector] = {'decision': 'NO', 'confidence': 0.0}
+                logs.append(f"{detector}: Score {score:.3f} below voting threshold (0.6) - no agent evaluation")
+                continue
             
             decision, confidence, log = self.multi_agent_decision_per_detector(detector, score, context, alert_threshold)
             decisions[detector] = {'decision': decision, 'confidence': confidence}
