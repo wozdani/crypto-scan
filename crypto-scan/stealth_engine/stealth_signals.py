@@ -510,8 +510,9 @@ class StealthSignalDetector:
                         
                         # Sprawdź czy to powtarzający się wieloryb
                         if is_repeat_whale(symbol, real_address):
-                            repeat_boost = get_repeat_whale_boost(symbol, real_address)
-                            total_repeat_boost += repeat_boost * 0.3  # Max 30% boost per address
+                            # 🔧 WHALE MEMORY BOOST FIX: Uniform boost per unique address (0.16) instead of variable boost per entries
+                            uniform_boost_per_address = 0.16  # Fixed boost per unique repeat whale address
+                            total_repeat_boost += uniform_boost_per_address  # Consistent boost regardless of entry count
                             repeat_whales_found += 1
                     
                     # Apply combined boost (limited to 0.8 max)
@@ -908,8 +909,9 @@ class StealthSignalDetector:
                         
                         # Sprawdź czy to powtarzający się wieloryb
                         if is_repeat_whale(symbol, real_address):
-                            repeat_boost = get_repeat_whale_boost(symbol, real_address)
-                            total_repeat_boost += repeat_boost * 0.25  # Max 25% boost dla DEX per address
+                            # 🔧 WHALE MEMORY BOOST FIX: Uniform boost per unique address (0.12) instead of variable boost per entries
+                            uniform_boost_per_address = 0.12  # Fixed boost per unique repeat whale address
+                            total_repeat_boost += uniform_boost_per_address  # Consistent boost regardless of entry count
                             repeat_whales_found += 1
                     
                     # Zastosuj łączny boost (ale ograniczony do 0.6 max)

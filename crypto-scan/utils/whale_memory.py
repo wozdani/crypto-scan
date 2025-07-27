@@ -154,13 +154,15 @@ class WhaleMemoryManager:
         addr_data = token_mem.get(address, {})
         timestamps = addr_data.get("timestamps", [])
         
-        # Oblicz boost na podstawie liczby powtórzeń
+        # 🔧 WHALE MEMORY BOOST FIX: Uniform boost per unique address regardless of entry count
         current_time = int(time.time())
         recent_count = sum(1 for ts in timestamps if current_time - ts < self.memory_window)
         
-        # Boost formula: min(1.0, (recent_count - 2) * 0.2)
-        # 3 wystąpienia = 0.2, 4 = 0.4, 5 = 0.6, 6+ = 1.0
-        boost = min(1.0, (recent_count - 2) * 0.2)
+        # Fixed uniform boost per repeat whale address (no entry-based multiplication)
+        if recent_count >= self.min_repeat_count:  # min_repeat_count = 3
+            boost = 0.25  # Fixed boost per unique repeat whale address
+        else:
+            boost = 0.0
         
         print(f"[WHALE MEMORY] {token} {address[:10]}... repeat boost: {boost:.2f} ({recent_count} entries)")
         
