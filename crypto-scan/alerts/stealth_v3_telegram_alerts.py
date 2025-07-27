@@ -68,6 +68,12 @@ class StealthV3TelegramAlerts:
         else:
             logger.info(f"[STEALTH V3 CONSENSUS PASS] {symbol} → Consensus decision '{consensus_decision}' allows alert")
         
+        # 🚫 BLOCK "MONITOR CLOSELY" ALERTS - User nie chce takich alertów
+        if consensus_data.get('decision') in ['MONITOR', 'WATCH'] or \
+           any('Monitor closely' in str(val) for val in consensus_data.values() if isinstance(val, str)):
+            logger.info(f"[MONITOR CLOSELY BLOCK] {symbol} → 'Monitor closely' decision blocked - user requested no such alerts")
+            return False
+        
         # Validate credentials
         if not self.bot_token or not self.chat_id:
             logger.error("[STEALTH V3] Missing Telegram credentials")
@@ -156,39 +162,51 @@ class StealthV3TelegramAlerts:
         else:
             pattern_text = "Composite stealth signals"
         
-        # Process agent votes z proper formatting
+        # Process agent votes z proper formatting - FIX AGENT VOTES DISPLAY
         if isinstance(votes, list) and len(votes) > 0:
             buy_votes = votes.count('BUY')
-            hold_votes = votes.count('HOLD')
+            hold_votes = votes.count('HOLD') 
             avoid_votes = votes.count('AVOID')
             total_votes = len(votes)
             
-            # Consensus analysis
-            if buy_votes >= total_votes * 0.75:
-                consensus_text = f"✅ {buy_votes}/{total_votes} BUY (Strong Consensus)"
-            elif buy_votes > total_votes * 0.5:
-                consensus_text = f"✅ {buy_votes}/{total_votes} BUY (Majority)"
-            elif hold_votes > buy_votes:
+            # FIX: Correct agent votes formatting based on majority vote
+            if buy_votes > hold_votes and buy_votes > avoid_votes:
+                # BUY majority
+                if buy_votes >= total_votes * 0.75:
+                    consensus_text = f"✅ {buy_votes}/{total_votes} BUY (Strong Consensus)"
+                else:
+                    consensus_text = f"✅ {buy_votes}/{total_votes} BUY (Majority)"
+                votes_detail = f"[{', '.join(votes)}] → {consensus_text}"
+            elif hold_votes > buy_votes and hold_votes > avoid_votes:
+                # HOLD majority
                 consensus_text = f"⚠️ {hold_votes}/{total_votes} HOLD (Caution)"
-            else:
+                votes_detail = f"[{', '.join(votes)}] → {consensus_text}"
+            elif avoid_votes > buy_votes and avoid_votes > hold_votes:
+                # AVOID majority  
                 consensus_text = f"❌ {avoid_votes}/{total_votes} AVOID (Rejection)"
-            
-            votes_detail = f"[{', '.join(votes)}] → {consensus_text}"
+                votes_detail = f"[{', '.join(votes)}] → {consensus_text}"
+            else:
+                # Tie case
+                consensus_text = f"⚖️ Tie: {buy_votes}BUY/{hold_votes}HOLD/{avoid_votes}AVOID"
+                votes_detail = f"[{', '.join(votes)}] → {consensus_text}"
         else:
             # Fallback dla starych formatów
             votes_detail = f"Confidence: {confidence:.3f}"
         
-        # Decision action na podstawie score i decision
+        # Decision action na podstawie score i decision - NO "Monitor closely"
         if consensus_data.get("explore_mode", False):
             action_text = "🚧 EXPERIMENTAL ALERT (Explore Mode)"
         elif decision == "BUY" and confidence >= 2.0:
             action_text = "STRONG LONG 🚀"
         elif decision == "BUY" and confidence >= 1.5:
             action_text = "LONG Opportunity"
+        elif decision == "BUY":
+            action_text = "BUY Alert 📈"
         elif decision == "MONITOR":
             action_text = "High-priority watch 🔍"
         else:
-            action_text = "Monitor closely"
+            # User nie chce "Monitor closely" - używamy alternatywę
+            action_text = "BUY Alert 📈"
         
         # Timestamp
         timestamp_utc = datetime.utcnow().strftime("%H:%M:%S UTC")
@@ -448,7 +466,7 @@ def get_stealth_v3_alerts() -> StealthV3TelegramAlerts:
         _stealth_v3_alerts = StealthV3TelegramAlerts()
     return _stealth_v3_alerts
 
-def send_stealth_v3_alert(symbol: str, detector_results: Dict[str, bool], 
+def send_stealth_v3_alert(symbol: str, detector_results: Dict[str, Any], 
                          consensus_data: Dict[str, Any], meta_data: Dict[str, Any] = None) -> bool:
     """
     Convenience function for sending Stealth v3 alerts
