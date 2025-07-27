@@ -1,7 +1,7 @@
 """
 Multi-Agent Decision System dla każdego detektora
 Koncepcja: 5 agentów (Analyzer, Reasoner, Voter, Debater, Decider) dla każdego detektora
-debatuje i głosuje nad decyzją alertu używając LLM reasoning
+debatuje i głosuje nad decyzją alertu używając OpenAI API reasoning
 """
 
 import asyncio
@@ -10,8 +10,9 @@ from datetime import datetime
 from typing import Dict, List, Tuple, Any
 from dataclasses import dataclass
 from enum import Enum
-import random  # Tymczasowo dla symulacji LLM
 import os
+import random
+from openai import OpenAI
 
 
 class AgentRole(Enum):
@@ -41,10 +42,13 @@ class MultiAgentDecisionSystem:
     def __init__(self):
         self.decision_log_file = "cache/multi_agent_decisions.json"
         self.debate_history = []
+        # Initialize OpenAI client
+        self.openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        self.use_real_llm = os.environ.get("OPENAI_API_KEY") is not None
         
     async def llm_reasoning(self, role: AgentRole, context: Dict[str, Any]) -> AgentResponse:
         """
-        Symulacja LLM reasoning - w produkcji zastąp prawdziwym API (np. Grok/OpenAI)
+        Real OpenAI LLM reasoning for agent decisions
         
         Args:
             role: Rola agenta
@@ -59,8 +63,14 @@ class MultiAgentDecisionSystem:
         market_data = context.get('market_data', {})
         signal_data = context.get('signal_data', {})
         
-        # Tymczasowa logika symulująca LLM reasoning
-        # W produkcji zastąp prawdziwym API call
+        # Use real OpenAI API if available, otherwise fallback to simulation
+        if self.use_real_llm:
+            try:
+                return await self._real_llm_reasoning(role, context)
+            except Exception as e:
+                print(f"[MULTI-AGENT LLM ERROR] {e} - falling back to simulation")
+        
+        # Fallback simulation logic (enhanced for better performance)
         
         if role == AgentRole.ANALYZER:
             # Analyzer sprawdza wiarygodność danych (LOWERED THRESHOLDS FOR MORE BUY VOTES)
@@ -362,6 +372,146 @@ class MultiAgentDecisionSystem:
         os.makedirs(os.path.dirname(self.decision_log_file), exist_ok=True)
         with open(self.decision_log_file, 'w') as f:
             json.dump(logs, f, indent=2)
+    
+    async def _real_llm_reasoning(self, role: AgentRole, context: Dict[str, Any]) -> AgentResponse:
+        """
+        Real OpenAI API reasoning for sophisticated agent decision making
+        """
+        detector_name = context.get('detector_name', 'unknown')
+        score = context.get('score', 0.0)
+        threshold = context.get('threshold', 0.7)
+        market_data = context.get('market_data', {})
+        signal_data = context.get('signal_data', {})
+        
+        # Create role-specific prompts
+        role_prompts = {
+            AgentRole.ANALYZER: f"""You are an AI trading signal ANALYZER. Analyze this cryptocurrency detector data:
+            
+Detector: {detector_name}
+Score: {score:.3f}
+Threshold: {threshold:.2f}
+Market Volume: ${market_data.get('volume_24h', 0):,.0f}
+Price Change 24h: {market_data.get('price_change_24h', 0):.2f}%
+Active Signals: {len([s for s in signal_data.values() if s])}
+
+Your role: Analyze if the score and data are reliable for trading decisions.
+
+Respond with JSON format:
+{{"decision": "YES" or "NO", "reasoning": "detailed analysis", "confidence": 0.0-1.0}}""",
+
+            AgentRole.REASONER: f"""You are an AI trading REASONER. Evaluate market context for this signal:
+            
+Detector: {detector_name}
+Score: {score:.3f}
+Market Volume: ${market_data.get('volume_24h', 0):,.0f}
+Price Change: {market_data.get('price_change_24h', 0):.2f}%
+
+Your role: Reason about market conditions and whether they support this trading signal.
+
+Respond with JSON format:
+{{"decision": "YES" or "NO", "reasoning": "market context analysis", "confidence": 0.0-1.0}}""",
+
+            AgentRole.VOTER: f"""You are an AI trading VOTER. Make a clear vote on this signal:
+            
+Detector: {detector_name}
+Score: {score:.3f} (threshold: {threshold:.2f})
+Signal Strength: {"Strong" if score > threshold else "Weak"}
+
+Your role: Vote YES or NO based on overall signal assessment.
+
+Respond with JSON format:
+{{"decision": "YES" or "NO", "reasoning": "voting rationale", "confidence": 0.0-1.0}}""",
+
+            AgentRole.DEBATER: f"""You are an AI trading DEBATER. Challenge or support this signal:
+            
+Detector: {detector_name}
+Score: {score:.3f}
+Previous decisions: {[h.get('decision') for h in self.debate_history[-3:]]}
+
+Your role: Provide critical analysis - find weaknesses or strengths in the signal.
+
+Respond with JSON format:
+{{"decision": "YES" or "NO", "reasoning": "debate analysis", "confidence": 0.0-1.0}}""",
+
+            AgentRole.DECIDER: f"""You are an AI trading DECIDER. Make the final decision:
+            
+Detector: {detector_name}
+Score: {score:.3f}
+Previous votes: {[h.get('decision') for h in self.debate_history]}
+Vote count: {sum(1 for h in self.debate_history if h.get('decision') == 'YES')} YES votes
+
+Your role: Make final decision based on agent consensus.
+
+Respond with JSON format:
+{{"decision": "YES" or "NO", "reasoning": "final decision logic", "confidence": 0.0-1.0}}"""
+        }
+        
+        try:
+            print(f"[MULTI-AGENT OpenAI] {role.value}: Calling OpenAI API...")
+            
+            # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
+            # do not change this unless explicitly requested by the user
+            response = self.openai_client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "You are an expert cryptocurrency trading AI agent. Always respond with valid JSON."},
+                    {"role": "user", "content": role_prompts[role]}
+                ],
+                response_format={"type": "json_object"},
+                max_tokens=300,
+                temperature=0.7
+            )
+            
+            result = json.loads(response.choices[0].message.content)
+            print(f"[MULTI-AGENT OpenAI] {role.value}: SUCCESS - {result.get('decision')}")
+            
+            return AgentResponse(
+                role=role,
+                decision=result.get('decision', 'NO'),
+                reasoning=result.get('reasoning', 'AI analysis completed'),
+                confidence=float(result.get('confidence', 0.5))
+            )
+            
+        except Exception as e:
+            print(f"[MULTI-AGENT OpenAI ERROR] {role.value}: {e}")
+            # Fallback to enhanced simulation
+            return self._fallback_reasoning(role, context)
+    
+    def _fallback_reasoning(self, role: AgentRole, context: Dict[str, Any]) -> AgentResponse:
+        """Enhanced fallback reasoning when OpenAI API fails"""
+        score = context.get('score', 0.0)
+        threshold = context.get('threshold', 0.7)
+        
+        # Enhanced thresholds for better decision making
+        if role == AgentRole.ANALYZER:
+            decision = "YES" if score > 0.5 else "NO"
+            confidence = 0.9 if score > 0.8 else 0.7
+            reasoning = f"Analysis: Score {score:.3f} {'above' if decision == 'YES' else 'below'} reliability threshold"
+            
+        elif role == AgentRole.REASONER:
+            volume = context.get('market_data', {}).get('volume_24h', 0)
+            decision = "YES" if volume > 500000 and score > threshold * 0.6 else "NO"
+            confidence = 0.8
+            reasoning = f"Market reasoning: Volume ${volume:,.0f}, score context acceptable"
+            
+        elif role == AgentRole.VOTER:
+            decision = "YES" if score > threshold * 0.7 else "NO"
+            confidence = 0.9
+            reasoning = f"Vote: Score {score:.3f} {'meets' if decision == 'YES' else 'fails'} voting criteria"
+            
+        elif role == AgentRole.DEBATER:
+            yes_count = sum(1 for h in self.debate_history if h.get('decision') == 'YES')
+            decision = "YES" if (yes_count >= 2 and score > threshold * 0.6) or score > threshold * 0.8 else "NO"
+            confidence = 0.75
+            reasoning = f"Debate: {'Supporting' if decision == 'YES' else 'Opposing'} based on evidence"
+            
+        elif role == AgentRole.DECIDER:
+            yes_votes = sum(1 for h in self.debate_history if h.get('decision') == 'YES')
+            decision = "YES" if yes_votes >= 2 else "NO"
+            confidence = 0.9
+            reasoning = f"Final decision: {yes_votes}/{len(self.debate_history)} agents support"
+            
+        return AgentResponse(role=role, decision=decision, reasoning=reasoning, confidence=confidence)
 
 
 # Globalna instancja systemu
