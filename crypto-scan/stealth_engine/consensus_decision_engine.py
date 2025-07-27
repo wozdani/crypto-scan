@@ -1098,25 +1098,19 @@ class ConsensusDecisionEngine:
         
         print(f"[SIMPLE CONSENSUS] Global score (avg of active): {global_score:.3f}")
         
-        # 🔧 ACEUSDT FIX: Enhanced decision logic with override mechanism
-        # 🎯 ACEUSDT CONSENSUS CONFLICT RESOLUTION: Override HOLD when simple consensus shows strong ALERT
-        # min. 1 detektor > 0.65 AND global_score > 0.7 OR override logic for strong signals
-        strong_signal_override = global_score >= 0.85  # Strong signal (like ACEUSDT 0.902) can override
+        # 🎯 STRICT CONSENSUS LOGIC - NO OVERRIDES PER USER REQUIREMENT
+        # Only proper consensus threshold decisions allowed - no strong signal exceptions
         
-        if len(active_detectors) >= min_detectors and (global_score > global_score_threshold or strong_signal_override):
+        if len(active_detectors) >= min_detectors and global_score > global_score_threshold:
             decision = AlertDecision.ALERT
             reason = f"Simple consensus from {len(active_detectors)} detectors, score={global_score:.2f}"
-            
-            if strong_signal_override and global_score <= global_score_threshold:
-                reason += f" [STRONG SIGNAL OVERRIDE: {global_score:.3f} >= 0.85]"
-                print(f"[ACEUSDT CONSENSUS FIX] {token}: Strong signal override applied - {global_score:.3f} triggers ALERT despite threshold")
             
             consensus_strength = min(1.0, len(active_detectors) / len(scores))
             
             # Wysłanie Telegram alert (Etap 4 feature preview)
             alert_sent = self._send_simple_telegram_alert(token, global_score, active_detectors)
             
-            print(f"[SIMPLE CONSENSUS] ALERT triggered: {len(active_detectors)} detectors >= {min_detectors}, global_score {global_score:.3f} (threshold: {global_score_threshold}, override: {strong_signal_override})")
+            print(f"[SIMPLE CONSENSUS] ALERT triggered: {len(active_detectors)} detectors >= {min_detectors}, global_score {global_score:.3f} (threshold: {global_score_threshold})")
             
         else:
             decision = AlertDecision.NO_ALERT

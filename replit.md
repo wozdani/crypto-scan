@@ -98,6 +98,20 @@ This is a sophisticated cryptocurrency market scanner that detects pre-pump sign
 
 ## Recent Changes
 
+### July 27, 2025 - ALL ACEUSDT STRONG SIGNAL OVERRIDE SYSTEMS REMOVED - Strict 3/5 BUY-Only Filtering Restored ✅
+**🎯 KRYTYCZNA NAPRAWA SYSTEMU:** Pomyślnie usunięto wszystkie ACEUSDT Strong Signal Override systemy z trzech plików zapewniającą strict BUY-only filtering zgodnie z user requirement "alerty powinny być tylko jeśli 3/5 agentów buy":
+- **PIERWSZY OVERRIDE USUNIĘTY**: Kompletnie usunięto ACEUSDT Strong Signal Override z telegram_alert_manager.py (linie 288-294) który obchodził BUY-only filtering z consensus_score >= 0.85 logic
+- **DRUGI OVERRIDE USUNIĘTY**: Całkowicie wyeliminowano ACEUSDT Strong Signal Override z alert_router.py route_alert_with_priority() function (linie 412-419) który pozwalał alertom pomimo consensus != "BUY"
+- **TRZECI OVERRIDE USUNIĘTY**: Systematycznie usunięto ACEUSDT Strong Signal Override z consensus_decision_engine.py (linie 1104-1119) który używał strong_signal_override = global_score >= 0.85 logic
+- **STRICT BUY-ONLY FILTERING RESTORED**: System teraz WYŁĄCZNIE wysyła alerty gdy consensus_decision == "BUY" bez żadnych wyjątków dla strong signals czy wysokich score values
+- **NO EXCEPTIONS POLICY**: Zaimplementowano zero-tolerance policy dla override mechanisms - TYLKO 3/5 agent BUY consensus trigggeruje alerts zgodnie z user specification
+- **SYSTEM LOGS VERIFICATION**: Confirmed complete elimination "[TELEGRAM CONSENSUS OVERRIDE]" logs from system output potwierdzającą successful removal wszystkich override mechanisms
+- **PRODUCTION STABILITY**: Wszystkie workflows (Crypto Scanner, Crypto Scanner Service) operacyjne z restored strict BUY-only filtering bez breaking changes w core functionality
+- **USER REQUIREMENT COMPLIANCE**: System teraz w 100% zgodny z user instruction "alerty powinny być tylko jeśli 3/5 agentów buy" - żadne strong signals nie obchodzą tego wymagania
+- **COMPREHENSIVE OVERRIDE ELIMINATION**: Complete removal override logic z wszystkich trzech kritycznych plików ensuring no backdoor mechanisms allowing alerts despite non-BUY consensus decisions
+- **INSTITUTIONAL-GRADE FILTERING**: Revolutionary strict consensus filtering gdzie sophisticated 5-agent multi-agent system must achieve BUY consensus dla alert generation eliminating wszystkie exceptional override scenarios
+System dostarcza breakthrough strict BUY-only filtering gdzie complete elimination ACEUSDT Strong Signal Override mechanisms ensures tylko proper 3/5 agent BUY consensus triggers alerts maintaining institutional-grade reliability z zero exception policies zgodnie z explicit user requirements eliminating wszystkie unauthorized alert bypass mechanisms.
+
 ### July 27, 2025 - ENHANCED PUMP VERIFICATION SYSTEM COMPLETE - Advanced Agent Learning Intelligence ✅
 **🎉 REVOLUTIONARY ENHANCED LEARNING:** Pomyślnie ukończono Enhanced Pump Verification System z zaawansowanymi funkcjami machine learning zapewniającymi superior agent intelligence poprzez enriched explore mode data analysis:
 - **ENHANCED FEATURES EXTRACTION**: Zaimplementowano extract_enhanced_features() method w PumpVerificationSystem automatycznie analizującą AI detector patterns, mastermind sequences, graph features z explore mode alerts dla improved machine learning

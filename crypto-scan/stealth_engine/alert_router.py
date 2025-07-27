@@ -405,18 +405,15 @@ def route_alert_with_priority(symbol: str, score: float, market_data: Dict,
         print(f"[QUEUE PRIORITY ALERT] Warning for {symbol}: stealth_signals is {type(stealth_signals)}, expected list")
         stealth_signals = []
     
-    # BUY-ONLY FILTERING with strong signal override (ACEUSDT fix)
+    # 🎯 STRICT BUY-ONLY FILTERING - ONLY 3/5 AGENT BUY CONSENSUS ALLOWED
     consensus_decision = market_data.get("consensus_decision", "HOLD")
     consensus_score = market_data.get("consensus_score", 0.0)
     
-    # 🔧 ACEUSDT FIX: Allow strong signals even if consensus != "BUY"
-    # If consensus_score >= 0.85 AND score >= 0.85, override the BUY-only filter
+    # 🎯 STRICT BUY-ONLY FILTERING - ONLY 3/5 AGENT BUY CONSENSUS ALLOWED
+    # NO EXCEPTIONS - per user requirement: "alerty powinny być tylko jeśli 3/5 agentów buy"
     if consensus_decision != "BUY":
-        if consensus_score >= 0.85 and score >= 0.85:
-            print(f"[ACEUSDT ALERT FIX] {symbol} → Strong signal override: consensus_score={consensus_score:.3f}, score={score:.3f} - allowing alert despite consensus '{consensus_decision}'")
-        else:
-            print(f"[ALERT FILTER] {symbol} → Consensus decision '{consensus_decision}' != BUY - blocking alert")
-            return None
+        print(f"[ALERT FILTER] {symbol} → Consensus decision '{consensus_decision}' != BUY - blocking alert (STRICT 3/5 BUY ONLY)")
+        return None
     
     try:
         # 1. Generuj tagi
