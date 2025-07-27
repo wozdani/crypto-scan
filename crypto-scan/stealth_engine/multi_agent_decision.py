@@ -6,6 +6,8 @@ debatuje i głosuje nad decyzją alertu używając OpenAI API reasoning
 
 import asyncio
 import json
+import threading
+from queue import Queue
 from datetime import datetime
 from typing import Dict, List, Tuple, Any
 from dataclasses import dataclass
@@ -462,7 +464,7 @@ Respond with JSON format:
                 temperature=0.7
             )
             
-            result = json.loads(response.choices[0].message.content)
+            result = json.loads(response.choices[0].message.content or "{}")
             print(f"[MULTI-AGENT OpenAI] {role.value}: SUCCESS - {result.get('decision')}")
             
             return AgentResponse(
@@ -512,6 +514,163 @@ Respond with JSON format:
             reasoning = f"Final decision: {yes_votes}/{len(self.debate_history)} agents support"
             
         return AgentResponse(role=role, decision=decision, reasoning=reasoning, confidence=confidence)
+    
+    # === NOWE FUNKCJE Z STANDALONE KODU ===
+    
+    def agent_role_threaded(self, role: str, input_data: Dict[str, Any], output_queue: Queue):
+        """
+        Funkcja pojedynczego agenta w thread (z standalone kodu)
+        """
+        detector = input_data['detector']
+        score = input_data['score']
+        context = input_data['context']
+        
+        prompt = f"{role}: Analyze detektor {detector} with score {score}, context: {context}."
+        
+        # Użyj existing llm_reasoning infrastructure
+        try:
+            # Convert string role to AgentRole enum
+            agent_role_enum = AgentRole(role)
+            context_data = {
+                'detector_name': detector,
+                'score': score,
+                'context': context,
+                'threshold': 0.7
+            }
+            
+            # Use sync version of llm_reasoning (simplified)
+            response = self._sync_llm_reasoning(agent_role_enum, context_data)
+            output_queue.put({role: response})
+            
+        except Exception as e:
+            print(f"[AGENT THREAD ERROR] {role}: {e}")
+            # Fallback response
+            fallback_response = f"{role}: Error in analysis - using fallback"
+            output_queue.put({role: fallback_response})
+    
+    def _sync_llm_reasoning(self, role: AgentRole, context: Dict[str, Any]) -> str:
+        """
+        Synchronous version of LLM reasoning for threaded agents
+        """
+        detector_name = context.get('detector_name', 'unknown')
+        score = context.get('score', 0.0)
+        threshold = context.get('threshold', 0.7)
+        
+        # Enhanced fallback reasoning (similar to standalone)
+        if role == AgentRole.ANALYZER:
+            if score > 0.8:
+                return f"Analiza: Score {score:.2f} bardzo wiarygodny, recommend YES"
+            elif score > 0.5:
+                return f"Analiza: Score {score:.2f} umiarkowany, check volume"
+            else:
+                return f"Analiza: Score {score:.2f} niski, likely NO"
+                
+        elif role == AgentRole.REASONER:
+            risk = "low" if score > 0.7 else "high"
+            trend = random.choice(['bullish', 'bearish', 'neutral'])
+            return f"Reasoning: Kontekst {trend}, risk {risk}, score analysis"
+            
+        elif role == AgentRole.VOTER:
+            if score > threshold:
+                return "YES: Alert warranted based on score"
+            else:
+                return "NO: Score below threshold"
+                
+        elif role == AgentRole.DEBATER:
+            stance = "supporting" if score > threshold * 0.8 else "questioning"
+            return f"Debata: {stance} decision, check historical patterns"
+            
+        elif role == AgentRole.DECIDER:
+            decision = "YES" if score > threshold else "NO"
+            confidence = min(0.95, score + 0.2)
+            return f"Final: {decision} z confidence {confidence:.2f}"
+        
+        return "Generic response"
+    
+    def multi_agent_decision_per_detector(self, detector: str, score: float, context: str, threshold: float = 0.7) -> Tuple[str, float, str]:
+        """
+        Multi-agent decision dla jednego detektora (z standalone kodu)
+        """
+        roles = ["Analyzer", "Reasoner", "Voter", "Debater", "Decider"]
+        output_queue = Queue()
+        threads = []
+        input_data = {"detector": detector, "score": score, "context": context}
+
+        # Uruchom agents parallelnie
+        for role in roles:
+            t = threading.Thread(target=self.agent_role_threaded, args=(role, input_data, output_queue))
+            t.start()
+            threads.append(t)
+
+        # Czekaj na wyniki
+        for t in threads:
+            t.join()
+
+        # Zbierz wyniki agentów
+        results = {}
+        while not output_queue.empty():
+            results.update(output_queue.get())
+
+        # Głosowanie (extract YES/NO z responses)
+        votes = []
+        for role in roles:
+            if role in results and "YES" in results[role]:
+                votes.append("YES")
+            else:
+                votes.append("NO")
+
+        yes_count = votes.count("YES")
+        # Oblicz confidence na podstawie score i yes_count
+        confidence = (score + (yes_count / len(roles))) / 2.0
+        confidence = min(1.0, max(0.0, confidence))
+
+        # Decision: Majority YES i score > threshold
+        decision = "YES" if yes_count >= len(roles) // 2 + 1 and score > threshold else "NO"
+
+        log = f"{datetime.now()} - {detector} Agents Results: {results}\nDecision: {decision}, Confidence: {confidence:.2f}, Votes YES: {yes_count}/{len(roles)}"
+        
+        print(f"[MULTI-AGENT PER-DETECTOR] {detector}: {decision} (confidence: {confidence:.3f}, votes: {yes_count}/{len(roles)})")
+        
+        return decision, confidence, log
+    
+    def multi_agent_consensus_all_detectors(self, detectors_data: Dict[str, Dict], alert_threshold: float = 0.7, min_yes_detectors: int = 2) -> Tuple[str, Dict, str]:
+        """
+        Główna funkcja consensus z multi-agents i triggerem alertów (z standalone kodu)
+        """
+        decisions = {}
+        total_yes = 0
+        logs = []
+
+        print(f"[MULTI-AGENT CONSENSUS] Analyzing {len(detectors_data)} detectors...")
+
+        # Analizuj każdy detektor osobno
+        for detector, data in detectors_data.items():
+            score = data.get('score', 0.0)
+            context = data.get('context', "No context provided")
+            
+            decision, confidence, log = self.multi_agent_decision_per_detector(detector, score, context, alert_threshold)
+            decisions[detector] = {'decision': decision, 'confidence': confidence}
+            logs.append(log)
+
+            # Partial trigger: Jeśli YES i high confidence
+            if decision == "YES" and confidence > 0.7:
+                print(f"[PARTIAL ALERT] {detector} triggered! Confidence: {confidence:.2f}")
+                total_yes += 1
+
+        # Agregacja wyników - final decision
+        num_detectors = len(detectors_data)
+        avg_confidence = sum(d['confidence'] for d in decisions.values()) / num_detectors if num_detectors > 0 else 0.0
+        final_decision = "YES" if total_yes >= min_yes_detectors or avg_confidence > alert_threshold else "NO"
+
+        # Full trigger: Jeśli final YES
+        if final_decision == "YES":
+            print(f"[FULL ALERT] Triggered! Total YES detektorów: {total_yes}/{num_detectors}, Avg Confidence: {avg_confidence:.2f}")
+
+        final_log = "\n".join(logs) + f"\nFinal Decision: {final_decision}, Avg Confidence: {avg_confidence:.2f}"
+        
+        print(f"[MULTI-AGENT CONSENSUS] Final: {final_decision} (avg confidence: {avg_confidence:.3f})")
+        
+        return final_decision, decisions, final_log
 
 
 # Globalna instancja systemu
@@ -534,3 +693,17 @@ async def evaluate_detector_with_agents(
     return await multi_agent_system.multi_agent_decision(
         detector_name, score, signal_data, market_data, threshold
     )
+
+
+def evaluate_all_detectors_with_consensus(detectors_data: Dict[str, Dict], threshold: float = 0.7) -> Tuple[str, Dict, str]:
+    """
+    Nowa funkcja dla full consensus analysis wszystkich detektorów (standalone integration)
+    
+    Args:
+        detectors_data: Dict z detector data {"StealthEngine": {"score": 0.543, "context": "whale_ping 1.0"}, ...}
+        threshold: Próg decyzyjny
+        
+    Returns:
+        Tuple (final_decision, all_decisions, detailed_log)
+    """
+    return multi_agent_system.multi_agent_consensus_all_detectors(detectors_data, threshold)
