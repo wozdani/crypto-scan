@@ -2067,6 +2067,35 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     from datetime import datetime
                     import os  # EXPLORE MODE FIX: Add missing os import
                     
+                    # Generate enriched features for agent learning
+                    enriched_features = {
+                        "confidence_sources": {
+                            "diamondwhale_ai": diamond_score if 'diamond_score' in locals() else 0.0,
+                            "californiumwhale_ai": californium_score if 'californium_score' in locals() else 0.0,
+                            "whale_clip": whaleclip_score if 'whaleclip_score' in locals() else 0.0,
+                            "mastermind_tracing": 0.0  # TODO: Add mastermind detection score
+                        },
+                        "detector_scores": {
+                            "stealth_engine": score,
+                            "diamond_whale": diamond_score if 'diamond_score' in locals() else 0.0,
+                            "californium_whale": californium_score if 'californium_score' in locals() else 0.0,
+                            "whale_clip": whaleclip_score if 'whaleclip_score' in locals() else 0.0
+                        },
+                        "mastermind_tracing": {
+                            "sequence_detected": False,  # TODO: Add real mastermind detection
+                            "sequence_length": 0,
+                            "confidence": 0.0,
+                            "actors": []
+                        },
+                        "graph_features": {
+                            "accumulation_subgraph_score": 0.0,  # TODO: Add graph analysis
+                            "temporal_pattern_shift": 0.0,
+                            "whale_loop_probability": 0.0,
+                            "unique_addresses": len(token_data.get("blockchain_transfers", [])),
+                            "avg_tx_interval_seconds": 0.0
+                        }
+                    }
+                    
                     explore_result = {
                         "symbol": token_data.get('symbol', 'UNKNOWN'),
                         "timestamp": datetime.now().isoformat(),
@@ -2076,7 +2105,14 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         "dex_inflow_usd": token_data.get("dex_inflow_usd", 0.0),
                         "stealth_score": score,
                         "active_signals": list(used_signals),
-                        "skip_reason": skip_reason
+                        "skip_reason": skip_reason,
+                        "consensus_decision": final_decision if 'final_decision' in locals() else "UNKNOWN",
+                        "agent_votes": consensus_data.get("votes", []) if 'consensus_data' in locals() and consensus_data else [],
+                        # Enhanced features for agent learning
+                        "confidence_sources": enriched_features["confidence_sources"],
+                        "detector_scores": enriched_features["detector_scores"],
+                        "mastermind_tracing": enriched_features["mastermind_tracing"],
+                        "graph_features": enriched_features["graph_features"]
                     }
                     
                     os.makedirs("cache/explore_mode", exist_ok=True)

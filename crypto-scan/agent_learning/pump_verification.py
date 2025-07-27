@@ -194,9 +194,13 @@ class PumpVerificationSystem:
                     # Classify pump result
                     pump_result = self.classify_pump_result(price_data, entry.get("stealth_score", entry.get("score", 0.0)))
                     
+                    # Extract enhanced features from enriched explore data
+                    enhanced_features = self.extract_enhanced_features(entry)
+                    
                     verification = {
                         "symbol": entry["symbol"],
                         "timestamp": entry["timestamp"],
+                        "alert_timestamp": entry.get("timestamp", entry.get("source_timestamp")),
                         "original_score": entry.get("stealth_score", entry.get("score", 0.0)),
                         "trigger_reason": entry.get("explore_reason", "unknown"),
                         "agents_decision": entry.get("consensus_decision", "UNKNOWN"),
@@ -206,7 +210,12 @@ class PumpVerificationSystem:
                         "hours_after": round(hours_passed, 1),
                         "price_data": price_data,
                         "pump_classification": pump_result,
-                        "agents_accuracy": self.calculate_agent_accuracy(entry, pump_result)
+                        "agents_accuracy": self.calculate_agent_accuracy(entry, pump_result),
+                        "enhanced_features": enhanced_features,
+                        "ai_detector_inputs": enhanced_features.get("ai_scores", {}),
+                        "mastermind_patterns": enhanced_features.get("mastermind_data", {}),
+                        "graph_analysis": enhanced_features.get("graph_features", {}),
+                        "enriched_data_quality": enhanced_features.get("data_quality_score", 0.0)
                     }
                     
                     new_verifications.append(verification)
@@ -215,6 +224,70 @@ class PumpVerificationSystem:
                     print(f"[PUMP VERIFICATION] Could not get price data for {entry['symbol']}")
         
         return new_verifications
+    
+    def extract_enhanced_features(self, entry: Dict) -> Dict:
+        """Extract enhanced features from enriched explore data dla lepszego agent learning"""
+        enhanced_features = {
+            "ai_scores": {},
+            "mastermind_data": {},
+            "graph_features": {},
+            "data_quality_score": 0.0,
+            "feature_count": 0
+        }
+        
+        try:
+            # Extract confidence sources (AI detector scores)
+            if "confidence_sources" in entry:
+                cs = entry["confidence_sources"]
+                enhanced_features["ai_scores"] = {
+                    "diamondwhale_ai": cs.get("diamondwhale_ai", 0.0),
+                    "californiumwhale_ai": cs.get("californiumwhale_ai", 0.0),
+                    "whale_clip": cs.get("whale_clip", 0.0),
+                    "mastermind_tracing": cs.get("mastermind_tracing", 0.0)
+                }
+                enhanced_features["feature_count"] += len([v for v in enhanced_features["ai_scores"].values() if v > 0])
+            
+            # Extract detector scores
+            if "detector_scores" in entry:
+                ds = entry["detector_scores"]
+                enhanced_features["detector_scores"] = ds
+                enhanced_features["feature_count"] += len([v for v in ds.values() if v > 0])
+            
+            # Extract mastermind tracing data
+            if "mastermind_tracing" in entry:
+                mt = entry["mastermind_tracing"]
+                if isinstance(mt, dict):
+                    enhanced_features["mastermind_data"] = {
+                        "sequence_detected": mt.get("sequence_detected", False),
+                        "sequence_length": mt.get("sequence_length", 0),
+                        "confidence": mt.get("confidence", 0.0),
+                        "actors_count": len(mt.get("actors", []))
+                    }
+                    if mt.get("sequence_detected", False):
+                        enhanced_features["feature_count"] += 1
+            
+            # Extract graph features
+            if "graph_features" in entry:
+                gf = entry["graph_features"]
+                enhanced_features["graph_features"] = {
+                    "accumulation_subgraph_score": gf.get("accumulation_subgraph_score", 0.0),
+                    "temporal_pattern_shift": gf.get("temporal_pattern_shift", 0.0),
+                    "whale_loop_probability": gf.get("whale_loop_probability", 0.0),
+                    "unique_addresses": gf.get("unique_addresses", 0),
+                    "avg_tx_interval_seconds": gf.get("avg_tx_interval_seconds", 0.0)
+                }
+                enhanced_features["feature_count"] += len([v for v in gf.values() if isinstance(v, (int, float)) and v > 0])
+            
+            # Calculate overall data quality score
+            max_features = 20  # Estimated max features available
+            enhanced_features["data_quality_score"] = min(enhanced_features["feature_count"] / max_features, 1.0)
+            
+            print(f"[ENHANCED FEATURES] {entry.get('symbol', 'UNKNOWN')}: {enhanced_features['feature_count']} features, quality: {enhanced_features['data_quality_score']:.2f}")
+            
+        except Exception as e:
+            print(f"[ENHANCED FEATURES ERROR] {entry.get('symbol', 'UNKNOWN')}: {e}")
+        
+        return enhanced_features
     
     def calculate_agent_accuracy(self, entry: Dict, pump_result: Dict) -> Dict:
         """Oblicz accuracy każdego agenta dla tego prediction"""
@@ -253,11 +326,14 @@ class PumpVerificationSystem:
             print(f"[AGENT LEARNING ERROR] Loading history: {e}")
             return
         
-        # Update statistics
+        # Update statistics with enhanced learning
+        enhanced_patterns = {"ai_detector_patterns": {}, "mastermind_patterns": {}, "graph_patterns": {}}
+        
         for verification in verifications:
             learning_history["total_verifications"] += 1
+            correct = verification["agents_accuracy"]["correct_decision"]
             
-            if verification["agents_accuracy"]["correct_decision"]:
+            if correct:
                 learning_history["correct_predictions"] += 1
             
             # Update by pump level
@@ -266,7 +342,7 @@ class PumpVerificationSystem:
                 learning_history["by_pump_level"][pump_level] = {"total": 0, "correct": 0}
             
             learning_history["by_pump_level"][pump_level]["total"] += 1
-            if verification["agents_accuracy"]["correct_decision"]:
+            if correct:
                 learning_history["by_pump_level"][pump_level]["correct"] += 1
             
             # Update by detector
@@ -275,8 +351,71 @@ class PumpVerificationSystem:
                     learning_history["by_detector"][detector] = {"total": 0, "correct": 0}
                 
                 learning_history["by_detector"][detector]["total"] += 1
-                if verification["agents_accuracy"]["correct_decision"]:
+                if correct:
                     learning_history["by_detector"][detector]["correct"] += 1
+            
+            # Enhanced learning - AI detector patterns
+            enhanced_features = verification.get("enhanced_features", {})
+            ai_scores = enhanced_features.get("ai_scores", {})
+            
+            for ai_detector, score in ai_scores.items():
+                if score > 0:  # Only track active AI detectors
+                    if ai_detector not in enhanced_patterns["ai_detector_patterns"]:
+                        enhanced_patterns["ai_detector_patterns"][ai_detector] = {
+                            "total": 0, "correct": 0, "score_sum": 0.0, "pump_correlations": {}
+                        }
+                    
+                    enhanced_patterns["ai_detector_patterns"][ai_detector]["total"] += 1
+                    enhanced_patterns["ai_detector_patterns"][ai_detector]["score_sum"] += score
+                    
+                    if correct:
+                        enhanced_patterns["ai_detector_patterns"][ai_detector]["correct"] += 1
+                    
+                    # Track pump level correlations
+                    if pump_level not in enhanced_patterns["ai_detector_patterns"][ai_detector]["pump_correlations"]:
+                        enhanced_patterns["ai_detector_patterns"][ai_detector]["pump_correlations"][pump_level] = {"total": 0, "correct": 0}
+                    
+                    enhanced_patterns["ai_detector_patterns"][ai_detector]["pump_correlations"][pump_level]["total"] += 1
+                    if correct:
+                        enhanced_patterns["ai_detector_patterns"][ai_detector]["pump_correlations"][pump_level]["correct"] += 1
+            
+            # Enhanced learning - Mastermind patterns
+            mastermind_data = enhanced_features.get("mastermind_data", {})
+            if mastermind_data.get("sequence_detected", False):
+                seq_length = mastermind_data.get("sequence_length", 0)
+                confidence = mastermind_data.get("confidence", 0.0)
+                
+                pattern_key = f"seq_length_{seq_length}"
+                if pattern_key not in enhanced_patterns["mastermind_patterns"]:
+                    enhanced_patterns["mastermind_patterns"][pattern_key] = {
+                        "total": 0, "correct": 0, "confidence_sum": 0.0
+                    }
+                
+                enhanced_patterns["mastermind_patterns"][pattern_key]["total"] += 1
+                enhanced_patterns["mastermind_patterns"][pattern_key]["confidence_sum"] += confidence
+                if correct:
+                    enhanced_patterns["mastermind_patterns"][pattern_key]["correct"] += 1
+            
+            # Enhanced learning - Graph analysis patterns
+            graph_features = enhanced_features.get("graph_features", {})
+            if graph_features:
+                whale_loop_prob = graph_features.get("whale_loop_probability", 0.0)
+                accumulation_score = graph_features.get("accumulation_subgraph_score", 0.0)
+                
+                # Categorize graph patterns
+                if whale_loop_prob > 0.8:
+                    pattern_type = "high_whale_loop"
+                elif accumulation_score > 0.7:
+                    pattern_type = "high_accumulation"
+                else:
+                    pattern_type = "standard_graph"
+                
+                if pattern_type not in enhanced_patterns["graph_patterns"]:
+                    enhanced_patterns["graph_patterns"][pattern_type] = {"total": 0, "correct": 0}
+                
+                enhanced_patterns["graph_patterns"][pattern_type]["total"] += 1
+                if correct:
+                    enhanced_patterns["graph_patterns"][pattern_type]["correct"] += 1
             
             # Add learning update entry
             learning_update = {
@@ -288,9 +427,21 @@ class PumpVerificationSystem:
             }
             learning_history["learning_updates"].append(learning_update)
         
+        # Save enhanced patterns to learning history
+        learning_history["enhanced_patterns"] = enhanced_patterns
+        
         # Calculate overall accuracy
         if learning_history["total_verifications"] > 0:
             learning_history["overall_accuracy"] = learning_history["correct_predictions"] / learning_history["total_verifications"]
+        
+        # Calculate enhanced statistics
+        learning_history["enhanced_statistics"] = self.calculate_enhanced_statistics(enhanced_patterns)
+        
+        # Add accuracy trend analysis
+        recent_verifications = learning_history["learning_updates"][-10:] if len(learning_history["learning_updates"]) >= 10 else learning_history["learning_updates"]
+        if recent_verifications:
+            recent_accuracy = sum(v["agents_accuracy"] for v in recent_verifications) / len(recent_verifications)
+            learning_history["recent_accuracy_trend"] = f"Last {len(recent_verifications)} predictions: {recent_accuracy:.1%}"
         
         # Keep only last 1000 learning updates
         if len(learning_history["learning_updates"]) > 1000:
@@ -302,8 +453,66 @@ class PumpVerificationSystem:
                 json.dump(learning_history, f, indent=2)
             print(f"[AGENT LEARNING] Updated with {len(verifications)} new verifications")
             print(f"[AGENT LEARNING] Overall accuracy: {learning_history['overall_accuracy']:.1%} ({learning_history['correct_predictions']}/{learning_history['total_verifications']})")
+            
+            # Print enhanced learning insights
+            enhanced_stats = learning_history.get("enhanced_statistics", {})
+            if enhanced_stats:
+                print(f"[ENHANCED LEARNING] Best AI detector: {enhanced_stats.get('best_ai_detector', 'None')}")
+                print(f"[ENHANCED LEARNING] Best pattern type: {enhanced_stats.get('best_pattern_type', 'None')}")
+                
         except Exception as e:
             print(f"[AGENT LEARNING ERROR] Saving learning history: {e}")
+    
+    def calculate_enhanced_statistics(self, enhanced_patterns: Dict) -> Dict:
+        """Calculate enhanced statistics from patterns for better agent insights"""
+        stats = {
+            "best_ai_detector": "none",
+            "best_ai_accuracy": 0.0,
+            "best_pattern_type": "none", 
+            "best_pattern_accuracy": 0.0,
+            "total_enhanced_features": 0,
+            "ai_detector_rankings": {}
+        }
+        
+        try:
+            # Analyze AI detector performance
+            ai_patterns = enhanced_patterns.get("ai_detector_patterns", {})
+            for detector, data in ai_patterns.items():
+                if data["total"] > 0:
+                    accuracy = data["correct"] / data["total"]
+                    avg_score = data["score_sum"] / data["total"]
+                    
+                    stats["ai_detector_rankings"][detector] = {
+                        "accuracy": accuracy,
+                        "avg_score": avg_score,
+                        "total_predictions": data["total"]
+                    }
+                    
+                    if accuracy > stats["best_ai_accuracy"] and data["total"] >= 3:  # Min 3 predictions for reliability
+                        stats["best_ai_detector"] = detector
+                        stats["best_ai_accuracy"] = accuracy
+            
+            # Analyze pattern types
+            pattern_types = ["mastermind_patterns", "graph_patterns"]
+            for pattern_type in pattern_types:
+                patterns = enhanced_patterns.get(pattern_type, {})
+                for pattern_name, data in patterns.items():
+                    if data["total"] > 0:
+                        accuracy = data["correct"] / data["total"]
+                        if accuracy > stats["best_pattern_accuracy"] and data["total"] >= 2:
+                            stats["best_pattern_type"] = f"{pattern_type}:{pattern_name}"
+                            stats["best_pattern_accuracy"] = accuracy
+            
+            # Count total enhanced features used
+            stats["total_enhanced_features"] = sum(
+                len(enhanced_patterns.get(pattern_type, {})) 
+                for pattern_type in ["ai_detector_patterns", "mastermind_patterns", "graph_patterns"]
+            )
+            
+        except Exception as e:
+            print(f"[ENHANCED STATS ERROR] {e}")
+        
+        return stats
     
     def generate_lesson(self, verification: Dict) -> str:
         """Generate lesson learned z verification"""
