@@ -196,10 +196,13 @@ def process_async_data_enhanced_with_5m(symbol: str, ticker_data: Optional[Dict]
         print(f"[ORDERBOOK SYNTHETIC] {symbol}: Created multi-level synthetic orderbook ({len(bids)}/{len(asks)} levels)")
     
     # ENHANCED VALIDATION: Accept tokens with candles even without price
+    # CRITICAL FIX: Check 5M candles AFTER data conversion, not before
     has_price = price_usd > 0
     has_15m_candles = len(candles_15m) > 0
-    has_5m_candles = len(candles_5m) > 0
+    has_5m_candles = len(candles_5m) > 0  # Now correctly checks AFTER 5M conversion
     has_orderbook = len(bids) > 0 and len(asks) > 0
+    
+
     
     # Must have 15M candles for processing
     if not has_15m_candles:
@@ -244,23 +247,19 @@ def process_async_data_enhanced_with_5m(symbol: str, ticker_data: Optional[Dict]
         return None
     
     # Determine data completeness - CRITICAL for TOP5 filtering
-    # Token is considered partial if it lacks 5M candles OR has invalid ticker
+    # FIXED LOGIC: Token is COMPLETE if has both 15M + 5M candles, regardless of ticker status
+    # Only consider partial if actually missing 5M candle data
     ticker_invalid = locals().get('ticker_invalid', False)
-    is_partial_data = not has_5m_candles or ticker_invalid  # Missing 5M or invalid ticker indicates partial data
+    is_partial_data = not has_5m_candles  # Only missing 5M candles makes it partial
     
-    if ticker_invalid and has_5m_candles:
-        data_quality = "PARTIAL_TICKER_INVALID"  
-    elif not has_5m_candles and not ticker_invalid:
+    if not has_5m_candles:
         data_quality = "PARTIAL_15M_ONLY"
-    elif not has_5m_candles and ticker_invalid:
-        data_quality = "PARTIAL_TICKER_AND_5M"
-    else:
-        data_quality = "COMPLETE"
-    
-    if is_partial_data:
         print(f"[DATA QUALITY] {symbol}: ⚠️ PARTIAL - 15M only (missing 5M candles)")
     else:
+        data_quality = "COMPLETE"
         print(f"[DATA QUALITY] {symbol}: ✅ COMPLETE - 15M + 5M candles available")
+        if ticker_invalid:
+            print(f"[DATA QUALITY] {symbol}: Note: Using candle fallback price due to invalid ticker")
     
     # FIX 1: Load AI-EYE label from Vision-AI labeling system (SINGLE LOAD)
     ai_label_data = load_ai_label_for_symbol(symbol)
