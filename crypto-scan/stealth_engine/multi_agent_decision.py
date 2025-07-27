@@ -484,15 +484,15 @@ Respond with JSON format:
         score = context.get('score', 0.0)
         threshold = context.get('threshold', 0.7)
         
-        # Enhanced thresholds for better decision making
+        # Enhanced thresholds for better decision making - lowered for score >0.6
         if role == AgentRole.ANALYZER:
-            decision = "YES" if score > 0.5 else "NO"
-            confidence = 0.9 if score > 0.8 else 0.7
-            reasoning = f"Analysis: Score {score:.3f} {'above' if decision == 'YES' else 'below'} reliability threshold"
+            decision = "YES" if score > 0.6 else "NO"
+            confidence = 0.9 if score > 0.8 else 0.75
+            reasoning = f"Analysis: Score {score:.3f} {'above' if decision == 'YES' else 'below'} reliability threshold (0.6)"
             
         elif role == AgentRole.REASONER:
             volume = context.get('market_data', {}).get('volume_24h', 0)
-            decision = "YES" if volume > 500000 and score > threshold * 0.6 else "NO"
+            decision = "YES" if volume > 300000 and score > 0.6 else "NO"
             confidence = 0.8
             reasoning = f"Market reasoning: Volume ${volume:,.0f}, score context acceptable"
             
