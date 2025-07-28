@@ -397,11 +397,14 @@ def scan_cycle():
         log_warning("PHASE 3 VISION-AI EVALUATION ERROR", phase3_error)
     
     # Run Phase 4 Embedding processing periodically
+    # UWAGA: Na prywatnym serwerze ten proces może blokować skany przez długi czas!
+    # Jeśli masz dużo plików w training_data/charts, zmień prawdopodobieństwo na mniejsze
     try:
         from hybrid_embedding_system import process_training_charts_for_embeddings
         
         # Process training charts for embeddings (very low frequency)
-        if system_random.random() < 0.02:  # 2% chance each cycle
+        # ZMNIEJSZONO z 0.02 (2%) na 0.0005 (0.05%) aby uniknąć blokowania skanów
+        if system_random.random() < 0.0005:  # 0.05% chance - bardzo rzadko (raz na ~2000 skanów)
             processed = process_training_charts_for_embeddings()
             if processed > 0:
                 print(f"[PHASE 4] Processed {processed} charts for hybrid embeddings")

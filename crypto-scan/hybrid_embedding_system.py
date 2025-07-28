@@ -413,9 +413,14 @@ def process_training_charts_for_embeddings(charts_dir: str = "training_data/char
     processed_count = 0
     
     # Find all PNG files in training charts
-    chart_files = [f for f in os.listdir(charts_dir) if f.endswith('.png')]
+    # OGRANICZENIE: Przetwarzaj maksymalnie 20 plików na raz aby uniknąć blokowania skanów
+    all_chart_files = [f for f in os.listdir(charts_dir) if f.endswith('.png')]
+    chart_files = all_chart_files[:20]  # Limit do 20 plików
     
-    print(f"[CHART PROCESSING] Found {len(chart_files)} chart files")
+    if len(all_chart_files) > 20:
+        print(f"[CHART PROCESSING] Found {len(all_chart_files)} chart files, processing only first 20 to avoid blocking")
+    else:
+        print(f"[CHART PROCESSING] Found {len(chart_files)} chart files")
     
     for chart_file in chart_files:
         try:
