@@ -980,6 +980,20 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 stored_consensus_data = None
                 stored_consensus_result = None
                 
+                # Initialize AI detector variables at higher scope for consensus access
+                diamond_score = 0.0
+                diamond_enabled = False
+                diamond_error = None
+                californium_score = 0.0
+                californium_enabled = False
+                californium_error = None
+                whaleclip_score = 0.0
+                whaleclip_enabled = False
+                whaleclip_error = None
+                score = 0.0
+                used_signals = []
+                data_coverage = 1.0
+                
                 if not skip_reason:
                     # Załaduj aktualne wagi (mogą być dostrojone przez feedback loop)
                     weights = load_weights()
@@ -999,8 +1013,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     
                     print(f"[STEALTH] Detected signals for {symbol}: whale={whale_ping}, spoofing={spoofing_layers}, volume_spike={volume_spike}, orderbook={orderbook_anomaly}, dex={dex_inflow_active}")
                     
-                    score = 0.0
-                    used_signals = []
+                    # score and used_signals already initialized at higher scope
                     total_signals = len(signals)
                     available_signals = 0  # Sygnały z danymi (niezależnie od aktywności)
                     
@@ -1066,9 +1079,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     
                     # === DIAMOND WHALE AI DETECTOR INTEGRATION ===
                     # 🔥 STAGE 2/7: Integrate DiamondWhale AI Temporal Graph + QIRL Detector
-                    diamond_score = 0.0
-                    diamond_enabled = False
-                    diamond_error = None
+                    # diamond_score, diamond_enabled, diamond_error already initialized at higher scope
                     
                     try:
                         # Sprawdź czy token ma kontrakt blockchain dla analizy transakcji
@@ -1149,9 +1160,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     
                     # === WHALECLIP AI DETECTOR INTEGRATION ===
                     # 🧠 STAGE: Integrate WhaleCLIP Vision AI Detector
-                    whaleclip_score = 0.0
-                    whaleclip_enabled = False
-                    whaleclip_error = None
+                    # whaleclip_score, whaleclip_enabled, whaleclip_error already initialized at higher scope
                     
                     try:
                         # Sprawdź czy token ma kontrakt blockchain dla analizy transakcji
@@ -1214,9 +1223,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     
                     # === CALIFORNIUM WHALE AI DETECTOR INTEGRATION ===
                     # 🚀 STAGE 3/7: Integrate CaliforniumWhale AI Temporal Graph + QIRL Detector
-                    californium_score = 0.0
-                    californium_enabled = False
-                    californium_error = None
+                    # californium_score, californium_enabled, californium_error already initialized at higher scope
                     
                     try:
                         # Wywołaj CaliforniumWhale AI Score
@@ -1650,7 +1657,13 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     # 🧠 MULTI-AGENT CONSENSUS DECISION ENGINE - Unified Detector Fusion
                     # NOTE: Consensus is already calculated above in lines 1249-1370
                     # We will use the consensus_result from there instead of recalculating
-                    print(f"[CONSENSUS DEBUG] {token_data.get('symbol', 'UNKNOWN')}: Using consensus result from above: decision={final_decision}, consensus_data={consensus_data is not None}")
+                    if 'final_decision' in locals() and 'consensus_data' in locals():
+                        print(f"[CONSENSUS DEBUG] {token_data.get('symbol', 'UNKNOWN')}: Using consensus result from above: decision={final_decision}, consensus_data={consensus_data is not None}")
+                    else:
+                        print(f"[CONSENSUS DEBUG] {token_data.get('symbol', 'UNKNOWN')}: No consensus result from above - will compute in consensus section")
+                    
+                    # Note: consensus_data will be set later when consensus is actually calculated
+                    # stored_consensus_data will be assigned at that time
                     
                     # Przygotuj rezultat z integracją DiamondWhale AI + CaliforniumWhale AI + Component Breakdown + Consensus
                     result = {
@@ -1989,11 +2002,38 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         score = 0.0
         active_signals = []
         data_coverage = 1.0
-        # Initialize explore mode variables in case they weren't set due to exception
+        # Initialize all variables that might be undefined due to exception
         if 'explore_mode_triggered' not in locals():
             explore_mode_triggered = False
             explore_confidence = 0.0
             explore_trigger_reason = "exception_occurred"
+        if 'final_decision' not in locals():
+            final_decision = "WATCH"
+        if 'consensus_data' not in locals():
+            consensus_data = None
+        if 'consensus_result' not in locals():
+            consensus_result = None
+        if 'result' not in locals():
+            result = {"score": 0.0, "error": str(e)}
+        if 'dex_inflow_score' not in locals():
+            dex_inflow_score = 0.0
+        if 'whale_ping_score' not in locals():
+            whale_ping_score = 0.0
+        if 'trust_boost_score' not in locals():
+            trust_boost_score = 0.0
+        if 'identity_boost_score' not in locals():
+            identity_boost_score = 0.0
+        if 'used_signals' not in locals():
+            used_signals = []
+        if 'diamond_score' not in locals():
+            diamond_score = 0.0
+            diamond_enabled = False
+        if 'californium_score' not in locals():
+            californium_score = 0.0
+            californium_enabled = False
+        if 'whaleclip_score' not in locals():
+            whaleclip_score = 0.0
+            whaleclip_enabled = False
 
     # (OLD EXPLORE MODE LOGIC REMOVED - MOVED TO PROPER POSITION BEFORE EARLY RETURNS)
     
@@ -2004,6 +2044,10 @@ def compute_stealth_score(token_data: Dict) -> Dict:
     consensus_result = None
     consensus_error = None
     final_score = score  # Default to stealth score
+    
+    # Initialize skip_reason if not defined
+    if 'skip_reason' not in locals():
+        skip_reason = None
     
     # Check if consensus was already computed in main try block
     if 'stored_consensus_data' in locals():
@@ -2158,6 +2202,9 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 }
                 
                 print(f"[CONSENSUS COMPLETE] {symbol}: Decision={final_decision}, Score={consensus_result.final_score:.3f}, Confidence={consensus_result.confidence:.3f}")
+                
+                # Store consensus data for later use in alert system
+                stored_consensus_data = consensus_data
             else:
                 # No detectors available - use simple fallback
                 print(f"[CONSENSUS FALLBACK] {symbol}: No detectors available, using simple score-based decision")
@@ -2178,6 +2225,9 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     "contributing_detectors": ["stealth_fallback"]
                 }
                 
+                # Store consensus data for later use in alert system
+                stored_consensus_data = consensus_data
+                
         except ImportError:
             print(f"[CONSENSUS IMPORT ERROR] {symbol}: Using simplified fallback logic")
             # Simplified fallback logic
@@ -2197,6 +2247,9 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 "contributing_detectors": ["stealth_fallback"]
             }
             
+            # Store consensus data for later use in alert system
+            stored_consensus_data = consensus_data
+            
         except Exception as e:
             print(f"[CONSENSUS ERROR] {symbol}: Exception in consensus engine: {e}")
             consensus_error = str(e)
@@ -2210,6 +2263,9 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 "threshold_met": False,
                 "contributing_detectors": []
             }
+            
+            # Store consensus data for later use in alert system
+            stored_consensus_data = consensus_data
     
     # Update final_score if consensus has a valid score
     if consensus_result and hasattr(consensus_result, 'final_score') and consensus_result.final_score > 0:
