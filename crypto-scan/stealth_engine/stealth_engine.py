@@ -1685,11 +1685,11 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         "identity_boost": round(identity_boost_score, 3),
                         
                         # === CONSENSUS DECISION ENGINE RESULTS ===
-                        "consensus_decision": consensus_data.get("decision", "WATCH") if consensus_data else "WATCH",
-                        "consensus_score": round(consensus_data.get("final_score", 0.0), 3) if consensus_data else 0.0,
-                        "consensus_confidence": round(consensus_data.get("confidence", 0.0), 3) if consensus_data else 0.0,
-                        "consensus_detectors": consensus_data.get("contributing_detectors", []) if consensus_data else [],
-                        "consensus_votes": consensus_data.get("votes", []) if consensus_data else []
+                        "consensus_decision": stored_consensus_data.get("decision", "WATCH") if 'stored_consensus_data' in locals() and stored_consensus_data else "WATCH",
+                        "consensus_score": round(stored_consensus_data.get("final_score", 0.0), 3) if 'stored_consensus_data' in locals() and stored_consensus_data else 0.0,
+                        "consensus_confidence": round(stored_consensus_data.get("confidence", 0.0), 3) if 'stored_consensus_data' in locals() and stored_consensus_data else 0.0,
+                        "consensus_detectors": stored_consensus_data.get("contributing_detectors", []) if 'stored_consensus_data' in locals() and stored_consensus_data else [],
+                        "consensus_votes": stored_consensus_data.get("votes", []) if 'stored_consensus_data' in locals() and stored_consensus_data else []
                     }
                     
                     # Dodaj informacje o błędach jeśli wystąpiły - STAGE 10 FIX: Safe variable access
