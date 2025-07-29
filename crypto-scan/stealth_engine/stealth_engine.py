@@ -2098,7 +2098,20 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 print(f"[STEALTH LEARNING] {symbol}: {score:.3f} → {adapted_stealth_score:.3f} ({adaptation_reason})")
             
             # CaliforniumWhale AI + SELF-LEARNING ADAPTATION
-            if 'californium_score' in locals() and californium_score > 0.0:
+            # Extract detector scores from stealth_result if available
+            if 'stealth_result' in locals() and stealth_result:
+                californium_score = stealth_result.get("californium_score", 0.0) or 0.0
+                diamond_score = stealth_result.get("diamond_score", 0.0) or 0.0
+                whaleclip_score = stealth_result.get("whaleclip_score", 0.0) or 0.0
+                
+                # Also extract other data from stealth_result
+                score = stealth_result.get("score", 0.0)
+                active_signals = stealth_result.get("active_signals", [])
+                data_coverage = stealth_result.get("data_coverage", 1.0)
+                
+                print(f"[CONSENSUS DATA EXTRACT] {symbol}: Extracted detector scores from stealth_result - californium={californium_score}, diamond={diamond_score}, whaleclip={whaleclip_score}")
+            
+            if californium_score > 0.0:
                 # Apply intelligent self-learning score adaptation
                 adapted_californium_score, adaptation_reason = adapt_detector_score(
                     "CaliforniumWhale", californium_score, symbol, market_data
@@ -2121,7 +2134,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 print(f"[CALIFORNIUM LEARNING] {symbol}: {californium_score:.3f} → {adapted_californium_score:.3f} ({adaptation_reason})")
             
             # DiamondWhale AI + SELF-LEARNING ADAPTATION
-            if 'diamond_score' in locals() and diamond_score > 0.0:
+            if diamond_score > 0.0:
                 # Apply intelligent self-learning score adaptation
                 adapted_diamond_score, adaptation_reason = adapt_detector_score(
                     "DiamondWhale", diamond_score, symbol, market_data
@@ -2192,9 +2205,15 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 )
                 
                 final_decision = consensus_result.decision
+                # Use votes from consensus_result if available (multi-agent), otherwise format from detector_outputs
+                if hasattr(consensus_result, 'votes') and consensus_result.votes:
+                    votes_list = consensus_result.votes
+                else:
+                    votes_list = [f"{det}: {data['vote']}" for det, data in detector_outputs.items()]
+                
                 consensus_data = {
                     "decision": final_decision,
-                    "votes": [f"{det}: {data['vote']}" for det, data in detector_outputs.items()],
+                    "votes": votes_list,
                     "confidence": consensus_result.confidence,
                     "final_score": consensus_result.final_score,
                     "threshold_met": consensus_result.threshold_met,

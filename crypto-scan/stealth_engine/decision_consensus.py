@@ -625,6 +625,13 @@ class DecisionConsensusEngine:
                 reasoning += f"Detectors evaluated: {', '.join(agent_decisions.keys())}. "
                 reasoning += f"Primary decision mechanism using 5 agents per detector."
                 
+                # Create proper votes list with detector names and their agent decisions
+                votes_list = []
+                for detector_name, agent_decision in agent_decisions.items():
+                    # Format: "DetectorName: DECISION" 
+                    vote_text = f"{detector_name}: {'BUY' if agent_decision == 'YES' else 'AVOID'}"
+                    votes_list.append(vote_text)
+                
                 # Create ConsensusResult
                 result = ConsensusResult(
                     decision=final_decision,
@@ -635,7 +642,7 @@ class DecisionConsensusEngine:
                     reasoning=reasoning,
                     timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     threshold_met=decision_strength >= threshold,
-                    votes=[final_decision] * yes_votes + ["HOLD"] * (total_votes - yes_votes)
+                    votes=votes_list  # Now contains actual detector votes like ["StealthEngine: BUY", "DiamondWhale: AVOID"]
                 )
                 
                 # Save decision
