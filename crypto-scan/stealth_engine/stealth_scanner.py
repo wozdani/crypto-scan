@@ -12,7 +12,7 @@
 
 import asyncio
 from typing import List, Dict, Optional, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from .priority_learning import (
     get_priority_learning_memory, 

@@ -2110,6 +2110,15 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 data_coverage = stealth_result.get("data_coverage", 1.0)
                 
                 print(f"[CONSENSUS DATA EXTRACT] {symbol}: Extracted detector scores from stealth_result - californium={californium_score}, diamond={diamond_score}, whaleclip={whaleclip_score}")
+            else:
+                # Initialize default values if stealth_result is not available
+                californium_score = 0.0
+                diamond_score = 0.0
+                whaleclip_score = 0.0
+                score = 0.0
+                active_signals = []
+                data_coverage = 1.0
+                print(f"[CONSENSUS DATA EXTRACT] {symbol}: No stealth_result available, using defaults")
             
             if californium_score > 0.0:
                 # Apply intelligent self-learning score adaptation
@@ -2156,16 +2165,19 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 
                 print(f"[DIAMOND LEARNING] {symbol}: {diamond_score:.3f} → {adapted_diamond_score:.3f} ({adaptation_reason})")
             
-            # WhaleCLIP - Get whale signal strength from signals
+            # WhaleCLIP - Get whale signal strength from active_signals
             whale_signal_strength = 0.0
-            if 'signals' in locals():
-                for signal in signals:
-                    if hasattr(signal, 'name') and signal.name in ["whale_ping", "whale_ping_real", "whale_ping_real_repeat"]:
-                        if hasattr(signal, 'active') and signal.active and hasattr(signal, 'strength'):
-                            whale_signal_strength = max(whale_signal_strength, signal.strength)
+            if 'active_signals' in locals() and active_signals:
+                # active_signals is a list of signal names, not signal objects
+                # Check if whale signals are active
+                for signal_name in active_signals:
+                    if signal_name in ["whale_ping", "whale_ping_real", "whale_ping_real_repeat"]:
+                        # Assume strength of 3.0 for active whale signals (as per stealth signal logic)
+                        whale_signal_strength = 3.0
+                        break
             
             # Use whale signal strength OR blockchain WhaleCLIP score for status
-            whaleclip_final_score = max(whale_signal_strength, whaleclip_score if 'whaleclip_score' in locals() else 0.0)
+            whaleclip_final_score = max(whale_signal_strength, whaleclip_score)
             
             if whaleclip_final_score > 0.0:
                 # Apply intelligent self-learning score adaptation for WhaleCLIP
@@ -2188,7 +2200,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 )
                 
                 print(f"[WHALECLIP LEARNING] {symbol}: {whaleclip_final_score:.3f} → {adapted_whaleclip_score:.3f} ({adaptation_reason})")
-                print(f"[WHALECLIP CONSENSUS FIX] {symbol}: Combined score={whaleclip_final_score:.3f} (whale_signals={whale_signal_strength:.3f} + blockchain={whaleclip_score if 'whaleclip_score' in locals() else 0.0:.3f}), vote={clip_vote}")
+                print(f"[WHALECLIP CONSENSUS FIX] {symbol}: Combined score={whaleclip_final_score:.3f} (whale_signals={whale_signal_strength:.3f} + blockchain={whaleclip_score:.3f}), vote={clip_vote}")
             
             # Run consensus decision if we have detectors
             print(f"[CONSENSUS DEBUG] {symbol}: Total detector outputs: {len(detector_outputs)}")
@@ -2577,16 +2589,20 @@ def analyze_token_with_stealth_score(symbol: str, token_data: Dict) -> Dict:
         # WhaleCLIP score (z stealth score jako proxy - będzie później zastąpiony prawdziwym WhaleCLIP)
         whaleclip_score = min(0.9, stealth_score / 4.0)  # Scale stealth score to 0-0.9 range
         
-        # Wywołaj Diamond Decision Engine
-        from .decision import simulate_diamond_decision
+        # Diamond Decision Engine został już wywołany w compute_stealth_score()
+        # Użyj consensus_data z stealth_result
+        consensus_data = stealth_result.get("consensus_data", None)
+        consensus_decision = stealth_result.get("consensus_decision", "WATCH")
         
-        diamond_decision = simulate_diamond_decision(
-            whale_score=whale_ping_score,
-            whaleclip_score=whaleclip_score, 
-            diamond_score=diamond_score,
-            token=symbol,
-            volume_24h=volume_24h
-        )
+        # Przygotuj wynikowy dict
+        diamond_decision = {
+            "decision": consensus_decision,
+            "score": stealth_score,
+            "fused_score": stealth_score,  # Use stealth score as fused score
+            "confidence": 0.5,  # Default confidence
+            "trigger_reasons": [],  # Empty reasons
+            "dominant_detector": "StealthEngine"  # Default detector
+        }
         
         # Klasyfikuj alert tradycyjnie jako fallback
         alert_type = classify_stealth_alert(stealth_score)
