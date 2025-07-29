@@ -2227,33 +2227,35 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             if len(filtered_detector_outputs) >= 1:  # Changed from >= 2 to >= 1 to allow single detector consensus
                 # Create consensus engine - multi-agent is now primary system
                 consensus_engine = create_decision_consensus_engine()
-                consensus_result = consensus_engine.simulate_decision_consensus(
+                consensus_decision_result = consensus_engine.simulate_decision_consensus(
                     filtered_detector_outputs,  # Use filtered outputs with score >= 0.6
                     threshold=0.7, 
                     token=symbol,
                     market_data=token_data  # Pass market data for multi-agent context
                 )
+                consensus_result = consensus_decision_result  # Assign to outer scope variable
                 
-                final_decision = consensus_result.decision
+                final_decision = consensus_decision_result.decision
                 # Use votes from consensus_result if available (multi-agent), otherwise format from detector_outputs
-                if hasattr(consensus_result, 'votes') and consensus_result.votes:
-                    votes_list = consensus_result.votes
+                if hasattr(consensus_decision_result, 'votes') and consensus_decision_result.votes:
+                    votes_list = consensus_decision_result.votes
                 else:
                     votes_list = [f"{det}: {data['vote']}" for det, data in filtered_detector_outputs.items()]
                 
                 consensus_data = {
                     "decision": final_decision,
                     "votes": votes_list,
-                    "confidence": consensus_result.confidence,
-                    "final_score": consensus_result.final_score,
-                    "threshold_met": consensus_result.threshold_met,
-                    "contributing_detectors": consensus_result.contributing_detectors
+                    "confidence": consensus_decision_result.confidence,
+                    "final_score": consensus_decision_result.final_score,
+                    "threshold_met": consensus_decision_result.threshold_met,
+                    "contributing_detectors": consensus_decision_result.contributing_detectors
                 }
                 
-                print(f"[CONSENSUS COMPLETE] {symbol}: Decision={final_decision}, Score={consensus_result.final_score:.3f}, Confidence={consensus_result.confidence:.3f}")
+                print(f"[CONSENSUS COMPLETE] {symbol}: Decision={final_decision}, Score={consensus_decision_result.final_score:.3f}, Confidence={consensus_decision_result.confidence:.3f}")
                 
                 # Store consensus data for later use in alert system
                 stored_consensus_data = consensus_data
+                stored_consensus_result = consensus_decision_result
             else:
                 # No detectors available - use simple fallback
                 print(f"[CONSENSUS FALLBACK] {symbol}: No detectors available, using simple score-based decision")
@@ -2276,6 +2278,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 
                 # Store consensus data for later use in alert system
                 stored_consensus_data = consensus_data
+                stored_consensus_result = None  # No consensus engine result in fallback mode
                 
         except ImportError:
             print(f"[CONSENSUS IMPORT ERROR] {symbol}: Using simplified fallback logic")
@@ -2298,6 +2301,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             
             # Store consensus data for later use in alert system
             stored_consensus_data = consensus_data
+            stored_consensus_result = None  # No consensus engine result in fallback mode
             
         except Exception as e:
             print(f"[CONSENSUS ERROR] {symbol}: Exception in consensus engine: {e}")
@@ -2315,6 +2319,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             
             # Store consensus data for later use in alert system
             stored_consensus_data = consensus_data
+            stored_consensus_result = None  # No consensus engine result in error mode
     
     # Update final_score if consensus has a valid score
     if consensus_result and hasattr(consensus_result, 'final_score') and consensus_result.final_score > 0:
