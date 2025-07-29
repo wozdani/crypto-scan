@@ -2214,17 +2214,15 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             print(f"[CONSENSUS DEBUG] {symbol}: Total detector outputs: {len(detector_outputs)}")
             print(f"[CONSENSUS DEBUG] {symbol}: Detector outputs: {list(detector_outputs.keys())}")
             
-            # Filter detector outputs to only include those with score >= 0.6
+            # TESTING: Temporarily removed score >= 0.6 filter for consensus voting
+            # Include ALL detectors regardless of score (as requested by user for testing)
             filtered_detector_outputs = {}
             for detector_name, detector_data in detector_outputs.items():
                 detector_score = detector_data.get("score", 0.0)
-                if detector_score >= 0.6:
-                    filtered_detector_outputs[detector_name] = detector_data
-                    print(f"[CONSENSUS FILTER] {symbol}: {detector_name} included (score={detector_score:.3f} >= 0.6)")
-                else:
-                    print(f"[CONSENSUS FILTER] {symbol}: {detector_name} excluded (score={detector_score:.3f} < 0.6)")
+                filtered_detector_outputs[detector_name] = detector_data
+                print(f"[CONSENSUS FILTER] {symbol}: {detector_name} included (score={detector_score:.3f}) - NO FILTER FOR TESTING")
             
-            print(f"[CONSENSUS DEBUG] {symbol}: Filtered detector outputs: {len(filtered_detector_outputs)} (from {len(detector_outputs)})")
+            print(f"[CONSENSUS DEBUG] {symbol}: ALL detector outputs included: {len(filtered_detector_outputs)} (testing mode - no score filter)")
             
             if len(filtered_detector_outputs) >= 1:  # Changed from >= 2 to >= 1 to allow single detector consensus
                 # Create consensus engine - multi-agent is now primary system
