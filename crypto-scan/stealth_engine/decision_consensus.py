@@ -539,7 +539,11 @@ class DecisionConsensusEngine:
             from .multi_agent_decision import evaluate_detector_with_agents
             import asyncio
             
-            print(f"[MULTI-AGENT] Evaluating {len(detector_outputs)} detectors with 5-agent system")
+            print(f"\n{'#'*80}")
+            print(f"[MULTI-AGENT CONSENSUS] Starting evaluation for token: {token}")
+            print(f"[MULTI-AGENT CONSENSUS] Evaluating {len(detector_outputs)} detectors with 5-agent system")
+            print(f"[MULTI-AGENT CONSENSUS] Market data available: {'YES' if market_data else 'NO'}")
+            print(f"{'#'*80}\n")
             
             # Collect all agent evaluations
             agent_decisions = {}
@@ -550,8 +554,11 @@ class DecisionConsensusEngine:
             for detector_name, detector_data in detector_outputs.items():
                 score = detector_data.get("score", 0.0)
                 
+                print(f"\n[DETECTOR CHECK] {detector_name}: score = {score:.3f}")
+                
                 # Skip detectors with zero score
                 if score <= 0:
+                    print(f"[DETECTOR SKIP] {detector_name}: Zero score, skipping evaluation")
                     continue
                 
                 # Prepare signal data (empty for now, can be enhanced later)
@@ -592,7 +599,7 @@ class DecisionConsensusEngine:
                     agent_confidences[detector_name] = confidence
                     all_logs.append(log)
                     
-                    print(f"[MULTI-AGENT] {detector_name}: Decision={decision}, Confidence={confidence:.3f}")
+                    print(f"[MULTI-AGENT RESULT] {detector_name}: Decision={decision}, Confidence={confidence:.3f}")
                     
                 except Exception as e:
                     print(f"[MULTI-AGENT ERROR] Failed to evaluate {detector_name}: {e}")
@@ -600,10 +607,14 @@ class DecisionConsensusEngine:
             
             # Aggregate multi-agent decisions into final consensus
             if agent_decisions:
+                print(f"\n[CONSENSUS AGGREGATION] Combining detector decisions...")
+                
                 # Count YES/NO votes
                 yes_votes = sum(1 for d in agent_decisions.values() if d == "YES")
                 no_votes = sum(1 for d in agent_decisions.values() if d == "NO")
                 total_votes = len(agent_decisions)
+                
+                print(f"[CONSENSUS VOTES] Detector votes: {yes_votes} YES / {no_votes} NO (total: {total_votes})")
                 
                 # Calculate average confidence
                 avg_confidence = sum(agent_confidences.values()) / len(agent_confidences)
@@ -612,12 +623,18 @@ class DecisionConsensusEngine:
                 if yes_votes > no_votes:
                     final_decision = "BUY"
                     decision_strength = yes_votes / total_votes
+                    print(f"[CONSENSUS DECISION] Majority YES → BUY decision!")
                 elif no_votes > yes_votes:
                     final_decision = "AVOID"
                     decision_strength = no_votes / total_votes
+                    print(f"[CONSENSUS DECISION] Majority NO → AVOID decision")
                 else:
                     final_decision = "HOLD"
                     decision_strength = 0.5
+                    print(f"[CONSENSUS DECISION] Tie vote → HOLD decision")
+                
+                print(f"[CONSENSUS STRENGTH] Decision strength: {decision_strength:.3f}")
+                print(f"[CONSENSUS CONFIDENCE] Average confidence: {avg_confidence:.3f}")
                 
                 # Create reasoning
                 reasoning = f"5-Agent Multi-Agent Consensus: {yes_votes} YES, {no_votes} NO votes. "
@@ -649,7 +666,18 @@ class DecisionConsensusEngine:
                 self._save_decision_history()
                 
                 # Log decision
-                print(f"[FINAL DECISION] {token}: {final_decision} (score: {decision_strength:.3f}, confidence: {avg_confidence:.3f})")
+                print(f"\n{'#'*80}")
+                print(f"[FINAL CONSENSUS DECISION] {token}")
+                print(f"  📊 Decision: {final_decision}")
+                print(f"  💪 Strength: {decision_strength:.3f}")
+                print(f"  🎯 Confidence: {avg_confidence:.3f}")
+                print(f"  🗳️ Votes: {yes_votes} YES / {no_votes} NO from {total_votes} detectors")
+                print(f"  🤖 Each detector evaluated by 5 AI agents")
+                if final_decision == "BUY":
+                    print(f"  ✅ ALERT WILL BE SENT - Consensus reached for BUY!")
+                else:
+                    print(f"  ❌ NO ALERT - Consensus decision: {final_decision}")
+                print(f"{'#'*80}\n")
                 
                 return result
             else:

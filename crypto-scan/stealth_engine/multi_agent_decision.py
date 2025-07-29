@@ -238,7 +238,11 @@ class MultiAgentDecisionSystem:
             print(f"[MULTI-AGENT SKIP] {detector_name} score {score:.3f} < 0.6 - skipping agent voting")
             return "NO", 0.0, f"Score {score:.3f} below voting threshold (0.6) - no agent evaluation needed"
         
-        print(f"\n[MULTI-AGENT] Starting 5-agent decision for {detector_name} (score: {score:.3f})")
+        print(f"\n{'='*80}")
+        print(f"[MULTI-AGENT VOTING] Starting 5-agent decision for {detector_name}")
+        print(f"[MULTI-AGENT VOTING] Score: {score:.3f}, Threshold: {threshold:.3f}")
+        print(f"[MULTI-AGENT VOTING] Market data: Volume ${market_data.get('volume_24h', 0):,.0f}, Price change {market_data.get('price_change_24h', 0):.2f}%")
+        print(f"{'='*80}\n")
         
         # Reset historii debaty dla nowej decyzji
         self.debate_history = []
@@ -276,6 +280,13 @@ class MultiAgentDecisionSystem:
         # Zbierz wszystkie odpowiedzi
         all_responses = parallel_results + [decider_response]
         
+        # Wyświetl głosy każdego agenta
+        print(f"\n[MULTI-AGENT VOTES] Individual agent decisions:")
+        for response in all_responses:
+            vote_symbol = "✅" if response.decision == "YES" else "❌"
+            print(f"  {vote_symbol} {response.role.value}: {response.decision} (confidence: {response.confidence:.3f})")
+            print(f"     Reasoning: {response.reasoning[:100]}...")
+        
         # Policz głosy
         yes_votes = sum(1 for r in all_responses if r.decision == "YES")
         total_votes = len(all_responses)
@@ -301,9 +312,22 @@ class MultiAgentDecisionSystem:
             avg_confidence, all_responses, is_override
         )
         
-        print(f"[MULTI-AGENT] Decision: {final_decision} (confidence: {avg_confidence:.3f}, votes: {yes_votes}/{total_votes})")
+        # Podsumowanie głosowania
+        print(f"\n[MULTI-AGENT SUMMARY]")
+        print(f"  📊 Final Decision: {final_decision}")
+        print(f"  🗳️ Votes: {yes_votes} YES / {total_votes - yes_votes} NO (needed 3/5 for YES)")
+        print(f"  💪 Average Confidence: {avg_confidence:.3f}")
+        print(f"  🎯 Detector Score: {score:.3f} (threshold: {threshold:.3f})")
+        
         if is_override:
-            print(f"[MULTI-AGENT] ⚡ OVERRIDE ALERT! Agents voted YES despite low score {score:.3f}")
+            print(f"  ⚡ OVERRIDE ALERT! Agents voted YES despite low score {score:.3f}")
+        
+        if final_decision == "YES":
+            print(f"  ✅ ALERT WILL BE TRIGGERED - Majority agents agree to BUY!")
+        else:
+            print(f"  ❌ NO ALERT - Insufficient agent support")
+            
+        print(f"{'='*80}\n")
         
         return final_decision, avg_confidence, detailed_log
     
@@ -401,6 +425,8 @@ class MultiAgentDecisionSystem:
         threshold = context.get('threshold', 0.7)
         market_data = context.get('market_data', {})
         signal_data = context.get('signal_data', {})
+        
+        print(f"[OPENAI API] Calling GPT-4o for {role.value} agent...")
         
         # Create role-specific prompts
         role_prompts = {
