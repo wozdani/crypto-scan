@@ -699,6 +699,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
     # Initialize all variables at function start to prevent UnboundLocalError
     score = 0.0
     active_signals = []
+    signal_details = {}  # Initialize signal_details to store strength values
     data_coverage = 1.0
     alert_threshold = 3.0
     used_signals = []
@@ -1000,9 +1001,16 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     
                     # Analizuj każdy sygnał
                     signal_status = {}
+                    signal_details = {}  # NEW: Store signal strength values
                     
                     for signal in signals:
                         signal_status[signal.name] = getattr(signal, 'active', False)
+                        # Store signal details with strength values
+                        if hasattr(signal, 'active') and signal.active:
+                            signal_details[signal.name] = {
+                                "active": signal.active,
+                                "strength": getattr(signal, 'strength', 0.0)
+                            }
                     
                     # Wyloguj kluczowe sygnały
                     whale_ping = signal_status.get('whale_ping', False)
@@ -2519,6 +2527,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         "score": final_score,
         "stealth_score": final_score,
         "active_signals": active_signals,
+        "signal_details": signal_details if 'signal_details' in locals() else {},  # ADD SIGNAL DETAILS WITH STRENGTH VALUES
         "data_coverage": data_coverage,
         "signal_strength": score,
         "alert_threshold": 0.7,  # Default alert threshold used in scoring

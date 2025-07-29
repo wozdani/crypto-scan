@@ -471,8 +471,29 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 stealth_result = compute_stealth_score(stealth_token_data)
                 print(f"[FLOW DEBUG] {symbol}: compute_stealth_score() completed successfully")
                 
+                # Debug stealth_result structure to find whale_ping strength - ALWAYS log for debugging
+                print(f"[WHALE PING DEBUG] {symbol}: stealth_result keys: {list(stealth_result.keys())}")
+                if "signal_details" in stealth_result:
+                    print(f"[WHALE PING DEBUG] {symbol}: signal_details keys: {list(stealth_result['signal_details'].keys())}")
+                    if "whale_ping" in stealth_result["signal_details"]:
+                        print(f"[WHALE PING DEBUG] {symbol}: whale_ping details: {stealth_result['signal_details']['whale_ping']}")
+                if "used_signals" in stealth_result:
+                    print(f"[WHALE PING DEBUG] {symbol}: used_signals: {stealth_result['used_signals']}")
+                
                 if os.getenv("DEBUG") == "1":
                     print(f"[STEALTH DEBUG] {symbol} → compute_stealth_score() returned: {type(stealth_result)} = {stealth_result}")
+                
+                # 🔧 WHALE_PING_STRENGTH EXTRACTION: Extract whale ping strength from signal_details
+                whale_ping_strength = 0.0
+                if "signal_details" in stealth_result:
+                    signal_details = stealth_result.get("signal_details", {})
+                    if "whale_ping" in signal_details:
+                        whale_ping_strength = signal_details["whale_ping"].get("strength", 0.0)
+                        print(f"[WHALE_PING_EXTRACTION] {symbol}: Successfully extracted whale_ping_strength = {whale_ping_strength}")
+                    else:
+                        print(f"[WHALE_PING_EXTRACTION] {symbol}: No whale_ping in signal_details")
+                else:
+                    print(f"[WHALE_PING_EXTRACTION] {symbol}: No signal_details in stealth_result")
                 
                 # 🔧 SCORE RESET BUG FIX: Prevent score defaulting to 0.0 when stealth engine fails
                 raw_score = stealth_result.get("score")
@@ -526,6 +547,19 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     else:
                         print(f"[EXPLORE DEX FIX] {symbol}: REAL DEX inflow used=${stealth_dex_inflow:.2f} (real_dex_inflow > 0 or no dex_inflow signal)")
 
+                    # Extract whale_ping strength from stealth result signal details
+                    whale_ping_strength = 0.0
+                    signal_details = stealth_result.get("signal_details", {})
+                    if "whale_ping" in signal_details:
+                        whale_ping_strength = signal_details["whale_ping"].get("strength", 0.0)
+                        print(f"[EXPLORE MODE FIX] {symbol}: Extracted whale_ping_strength={whale_ping_strength} from signal_details")
+                    elif "whale_ping" in str(active_signals):
+                        # Fallback: if whale_ping is active but no details, assume strength 1.0
+                        whale_ping_strength = 1.0
+                        print(f"[EXPLORE MODE FIX] {symbol}: whale_ping active, using fallback strength=1.0")
+                    else:
+                        print(f"[EXPLORE MODE FIX] {symbol}: No whale_ping signal detected, strength=0.0")
+
                     # Przygotuj token data dla explore mode z poprawioną wartością DEX inflow
                     explore_token_data = {
                         "trust_addresses": 0,  # Simplified - no trust addresses for new tokens
@@ -533,7 +567,7 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         "whale_memory_entries": 0,
                         "historical_alerts": [],
                         "active_signals": list(active_signals),
-                        "whale_ping_strength": 1.0 if "whale_ping" in str(active_signals) else 0.0,
+                        "whale_ping_strength": whale_ping_strength,  # Use extracted whale ping strength
                         "dex_inflow_usd": stealth_dex_inflow,  # Use corrected DEX inflow value
                         "final_score": stealth_score
                     }
@@ -687,6 +721,7 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 # 🔧 MOCAUSDT FIX 1: Zapisz wyniki w market_data dla przyszłej analizy/feedbacku + stealth_alert_type  
                 market_data["stealth_score"] = stealth_score
                 market_data["stealth_signals"] = active_signals
+                market_data["whale_ping_strength"] = whale_ping_strength  # Add whale ping strength to market data
                 
                 # 🔧 CONSENSUS ENGINE INTEGRATION: Extract consensus data from stealth_result
                 print(f"[CONSENSUS DEBUG] {symbol}: stealth_result keys = {list(stealth_result.keys()) if isinstance(stealth_result, dict) else 'Not a dict'}")

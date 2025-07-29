@@ -142,10 +142,16 @@ class AlertQueueManager:
             scores = self.load_stealth_scores()
             
             # Aktualizuj dane dla tokena
+            # Extract whale_ping strength from signal_details if available
+            signal_details = stealth_result.get("signal_details", {})
+            whale_ping_strength = 0.0
+            if "whale_ping" in signal_details:
+                whale_ping_strength = signal_details["whale_ping"].get("strength", 0.0)
+            
             scores[token] = {
                 "score": stealth_result.get("score", 0.0),
                 "dex_inflow": stealth_result.get("dex_inflow", 0.0),
-                "whale_ping": stealth_result.get("whale_ping", 0.0),
+                "whale_ping": whale_ping_strength,  # Use extracted whale_ping strength
                 "identity_boost": stealth_result.get("identity_boost", 0.0),
                 "trust_boost": stealth_result.get("trust_boost", 0.0),
                 "timestamp": datetime.now().isoformat(),
