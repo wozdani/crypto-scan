@@ -2202,15 +2202,27 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 print(f"[WHALECLIP LEARNING] {symbol}: {whaleclip_final_score:.3f} → {adapted_whaleclip_score:.3f} ({adaptation_reason})")
                 print(f"[WHALECLIP CONSENSUS FIX] {symbol}: Combined score={whaleclip_final_score:.3f} (whale_signals={whale_signal_strength:.3f} + blockchain={whaleclip_score:.3f}), vote={clip_vote}")
             
-            # Run consensus decision if we have detectors
+            # Run consensus decision if we have detectors with score >= 0.6
             print(f"[CONSENSUS DEBUG] {symbol}: Total detector outputs: {len(detector_outputs)}")
             print(f"[CONSENSUS DEBUG] {symbol}: Detector outputs: {list(detector_outputs.keys())}")
             
-            if len(detector_outputs) >= 1:  # Changed from >= 2 to >= 1 to allow single detector consensus
+            # Filter detector outputs to only include those with score >= 0.6
+            filtered_detector_outputs = {}
+            for detector_name, detector_data in detector_outputs.items():
+                detector_score = detector_data.get("score", 0.0)
+                if detector_score >= 0.6:
+                    filtered_detector_outputs[detector_name] = detector_data
+                    print(f"[CONSENSUS FILTER] {symbol}: {detector_name} included (score={detector_score:.3f} >= 0.6)")
+                else:
+                    print(f"[CONSENSUS FILTER] {symbol}: {detector_name} excluded (score={detector_score:.3f} < 0.6)")
+            
+            print(f"[CONSENSUS DEBUG] {symbol}: Filtered detector outputs: {len(filtered_detector_outputs)} (from {len(detector_outputs)})")
+            
+            if len(filtered_detector_outputs) >= 1:  # Changed from >= 2 to >= 1 to allow single detector consensus
                 # Create consensus engine - multi-agent is now primary system
                 consensus_engine = create_decision_consensus_engine()
                 consensus_result = consensus_engine.simulate_decision_consensus(
-                    detector_outputs, 
+                    filtered_detector_outputs,  # Use filtered outputs with score >= 0.6
                     threshold=0.7, 
                     token=symbol,
                     market_data=token_data  # Pass market data for multi-agent context
@@ -2221,7 +2233,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 if hasattr(consensus_result, 'votes') and consensus_result.votes:
                     votes_list = consensus_result.votes
                 else:
-                    votes_list = [f"{det}: {data['vote']}" for det, data in detector_outputs.items()]
+                    votes_list = [f"{det}: {data['vote']}" for det, data in filtered_detector_outputs.items()]
                 
                 consensus_data = {
                     "decision": final_decision,
