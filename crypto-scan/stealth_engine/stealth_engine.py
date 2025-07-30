@@ -2470,6 +2470,51 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 consensus_result = None
                 final_score = 0.0
 
+    # 🧠 ENHANCED RL INTEGRATION - DQN + RLAgentV3 ON EVERY QUALIFIED TOKEN (MOVED TO MAIN EXECUTION FLOW)
+    print(f"[ENHANCED RL ENTRY] {symbol}: Entering Enhanced RL section - this proves the code is reachable!")
+    enhanced_rl_decision = None
+    enhanced_rl_data = None
+    
+    print(f"[ENHANCED RL DEBUG] {symbol}: ENHANCED_RL_AVAILABLE={ENHANCED_RL_AVAILABLE}, skip_reason={skip_reason}, score={score}")
+    print(f"[ENHANCED RL DEBUG] {symbol}: Enhanced RL section reached in MAIN EXECUTION FLOW!")
+    print(f"[ENHANCED RL DEBUG] {symbol}: Condition check - ENHANCED_RL_AVAILABLE={ENHANCED_RL_AVAILABLE} AND score={score} > 0.0 = {ENHANCED_RL_AVAILABLE and score > 0.0}")
+    
+    if ENHANCED_RL_AVAILABLE and score > 0.0:  # Process any token with score > 0
+        try:
+            print(f"[ENHANCED RL] Processing {symbol} with unified RL intelligence...")
+            
+            # Prepare stealth data dla Enhanced RL
+            stealth_data = {
+                'score': score,
+                'diamond_score': diamond_score if 'diamond_score' in locals() else 0.0,
+                'whaleclip_score': whaleclip_score if 'whaleclip_score' in locals() else 0.0,
+                'dex_inflow': locals().get('dex_inflow_value', 0.0),
+                'whale_ping': whale_ping_score if 'whale_ping_score' in locals() else 0.0,
+                'volume_spike': 1.0 if any('volume_spike' in sig for sig in used_signals) else 0.0,
+                'consensus_decision': final_decision if 'final_decision' in locals() else 'WATCH',
+                'consensus_confidence': consensus_data.get('confidence', 0.0) if 'consensus_data' in locals() and consensus_data else 0.0
+            }
+            
+            # Market data dla context
+            market_data = {
+                'price': token_data.get('price_usd', 0.0),
+                'volume': token_data.get('volume_24h', 0.0),
+                'volatility': 0.2,  # Default volatility estimate
+                'trend': 0.0  # Neutral trend default
+            }
+            
+            # Process z Enhanced RL system
+            enhanced_rl_data = process_stealth_with_enhanced_rl(symbol, stealth_data, market_data)
+            enhanced_rl_decision = enhanced_rl_data['decision']
+            
+            # Log Enhanced RL results
+            print(f"[ENHANCED RL RESULT] {symbol}: Decision={enhanced_rl_decision}, RL Score={enhanced_rl_data['weighted_score']:.3f}, Threshold={enhanced_rl_data['adaptive_threshold']:.3f}")
+            
+        except Exception as enhanced_rl_error:
+            print(f"[ENHANCED RL ERROR] {symbol}: {enhanced_rl_error}")
+            enhanced_rl_decision = None
+            enhanced_rl_data = None
+
     # 🚨 STEALTH V3 TELEGRAM ALERT SYSTEM - ENHANCED RL CONSENSUS-BASED ALERTS
     alert_threshold = 0.70
     if ENHANCED_RL_AVAILABLE and enhanced_rl_data:
@@ -2514,48 +2559,6 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             print(f"[STEALTH V3 ENHANCED ALERT ERROR] {symbol}: {alert_error}")
     else:
         print(f"[ALERT SKIP] {symbol}: Decision={final_decision}, Score={alert_score:.3f}, Threshold={alert_threshold:.3f} - not eligible for alert")
-
-    # 🧠 ENHANCED RL INTEGRATION - DQN + RLAgentV3 ON EVERY QUALIFIED TOKEN
-    enhanced_rl_decision = None
-    enhanced_rl_data = None
-    
-    print(f"[DEBUG RL CHECK] {symbol}: ENHANCED_RL_AVAILABLE={ENHANCED_RL_AVAILABLE}, skip_reason={skip_reason}, score={score}")
-    
-    if ENHANCED_RL_AVAILABLE and not skip_reason and score > 0.0:  # Process any token with score > 0
-        try:
-            print(f"[ENHANCED RL] Processing {symbol} with unified RL intelligence...")
-            
-            # Prepare stealth data dla Enhanced RL
-            stealth_data = {
-                'score': score,
-                'diamond_score': diamond_score if 'diamond_score' in locals() else 0.0,
-                'whaleclip_score': whaleclip_score if 'whaleclip_score' in locals() else 0.0,
-                'dex_inflow': locals().get('dex_inflow_value', 0.0),
-                'whale_ping': whale_ping_score if 'whale_ping_score' in locals() else 0.0,
-                'volume_spike': 1.0 if any('volume_spike' in sig for sig in used_signals) else 0.0,
-                'consensus_decision': final_decision if 'final_decision' in locals() else 'WATCH',
-                'consensus_confidence': consensus_data.get('confidence', 0.0) if 'consensus_data' in locals() and consensus_data else 0.0
-            }
-            
-            # Market data dla context
-            market_data = {
-                'price': token_data.get('price_usd', 0.0),
-                'volume': token_data.get('volume_24h', 0.0),
-                'volatility': 0.2,  # Default volatility estimate
-                'trend': 0.0  # Neutral trend default
-            }
-            
-            # Process z Enhanced RL system
-            enhanced_rl_data = process_stealth_with_enhanced_rl(symbol, stealth_data, market_data)
-            enhanced_rl_decision = enhanced_rl_data['decision']
-            
-            # Log Enhanced RL results
-            print(f"[ENHANCED RL RESULT] {symbol}: Decision={enhanced_rl_decision}, RL Score={enhanced_rl_data['weighted_score']:.3f}, Threshold={enhanced_rl_data['adaptive_threshold']:.3f}")
-            
-        except Exception as enhanced_rl_error:
-            print(f"[ENHANCED RL ERROR] {symbol}: {enhanced_rl_error}")
-            enhanced_rl_decision = None
-            enhanced_rl_data = None
 
     # Final return with all stealth components + consensus integration + Enhanced RL
     result = {
@@ -2619,7 +2622,9 @@ def analyze_token_with_stealth_score(symbol: str, token_data: Dict) -> Dict:
     """
     try:
         # Oblicz stealth score
+        print(f"[FLOW DEBUG] {symbol}: About to call compute_stealth_score()...")
         stealth_result = compute_stealth_score(token_data)
+        print(f"[FLOW DEBUG] {symbol}: compute_stealth_score() completed, result keys: {list(stealth_result.keys())}")
         
         # === STAGE 3/7: DIAMOND DECISION INTEGRATION ===
         # Przygotuj scores dla Diamond Decision Engine
