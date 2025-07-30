@@ -24,6 +24,22 @@ from .stealth_feedback import StealthFeedbackSystem
 from .diamond_detector import run_diamond_detector
 from .consensus_decision_engine import ConsensusStrategy
 
+# Enhanced RL Integration  
+try:
+    import sys
+    import os
+    # Add parent directory to Python path for Enhanced RL imports
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if parent_dir not in sys.path:
+        sys.path.insert(0, parent_dir)
+    
+    from enhanced_rl_integration import process_stealth_with_enhanced_rl, get_enhanced_rl_system
+    ENHANCED_RL_AVAILABLE = True
+    print("[ENHANCED RL] Deep Q-Network + RLAgentV3 system available")
+except ImportError as e:
+    print(f"[ENHANCED RL WARNING] Enhanced RL system not available: {e}")
+    ENHANCED_RL_AVAILABLE = False
+
 # CaliforniumWhale AI imports
 try:
     from stealth.californium.californium_whale_detect import CaliforniumTGN
@@ -1842,11 +1858,11 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     }
                     
                     # Dodaj informacje o błędach jeśli wystąpiły - STAGE 10 FIX: Safe variable access
-                    if diamond_error and 'result' in locals():
+                    if 'diamond_error' in locals() and diamond_error and 'result' in locals():
                         result["diamond_error"] = diamond_error
-                    if californium_error and 'result' in locals():
+                    if 'californium_error' in locals() and californium_error and 'result' in locals():
                         result["californium_error"] = californium_error
-                    if consensus_error and 'result' in locals():
+                    if 'consensus_error' in locals() and consensus_error and 'result' in locals():
                         result["consensus_error"] = consensus_error
                     
                     # Original location dla explore mode logic przeniesiony na lepsze miejsce
@@ -2454,43 +2470,94 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 consensus_result = None
                 final_score = 0.0
 
-    # 🚨 STEALTH V3 TELEGRAM ALERT SYSTEM - CONSENSUS-BASED ALERTS
-    if final_decision == "BUY" and score >= 0.70:
-        print(f"[ALERT ELIGIBLE] {symbol}: Consensus={final_decision}, Score={score:.3f} - preparing alert")
+    # 🚨 STEALTH V3 TELEGRAM ALERT SYSTEM - ENHANCED RL CONSENSUS-BASED ALERTS
+    alert_threshold = 0.70
+    if ENHANCED_RL_AVAILABLE and enhanced_rl_data:
+        # Use Enhanced RL adaptive threshold
+        alert_threshold = enhanced_rl_data['adaptive_threshold']
+        alert_score = enhanced_rl_data['weighted_score']
+    else:
+        alert_score = score
+    
+    if final_decision == "BUY" and alert_score >= alert_threshold:
+        print(f"[ALERT ELIGIBLE] {symbol}: Decision={final_decision}, Score={alert_score:.3f}, Threshold={alert_threshold:.3f} - preparing alert")
         
         try:
             from alerts.stealth_v3_telegram_alerts import send_stealth_v3_alert
             
-            # Prepare detector_results for alert system
+            # Prepare enhanced detector_results
             detector_results = {
-                "whale_ping": min(score / 4.0, 1.0),
+                "whale_ping": min(alert_score / 4.0, 1.0),
                 "dex_inflow": dex_inflow_score if 'dex_inflow_score' in locals() else 0.0,
                 "orderbook_anomaly": 0.0,  # Default
                 "whaleclip_vision": whaleclip_final_score if 'whaleclip_final_score' in locals() else 0.0,
                 "mastermind_tracing": californium_score if 'californium_score' in locals() else 0.0,
-                "diamond_ai": diamond_score if 'diamond_score' in locals() else 0.0
+                "diamond_ai": diamond_score if 'diamond_score' in locals() else 0.0,
+                "enhanced_rl_score": enhanced_rl_data['weighted_score'] if enhanced_rl_data else 0.0
             }
             
             alert_sent = send_stealth_v3_alert(
                 symbol=symbol,
-                score=score,
+                score=alert_score,
                 detector_results=detector_results,
                 market_data=token_data,
                 consensus_data=consensus_data,
-                alert_type="stealth_alert"
+                alert_type="enhanced_stealth_alert"
             )
             
             if alert_sent:
-                print(f"[STEALTH V3 ALERT SUCCESS] {symbol}: Alert sent with consensus BUY")
+                print(f"[STEALTH V3 ENHANCED ALERT SUCCESS] {symbol}: Alert sent with Enhanced RL decision {final_decision}")
             else:
-                print(f"[STEALTH V3 ALERT FAILED] {symbol}: Failed to send alert")
+                print(f"[STEALTH V3 ENHANCED ALERT FAILED] {symbol}: Failed to send alert")
                 
         except Exception as alert_error:
-            print(f"[STEALTH V3 ALERT ERROR] {symbol}: {alert_error}")
+            print(f"[STEALTH V3 ENHANCED ALERT ERROR] {symbol}: {alert_error}")
     else:
-        print(f"[ALERT SKIP] {symbol}: Decision={final_decision}, Score={score:.3f} - not eligible for alert")
+        print(f"[ALERT SKIP] {symbol}: Decision={final_decision}, Score={alert_score:.3f}, Threshold={alert_threshold:.3f} - not eligible for alert")
 
-    # Final return with all stealth components + consensus integration
+    # 🧠 ENHANCED RL INTEGRATION - DQN + RLAgentV3 ON EVERY QUALIFIED TOKEN
+    enhanced_rl_decision = None
+    enhanced_rl_data = None
+    
+    print(f"[DEBUG RL CHECK] {symbol}: ENHANCED_RL_AVAILABLE={ENHANCED_RL_AVAILABLE}, skip_reason={skip_reason}, score={score}")
+    
+    if ENHANCED_RL_AVAILABLE and not skip_reason and score > 0.0:  # Process any token with score > 0
+        try:
+            print(f"[ENHANCED RL] Processing {symbol} with unified RL intelligence...")
+            
+            # Prepare stealth data dla Enhanced RL
+            stealth_data = {
+                'score': score,
+                'diamond_score': diamond_score if 'diamond_score' in locals() else 0.0,
+                'whaleclip_score': whaleclip_score if 'whaleclip_score' in locals() else 0.0,
+                'dex_inflow': locals().get('dex_inflow_value', 0.0),
+                'whale_ping': whale_ping_score if 'whale_ping_score' in locals() else 0.0,
+                'volume_spike': 1.0 if any('volume_spike' in sig for sig in used_signals) else 0.0,
+                'consensus_decision': final_decision if 'final_decision' in locals() else 'WATCH',
+                'consensus_confidence': consensus_data.get('confidence', 0.0) if 'consensus_data' in locals() and consensus_data else 0.0
+            }
+            
+            # Market data dla context
+            market_data = {
+                'price': token_data.get('price_usd', 0.0),
+                'volume': token_data.get('volume_24h', 0.0),
+                'volatility': 0.2,  # Default volatility estimate
+                'trend': 0.0  # Neutral trend default
+            }
+            
+            # Process z Enhanced RL system
+            enhanced_rl_data = process_stealth_with_enhanced_rl(symbol, stealth_data, market_data)
+            enhanced_rl_decision = enhanced_rl_data['decision']
+            
+            # Log Enhanced RL results
+            print(f"[ENHANCED RL RESULT] {symbol}: Decision={enhanced_rl_decision}, RL Score={enhanced_rl_data['weighted_score']:.3f}, Threshold={enhanced_rl_data['adaptive_threshold']:.3f}")
+            
+        except Exception as enhanced_rl_error:
+            print(f"[ENHANCED RL ERROR] {symbol}: {enhanced_rl_error}")
+            enhanced_rl_decision = None
+            enhanced_rl_data = None
+
+    # Final return with all stealth components + consensus integration + Enhanced RL
     result = {
         "score": score,
         "final_score": final_score,
@@ -2505,6 +2572,9 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         "consensus_decision": final_decision,
         "consensus_confidence": consensus_data.get('confidence', 0.0) if consensus_data else 0.0,
         "consensus_votes": consensus_data.get('votes', []) if consensus_data else [],
+        "enhanced_rl_available": ENHANCED_RL_AVAILABLE,
+        "enhanced_rl_decision": enhanced_rl_decision,
+        "enhanced_rl_data": enhanced_rl_data,
         "skip_reason": skip_reason
     }
     
