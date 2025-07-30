@@ -2046,342 +2046,11 @@ def compute_stealth_score(token_data: Dict) -> Dict:
 
     # (OLD EXPLORE MODE LOGIC REMOVED - MOVED TO PROPER POSITION BEFORE EARLY RETURNS)
     
-    # 🧠 NEW UNIFIED CONSENSUS DECISION ENGINE - BUY/HOLD/AVOID Decisions
-    # Initialize consensus variables that will be used in final return
-    final_decision = "WATCH"  # Default fallback
-    consensus_data = None
-    consensus_result = None
-    consensus_error = None
-    final_score = score  # Default to stealth score
-    
-    # Initialize skip_reason if not defined
-    if 'skip_reason' not in locals():
-        skip_reason = None
-    
-    # Check if consensus was already computed in main try block
-    if 'stored_consensus_data' in locals():
-        # Use stored consensus data from main try block
-        final_decision = stored_final_decision
-        consensus_data = stored_consensus_data
-        consensus_result = stored_consensus_result
-        print(f"[CONSENSUS RESTORE] {symbol}: Using stored consensus data - decision={final_decision}")
-    else:
-        # 🚨 CONSENSUS ENGINE RUNS FOR ALL TOKENS - EVEN WITH SKIP_REASON
-        # This ensures all tokens get proper multi-agent evaluation
-        print(f"[CONSENSUS COMPUTING] {symbol}: Running consensus engine for token (skip_reason={skip_reason})")
-        
-        try:
-            from .decision_consensus import create_decision_consensus_engine
-            from .detector_learning_system import adapt_detector_score, record_detector_decision
-            
-            # Prepare detector outputs for consensus system
-            detector_outputs = {}
-            
-            # Initialize missing variables if needed
-            if 'market_data' not in locals():
-                market_data = token_data
-            if 'used_signals' not in locals():
-                used_signals = active_signals if 'active_signals' in locals() else []
-            
-            # StealthEngine (Classic Stealth Signals) + SELF-LEARNING ADAPTATION
-            if score > 0.0:
-                # Apply intelligent self-learning score adaptation
-                adapted_stealth_score, adaptation_reason = adapt_detector_score(
-                    "StealthEngine", score, symbol, market_data
-                )
-                
-                stealth_vote = "BUY" if adapted_stealth_score > 2.0 else ("HOLD" if adapted_stealth_score > 1.0 else "AVOID")
-                detector_outputs["StealthEngine"] = {
-                    "vote": stealth_vote,
-                    "score": adapted_stealth_score,  # Use adapted score for multi-agent evaluation
-                    "confidence": min(data_coverage, 1.0) if 'data_coverage' in locals() else 0.8,
-                    "weight": 0.25
-                }
-                
-                # Record decision for future learning
-                record_detector_decision(
-                    "StealthEngine", symbol, score, adapted_stealth_score, 
-                    stealth_vote, explore_mode=False, market_context=market_data
-                )
-                
-                print(f"[STEALTH LEARNING] {symbol}: {score:.3f} → {adapted_stealth_score:.3f} ({adaptation_reason})")
-            
-            # CaliforniumWhale AI + SELF-LEARNING ADAPTATION
-            # Extract detector scores from function-level variables that are computed above
-            # Get detector scores from existing computation above
-            californium_score = californium_final_score if 'californium_final_score' in locals() else 0.0
-            diamond_score = diamond_final_score if 'diamond_final_score' in locals() else 0.0
-            whaleclip_score = whaleclip_final_score if 'whaleclip_final_score' in locals() else 0.0
-            
-            # score and active_signals should already be available from stealth computation
-            if 'active_signals' not in locals():
-                active_signals = []
-            if 'data_coverage' not in locals():
-                data_coverage = 1.0
-                
-            print(f"[CONSENSUS DATA EXTRACT] {symbol}: Using computed detector scores - californium={californium_score:.3f}, diamond={diamond_score:.3f}, whaleclip={whaleclip_score:.3f}, stealth={score:.3f}")
-            
-            if californium_score > 0.0:
-                # Apply intelligent self-learning score adaptation
-                adapted_californium_score, adaptation_reason = adapt_detector_score(
-                    "CaliforniumWhale", californium_score, symbol, market_data
-                )
-                
-                calif_vote = "BUY" if adapted_californium_score > 0.7 else ("HOLD" if adapted_californium_score > 0.4 else "AVOID")
-                detector_outputs["CaliforniumWhale"] = {
-                    "vote": calif_vote,
-                    "score": adapted_californium_score,
-                    "confidence": 0.85,
-                    "weight": 0.33
-                }
-                
-                # Record decision for future learning
-                record_detector_decision(
-                    "CaliforniumWhale", symbol, californium_score, adapted_californium_score, 
-                    calif_vote, explore_mode=False, market_context=market_data
-                )
-                
-                print(f"[CALIFORNIUM LEARNING] {symbol}: {californium_score:.3f} → {adapted_californium_score:.3f} ({adaptation_reason})")
-            
-            # DiamondWhale AI + SELF-LEARNING ADAPTATION
-            if diamond_score > 0.0:
-                # Apply intelligent self-learning score adaptation
-                adapted_diamond_score, adaptation_reason = adapt_detector_score(
-                    "DiamondWhale", diamond_score, symbol, market_data
-                )
-                
-                diamond_vote = "BUY" if adapted_diamond_score > 0.6 else ("HOLD" if adapted_diamond_score > 0.3 else "AVOID")
-                detector_outputs["DiamondWhale"] = {
-                    "vote": diamond_vote,
-                    "score": adapted_diamond_score,
-                    "confidence": 0.80,
-                    "weight": 0.25
-                }
-                
-                # Record decision for future learning
-                record_detector_decision(
-                    "DiamondWhale", symbol, diamond_score, adapted_diamond_score, 
-                    diamond_vote, explore_mode=False, market_context=market_data
-                )
-                
-                print(f"[DIAMOND LEARNING] {symbol}: {diamond_score:.3f} → {adapted_diamond_score:.3f} ({adaptation_reason})")
-            
-            # WhaleCLIP - Get whale signal strength from active_signals
-            whale_signal_strength = 0.0
-            if 'active_signals' in locals() and active_signals:
-                # active_signals is a list of signal names, not signal objects
-                # Check if whale signals are active
-                for signal_name in active_signals:
-                    if signal_name in ["whale_ping", "whale_ping_real", "whale_ping_real_repeat"]:
-                        # Assume strength of 3.0 for active whale signals (as per stealth signal logic)
-                        whale_signal_strength = 3.0
-                        break
-            
-            # Use whale signal strength OR blockchain WhaleCLIP score for status
-            whaleclip_final_score = max(whale_signal_strength, whaleclip_score)
-            
-            if whaleclip_final_score > 0.0:
-                # Apply intelligent self-learning score adaptation for WhaleCLIP
-                adapted_whaleclip_score, adaptation_reason = adapt_detector_score(
-                    "WhaleCLIP", whaleclip_final_score, symbol, market_data
-                )
-                
-                clip_vote = "BUY" if adapted_whaleclip_score > 0.8 else ("HOLD" if adapted_whaleclip_score > 0.5 else "AVOID")
-                detector_outputs["WhaleCLIP"] = {
-                    "vote": clip_vote,
-                    "score": adapted_whaleclip_score,  # Use adapted score for voting
-                    "confidence": 0.75,
-                    "weight": 0.26
-                }
-                
-                # Record decision for future learning
-                record_detector_decision(
-                    "WhaleCLIP", symbol, whaleclip_final_score, adapted_whaleclip_score, 
-                    clip_vote, explore_mode=False, market_context=market_data
-                )
-                
-                print(f"[WHALECLIP LEARNING] {symbol}: {whaleclip_final_score:.3f} → {adapted_whaleclip_score:.3f} ({adaptation_reason})")
-                print(f"[WHALECLIP CONSENSUS FIX] {symbol}: Combined score={whaleclip_final_score:.3f} (whale_signals={whale_signal_strength:.3f} + blockchain={whaleclip_score:.3f}), vote={clip_vote}")
-            
-            # Run consensus decision if we have detectors with score >= 0.6
-            print(f"[CONSENSUS DEBUG] {symbol}: Total detector outputs: {len(detector_outputs)}")
-            print(f"[CONSENSUS DEBUG] {symbol}: Detector outputs: {list(detector_outputs.keys())}")
-            
-            # TESTING: Temporarily removed score >= 0.6 filter for consensus voting
-            # Include ALL detectors regardless of score (as requested by user for testing)
-            filtered_detector_outputs = {}
-            for detector_name, detector_data in detector_outputs.items():
-                detector_score = detector_data.get("score", 0.0)
-                filtered_detector_outputs[detector_name] = detector_data
-                print(f"[CONSENSUS FILTER] {symbol}: {detector_name} included (score={detector_score:.3f}) - NO FILTER FOR TESTING")
-            
-            print(f"[CONSENSUS DEBUG] {symbol}: ALL detector outputs included: {len(filtered_detector_outputs)} (testing mode - no score filter)")
-            
-            if len(filtered_detector_outputs) >= 1:  # Changed from >= 2 to >= 1 to allow single detector consensus
-                # Create consensus engine - multi-agent is now primary system
-                consensus_engine = create_decision_consensus_engine()
-                print(f"[CONSENSUS CALLING] {symbol}: Calling consensus engine with {len(filtered_detector_outputs)} detectors")
-                print(f"[CONSENSUS CALLING] {symbol}: Multi-agent enabled: {consensus_engine.enable_multi_agent}")
-                print(f"[CONSENSUS CALLING] {symbol}: Market data available: {token_data is not None}")
-                
-                consensus_decision_result = consensus_engine.run(
-                    token=symbol,
-                    scores=filtered_detector_outputs,  # Use filtered outputs with score >= 0.6
-                    strategy=ConsensusStrategy.WEIGHTED_AVERAGE,
-                    market_data=token_data  # Pass market data for multi-agent context
-                )
-                consensus_result = consensus_decision_result  # Assign to outer scope variable
-                
-                final_decision = consensus_decision_result.decision
-                # Use votes from consensus_result if available (multi-agent), otherwise format from detector_outputs
-                if hasattr(consensus_decision_result, 'votes') and consensus_decision_result.votes:
-                    votes_list = consensus_decision_result.votes
-                else:
-                    votes_list = [f"{det}: {data['vote']}" for det, data in filtered_detector_outputs.items()]
-                
-                consensus_data = {
-                    "decision": final_decision,
-                    "votes": votes_list,
-                    "confidence": consensus_decision_result.confidence,
-                    "final_score": consensus_decision_result.final_score,
-                    "threshold_met": consensus_decision_result.threshold_met,
-                    "contributing_detectors": consensus_decision_result.contributing_detectors
-                }
-                
-                print(f"[CONSENSUS COMPLETE] {symbol}: Decision={final_decision}, Score={consensus_decision_result.final_score:.3f}, Confidence={consensus_decision_result.confidence:.3f}")
-                
-                # Store consensus data for later use in alert system
-                stored_consensus_data = consensus_data
-                stored_consensus_result = consensus_decision_result
-            else:
-                # No detectors available - use simple fallback
-                print(f"[CONSENSUS FALLBACK] {symbol}: No detectors available, using simple score-based decision")
-                
-                if score > 2.0:
-                    final_decision = "BUY"
-                elif score > 1.0:
-                    final_decision = "HOLD"
-                else:
-                    final_decision = "WATCH"
-                    
-                consensus_data = {
-                    "decision": final_decision,
-                    "votes": [],
-                    "confidence": min(score / 4.0, 1.0),
-                    "final_score": score,
-                    "threshold_met": score > 2.0,
-                    "contributing_detectors": ["stealth_fallback"]
-                }
-                
-                # Store consensus data for later use in alert system
-                stored_consensus_data = consensus_data
-                stored_consensus_result = None  # No consensus engine result in fallback mode
-                
-        except ImportError:
-            print(f"[CONSENSUS IMPORT ERROR] {symbol}: Using simplified fallback logic")
-            # Simplified fallback logic
-            if score > 2.0:
-                final_decision = "BUY"
-            elif score > 1.0:
-                final_decision = "HOLD"
-            else:
-                final_decision = "WATCH"
-                
-            consensus_data = {
-                "decision": final_decision,
-                "votes": ["fallback_mode"],
-                "confidence": min(score / 4.0, 1.0),
-                "final_score": score,
-                "threshold_met": score > 2.0,
-                "contributing_detectors": ["stealth_fallback"]
-            }
-            
-            # Store consensus data for later use in alert system
-            stored_consensus_data = consensus_data
-            stored_consensus_result = None  # No consensus engine result in fallback mode
-            
-        except Exception as e:
-            print(f"[CONSENSUS ERROR] {symbol}: Exception in consensus engine: {e}")
-            consensus_error = str(e)
-            
-            final_decision = "WATCH"
-            consensus_data = {
-                "decision": "WATCH",
-                "votes": [],
-                "confidence": 0.0,
-                "final_score": 0.0,
-                "threshold_met": False,
-                "contributing_detectors": []
-            }
-            
-            # Store consensus data for later use in alert system
-            stored_consensus_data = consensus_data
-            stored_consensus_result = None  # No consensus engine result in error mode
-    
-    # Update final_score if consensus has a valid score
-    if consensus_result and hasattr(consensus_result, 'final_score') and consensus_result.final_score > 0:
-        final_score = consensus_result.final_score
-    elif consensus_data and consensus_data.get('final_score', 0) > 0:
-        final_score = consensus_data.get('final_score')
-    
-    print(f"[CONSENSUS FINAL] {symbol}: Decision={final_decision}, Score={final_score:.3f}")
-    
-    # 🚨 STEALTH V3 TELEGRAM ALERT SYSTEM - CONSENSUS-BASED ALERTS
-    # Now we have consensus data, check if alert should be triggered
-    if final_decision == "BUY" and score >= 0.70:
-        print(f"[ALERT ELIGIBLE] {symbol}: Consensus={final_decision}, Score={score:.3f} - preparing alert")
-        
-        try:
-            from alerts.stealth_v3_telegram_alerts import send_stealth_v3_alert
-            
-            # Prepare detector_results for alert system
-            detector_results = {}
-            
-            # Map consensus detectors to alert format
-            if consensus_data and "contributing_detectors" in consensus_data:
-                for detector in consensus_data["contributing_detectors"]:
-                    if detector == "StealthEngine":
-                        detector_results["whale_ping"] = min(score / 4.0, 1.0)
-                    elif detector == "CaliforniumWhale":
-                        detector_results["mastermind_tracing"] = californium_score if 'californium_score' in locals() and californium_score > 0 else 0.0
-                    elif detector == "DiamondWhale": 
-                        detector_results["diamond_ai"] = diamond_score if 'diamond_score' in locals() and diamond_score > 0 else 0.0
-                    elif detector == "WhaleCLIP":
-                        detector_results["whaleclip_vision"] = whaleclip_final_score if 'whaleclip_final_score' in locals() else 0.0
-            
-            # Ensure required detector fields exist
-            required_detectors = ["whale_ping", "dex_inflow", "orderbook_anomaly", "whaleclip_vision", "mastermind_tracing"]
-            for detector in required_detectors:
-                if detector not in detector_results:
-                    detector_results[detector] = 0.0
-            
-            # Add signal scores for compatibility
-            if 'signals' in locals():
-                for signal in signals:
-                    if hasattr(signal, 'active') and signal.active and hasattr(signal, 'strength'):
-                        if signal.name == "dex_inflow":
-                            detector_results["dex_inflow"] = signal.strength
-                        elif signal.name == "orderbook_imbalance":
-                            detector_results["orderbook_anomaly"] = signal.strength
-            
-            alert_sent = send_stealth_v3_alert(
-                symbol=symbol,
-                score=score,
-                detector_results=detector_results,
-                market_data=token_data,
-                consensus_data=consensus_data,
-                alert_type="stealth_alert"
-            )
-            
-            if alert_sent:
-                print(f"[STEALTH V3 ALERT SUCCESS] {symbol}: Alert sent with consensus BUY")
-            else:
-                print(f"[STEALTH V3 ALERT FAILED] {symbol}: Failed to send alert")
-                
-        except Exception as alert_error:
-            print(f"[STEALTH V3 ALERT ERROR] {symbol}: {alert_error}")
-    else:
-        print(f"[ALERT SKIP] {symbol}: Decision={final_decision}, Score={score:.3f} - not eligible for alert")
+    # (REMOVED FIRST CONSENSUS CODE - MOVING TO PROPER LOCATION)
+
+
+
+
     
     # 🚧 EXPLORE MODE ANALYSIS - MUST RUN FOR ALL TOKENS REGARDLESS OF SKIP_REASON
     # This section executes for ALL tokens regardless of skip_reason or score
@@ -2512,8 +2181,11 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         explore_confidence = 0.0
         explore_trigger_reason = "error"
     
+    # (DUPLICATE CONSENSUS CODE REMOVED - USING THE PROPER VERSION BELOW)
+
+
+    
     # 🧠 NEW UNIFIED CONSENSUS DECISION ENGINE - BUY/HOLD/AVOID Decisions
-    # CRITICAL: Run consensus BEFORE any early returns
     # Initialize consensus variables that will be used in final return
     final_decision = "WATCH"  # Default fallback
     consensus_data = None
@@ -2521,166 +2193,203 @@ def compute_stealth_score(token_data: Dict) -> Dict:
     consensus_error = None
     final_score = score  # Default to stealth score
     
-    # 🚨 CONSENSUS ENGINE RUNS FOR ALL TOKENS
-    print(f"[CONSENSUS COMPUTING] {symbol}: Running consensus engine for token with score={score:.3f}")
+    # Initialize skip_reason if not defined
+    if 'skip_reason' not in locals():
+        skip_reason = None
     
-    try:
-        from .decision_consensus import create_decision_consensus_engine
-        from .detector_learning_system import adapt_detector_score, record_detector_decision
+    # Check if consensus was already computed in main try block
+    if 'stored_consensus_data' in locals():
+        # Use stored consensus data from main try block
+        final_decision = stored_final_decision
+        consensus_data = stored_consensus_data
+        consensus_result = stored_consensus_result
+        print(f"[CONSENSUS RESTORE] {symbol}: Using stored consensus data - decision={final_decision}")
+    else:
+        # 🚨 CONSENSUS ENGINE RUNS FOR ALL TOKENS - EVEN WITH SKIP_REASON
+        # This ensures all tokens get proper multi-agent evaluation
+        print(f"[CONSENSUS COMPUTING] {symbol}: Running consensus engine for token (skip_reason={skip_reason})")
         
-        # Prepare detector outputs for consensus system
-        detector_outputs = {}
-        
-        # Initialize missing variables if needed
-        if 'market_data' not in locals():
-            market_data = token_data
-        if 'active_signals' not in locals():
-            active_signals = []
-        
-        # Get detector scores from existing computation above
-        californium_score = californium_final_score if 'californium_final_score' in locals() else 0.0
-        diamond_score = diamond_final_score if 'diamond_final_score' in locals() else 0.0
-        whaleclip_score = whaleclip_final_score if 'whaleclip_final_score' in locals() else 0.0
-        
-        print(f"[CONSENSUS DATA EXTRACT] {symbol}: Using computed detector scores - californium={californium_score:.3f}, diamond={diamond_score:.3f}, whaleclip={whaleclip_score:.3f}, stealth={score:.3f}")
-        
-        # StealthEngine (Classic Stealth Signals) + SELF-LEARNING ADAPTATION
-        if score > 0.0:
-            # Apply intelligent self-learning score adaptation
-            adapted_stealth_score, adaptation_reason = adapt_detector_score(
-                "StealthEngine", score, symbol, market_data
-            )
+        try:
+            from .decision_consensus import create_decision_consensus_engine
+            from .detector_learning_system import adapt_detector_score, record_detector_decision
             
-            stealth_vote = "BUY" if adapted_stealth_score > 2.0 else ("HOLD" if adapted_stealth_score > 1.0 else "AVOID")
-            detector_outputs["StealthEngine"] = {
-                "vote": stealth_vote,
-                "score": adapted_stealth_score,  # Use adapted score for multi-agent evaluation
-                "confidence": min(data_coverage, 1.0) if 'data_coverage' in locals() else 0.8,
-                "weight": 0.25
-            }
+            # AI DETECTORS INTEGRATION FOR CONSENSUS VOTING
+            detector_outputs = {}
             
-            # Record decision for future learning
-            record_detector_decision(
-                "StealthEngine", symbol, score, adapted_stealth_score, 
-                stealth_vote, explore_mode=False, market_context=market_data
-            )
+            # Initialize AI detector variables at proper scope for consensus access
+            if 'diamond_score' not in locals():
+                diamond_score = 0.0
+                diamond_enabled = False
+            if 'californium_score' not in locals():
+                californium_score = 0.0
+                californium_enabled = False  
+            if 'whaleclip_score' not in locals():
+                whaleclip_score = 0.0
+                whaleclip_enabled = False
             
-            print(f"[STEALTH LEARNING] {symbol}: {score:.3f} → {adapted_stealth_score:.3f} ({adaptation_reason})")
-        
-        # CaliforniumWhale AI + SELF-LEARNING ADAPTATION
-        if californium_score > 0.0:
-            # Apply intelligent self-learning score adaptation
-            adapted_californium_score, adaptation_reason = adapt_detector_score(
-                "CaliforniumWhale", californium_score, symbol, market_data
-            )
+            # StealthEngine - CORE STEALTH SIGNALS + SELF-LEARNING ADAPTATION
+            if score > 0.5:
+                # Apply intelligent self-learning score adaptation
+                adapted_stealth_score, adaptation_reason = adapt_detector_score(
+                    "StealthEngine", score, symbol, token_data
+                )
+                
+                stealth_vote = "BUY" if adapted_stealth_score > 2.0 else ("HOLD" if adapted_stealth_score > 1.0 else "AVOID")
+                detector_outputs["StealthEngine"] = {
+                    "vote": stealth_vote,
+                    "score": adapted_stealth_score,
+                    "confidence": 0.70,
+                    "weight": 0.25
+                }
+                
+                # Record decision for future learning
+                record_detector_decision(
+                    "StealthEngine", symbol, score, adapted_stealth_score, 
+                    stealth_vote, explore_mode=False, market_context=token_data
+                )
+                
+                print(f"[STEALTH LEARNING] {symbol}: {score:.3f} → {adapted_stealth_score:.3f} ({adaptation_reason})")
             
-            calif_vote = "BUY" if adapted_californium_score > 0.7 else ("HOLD" if adapted_californium_score > 0.4 else "AVOID")
-            detector_outputs["CaliforniumWhale"] = {
-                "vote": calif_vote,
-                "score": adapted_californium_score,
-                "confidence": 0.85,
-                "weight": 0.33
-            }
+            # CaliforniumWhale AI + SELF-LEARNING ADAPTATION  
+            if californium_score > 0.0:
+                # Apply intelligent self-learning score adaptation
+                adapted_californium_score, adaptation_reason = adapt_detector_score(
+                    "CaliforniumWhale", californium_score, symbol, token_data
+                )
+                
+                calif_vote = "BUY" if adapted_californium_score > 0.7 else ("HOLD" if adapted_californium_score > 0.4 else "AVOID")
+                detector_outputs["CaliforniumWhale"] = {
+                    "vote": calif_vote,
+                    "score": adapted_californium_score,
+                    "confidence": 0.85,
+                    "weight": 0.33
+                }
+                
+                # Record decision for future learning
+                record_detector_decision(
+                    "CaliforniumWhale", symbol, californium_score, adapted_californium_score, 
+                    calif_vote, explore_mode=False, market_context=token_data
+                )
+                
+                print(f"[CALIFORNIUM LEARNING] {symbol}: {californium_score:.3f} → {adapted_californium_score:.3f} ({adaptation_reason})")
             
-            # Record decision for future learning
-            record_detector_decision(
-                "CaliforniumWhale", symbol, californium_score, adapted_californium_score, 
-                calif_vote, explore_mode=False, market_context=market_data
-            )
+            # DiamondWhale AI + SELF-LEARNING ADAPTATION
+            if diamond_score > 0.0:
+                # Apply intelligent self-learning score adaptation
+                adapted_diamond_score, adaptation_reason = adapt_detector_score(
+                    "DiamondWhale", diamond_score, symbol, token_data
+                )
+                
+                diamond_vote = "BUY" if adapted_diamond_score > 0.6 else ("HOLD" if adapted_diamond_score > 0.3 else "AVOID")
+                detector_outputs["DiamondWhale"] = {
+                    "vote": diamond_vote,
+                    "score": adapted_diamond_score,
+                    "confidence": 0.80,
+                    "weight": 0.25
+                }
+                
+                # Record decision for future learning
+                record_detector_decision(
+                    "DiamondWhale", symbol, diamond_score, adapted_diamond_score, 
+                    diamond_vote, explore_mode=False, market_context=token_data
+                )
+                
+                print(f"[DIAMOND LEARNING] {symbol}: {diamond_score:.3f} → {adapted_diamond_score:.3f} ({adaptation_reason})")
             
-            print(f"[CALIFORNIUM LEARNING] {symbol}: {californium_score:.3f} → {adapted_californium_score:.3f} ({adaptation_reason})")
-        
-        # DiamondWhale AI + SELF-LEARNING ADAPTATION
-        if diamond_score > 0.0:
-            # Apply intelligent self-learning score adaptation
-            adapted_diamond_score, adaptation_reason = adapt_detector_score(
-                "DiamondWhale", diamond_score, symbol, market_data
-            )
+            # WhaleCLIP - Get whale signal strength from active_signals
+            whale_signal_strength = 0.0
+            if 'active_signals' in locals() and active_signals:
+                # active_signals is a list of signal names, not signal objects
+                # Check if whale signals are active
+                for signal_name in active_signals:
+                    if signal_name in ["whale_ping", "whale_ping_real", "whale_ping_real_repeat"]:
+                        # Assume strength of 3.0 for active whale signals (as per stealth signal logic)
+                        whale_signal_strength = 3.0
+                        break
             
-            diamond_vote = "BUY" if adapted_diamond_score > 0.6 else ("HOLD" if adapted_diamond_score > 0.3 else "AVOID")
-            detector_outputs["DiamondWhale"] = {
-                "vote": diamond_vote,
-                "score": adapted_diamond_score,
-                "confidence": 0.80,
-                "weight": 0.25
-            }
+            # Use whale signal strength OR blockchain WhaleCLIP score for status
+            whaleclip_final_score = max(whale_signal_strength, whaleclip_score)
             
-            # Record decision for future learning
-            record_detector_decision(
-                "DiamondWhale", symbol, diamond_score, adapted_diamond_score, 
-                diamond_vote, explore_mode=False, market_context=market_data
-            )
+            if whaleclip_final_score > 0.0:
+                # Apply intelligent self-learning score adaptation for WhaleCLIP
+                adapted_whaleclip_score, adaptation_reason = adapt_detector_score(
+                    "WhaleCLIP", whaleclip_final_score, symbol, token_data
+                )
+                
+                clip_vote = "BUY" if adapted_whaleclip_score > 0.8 else ("HOLD" if adapted_whaleclip_score > 0.5 else "AVOID")
+                detector_outputs["WhaleCLIP"] = {
+                    "vote": clip_vote,
+                    "score": adapted_whaleclip_score,  # Use adapted score for voting
+                    "confidence": 0.75,
+                    "weight": 0.26
+                }
+                
+                # Record decision for future learning
+                record_detector_decision(
+                    "WhaleCLIP", symbol, whaleclip_final_score, adapted_whaleclip_score, 
+                    clip_vote, explore_mode=False, market_context=token_data
+                )
+                
+                print(f"[WHALECLIP LEARNING] {symbol}: {whaleclip_final_score:.3f} → {adapted_whaleclip_score:.3f} ({adaptation_reason})")
             
-            print(f"[DIAMOND LEARNING] {symbol}: {diamond_score:.3f} → {adapted_diamond_score:.3f} ({adaptation_reason})")
-        
-        # WhaleCLIP AI + SELF-LEARNING ADAPTATION
-        if whaleclip_score > 0.0:
-            # Apply intelligent self-learning score adaptation
-            adapted_whaleclip_score, adaptation_reason = adapt_detector_score(
-                "WhaleCLIP", whaleclip_score, symbol, market_data
-            )
+            # Run consensus decision if we have detectors
+            print(f"[CONSENSUS DEBUG] {symbol}: Total detector outputs: {len(detector_outputs)}")
             
-            clip_vote = "BUY" if adapted_whaleclip_score > 0.8 else ("HOLD" if adapted_whaleclip_score > 0.5 else "AVOID")
-            detector_outputs["WhaleCLIP"] = {
-                "vote": clip_vote,
-                "score": adapted_whaleclip_score,  # Use adapted score for voting
-                "confidence": 0.75,
-                "weight": 0.26
-            }
-            
-            # Record decision for future learning
-            record_detector_decision(
-                "WhaleCLIP", symbol, whaleclip_score, adapted_whaleclip_score, 
-                clip_vote, explore_mode=False, market_context=market_data
-            )
-            
-            print(f"[WHALECLIP LEARNING] {symbol}: {whaleclip_score:.3f} → {adapted_whaleclip_score:.3f} ({adaptation_reason})")
-        
-        # Run consensus decision if we have detectors
-        print(f"[CONSENSUS DEBUG] {symbol}: Total detector outputs: {len(detector_outputs)}")
-        print(f"[CONSENSUS DEBUG] {symbol}: Detector outputs: {list(detector_outputs.keys())}")
-        
-        # Include ALL detectors for consensus voting
-        filtered_detector_outputs = detector_outputs
-        print(f"[CONSENSUS DEBUG] {symbol}: ALL detector outputs included: {len(filtered_detector_outputs)}")
-        
-        if len(filtered_detector_outputs) >= 1:
-            # Create consensus engine - multi-agent is now primary system
-            consensus_engine = create_decision_consensus_engine()
-            print(f"[CONSENSUS CALLING] {symbol}: Calling consensus engine with {len(filtered_detector_outputs)} detectors")
-            print(f"[CONSENSUS CALLING] {symbol}: Multi-agent enabled: {consensus_engine.enable_multi_agent}")
-            print(f"[CONSENSUS CALLING] {symbol}: Market data available: {token_data is not None}")
-            
-            consensus_decision_result = consensus_engine.run(
-                token=symbol,
-                scores=filtered_detector_outputs,  # Use filtered outputs
-                strategy=ConsensusStrategy.WEIGHTED_AVERAGE,
-                market_data=token_data  # Pass market data for multi-agent context
-            )
-            consensus_result = consensus_decision_result  # Assign to outer scope variable
-            
-            final_decision = consensus_decision_result.decision
-            # Use votes from consensus_result if available (multi-agent), otherwise format from detector_outputs
-            if hasattr(consensus_decision_result, 'votes') and consensus_decision_result.votes:
-                votes_list = consensus_decision_result.votes
+            if len(detector_outputs) >= 1:
+                # Create consensus engine - multi-agent is now primary system
+                consensus_engine = create_decision_consensus_engine()
+                print(f"[CONSENSUS CALLING] {symbol}: Calling consensus engine with {len(detector_outputs)} detectors")
+                
+                consensus_decision_result = consensus_engine.run(
+                    token=symbol,
+                    scores=detector_outputs,
+                    strategy="weighted_average",
+                    market_data=token_data
+                )
+                
+                final_decision = consensus_decision_result.decision
+                votes_list = consensus_decision_result.votes if hasattr(consensus_decision_result, 'votes') and consensus_decision_result.votes else []
+                
+                consensus_data = {
+                    "decision": final_decision,
+                    "votes": votes_list,
+                    "confidence": consensus_decision_result.confidence,
+                    "final_score": consensus_decision_result.final_score,
+                    "threshold_met": consensus_decision_result.threshold_met,
+                    "contributing_detectors": consensus_decision_result.contributing_detectors
+                }
+                
+                print(f"[CONSENSUS COMPLETE] {symbol}: Decision={final_decision}, Score={consensus_decision_result.final_score:.3f}, Confidence={consensus_decision_result.confidence:.3f}")
+                
+                # Store consensus data for later use
+                consensus_result = consensus_decision_result
+                final_score = consensus_decision_result.final_score
             else:
-                votes_list = [f"{det}: {data['vote']}" for det, data in filtered_detector_outputs.items()]
-            
-            consensus_data = {
-                "decision": final_decision,
-                "votes": votes_list,
-                "confidence": consensus_decision_result.confidence,
-                "final_score": consensus_decision_result.final_score,
-                "threshold_met": consensus_decision_result.threshold_met,
-                "contributing_detectors": consensus_decision_result.contributing_detectors
-            }
-            
-            print(f"[CONSENSUS COMPLETE] {symbol}: Decision={final_decision}, Score={consensus_decision_result.final_score:.3f}, Confidence={consensus_decision_result.confidence:.3f}")
-            
-        else:
-            # No detectors available - use simple fallback
-            print(f"[CONSENSUS FALLBACK] {symbol}: No detectors available, using simple score-based decision")
-            
+                # No detectors available - use simple fallback
+                print(f"[CONSENSUS FALLBACK] {symbol}: No detectors available, using simple score-based decision")
+                
+                if score > 2.0:
+                    final_decision = "BUY"
+                elif score > 1.0:
+                    final_decision = "HOLD"
+                else:
+                    final_decision = "WATCH"
+                    
+                consensus_data = {
+                    "decision": final_decision,
+                    "votes": [],
+                    "confidence": min(score / 4.0, 1.0),
+                    "final_score": score,
+                    "threshold_met": score > 2.0,
+                    "contributing_detectors": ["stealth_fallback"]
+                }
+                
+                consensus_result = None
+                final_score = score
+                
+        except ImportError:
+            print(f"[CONSENSUS IMPORT ERROR] {symbol}: Using simplified fallback logic")
+            # Simplified fallback logic
             if score > 2.0:
                 final_decision = "BUY"
             elif score > 1.0:
@@ -2690,78 +2399,86 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 
             consensus_data = {
                 "decision": final_decision,
-                "votes": [],
+                "votes": ["fallback_mode"],
                 "confidence": min(score / 4.0, 1.0),
                 "final_score": score,
                 "threshold_met": score > 2.0,
                 "contributing_detectors": ["stealth_fallback"]
             }
             
-    except ImportError:
-        print(f"[CONSENSUS IMPORT ERROR] {symbol}: Using simplified fallback logic")
-        # Simplified fallback logic
-        if score > 2.0:
-            final_decision = "BUY"
-        elif score > 1.0:
-            final_decision = "HOLD"
-        else:
-            final_decision = "WATCH"
+            consensus_result = None
+            final_score = score
             
-        consensus_data = {
-            "decision": final_decision,
-            "votes": ["fallback_mode"],
-            "confidence": min(score / 4.0, 1.0),
-            "final_score": score,
-            "threshold_met": score > 2.0,
-            "contributing_detectors": ["stealth_fallback"]
-        }
+        except Exception as e:
+            print(f"[CONSENSUS ERROR] {symbol}: Exception in consensus engine: {e}")
+            
+            final_decision = "WATCH"
+            consensus_data = {
+                "decision": "WATCH",
+                "votes": [],
+                "confidence": 0.0,
+                "final_score": 0.0,
+                "threshold_met": False,
+                "contributing_detectors": []
+            }
+            
+            consensus_result = None
+            final_score = 0.0
 
-    # Update final_score if consensus has a valid score
-    if consensus_result and hasattr(consensus_result, 'final_score') and consensus_result.final_score > 0:
-        final_score = consensus_result.final_score
-    elif consensus_data and consensus_data.get('final_score', 0) > 0:
-        final_score = consensus_data.get('final_score')
-    
-    print(f"[CONSENSUS FINAL] {symbol}: Decision={final_decision}, Score={final_score:.3f}")
+    # 🚨 STEALTH V3 TELEGRAM ALERT SYSTEM - CONSENSUS-BASED ALERTS
+    if final_decision == "BUY" and score >= 0.70:
+        print(f"[ALERT ELIGIBLE] {symbol}: Consensus={final_decision}, Score={score:.3f} - preparing alert")
+        
+        try:
+            from alerts.stealth_v3_telegram_alerts import send_stealth_v3_alert
+            
+            # Prepare detector_results for alert system
+            detector_results = {
+                "whale_ping": min(score / 4.0, 1.0),
+                "dex_inflow": dex_inflow_score if 'dex_inflow_score' in locals() else 0.0,
+                "orderbook_anomaly": 0.0,  # Default
+                "whaleclip_vision": whaleclip_final_score if 'whaleclip_final_score' in locals() else 0.0,
+                "mastermind_tracing": californium_score if 'californium_score' in locals() else 0.0,
+                "diamond_ai": diamond_score if 'diamond_score' in locals() else 0.0
+            }
+            
+            alert_sent = send_stealth_v3_alert(
+                symbol=symbol,
+                score=score,
+                detector_results=detector_results,
+                market_data=token_data,
+                consensus_data=consensus_data,
+                alert_type="stealth_alert"
+            )
+            
+            if alert_sent:
+                print(f"[STEALTH V3 ALERT SUCCESS] {symbol}: Alert sent with consensus BUY")
+            else:
+                print(f"[STEALTH V3 ALERT FAILED] {symbol}: Failed to send alert")
+                
+        except Exception as alert_error:
+            print(f"[STEALTH V3 ALERT ERROR] {symbol}: {alert_error}")
+    else:
+        print(f"[ALERT SKIP] {symbol}: Decision={final_decision}, Score={score:.3f} - not eligible for alert")
 
-    # Handle error cases AFTER consensus has been computed
-    if 'stealth_error' in locals() and stealth_error:
-        return {
-            "score": 0.0,
-            "stealth_score": 0.0,
-            "active_signals": [],
-            "error": stealth_error,
-            "consensus_error": consensus_error,
-            "consensus_decision": final_decision,  # Include consensus even in error case
-            "consensus_data": consensus_data
-        }
-
-    # Normal return for successful stealth analysis + consensus
+    # Final return with all stealth components + consensus integration
     result = {
-        "score": final_score,
-        "stealth_score": final_score,
-        "active_signals": active_signals,
-        "signal_details": signal_details if 'signal_details' in locals() else {},  # ADD SIGNAL DETAILS WITH STRENGTH VALUES
-        "data_coverage": data_coverage,
-        "signal_strength": score,
-        "alert_threshold": 0.7,  # Default alert threshold used in scoring
-        "stealth_alerts": {"score": score},
-        "consensus_result": consensus_result,
-        "consensus_error": consensus_error,
-        # AI DETECTOR SCORES - CRITICAL FOR TOP 5 DISPLAY
+        "score": score,
+        "final_score": final_score,
+        "signals": used_signals if 'used_signals' in locals() else [],
+        "whale_ping": whale_ping_score if 'whale_ping_score' in locals() else 0.0,
+        "dex_inflow": dex_inflow_score if 'dex_inflow_score' in locals() else 0.0,
+        "trust_boost": trust_boost_score if 'trust_boost_score' in locals() else 0.0,
+        "identity_boost": identity_boost_score if 'identity_boost_score' in locals() else 0.0,
         "diamond_score": diamond_score if 'diamond_score' in locals() else 0.0,
         "californium_score": californium_score if 'californium_score' in locals() else 0.0,
         "whaleclip_score": whaleclip_score if 'whaleclip_score' in locals() else 0.0,
-        "stealth_engine_score": score,  # This is the main stealth engine score
-        # MULTI-AGENT PRIMARY CONSENSUS - BUY/HOLD/AVOID decision
-        "consensus_decision": final_decision if 'final_decision' in locals() else "WATCH",
-        "consensus_data": consensus_data if 'consensus_data' in locals() else None,
-        "consensus_votes": consensus_data.get("votes", []) if consensus_data else [],
-        "consensus_confidence": consensus_data.get("confidence", 0.0) if consensus_data else 0.0,
-        "consensus_score": consensus_data.get("final_score", 0.0) if consensus_data else final_score
+        "consensus_decision": final_decision,
+        "consensus_confidence": consensus_data.get('confidence', 0.0) if consensus_data else 0.0,
+        "consensus_votes": consensus_data.get('votes', []) if consensus_data else [],
+        "skip_reason": skip_reason
     }
     
-    print(f"[COMPUTE STEALTH SCORE COMPLETE] {symbol}: Score={score:.3f}, Decision={result['consensus_decision']}, Consensus={'Success' if consensus_result else 'Error/Skip'}")
     return result
 
 
