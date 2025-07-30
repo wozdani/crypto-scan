@@ -98,10 +98,11 @@ class ConsensusDecisionEngine:
         self.detector_performance = {}
         
         # Multi-agent decision system
-        self.enable_multi_agent = False  # Flag to enable/disable 5-agent system
+        self.enable_multi_agent = True  # Flag to enable/disable 5-agent system
         self.multi_agent_override_threshold = 0.5  # Override if agents vote YES even with low score
         
         print("[CONSENSUS ENGINE] Initialized multi-agent decision layer")
+        print(f"[CONSENSUS ENGINE] ✅ Multi-agent system ENABLED: {self.enable_multi_agent}")
     
     def run(self, token: str, scores: Union[Dict[str, float], Dict[str, Dict[str, float]]], 
             strategy: ConsensusStrategy = ConsensusStrategy.WEIGHTED_AVERAGE,
