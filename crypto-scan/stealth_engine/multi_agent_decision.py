@@ -492,6 +492,11 @@ Respond with JSON format:
         }
         
         try:
+            # Check if OpenAI client is available
+            if not self.openai_client:
+                print(f"[MULTI-AGENT OpenAI] {role.value}: No OpenAI client - using fallback")
+                return self._fallback_reasoning(role, context)
+                
             print(f"[MULTI-AGENT OpenAI] {role.value}: Calling OpenAI API...")
             
             # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
