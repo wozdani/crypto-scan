@@ -92,7 +92,7 @@ def should_explore_mode_trigger(token_data: Dict[str, Any]) -> bool:
         print(f"[EXPLORE MODE DEBUG] ====== EXPLORE MODE TRIGGERED ======")
         return True
     
-    print(f"[EXPLORE MODE DECISION] ⚠️ Whale ping not strong enough: {whale_ping_strength:.3f} <= 0.3")
+    print(f"[EXPLORE MODE DECISION] ⚠️ Whale ping not strong enough: {whale_ping_strength:.3f} <= 0.5")
     
     # 🔧 BELUSDT FIX: Much lower DEX inflow threshold 
     if dex_inflow_value > 1000:  # Lowered from $5,000 to $1,000
