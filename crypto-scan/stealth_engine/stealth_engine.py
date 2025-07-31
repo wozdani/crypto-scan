@@ -1522,48 +1522,63 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                 whaleclip_vote, explore_mode=False, market_context=token_data
                             )
                         
-                        # 🚨 CRITICAL FIX: ENABLE MULTI-AGENT CONSENSUS ENGINE!
-                        print(f"[MULTI-AGENT CONSENSUS] {symbol}: Starting 5-agent voting system...")
+                        # 🧠 ENHANCED RL SYSTEM: Replaces legacy multi-agent consensus
+                        print(f"[ENHANCED RL EARLY] {symbol}: Starting Enhanced RL decision system...")
                         
-                        # CREATE CONSENSUS ENGINE with detector outputs
+                        # ENHANCED RL CONSENSUS with detector outputs
                         if detector_outputs:
-                            print(f"[CONSENSUS ENGINE] {symbol}: Processing {len(detector_outputs)} active detectors...")
+                            print(f"[ENHANCED RL EARLY] {symbol}: Processing {len(detector_outputs)} active detectors...")
                             
-                            consensus_engine = create_decision_consensus_engine()
+                            # Enhanced RL decision logic (no legacy consensus engine)
+                            total_score = 0.0
+                            total_weight = 0.0
+                            buy_count = 0
+                            hold_count = 0
+                            avoid_count = 0
                             
-                            # Add market_data for multi-agent system
-                            token_data_for_consensus = {
-                                'symbol': symbol,
-                                'price': token_data.get('price', 0.0),
-                                'volume_24h': token_data.get('volume_24h', 0.0),
-                                'whale_ping_strength': score,
-                                'signals': used_signals
-                            }
-                            
-                            # Run with multi-agent as PRIMARY system
-                            consensus_result = consensus_engine.run(
-                                token=symbol, 
-                                scores=detector_outputs,
-                                market_data=token_data_for_consensus,
-                                strategy="weighted_average"
-                            )
-                            
-                            if consensus_result:
-                                stored_final_decision = consensus_result.decision.value if hasattr(consensus_result.decision, 'value') else str(consensus_result.decision)
-                                stored_consensus_data = {
-                                    "decision": stored_final_decision,
-                                    "votes": [d["vote"] for d in detector_outputs.values()],
-                                    "confidence": consensus_result.confidence,
-                                    "final_score": consensus_result.final_score,
-                                    "threshold_met": consensus_result.final_score > 0.65,
-                                    "contributing_detectors": list(detector_outputs.keys())
-                                }
-                                stored_consensus_result = consensus_result
+                            for detector_name, data in detector_outputs.items():
+                                detector_score = data["score"]
+                                detector_weight = data["weight"]
+                                detector_vote = data["vote"]
                                 
-                                print(f"[MULTI-AGENT SUCCESS] {symbol}: Decision={stored_final_decision}, Score={consensus_result.final_score:.3f}")
-                                print(f"[MULTI-AGENT VOTES] {symbol}: {stored_consensus_data['votes']} → {stored_final_decision}")
+                                total_score += detector_score * detector_weight
+                                total_weight += detector_weight
+                                
+                                if detector_vote == "BUY":
+                                    buy_count += 1
+                                elif detector_vote == "HOLD":
+                                    hold_count += 1
+                                else:
+                                    avoid_count += 1
+                                
+                                print(f"[ENHANCED RL EARLY DETECTOR] {symbol}: {detector_name} → Score={detector_score:.3f}, Weight={detector_weight}, Vote={detector_vote}")
+                            
+                            # Enhanced RL final decision
+                            final_score = total_score / total_weight if total_weight > 0 else score
+                            confidence = min(0.95, max(0.15, final_score / 2.5))
+                            
+                            # Enhanced RL voting logic
+                            if buy_count > hold_count + avoid_count:
+                                stored_final_decision = "BUY"
+                            elif hold_count >= avoid_count:
+                                stored_final_decision = "HOLD"
+                            else:
+                                stored_final_decision = "AVOID"
+                            
+                            stored_consensus_data = {
+                                "decision": stored_final_decision,
+                                "votes": [d["vote"] for d in detector_outputs.values()],
+                                "confidence": confidence,
+                                "final_score": final_score,
+                                "threshold_met": final_score > 0.65,
+                                "contributing_detectors": list(detector_outputs.keys())
+                            }
+                            stored_consensus_result = stored_consensus_data
+                            
+                            print(f"[ENHANCED RL EARLY SUCCESS] {symbol}: Decision={stored_final_decision}, Score={final_score:.3f}, Confidence={confidence:.3f}")
+                            print(f"[ENHANCED RL EARLY VOTES] {symbol}: B/H/A={buy_count}/{hold_count}/{avoid_count} → {stored_final_decision}")
                         else:
-                            print(f"[MULTI-AGENT SKIP] {symbol}: No active detectors for consensus voting")
+                            print(f"[ENHANCED RL EARLY SKIP] {symbol}: No active detectors for Enhanced RL voting")
                             
                     except Exception as consensus_error:
                         print(f"[CONSENSUS ERROR] {symbol}: Consensus engine failed: {consensus_error}")
@@ -2454,34 +2469,62 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 print(f"[CONSENSUS BUILT] {symbol}: Built detector outputs: {list(detector_outputs.keys())}")
             
             if len(detector_outputs) >= 1:
-                # Create consensus engine - multi-agent is now primary system
-                consensus_engine = create_decision_consensus_engine()
-                print(f"[CONSENSUS CALLING] {symbol}: Calling consensus engine with {len(detector_outputs)} detectors")
+                # Enhanced RL system replaces legacy multi-agent consensus
+                print(f"[ENHANCED RL CONSENSUS] {symbol}: Using Enhanced RL decision making with {len(detector_outputs)} detectors")
                 
-                consensus_decision_result = consensus_engine.run(
-                    token=symbol,
-                    scores=detector_outputs,
-                    strategy="weighted_average",
-                    market_data=token_data
-                )
+                # Calculate weighted average from detector outputs (Enhanced RL approach)
+                total_weighted_score = 0.0
+                total_weight = 0.0
+                buy_votes = 0
+                hold_votes = 0
+                avoid_votes = 0
                 
-                final_decision = consensus_decision_result.decision
-                votes_list = consensus_decision_result.votes if hasattr(consensus_decision_result, 'votes') and consensus_decision_result.votes else []
+                for detector_name, data in detector_outputs.items():
+                    detector_score = data["score"]
+                    detector_weight = data["weight"]
+                    detector_vote = data["vote"]
+                    
+                    total_weighted_score += detector_score * detector_weight
+                    total_weight += detector_weight
+                    
+                    if detector_vote == "BUY":
+                        buy_votes += 1
+                    elif detector_vote == "HOLD":
+                        hold_votes += 1
+                    else:
+                        avoid_votes += 1
+                    
+                    print(f"[ENHANCED RL DETECTOR] {symbol}: {detector_name} → Score={detector_score:.3f}, Weight={detector_weight}, Vote={detector_vote}")
+                
+                # Enhanced RL decision logic
+                final_score = total_weighted_score / total_weight if total_weight > 0 else score
+                confidence = min(0.95, max(0.1, final_score / 3.0))  # Adaptive confidence
+                
+                # Enhanced RL voting logic
+                if buy_votes > hold_votes + avoid_votes:
+                    final_decision = "BUY"
+                elif hold_votes >= avoid_votes:
+                    final_decision = "HOLD"
+                else:
+                    final_decision = "AVOID"
+                
+                # Threshold adjustment based on Enhanced RL
+                threshold_met = final_score >= 1.0 and buy_votes > 0
                 
                 consensus_data = {
                     "decision": final_decision,
-                    "votes": votes_list,
-                    "confidence": consensus_decision_result.confidence,
-                    "final_score": consensus_decision_result.final_score,
-                    "threshold_met": consensus_decision_result.threshold_met,
-                    "contributing_detectors": consensus_decision_result.contributing_detectors
+                    "votes": [f"{detector}: {data['vote']}" for detector, data in detector_outputs.items()],
+                    "confidence": confidence,
+                    "final_score": final_score,
+                    "threshold_met": threshold_met,
+                    "contributing_detectors": list(detector_outputs.keys())
                 }
                 
-                print(f"[CONSENSUS COMPLETE] {symbol}: Decision={final_decision}, Score={consensus_decision_result.final_score:.3f}, Confidence={consensus_decision_result.confidence:.3f}")
+                print(f"[ENHANCED RL COMPLETE] {symbol}: Decision={final_decision}, Score={final_score:.3f}, Confidence={confidence:.3f}, Votes(B/H/A)={buy_votes}/{hold_votes}/{avoid_votes}")
                 
-                # Store consensus data for later use
-                consensus_result = consensus_decision_result
-                final_score = consensus_decision_result.final_score
+                # Store Enhanced RL consensus data for later use
+                consensus_result = consensus_data
+                final_score = final_score
             else:
                 # No detectors available - use simple fallback
                 print(f"[CONSENSUS FALLBACK] {symbol}: No detectors available, using simple score-based decision")
