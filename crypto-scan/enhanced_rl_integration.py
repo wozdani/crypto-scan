@@ -23,9 +23,10 @@ try:
 except ImportError:
     print("[ENHANCED RL] Traditional feedback loop not available, using simplified version")
     FEEDBACK_LOOP_AVAILABLE = False
+    TJDEFeedbackLoop = None
 
 
-class EnhancedRLSystem:
+class EnhancedRLIntegration:
     """
     🎯 Unified system łączący:
     - RLAgentV3 (adaptive booster weights)
@@ -356,16 +357,223 @@ class EnhancedRLSystem:
         if self.training_thread and self.training_thread.is_alive():
             self.training_thread.join(timeout=10)
         print("[ENHANCED RL] Background training stopped")
+    
+    def prepare_comprehensive_state_vector(self, symbol: str, base_score: float, 
+                                         stealth_signals: List[str], diamond_score: float = 0.0,
+                                         californium_score: float = 0.0, whaleclip_score: float = 0.0,
+                                         consensus_data = None, market_data = None) -> np.ndarray:
+        """
+        Prepare comprehensive state vector for Enhanced RL analysis
+        """
+        try:
+            state_vector_size = 25
+            state_vector = np.zeros(state_vector_size)
+            
+            # Index 0-4: Core scores (normalized to 0-1)
+            state_vector[0] = min(base_score / 5.0, 1.0)  # Base stealth score
+            state_vector[1] = min(diamond_score, 1.0)      # Diamond AI score
+            state_vector[2] = min(californium_score, 1.0)  # Californium score
+            state_vector[3] = min(whaleclip_score, 1.0)    # WhaleCLIP score
+            
+            # Index 4: Signal count (normalized)
+            state_vector[4] = min(len(stealth_signals) / 10.0, 1.0)
+            
+            # Index 5-14: Key stealth signals (binary indicators)
+            signal_mapping = {
+                'whale_ping': 5, 'dex_inflow': 6, 'volume_spike': 7, 
+                'spoofing_layers': 8, 'large_bid_walls': 9, 'repeated_address_boost': 10,
+                'velocity_boost': 11, 'inflow_momentum_boost': 12, 'multi_address_group_activity': 13,
+                'orderbook_imbalance': 14
+            }
+            
+            for signal in stealth_signals:
+                if signal in signal_mapping:
+                    state_vector[signal_mapping[signal]] = 1.0
+            
+            # Index 15-19: Market data features
+            if market_data:
+                state_vector[15] = min(market_data.get('volume_24h', 0) / 10000000, 1.0)  # Volume normalized
+                state_vector[16] = abs(market_data.get('price_change_24h', 0)) / 100.0    # Price change
+                state_vector[17] = min(market_data.get('price', 0) / 100.0, 1.0)         # Price normalized
+                
+            # Index 18-19: Consensus features
+            if consensus_data:
+                state_vector[18] = consensus_data.get('final_score', 0.0)
+                state_vector[19] = len(consensus_data.get('contributing_detectors', [])) / 4.0
+            
+            # Index 20-24: Time-based features
+            current_hour = datetime.now().hour
+            state_vector[20] = current_hour / 24.0  # Hour of day
+            state_vector[21] = len(self.alert_outcomes) / 1000.0  # Historical context
+            state_vector[22] = self.performance_metrics.get('avg_profit', 0.0) / 100.0  # Performance history
+            state_vector[23] = min(time.time() % 86400 / 86400.0, 1.0)  # Time of day cycle
+            state_vector[24] = 1.0 if len(stealth_signals) > 5 else 0.0  # High signal count indicator
+            
+            return state_vector
+            
+        except Exception as e:
+            print(f"[ENHANCED RL] State vector preparation error: {e}")
+            return np.zeros(25)
+    
+    def analyze_with_adaptive_thresholds(self, symbol: str, state_vector: np.ndarray, 
+                                       base_score: float, use_dqn: bool = True) -> Dict[str, Any]:
+        """
+        Run Enhanced RL analysis with adaptive thresholding
+        """
+        try:
+            analysis_start = time.time()
+            
+            # Initialize result
+            result = {
+                'symbol': symbol,
+                'timestamp': analysis_start,
+                'should_modify': False,
+                'enhanced_score': base_score,
+                'adaptive_multiplier': 1.0,
+                'confidence_boost': 0.0,
+                'threshold_info': {},
+                'skip_reason': None
+            }
+            
+            # DQN Analysis (if enabled and available)
+            dqn_action = None
+            dqn_confidence = 0.0
+            
+            if use_dqn and self.dqn_integration and hasattr(self.dqn_integration, 'agent'):
+                try:
+                    # Use DQN agent for threshold adaptation
+                    current_threshold = self.dqn_integration.agent.current_threshold
+                    
+                    # Simple DQN-like logic based on state vector
+                    signal_strength = np.sum(state_vector[5:15])  # Count active signals
+                    score_ratio = base_score / max(current_threshold, 0.1)
+                    
+                    if signal_strength >= 3 and score_ratio >= 1.2:
+                        dqn_action = 4  # STRONG_BUY
+                        dqn_confidence = min(1.0, score_ratio * 0.8)
+                    elif signal_strength >= 2 and score_ratio >= 0.8:
+                        dqn_action = 3  # BUY
+                        dqn_confidence = min(1.0, score_ratio * 0.6)
+                    else:
+                        dqn_action = 2  # HOLD
+                        dqn_confidence = 0.3
+                    
+                    result['threshold_info']['dqn_action'] = int(dqn_action)
+                    result['threshold_info']['dqn_confidence'] = round(dqn_confidence, 3)
+                    result['threshold_info']['current_threshold'] = round(current_threshold, 3)
+                    
+                except Exception as e:
+                    print(f"[ENHANCED RL] DQN analysis error: {e}")
+            
+            # RLAgentV3 Analysis (if available)
+            rl_recommendation = None
+            rl_confidence = 0.0
+            
+            if self.rl_agent_v3:
+                try:
+                    # Get current weights and compute enhancement
+                    weights = self.rl_agent_v3.weights
+                    
+                    # Simple weighted decision based on current performance
+                    if base_score >= 2.0:
+                        rl_recommendation = 'BUY'
+                        rl_confidence = min(1.0, base_score / 4.0)
+                    elif base_score >= 1.0:
+                        rl_recommendation = 'HOLD'
+                        rl_confidence = base_score / 2.0
+                    else:
+                        rl_recommendation = 'AVOID'
+                        rl_confidence = 0.3
+                        
+                    result['threshold_info']['rl_action'] = rl_recommendation
+                    result['threshold_info']['rl_confidence'] = round(rl_confidence, 3)
+                
+                except Exception as e:
+                    print(f"[ENHANCED RL] RLAgentV3 analysis error: {e}")
+            
+            # Hybrid Decision Making
+            should_enhance = False
+            adaptive_multiplier = 1.0
+            confidence_boost = 0.0
+            
+            # DQN-based enhancement
+            if dqn_action is not None:
+                if dqn_action >= 3 and dqn_confidence > 0.6:  # Strong buy signals
+                    should_enhance = True
+                    adaptive_multiplier = 1.0 + (dqn_confidence * 0.5)
+                    confidence_boost = dqn_confidence * 0.3
+                elif dqn_action <= 1 and dqn_confidence > 0.6:  # Strong sell signals
+                    should_enhance = True
+                    adaptive_multiplier = max(0.5, 1.0 - (dqn_confidence * 0.3))
+                    confidence_boost = -dqn_confidence * 0.2
+            
+            # RLAgentV3-based enhancement
+            if rl_recommendation and rl_confidence > 0.5:
+                if rl_recommendation in ['BUY', 'STRONG_BUY']:
+                    should_enhance = True
+                    adaptive_multiplier = max(adaptive_multiplier, 1.0 + (rl_confidence * 0.4))
+                    confidence_boost = max(confidence_boost, rl_confidence * 0.25)
+                elif rl_recommendation in ['SELL', 'STRONG_SELL']:
+                    should_enhance = True
+                    adaptive_multiplier = min(adaptive_multiplier, max(0.6, 1.0 - (rl_confidence * 0.2)))
+                    confidence_boost = min(confidence_boost, -rl_confidence * 0.15)
+            
+            # Apply score modifications if enhancement is recommended
+            if should_enhance:
+                enhanced_score = base_score * adaptive_multiplier + confidence_boost
+                enhanced_score = max(0.0, min(enhanced_score, 10.0))  # Clamp to reasonable range
+                
+                result.update({
+                    'should_modify': True,
+                    'enhanced_score': round(enhanced_score, 3),
+                    'adaptive_multiplier': round(adaptive_multiplier, 3),
+                    'confidence_boost': round(confidence_boost, 3)
+                })
+                
+                # Update performance metrics
+                self.performance_metrics['successful_adaptations'] += 1
+            else:
+                result['skip_reason'] = 'no_significant_enhancement_detected'
+            
+            # Update analysis history
+            self.alert_outcomes.append({
+                'symbol': symbol,
+                'timestamp': analysis_start,
+                'base_score': base_score,
+                'enhanced_score': result['enhanced_score'],
+                'should_modify': should_enhance,
+                'dqn_action': dqn_action,
+                'rl_recommendation': rl_recommendation
+            })
+            
+            # Keep history manageable
+            if len(self.alert_outcomes) > 1000:
+                self.alert_outcomes = self.alert_outcomes[-500:]
+            
+            # Update performance metrics
+            self.performance_metrics['total_alerts'] += 1
+            
+            return result
+            
+        except Exception as e:
+            print(f"[ENHANCED RL] Analysis error for {symbol}: {e}")
+            return {
+                'symbol': symbol,
+                'timestamp': time.time(),
+                'should_modify': False,
+                'enhanced_score': base_score,
+                'skip_reason': f'analysis_error: {e}'
+            }
 
 
 # 🎯 Global instance dla easy access
 _enhanced_rl_system = None
 
-def get_enhanced_rl_system() -> EnhancedRLSystem:
+def get_enhanced_rl_system() -> EnhancedRLIntegration:
     """Get global enhanced RL system instance"""
     global _enhanced_rl_system
     if _enhanced_rl_system is None:
-        _enhanced_rl_system = EnhancedRLSystem()
+        _enhanced_rl_system = EnhancedRLIntegration()
         _enhanced_rl_system.start_background_training()
     return _enhanced_rl_system
 
@@ -394,7 +602,7 @@ if __name__ == "__main__":
     print("🧠 Enhanced RL Integration Test")
     print("=" * 50)
     
-    system = EnhancedRLSystem()
+    system = EnhancedRLIntegration()
     
     # Simulate stealth detection
     test_stealth_data = {
