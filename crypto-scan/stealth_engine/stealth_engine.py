@@ -2060,24 +2060,24 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             if californium_enabled and californium_score > 0.3:
                                 detector_results["mastermind_tracing"] = True
                             
-                            # Przygotuj consensus data
+                            # Przygotuj consensus data - ensure consensus_data is defined
                             consensus_alert_data = {}
-                            if consensus_data:
+                            if 'consensus_data' in locals() and consensus_data:
                                 consensus_alert_data = {
                                     "decision": consensus_data.get("decision", "WATCH"),
                                     "votes": f"{len(consensus_data.get('contributing_detectors', []))}/{4}",
                                     "confidence": round(consensus_data.get("final_score", 0.0), 3),
                                     "feedback_adjust": 0.0  # Placeholder dla przyszłych implementacji
                                 }
-                            elif explore_mode:
+                            elif 'explore_mode' in locals() and explore_mode:
                                 # 🚧 EXPLORE MODE - Experimental alert consensus data
                                 consensus_alert_data = {
                                     "decision": "BUY",  # BUY-only enforcement - explore mode qualifies as BUY
                                     "votes": f"{len(used_signals)}/4 (EXPLORE)",
-                                    "confidence": round(explore_confidence, 3),
+                                    "confidence": round(explore_confidence if 'explore_confidence' in locals() else 0.5, 3),
                                     "feedback_adjust": 0.0,
                                     "explore_mode": True,
-                                    "explore_trigger_reason": explore_trigger_reason
+                                    "explore_trigger_reason": explore_trigger_reason if 'explore_trigger_reason' in locals() else "unknown"
                                 }
                             else:
                                 # Fallback consensus data based on stealth score
