@@ -135,6 +135,80 @@ class EnhancedRLIntegration:
         
         return decision_data
     
+    def analyze_token_enhanced(self, symbol: str, state_features: Dict[str, Any], 
+                             dqn_agent, rl_agent_v3) -> Dict[str, Any]:
+        """
+        🔧 BUG FIX 2: Missing analyze_token_enhanced method
+        
+        Args:
+            symbol: Token symbol
+            state_features: Enhanced state features
+            dqn_agent: DQN agent instance
+            rl_agent_v3: RLAgentV3 instance
+            
+        Returns:
+            Enhanced analysis result
+        """
+        print(f"[ENHANCED RL ANALYZE] {symbol}: Running enhanced token analysis")
+        
+        try:
+            # Prepare state vector from features
+            state_vector = [
+                state_features.get('base_score', 0.0),
+                state_features.get('final_score', 0.0),
+                state_features.get('whale_ping', 0.0),
+                state_features.get('dex_inflow', 0.0),
+                state_features.get('diamond_score', 0.0),
+                state_features.get('californium_score', 0.0),
+                state_features.get('whaleclip_score', 0.0),
+                state_features.get('consensus_confidence', 0.0),
+                min(state_features.get('volume_24h', 0) / 1000000, 10.0),  # Normalize volume
+                1.0  # Bias term
+            ]
+            
+            # Get DQN prediction
+            dqn_prediction = dqn_agent.predict(state_vector) if hasattr(dqn_agent, 'predict') else state_features.get('base_score', 0.0)
+            
+            # Get RLAgentV3 weighted score
+            booster_inputs = {
+                'gnn': state_features.get('diamond_score', 0.0),
+                'whaleClip': state_features.get('whaleclip_score', 0.0),
+                'dexInflow': min(state_features.get('dex_inflow', 0.0) / 1000.0, 3.0),
+                'whale_ping': state_features.get('whale_ping', 0.0),
+                'volume_spike': state_features.get('base_score', 0.0) * 0.5
+            }
+            
+            weighted_score = rl_agent_v3.compute_final_score(booster_inputs) if hasattr(rl_agent_v3, 'compute_final_score') else state_features.get('base_score', 0.0)
+            
+            # Combine predictions
+            enhanced_score = (dqn_prediction * 0.4 + weighted_score * 0.6)
+            confidence = min(1.0, enhanced_score / 2.0)
+            
+            decision = "BUY" if enhanced_score >= 2.0 else "HOLD"
+            
+            result = {
+                'decision': decision,
+                'enhanced_score': enhanced_score,
+                'weighted_score': weighted_score,
+                'dqn_prediction': dqn_prediction,
+                'confidence': confidence,
+                'should_modify': enhanced_score > state_features.get('base_score', 0.0),
+                'adaptive_multiplier': enhanced_score / max(state_features.get('base_score', 0.1), 0.1)
+            }
+            
+            print(f"[ENHANCED RL ANALYZE] {symbol}: Decision={decision}, Score={enhanced_score:.3f}, Confidence={confidence:.3f}")
+            return result
+            
+        except Exception as e:
+            print(f"[ENHANCED RL ANALYZE ERROR] {symbol}: {e}")
+            return {
+                'decision': 'HOLD',
+                'enhanced_score': state_features.get('base_score', 0.0),
+                'confidence': 0.0,
+                'should_modify': False,
+                'error': str(e)
+            }
+    
     def record_alert_outcome(self, symbol: str, alert_data: Dict[str, Any], 
                            outcome: bool, pump_percentage: float = 0.0,
                            time_to_pump_minutes: Optional[int] = None) -> Dict[str, Any]:

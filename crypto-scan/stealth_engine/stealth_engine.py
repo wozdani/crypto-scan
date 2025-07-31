@@ -2223,10 +2223,18 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Score={score:.3f}, Skip_reason={skip_reason}")
         print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Active signals: {list(used_signals)}")
         
-        # Get whale ping strength safely
+        # Get whale ping strength safely - preserve from stealth engine result
         whale_ping_strength = 0.0
+        preserved_active_signals = []
+        
+        # 🔧 BUG FIX 1: Preserve whale_ping from stealth engine analysis
+        if 'stealth_engine_result' in locals() and stealth_engine_result:
+            preserved_signals = stealth_engine_result.get('signals', [])
+            preserved_active_signals = preserved_signals.copy()
+        
         if 'whale_ping' in [s for s in used_signals if isinstance(s, str)]:
             whale_ping_strength = 1.0  # If whale_ping active, strength = 1.0
+            preserved_active_signals.append('whale_ping')
         
         print(f"[EXPLORE MODE ENTRY] {token_data.get('symbol', 'UNKNOWN')}: Whale ping strength: {whale_ping_strength:.3f}")
         # Extract real DEX inflow value from token data (use dex_inflow_usd which contains stealth-calculated value)
@@ -2266,6 +2274,12 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 print(f"[EXPLORE MODE TRIGGERED] {token_data.get('symbol', 'UNKNOWN')}: Confidence: {explore_confidence:.3f}")
                 print(f"[EXPLORE MODE TRIGGERED] {token_data.get('symbol', 'UNKNOWN')}: Reason: {explore_trigger_reason}")
                 
+                # 🔧 BUG FIX 1 & 5: Preserve whale_ping and add debug log
+                if preserved_active_signals and 'whale_ping' in str(preserved_active_signals):
+                    if 'whale_ping' not in used_signals:
+                        used_signals.append('whale_ping')
+                        print(f"[FIX] Explore Mode preserved whale_ping")
+                    
                 # Save explore mode results
                 try:
                     from datetime import datetime

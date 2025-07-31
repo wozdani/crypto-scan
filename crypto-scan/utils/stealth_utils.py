@@ -86,9 +86,9 @@ def should_explore_mode_trigger(token_data: Dict[str, Any]) -> bool:
     else:
         print(f"[EXPLORE MODE DECISION] ✅ Core signals sufficient: {core_signal_count} >= 1")
     
-    # 🔧 BELUSDT FIX: Much lower whale ping threshold for whale detection
-    if whale_ping_strength > 0.3:  # Lowered from 0.5 to 0.3
-        print(f"[EXPLORE MODE DECISION] ✅ TRIGGERED: Quality whale ping detected ({whale_ping_strength:.3f} > 0.3)")
+    # 🔧 BUG FIX 4: Lower whale ping threshold from 1.0 to 0.5 for better triggering
+    if whale_ping_strength > 0.5:  # Changed from 1.0 to 0.5 for better explore mode triggering
+        print(f"[EXPLORE MODE DECISION] ✅ TRIGGERED: Quality whale ping detected ({whale_ping_strength:.3f} > 0.5)")
         print(f"[EXPLORE MODE DEBUG] ====== EXPLORE MODE TRIGGERED ======")
         return True
     

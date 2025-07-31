@@ -1099,10 +1099,34 @@ class ConsensusDecisionEngine:
         
         print(f"[SIMPLE CONSENSUS] Global score (avg of active): {global_score:.3f}")
         
-        # 🎯 STRICT CONSENSUS LOGIC - NO OVERRIDES PER USER REQUIREMENT
+        # 🔧 BUG FIX 3: WHALE PING OVERRIDE - Alert bypass for strong whale signals
+        # Check for whale override before consensus logic
+        whale_ping_strength = scores.get('whale_ping', 0.0)
+        if isinstance(whale_ping_strength, dict):
+            whale_ping_strength = whale_ping_strength.get('score', 0.0)
+        
+        # Get volume from token data if available (passed via scores metadata)
+        volume_24h = 0
+        if hasattr(scores, '_volume_24h'):
+            volume_24h = scores._volume_24h
+        elif 'whale_ping' in scores and isinstance(scores['whale_ping'], dict):
+            volume_24h = scores['whale_ping'].get('volume_24h', 0)
+        
+        whale_override_triggered = (whale_ping_strength >= 1.0 and volume_24h > 5_000_000)
+        
+        if whale_override_triggered:
+            print(f"[WHALE OVERRIDE] 🐋 Strong whale signal detected! whale_ping={whale_ping_strength:.3f}, volume=${volume_24h:,.0f}")
+            decision = AlertDecision.ALERT
+            reason = f"Whale override: strong whale_ping ({whale_ping_strength:.3f}) with high volume (${volume_24h:,.0f})"
+            global_score = max(global_score, 0.85)  # Boost score for whale override
+            consensus_strength = 1.0
+            alert_sent = self._send_simple_telegram_alert(token, global_score, active_detectors)
+            print(f"[WHALE OVERRIDE] FORCED ALERT: {reason}")
+        
+        # 🎯 STRICT CONSENSUS LOGIC - NO OVERRIDES PER USER REQUIREMENT (except whale override)
         # Only proper consensus threshold decisions allowed - no strong signal exceptions
         
-        if len(active_detectors) >= min_detectors and global_score > global_score_threshold:
+        elif len(active_detectors) >= min_detectors and global_score > global_score_threshold:
             decision = AlertDecision.ALERT
             reason = f"Simple consensus from {len(active_detectors)} detectors, score={global_score:.2f}"
             
