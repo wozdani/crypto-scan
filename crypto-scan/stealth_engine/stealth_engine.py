@@ -723,6 +723,9 @@ def compute_stealth_score(token_data: Dict) -> Dict:
     stealth_error = None
     symbol = token_data.get("symbol", "UNKNOWN")
     
+    # 🎯 FUNCTION ENTRY DEBUG - This MUST appear for every token processed
+    print(f"[FUNCTION ENTRY DEBUG] {symbol}: compute_stealth_score STARTED - testing function execution path")
+    
     # Initialize AI detector variables
     diamond_enabled = False
     diamond_score = 0.0
@@ -2470,6 +2473,9 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 consensus_result = None
                 final_score = 0.0
 
+    # 🎯 ULTIMATE DEBUG TEST - This print MUST appear if Enhanced RL section is reached!
+    print(f"[ULTIMATE DEBUG TEST] {symbol}: CODE BEFORE ENHANCED RL REACHED! score={score}")
+    
     # 🧠 ENHANCED RL INTEGRATION - DQN + RLAgentV3 ON EVERY QUALIFIED TOKEN (MOVED TO MAIN EXECUTION FLOW)
     print(f"[ENHANCED RL ENTRY] {symbol}: Entering Enhanced RL section - this proves the code is reachable!")
     enhanced_rl_decision = None
@@ -2559,6 +2565,73 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             print(f"[STEALTH V3 ENHANCED ALERT ERROR] {symbol}: {alert_error}")
     else:
         print(f"[ALERT SKIP] {symbol}: Decision={final_decision}, Score={alert_score:.3f}, Threshold={alert_threshold:.3f} - not eligible for alert")
+
+    # 🎯 ULTIMATE DEBUG TEST - This print MUST appear if Enhanced RL section is reached!
+    print(f"[ULTIMATE DEBUG TEST] {symbol}: CODE BEFORE ENHANCED RL REACHED! score={score}")
+    
+    # 🧠 ENHANCED RL INTEGRATION - DQN + RLAgentV3 ON EVERY QUALIFIED TOKEN (MOVED TO MAIN EXECUTION FLOW)
+    print(f"[ENHANCED RL ENTRY] {symbol}: Entering Enhanced RL section - this proves the code is reachable!")
+    enhanced_rl_decision = None
+    enhanced_rl_data = None
+    
+    # Check if Enhanced RL is available and should be triggered
+    if ENHANCED_RL_AVAILABLE and score > 0.0:  # Only trigger for tokens with some signals
+        print(f"[ENHANCED RL TRIGGER] {symbol}: Score {score:.3f} - triggering Enhanced RL analysis")
+        
+        try:
+            from enhanced_rl_integration import EnhancedRLIntegration
+            from dqn_agent import DQNAgent
+            from rl_agent_v3 import RLAgentV3
+            
+            # Initialize Enhanced RL components
+            enhanced_rl = EnhancedRLIntegration()
+            dqn_agent = DQNAgent(state_size=10, action_size=3)
+            rl_agent_v3 = RLAgentV3()
+            
+            # Prepare enhanced state features
+            enhanced_state = {
+                'base_score': score,
+                'final_score': final_score,
+                'consensus_decision': final_decision,
+                'consensus_confidence': consensus_data.get('confidence', 0.0) if consensus_data else 0.0,
+                'whale_ping': whale_ping_score if 'whale_ping_score' in locals() else 0.0,
+                'dex_inflow': dex_inflow_score if 'dex_inflow_score' in locals() else 0.0,
+                'diamond_score': diamond_score if 'diamond_score' in locals() else 0.0,
+                'californium_score': californium_score if 'californium_score' in locals() else 0.0,
+                'whaleclip_score': whaleclip_score if 'whaleclip_score' in locals() else 0.0,
+                'volume_24h': token_data.get('volume_24h', 0)
+            }
+            
+            print(f"[ENHANCED RL STATE] {symbol}: Prepared state with {len(enhanced_state)} features")
+            
+            # Run Enhanced RL analysis
+            enhanced_result = enhanced_rl.analyze_token_enhanced(
+                symbol=symbol,
+                state_features=enhanced_state,
+                dqn_agent=dqn_agent,
+                rl_agent_v3=rl_agent_v3
+            )
+            
+            if enhanced_result:
+                enhanced_rl_decision = enhanced_result.get('decision', final_decision)
+                enhanced_rl_data = enhanced_result
+                
+                print(f"[ENHANCED RL SUCCESS] {symbol}: Decision={enhanced_rl_decision}, Confidence={enhanced_result.get('confidence', 0.0):.3f}")
+                
+                # Update final decision if Enhanced RL provides stronger signal
+                if enhanced_result.get('confidence', 0.0) > 0.8:
+                    final_decision = enhanced_rl_decision
+                    final_score = enhanced_result.get('weighted_score', final_score)
+                    print(f"[ENHANCED RL OVERRIDE] {symbol}: Updated decision to {final_decision} with confidence {enhanced_result.get('confidence', 0.0):.3f}")
+            else:
+                print(f"[ENHANCED RL WARNING] {symbol}: No enhanced result returned")
+                
+        except ImportError as e:
+            print(f"[ENHANCED RL IMPORT ERROR] {symbol}: {e}")
+        except Exception as e:
+            print(f"[ENHANCED RL ERROR] {symbol}: {e}")
+    else:
+        print(f"[ENHANCED RL SKIP] {symbol}: Available={ENHANCED_RL_AVAILABLE}, Score={score:.3f} - not qualified for Enhanced RL")
 
     # Final return with all stealth components + consensus integration + Enhanced RL
     result = {
@@ -2806,6 +2879,92 @@ def analyze_token_with_stealth_score(symbol: str, token_data: Dict) -> Dict:
             if 'result' in locals():
                 result["alert_sent"] = False
                 result["alert_skip_reason"] = f"error: {alert_error}"
+        
+        # 🚨🚨🚨 ENHANCED RL INTEGRATION BREAKTHROUGH - FINALLY IN ACTIVE FUNCTION 🚨🚨🚨
+        print(f"[ULTIMATE DEBUG TEST] {symbol}: Enhanced RL section REACHED - score: {score:.3f}")
+        
+        # Only run Enhanced RL for tokens with score > 0.0 to avoid wasting compute
+        if score > 0.0:
+            print(f"[ENHANCED RL ENTRY] {symbol}: Score {score:.3f} qualifies for Enhanced RL analysis")
+            
+            try:
+                # Enhanced RL kod tutaj - imported from enhanced_rl_integration.py
+                from enhanced_rl_integration import EnhancedRLIntegration, DQNAgent
+                
+                # Initialize Enhanced RL system with RLAgentV3 + DQN hybrid approach
+                enhanced_rl = EnhancedRLIntegration()
+                
+                # Prepare comprehensive state vector for Enhanced RL analysis
+                state_vector = enhanced_rl.prepare_comprehensive_state_vector(
+                    symbol=symbol,
+                    base_score=score,
+                    stealth_signals=active_signals,
+                    diamond_score=diamond_score if diamond_enabled else 0.0,
+                    californium_score=californium_score if californium_enabled else 0.0,
+                    whaleclip_score=whaleclip_score if whaleclip_enabled else 0.0,
+                    consensus_data=consensus_data if 'consensus_data' in locals() else None,
+                    market_data=token_data
+                )
+                
+                print(f"[ENHANCED RL STATE] {symbol}: State vector prepared - dim: {len(state_vector)}")
+                
+                # Run Enhanced RL analysis with adaptive thresholding
+                enhanced_result = enhanced_rl.analyze_with_adaptive_thresholds(
+                    symbol=symbol,
+                    state_vector=state_vector,
+                    base_score=score,
+                    use_dqn=True  # Enable DQN integration for dynamic threshold adaptation
+                )
+                
+                # Apply Enhanced RL modifications to score and decision
+                if enhanced_result and enhanced_result.get('should_modify', False):
+                    original_score = score
+                    enhanced_score = enhanced_result.get('enhanced_score', score)
+                    adaptive_multiplier = enhanced_result.get('adaptive_multiplier', 1.0)
+                    confidence_boost = enhanced_result.get('confidence_boost', 0.0)
+                    
+                    # Update score with Enhanced RL recommendations
+                    score = enhanced_score
+                    
+                    print(f"[ENHANCED RL BOOST] {symbol}: {original_score:.3f} → {enhanced_score:.3f} (multiplier: {adaptive_multiplier:.3f}, confidence: +{confidence_boost:.3f})")
+                    
+                    # Update result dictionary with Enhanced RL data
+                    if 'result' in locals():
+                        result["enhanced_rl_applied"] = True
+                        result["original_stealth_score"] = original_score
+                        result["enhanced_final_score"] = enhanced_score
+                        result["rl_adaptive_multiplier"] = adaptive_multiplier
+                        result["rl_confidence_boost"] = confidence_boost
+                        result["stealth_score"] = enhanced_score  # Update main score
+                        
+                        # Update Enhanced RL specific metadata
+                        result["enhanced_rl_metadata"] = {
+                            "state_vector_dim": len(state_vector),
+                            "dqn_enabled": True,
+                            "analysis_timestamp": enhanced_result.get('timestamp', 'unknown'),
+                            "threshold_adaptation": enhanced_result.get('threshold_info', {})
+                        }
+                else:
+                    print(f"[ENHANCED RL SKIP] {symbol}: Score {score:.3f} - no RL modifications recommended")
+                    if 'result' in locals():
+                        result["enhanced_rl_applied"] = False
+                        result["enhanced_rl_skip_reason"] = enhanced_result.get('skip_reason', 'no_modification_needed') if enhanced_result else 'analysis_failed'
+                
+            except ImportError as e:
+                print(f"[ENHANCED RL IMPORT ERROR] {symbol}: Enhanced RL system not available: {e}")
+                if 'result' in locals():
+                    result["enhanced_rl_applied"] = False
+                    result["enhanced_rl_skip_reason"] = f"import_error: {e}"
+            except Exception as e:
+                print(f"[ENHANCED RL ERROR] {symbol}: Enhanced RL analysis failed: {e}")
+                if 'result' in locals():
+                    result["enhanced_rl_applied"] = False
+                    result["enhanced_rl_skip_reason"] = f"analysis_error: {e}"
+        else:
+            print(f"[ENHANCED RL SKIP] {symbol}: Score {score:.3f} too low for Enhanced RL analysis")
+            if 'result' in locals():
+                result["enhanced_rl_applied"] = False
+                result["enhanced_rl_skip_reason"] = "score_too_low"
         
         return result
         
