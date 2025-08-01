@@ -2746,6 +2746,54 @@ def analyze_token_with_stealth_score(symbol: str, token_data: Dict) -> Dict:
         print(f"[DIAMOND INTEGRATION] {symbol}: Diamond decision={diamond_decision['decision']}, fused_score={diamond_decision['fused_score']}")
         print(f"[DIAMOND INTEGRATION] {symbol}: Confidence={diamond_decision['confidence']}, dominant={diamond_decision['dominant_detector']}")
         
+        # 🚧 EXPLORE MODE EVALUATION - CRITICAL WHALE DETECTION INTEGRATION
+        explore_mode = False
+        explore_trigger_reason = None
+        explore_confidence = 0.0
+        
+        print(f"[EXPLORE MODE CHECK] {symbol}: Score={stealth_score:.3f}, whale_ping in signals={'whale_ping' in active_signals}")
+        
+        try:
+            # Extract whale_ping strength from stealth result for explore mode evaluation
+            whale_ping_strength = 0.0
+            signal_details = stealth_result.get("signal_details", {})
+            
+            if "whale_ping" in signal_details:
+                whale_ping_strength = signal_details["whale_ping"].get("strength", 0.0)
+                print(f"[EXPLORE WHALE EXTRACT] {symbol}: Found whale_ping strength={whale_ping_strength} in signal_details")
+            elif "whale_ping" in active_signals:
+                whale_ping_strength = 3.0  # Strong active whale signal
+                print(f"[EXPLORE WHALE EXTRACT] {symbol}: whale_ping in active_signals, using strength=3.0")
+            else:
+                print(f"[EXPLORE WHALE EXTRACT] {symbol}: No whale_ping detected")
+            
+            # Check explore mode conditions
+            core_signals = ['whale_ping', 'dex_inflow', 'orderbook_anomaly', 'spoofing_layers']
+            core_signal_count = len(set(active_signals).intersection(core_signals))
+            whale_signal_override = whale_ping_strength >= 0.5
+            
+            if core_signal_count >= 1 or whale_signal_override:
+                if whale_ping_strength > 0.5:
+                    explore_mode = True
+                    explore_trigger_reason = f"Strong whale signal ({whale_ping_strength:.3f})"
+                    explore_confidence = min(0.9, whale_ping_strength / 3.0)
+                    
+                    print(f"[EXPLORE MODE TRIGGERED] {symbol}: Whale override - strength={whale_ping_strength:.3f} > 0.5")
+                    print(f"[EXPLORE MODE TRIGGERED] {symbol}: Confidence={explore_confidence:.3f}, Reason={explore_trigger_reason}")
+                    
+                    # Add explore mode data to stealth result
+                    stealth_result["explore_mode"] = True
+                    stealth_result["explore_trigger_reason"] = explore_trigger_reason
+                    stealth_result["explore_confidence"] = explore_confidence
+                    
+                else:
+                    print(f"[EXPLORE MODE SKIP] {symbol}: Core signals sufficient ({core_signal_count}) but whale_ping too weak ({whale_ping_strength:.3f})")
+            else:
+                print(f"[EXPLORE MODE SKIP] {symbol}: Insufficient signals - core_signals={core_signal_count}, whale_ping={whale_ping_strength:.3f}")
+                
+        except Exception as e:
+            print(f"[EXPLORE MODE ERROR] {symbol}: {e}")
+        
         # 🚨 STEALTH V3 TELEGRAM ALERT INTEGRATION - Diamond Decision Enhanced
         # Alert triggering w oparciu o Diamond Decision + Stealth Score
         try:

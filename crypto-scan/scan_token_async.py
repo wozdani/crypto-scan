@@ -517,6 +517,7 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 print(f"[FLOW DEBUG] {symbol}: Extracted stealth_score={stealth_score}, active_signals={len(active_signals)}")
                 print(f"[FLOW DEBUG] {symbol}: Stealth result keys: {list(stealth_result.keys())}")
                 print(f"[FLOW DEBUG] {symbol}: Active signals list: {active_signals}")
+                print(f"[CRITICAL DEBUG] {symbol}: REACHED EXPLORE MODE SECTION - TESTING IF THIS LOG APPEARS")
                 
                 # 🚧 EXPLORE MODE - Experimental Cold Start Alerts - INTEGRATION INTO MAIN PIPELINE
                 explore_mode = False
@@ -525,6 +526,7 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 
                 print(f"[EXPLORE MODE CHECK] {symbol}: Score={stealth_score:.3f}, Checking cold start conditions...")
                 print(f"[EXPLORE MODE DEBUG] {symbol}: stealth_result type: {type(stealth_result)}, active_signals: {active_signals}")
+                print(f"[CRITICAL DEBUG] {symbol}: INSIDE EXPLORE MODE EVALUATION - TESTING IF THIS LOG APPEARS")
                 
                 try:
                     from utils.stealth_utils import is_cold_start, should_explore_mode_trigger, calculate_explore_mode_confidence, format_explore_mode_reason
