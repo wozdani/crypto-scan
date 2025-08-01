@@ -142,11 +142,8 @@ class AlertQueueManager:
             scores = self.load_stealth_scores()
             
             # Aktualizuj dane dla tokena
-            # Extract whale_ping strength from signal_details if available
-            signal_details = stealth_result.get("signal_details", {})
-            whale_ping_strength = 0.0
-            if "whale_ping" in signal_details:
-                whale_ping_strength = signal_details["whale_ping"].get("strength", 0.0)
+            # Extract whale_ping strength directly from stealth_result - FIXED WHALE SIGNAL PRESERVATION
+            whale_ping_strength = stealth_result.get("whale_ping", 0.0)
             
             scores[token] = {
                 "score": stealth_result.get("score", 0.0),

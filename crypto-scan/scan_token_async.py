@@ -805,6 +805,11 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 try:
                     from stealth_engine.priority_scheduler import AlertQueueManager
                     priority_manager = AlertQueueManager()
+                    
+                    # 🚨 CRITICAL FIX: Add whale_ping_strength to stealth_result for cache storage
+                    stealth_result["whale_ping"] = whale_ping_strength
+                    print(f"[WHALE PING FIX] {symbol} → Added whale_ping={whale_ping_strength:.3f} to stealth_result")
+                    
                     priority_manager.update_stealth_scores(symbol, stealth_result)
                     print(f"[STEALTH CACHE] {symbol} → Updated stealth scores cache with score {stealth_score:.3f}")
                 except Exception as cache_error:
