@@ -1415,7 +1415,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     print(f"[CONSENSUS COMPUTING] {symbol}: Running consensus engine with real AI values")
                     print(f"[CONSENSUS VALUES] {symbol}: Diamond={diamond_score:.3f} (enabled={diamond_enabled})")
                     print(f"[CONSENSUS VALUES] {symbol}: Californium={californium_score:.3f} (enabled={californium_enabled})")
-                    print(f"[CONSENSUS VALUES] {symbol}: WhaleCLIP={whaleclip_score:.3f} (enabled={whaleclip_enabled})")
+                    print(f"[CONSENSUS VALUES] {symbol}: WhaleCLIP={whaleclip_score:.3f} (enabled={whaleclip_status_corrected})")
                     print(f"[CONSENSUS VALUES] {symbol}: StealthEngine={score:.3f} (core signals)")
                     
                     # Store consensus data for later use
@@ -2285,7 +2285,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         print(f"[CONSENSUS DEBUG] {symbol}: Total detector outputs: {len(detector_outputs) if 'detector_outputs' in locals() else 0}")
         
         # Debug AI detector status
-        print(f"[CONSENSUS AI STATUS] {symbol}: Diamond={diamond_enabled if 'diamond_enabled' in locals() else 'UNDEFINED'}({diamond_score if 'diamond_score' in locals() else 'UNDEFINED'}), Californium={californium_enabled if 'californium_enabled' in locals() else 'UNDEFINED'}({californium_score if 'californium_score' in locals() else 'UNDEFINED'}), WhaleCLIP={whaleclip_enabled if 'whaleclip_enabled' in locals() else 'UNDEFINED'}({whaleclip_score if 'whaleclip_score' in locals() else 'UNDEFINED'}), StealthScore={score}")
+        print(f"[CONSENSUS AI STATUS] {symbol}: Diamond={diamond_enabled if 'diamond_enabled' in locals() else 'UNDEFINED'}({diamond_score if 'diamond_score' in locals() else 'UNDEFINED'}), Californium={californium_enabled if 'californium_enabled' in locals() else 'UNDEFINED'}({californium_score if 'californium_score' in locals() else 'UNDEFINED'}), WhaleCLIP={whaleclip_status_corrected if 'whaleclip_status_corrected' in locals() else 'UNDEFINED'}({whaleclip_score if 'whaleclip_score' in locals() else 'UNDEFINED'}), StealthScore={score}")
         
         try:
             # Build detector outputs from AI detectors if not available
@@ -2310,8 +2310,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     }
                     print(f"[CONSENSUS BUILD] {symbol}: Added CaliforniumWhale - score={californium_score}, vote={detector_outputs['CaliforniumWhale']['vote']}")
                 
-                # Add WhaleCLIP AI if enabled
-                if 'whaleclip_enabled' in locals() and whaleclip_enabled and 'whaleclip_score' in locals() and whaleclip_score > 0:
+                # Add WhaleCLIP AI if enabled (using corrected status)
+                if 'whaleclip_status_corrected' in locals() and whaleclip_status_corrected and 'whaleclip_score' in locals():
                     detector_outputs["WhaleCLIP"] = {
                         "vote": "BUY" if whaleclip_score > 0.7 else "HOLD" if whaleclip_score > 0.4 else "AVOID",
                         "score": whaleclip_score,
