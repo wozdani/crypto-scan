@@ -259,9 +259,9 @@ class StealthLogger:
             strength = signal.get('strength', 0.0)
             active = signal.get('active', False)
             
-            # Mapuj nazwy sygnałów na detektory
+            # Mapuj nazwy sygnałów na detektory - PRESERVE WHALE SIGNAL STRENGTH
             if 'whale_ping' in signal_name.lower():
-                scores['whale_ping'] = strength if active else 0.0
+                scores['whale_ping'] = strength  # Always preserve strength from stealth processing
             elif 'dex_inflow' in signal_name.lower():
                 scores['dex_inflow'] = strength if active else 0.0
             elif 'spoofing' in signal_name.lower() or 'orderbook' in signal_name.lower():
