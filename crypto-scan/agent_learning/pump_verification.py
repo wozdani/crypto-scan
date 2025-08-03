@@ -20,6 +20,8 @@ class PumpVerificationSystem:
         self.explore_file = "/home/runner/workspace/crypto-scan/cache/explore_learning_data.json"
         self.verification_file = "/home/runner/workspace/crypto-scan/cache/pump_verification_results.json"
         self.agent_learning_file = "/home/runner/workspace/crypto-scan/cache/agent_learning_history.json"
+        self.cooldown_file = "/home/runner/workspace/crypto-scan/cache/pump_verification_cooldowns.json"
+        self.cooldown_days = 7  # Don't verify same token within 7 days
         
     def load_explore_data(self) -> List[Dict]:
         """Załaduj explore mode data from all files"""
@@ -74,6 +76,45 @@ class PumpVerificationSystem:
             print(f"[PUMP VERIFICATION] Saved {len(results)} verification results")
         except Exception as e:
             print(f"[PUMP VERIFICATION ERROR] Saving results: {e}")
+    
+    def load_cooldowns(self) -> Dict[str, str]:
+        """Załaduj token cooldown timestamps"""
+        try:
+            with open(self.cooldown_file, 'r') as f:
+                return json.load(f)
+        except FileNotFoundError:
+            return {}
+        except Exception as e:
+            print(f"[PUMP VERIFICATION ERROR] Loading cooldowns: {e}")
+            return {}
+    
+    def save_cooldowns(self, cooldowns: Dict[str, str]):
+        """Zapisz token cooldown timestamps"""
+        try:
+            with open(self.cooldown_file, 'w') as f:
+                json.dump(cooldowns, f, indent=2)
+            print(f"[PUMP VERIFICATION] Updated cooldowns for {len(cooldowns)} tokens")
+        except Exception as e:
+            print(f"[PUMP VERIFICATION ERROR] Saving cooldowns: {e}")
+    
+    def is_token_in_cooldown(self, symbol: str, cooldowns: Dict[str, str]) -> bool:
+        """Sprawdź czy token jest w 7-day cooldown"""
+        if symbol not in cooldowns:
+            return False
+        
+        try:
+            last_verification = datetime.fromisoformat(cooldowns[symbol])
+            days_since = (datetime.now() - last_verification).days
+            
+            if days_since < self.cooldown_days:
+                print(f"[PUMP VERIFICATION COOLDOWN] {symbol}: {days_since} days since last verification (need {self.cooldown_days})")
+                return True
+            else:
+                print(f"[PUMP VERIFICATION COOLDOWN] {symbol}: {days_since} days passed - cooldown expired")
+                return False
+        except Exception as e:
+            print(f"[PUMP VERIFICATION ERROR] Checking cooldown for {symbol}: {e}")
+            return False
     
     def get_price_data(self, symbol: str, start_time: datetime, hours_after: int = 6) -> Optional[Dict]:
         """Pobierz price data dla verification (6h po explore alert)"""
@@ -164,17 +205,24 @@ class PumpVerificationSystem:
         """Sprawdź pending explore alerts które są ready dla verification"""
         explore_data = self.load_explore_data()
         verification_results = self.load_verification_results()
+        cooldowns = self.load_cooldowns()
         
         # Get already verified symbols
         verified_symbols = {r["symbol"] + "_" + r["timestamp"] for r in verification_results}
         
         now = datetime.now()
         new_verifications = []
+        cooldown_skipped = 0
         
         for entry in explore_data:
             entry_key = entry["symbol"] + "_" + entry["timestamp"]
             if entry_key in verified_symbols:
                 continue  # Already verified
+            
+            # Check 7-day cooldown for this symbol
+            if self.is_token_in_cooldown(entry["symbol"], cooldowns):
+                cooldown_skipped += 1
+                continue  # Skip - in cooldown period
             
             # Check if 6+ hours passed
             try:
@@ -219,11 +267,52 @@ class PumpVerificationSystem:
                     }
                     
                     new_verifications.append(verification)
+                    
+                    # Update cooldown for this token
+                    cooldowns[entry["symbol"]] = now.isoformat()
+                    
                     print(f"[PUMP VERIFICATION] {entry['symbol']}: {pump_result['pump_level']} ({pump_result['pump_percentage']:.1f}%)")
                 else:
                     print(f"[PUMP VERIFICATION] Could not get price data for {entry['symbol']}")
         
+        # Save updated cooldowns
+        if new_verifications:
+            self.save_cooldowns(cooldowns)
+        
+        # Log summary
+        if cooldown_skipped > 0:
+            print(f"[PUMP VERIFICATION COOLDOWN] Skipped {cooldown_skipped} tokens due to 7-day cooldown")
+        
+        print(f"[PUMP VERIFICATION] Processed {len(new_verifications)} new verifications")
         return new_verifications
+    
+    def run_verification_cycle(self) -> List[Dict]:
+        """Main verification cycle - sprawdź explore alerts i update agent learning"""
+        try:
+            print(f"[PUMP VERIFICATION] === Starting verification cycle at {datetime.now()} ===")
+            
+            # Get new verifications
+            new_verifications = self.verify_pending_alerts()
+            
+            if not new_verifications:
+                print("[PUMP VERIFICATION] No new pumps ready for verification")
+                return []
+            
+            # Load existing results
+            all_results = self.load_verification_results()
+            
+            # Add new verifications to results
+            all_results.extend(new_verifications)
+            
+            # Save updated results
+            self.save_verification_results(all_results)
+            
+            print(f"[PUMP VERIFICATION] === Completed cycle: {len(new_verifications)} new verifications ===")
+            return new_verifications
+            
+        except Exception as e:
+            print(f"[PUMP VERIFICATION ERROR] During verification cycle: {e}")
+            return []
     
     def extract_enhanced_features(self, entry: Dict) -> Dict:
         """Extract enhanced features from enriched explore data dla lepszego agent learning"""
@@ -527,12 +616,7 @@ class PumpVerificationSystem:
         else:
             return f"❌ Wrong: {symbol} agents voted {agents_voted}, should have voted {should_have_voted} (pump: {pump_level})"
     
-    def run_verification_cycle(self):
-        """Run complete verification cycle"""
-        print("[PUMP VERIFICATION] Starting verification cycle...")
-        
-        # Verify pending alerts
-        new_verifications = self.verify_pending_alerts()
+
         
         if new_verifications:
             # Save verification results
