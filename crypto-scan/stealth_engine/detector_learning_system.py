@@ -43,7 +43,7 @@ class DetectorDecision:
     was_correct: Optional[bool] = None
     profit_loss_pct: Optional[float] = None
     explore_mode: bool = False
-    market_context: Dict = None
+    market_context: Optional[Dict] = None
 
 @dataclass
 class DetectorPerformance:
@@ -70,6 +70,10 @@ class DetectorLearningSystem:
         self.performance_data = self.load_performance_data()
         self.logger = logging.getLogger(__name__)
         
+        # Bootstrap learning system with existing multi-agent data if no learning data exists
+        if not self.decision_history and not self.performance_data:
+            self.bootstrap_from_existing_data()
+        
         # Default detector configurations
         self.detector_configs = {
             "CaliforniumWhale": {
@@ -95,6 +99,69 @@ class DetectorLearningSystem:
         }
         
         print("[DETECTOR LEARNING] Intelligent self-learning system initialized for all detectors")
+        print(f"[DETECTOR LEARNING] Current data: {len(self.decision_history)} decisions, {len(self.performance_data)} detector profiles")
+    
+    def bootstrap_from_existing_data(self):
+        """Bootstrap learning system z istniejących multi-agent decisions i agent learning history"""
+        print("[DETECTOR LEARNING] Bootstrapping system with existing decision data...")
+        
+        # Load multi-agent decisions
+        multi_agent_file = "crypto-scan/cache/multi_agent_decisions.json"
+        if os.path.exists(multi_agent_file):
+            try:
+                with open(multi_agent_file, 'r') as f:
+                    multi_decisions = json.load(f)
+                    
+                bootstrapped_count = 0
+                for decision in multi_decisions:
+                    detector_name = decision.get("detector_name")
+                    # Convert multi-agent decisions to detector decisions
+                    if detector_name in self.detector_configs:
+                        # Create synthetic detector decision from multi-agent data
+                        decision_record = DetectorDecision(
+                            detector_name=detector_name,
+                            symbol="BOOTSTRAP",  # Placeholder since symbol not in multi-agent decisions
+                            timestamp=decision.get("timestamp", datetime.now().isoformat()),
+                            original_score=decision.get("score", 0.0),
+                            adjusted_score=decision.get("score", 0.0),
+                            decision=decision.get("final_decision", "HOLD"),
+                            was_correct=None,  # We don't have outcomes yet
+                            explore_mode=False,
+                            market_context={"bootstrap": True}
+                        )
+                        self.decision_history.append(decision_record)
+                        bootstrapped_count += 1
+                        
+                        if bootstrapped_count >= 20:  # Limit to avoid memory issues
+                            break
+                            
+                print(f"[DETECTOR LEARNING] Bootstrapped {bootstrapped_count} decisions from multi-agent data")
+                
+                # Create initial performance data for all detectors
+                for detector_name in self.detector_configs.keys():
+                    detector_decisions = [d for d in self.decision_history if d.detector_name == detector_name]
+                    if detector_decisions:
+                        # Create initial performance record
+                        self.performance_data[detector_name] = DetectorPerformance(
+                            detector_name=detector_name,
+                            total_decisions=len(detector_decisions),
+                            correct_decisions=0,  # No outcomes yet
+                            accuracy_rate=0.5,  # Start with neutral accuracy
+                            avg_profit_loss=0.0,
+                            explore_mode_accuracy=0.5,
+                            last_updated=datetime.now().isoformat(),
+                            score_adjustments=[],
+                            confidence_evolution=[0.5]
+                        )
+                
+                print(f"[DETECTOR LEARNING] Created initial performance profiles for {len(self.performance_data)} detectors")
+                
+                # Save bootstrapped data
+                self.save_decision_history()
+                self.save_performance_data()
+                
+            except Exception as e:
+                print(f"[DETECTOR LEARNING] Error bootstrapping from multi-agent data: {e}")
     
     def ensure_directories(self):
         """Stwórz niezbędne katalogi"""
@@ -189,7 +256,7 @@ class DetectorLearningSystem:
         adjusted_score: float, 
         decision: str,
         explore_mode: bool = False,
-        market_context: Dict = None
+        market_context: Optional[Dict] = None
     ):
         """
         Zapisz decyzję detektora dla późniejszego uczenia
@@ -238,7 +305,7 @@ class DetectorLearningSystem:
         symbol: str, 
         timestamp: str, 
         was_correct: bool, 
-        profit_loss_pct: float = None
+        profit_loss_pct: Optional[float] = None
     ):
         """
         Zaktualizuj wynik decyzji (po sprawdzeniu czy była trafna)
@@ -269,7 +336,7 @@ class DetectorLearningSystem:
         detector_name: str, 
         original_score: float, 
         symbol: str, 
-        market_context: Dict = None
+        market_context: Optional[Dict] = None
     ) -> Tuple[float, str]:
         """
         Adaptuj score detektora na podstawie historical performance
@@ -316,11 +383,14 @@ class DetectorLearningSystem:
         
         # Apply recent performance trend
         if len(performance.score_adjustments) > 3:
-            recent_trend = np.mean(performance.score_adjustments[-3:])
-            if recent_trend > 0.1:
-                adaptation_multiplier *= 1.1
-            elif recent_trend < -0.1:
-                adaptation_multiplier *= 0.9
+            # Filter out None values and convert to float
+            valid_adjustments = [adj for adj in performance.score_adjustments[-3:] if adj is not None]
+            if valid_adjustments:
+                recent_trend = np.mean(valid_adjustments)
+                if recent_trend > 0.1:
+                    adaptation_multiplier *= 1.1
+                elif recent_trend < -0.1:
+                    adaptation_multiplier *= 0.9
         
         adapted_score = original_score * adaptation_multiplier
         
@@ -353,7 +423,11 @@ class DetectorLearningSystem:
         
         # Calculate profit/loss
         pnl_decisions = [d for d in detector_decisions if d.profit_loss_pct is not None]
-        avg_profit_loss = np.mean([d.profit_loss_pct for d in pnl_decisions]) if pnl_decisions else 0.0
+        if pnl_decisions:
+            pnl_values = [d.profit_loss_pct for d in pnl_decisions]
+            avg_profit_loss = np.mean(pnl_values)
+        else:
+            avg_profit_loss = 0.0
         
         # Explore mode accuracy
         explore_decisions = [d for d in detector_decisions if d.explore_mode and d.was_correct is not None]
@@ -438,11 +512,11 @@ def get_detector_learning_system() -> DetectorLearningSystem:
     return _learning_system
 
 # Convenience functions
-def adapt_detector_score(detector_name: str, original_score: float, symbol: str, market_context: Dict = None) -> Tuple[float, str]:
+def adapt_detector_score(detector_name: str, original_score: float, symbol: str, market_context: Optional[Dict] = None) -> Tuple[float, str]:
     """Convenience function dla score adaptation"""
     return get_detector_learning_system().adapt_detector_score(detector_name, original_score, symbol, market_context)
 
-def record_detector_decision(detector_name: str, symbol: str, original_score: float, adjusted_score: float, decision: str, explore_mode: bool = False, market_context: Dict = None):
+def record_detector_decision(detector_name: str, symbol: str, original_score: float, adjusted_score: float, decision: str, explore_mode: bool = False, market_context: Optional[Dict] = None):
     """Convenience function dla recording decisions"""
     return get_detector_learning_system().record_detector_decision(detector_name, symbol, original_score, adjusted_score, decision, explore_mode, market_context)
 
