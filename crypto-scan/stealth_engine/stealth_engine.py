@@ -1399,12 +1399,13 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         if signal.name in ["whale_ping", "whale_ping_real", "whale_ping_real_repeat"] and hasattr(signal, 'active') and signal.active and hasattr(signal, 'strength'):
                             whale_signal_strength = max(whale_signal_strength, signal.strength)
                     
-                    # Update WhaleCLIP status based on actual signal strength
-                    whaleclip_status_corrected = (whaleclip_enabled or whale_signal_strength > 0.0 or whaleclip_score > 0.0)
+                    # Update WhaleCLIP status - ONLY use WhaleCLIP's own score for consensus
+                    # whale_signal_strength comes from other detectors and should NOT affect WhaleCLIP status
+                    whaleclip_status_corrected = (whaleclip_enabled and whaleclip_score > 0.0)
                     
                     # Dodaj log aktywnych detektorów przed konsensusem zgodnie z uwagami Szefira
                     print(f"[DETECTORS ACTIVE] {symbol}: StealthEngine=True, Diamond={diamond_enabled}, Californium={californium_enabled}, WhaleCLIP={whaleclip_status_corrected}, GNN={gnn_active}")
-                    print(f"[WHALECLIP STATUS FIX] {symbol}: whaleclip_enabled={whaleclip_enabled}, whale_signal_strength={whale_signal_strength:.3f}, whaleclip_score={whaleclip_score:.3f} → Status={whaleclip_status_corrected}")
+                    print(f"[WHALECLIP STATUS CORRECTED] {symbol}: whaleclip_enabled={whaleclip_enabled}, whaleclip_score={whaleclip_score:.3f} → Status={whaleclip_status_corrected} (whale_signal_strength={whale_signal_strength:.3f} ignored for consensus)")
                     
                     # 🚨 CONSENSUS ENGINE MOVED OUTSIDE IF BLOCK
                     # Consensus logic has been relocated to execute for ALL tokens
