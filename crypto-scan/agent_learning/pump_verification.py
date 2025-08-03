@@ -22,6 +22,10 @@ class PumpVerificationSystem:
         self.agent_learning_file = "/home/runner/workspace/crypto-scan/cache/agent_learning_history.json"
         self.cooldown_file = "/home/runner/workspace/crypto-scan/cache/pump_verification_cooldowns.json"
         self.cooldown_days = 7  # Don't verify same token within 7 days
+        self.cleanup_days = 7   # Remove old explore data after 7 days
+        
+        # Ensure cache directory exists
+        os.makedirs("/home/runner/workspace/crypto-scan/cache/explore_mode", exist_ok=True)
         
     def load_explore_data(self) -> List[Dict]:
         """Załaduj explore mode data from all files"""
@@ -286,10 +290,82 @@ class PumpVerificationSystem:
         print(f"[PUMP VERIFICATION] Processed {len(new_verifications)} new verifications")
         return new_verifications
     
+    def cleanup_old_explore_data(self):
+        """Usuń explore data starsze niż 7 dni"""
+        try:
+            explore_dir = "/home/runner/workspace/crypto-scan/cache/explore_mode"
+            if not os.path.exists(explore_dir):
+                return
+            
+            cutoff_date = datetime.now() - timedelta(days=self.cleanup_days)
+            files_removed = 0
+            
+            files = os.listdir(explore_dir)
+            json_files = [f for f in files if f.endswith("_explore.json")]
+            
+            for filename in json_files:
+                filepath = os.path.join(explore_dir, filename)
+                try:
+                    with open(filepath, 'r') as f:
+                        data = json.load(f)
+                        file_timestamp = datetime.fromisoformat(data.get('timestamp', ''))
+                        
+                        if file_timestamp < cutoff_date:
+                            os.remove(filepath)
+                            files_removed += 1
+                            print(f"[CLEANUP] Removed old explore file: {filename} ({(datetime.now() - file_timestamp).days} days old)")
+                            
+                except Exception as file_error:
+                    print(f"[CLEANUP ERROR] Processing {filename}: {file_error}")
+            
+            if files_removed > 0:
+                print(f"[CLEANUP] Removed {files_removed} old explore files (older than {self.cleanup_days} days)")
+            else:
+                print(f"[CLEANUP] No old explore files to remove")
+                
+        except Exception as e:
+            print(f"[CLEANUP ERROR] During explore data cleanup: {e}")
+    
+    def cleanup_old_verification_results(self):
+        """Usuń verification results starsze niż 30 dni żeby nie zabierały miejsca"""
+        try:
+            verification_results = self.load_verification_results()
+            if not verification_results:
+                return
+            
+            cutoff_date = datetime.now() - timedelta(days=30)  # Keep verification results for 30 days
+            original_count = len(verification_results)
+            
+            # Filter out old results
+            filtered_results = []
+            for result in verification_results:
+                try:
+                    verification_time = datetime.strptime(result.get('verification_time', ''), '%Y-%m-%d %H:%M:%S')
+                    if verification_time >= cutoff_date:
+                        filtered_results.append(result)
+                except:
+                    # Keep results with invalid timestamp format
+                    filtered_results.append(result)
+            
+            removed_count = original_count - len(filtered_results)
+            
+            if removed_count > 0:
+                self.save_verification_results(filtered_results)
+                print(f"[CLEANUP] Removed {removed_count} old verification results (older than 30 days)")
+            else:
+                print(f"[CLEANUP] No old verification results to remove")
+                
+        except Exception as e:
+            print(f"[CLEANUP ERROR] During verification results cleanup: {e}")
+
     def run_verification_cycle(self) -> List[Dict]:
         """Main verification cycle - sprawdź explore alerts i update agent learning"""
         try:
             print(f"[PUMP VERIFICATION] === Starting verification cycle at {datetime.now()} ===")
+            
+            # First cleanup old data
+            self.cleanup_old_explore_data()       # Remove old explore files (7+ days)
+            self.cleanup_old_verification_results()  # Remove old verification results (30+ days)
             
             # Get new verifications
             new_verifications = self.verify_pending_alerts()
@@ -615,23 +691,6 @@ class PumpVerificationSystem:
             return f"✅ Correct: {symbol} agents voted {agents_voted}, pump was {pump_level}"
         else:
             return f"❌ Wrong: {symbol} agents voted {agents_voted}, should have voted {should_have_voted} (pump: {pump_level})"
-    
-
-        
-        if new_verifications:
-            # Save verification results
-            existing_results = self.load_verification_results()
-            all_results = existing_results + new_verifications
-            self.save_verification_results(all_results)
-            
-            # Update agent learning
-            self.update_agent_learning(new_verifications)
-            
-            print(f"[PUMP VERIFICATION] Completed verification of {len(new_verifications)} alerts")
-        else:
-            print("[PUMP VERIFICATION] No alerts ready for verification")
-        
-        return new_verifications
 
 def main():
     """Main verification function"""
