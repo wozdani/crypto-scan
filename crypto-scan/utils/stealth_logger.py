@@ -281,15 +281,45 @@ class StealthLogger:
     
     def _check_consensus_alert(self, token: str, token_data: Dict) -> None:
         """
-        Sprawdź czy consensus decision == BUY i wygeneruj alert
+        🔐 CRITICAL CONSENSUS VALIDATION - Sprawdź czy RZECZYWIŚCIE jest majority BUY consensus
         """
         # Używamy nowego pola consensus_decision zamiast consensus_vote
         consensus_decision = token_data.get('consensus_decision', 'UNKNOWN')
         consensus_votes = token_data.get('consensus_votes', [])
         consensus_confidence = token_data.get('consensus_confidence', 0.0)
         
-        if consensus_decision == 'BUY':
-            total_score = token_data.get('base_score', 0.0)
+        # 🚨 CRITICAL FIX: Sprawdź RZECZYWISTE głosy a nie tylko decision field
+        if isinstance(consensus_votes, list) and len(consensus_votes) > 0:
+            # Parse głosy z formatu "DetectorName: VOTE"
+            buy_count = 0
+            hold_count = 0
+            avoid_count = 0
+            
+            for vote in consensus_votes:
+                if ": BUY" in str(vote):
+                    buy_count += 1
+                elif ": HOLD" in str(vote):
+                    hold_count += 1
+                elif ": AVOID" in str(vote):
+                    avoid_count += 1
+            
+            total_votes = len(consensus_votes)
+            majority_buy = buy_count > total_votes // 2  # Majority required
+            
+            print(f"[CONSENSUS VALIDATION] {token}: BUY={buy_count}, HOLD={hold_count}, AVOID={avoid_count}, total={total_votes}, majority_buy={majority_buy}")
+            
+            # Alert tylko jeśli rzeczywiście jest majority BUY
+            if not majority_buy:
+                print(f"[CONSENSUS BLOCK] {token}: No majority BUY consensus ({buy_count}/{total_votes}) - BLOCKING alert")
+                print(f"[CONSENSUS BLOCK] {token}: Votes breakdown: BUY={buy_count}, HOLD={hold_count}, AVOID={avoid_count}")
+                return
+        elif consensus_decision != 'BUY':
+            print(f"[CONSENSUS BLOCK] {token}: Decision {consensus_decision} != BUY - BLOCKING alert")
+            return
+        
+        # Jeśli dotarliśmy tutaj, to mamy valid BUY consensus
+        print(f"[CONSENSUS PASS] {token}: Valid BUY consensus confirmed - proceeding with alert")
+        total_score = token_data.get('base_score', 0.0)
             
             # Znajdź dominujące źródła
             stealth_signals = token_data.get('stealth_signals', [])
