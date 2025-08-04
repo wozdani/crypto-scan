@@ -1309,6 +1309,31 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     print(f"  Final score: {score:.3f}")
                     print(f"[STEALTH] Final signal for {symbol} → Score: {score:.3f}, Decision: {decision}, Active: {len(used_signals)} signals{partial_note}{diamond_note}{whaleclip_note}{californium_note}")
                     
+                    # 🎓 EXPLORE MODE TRIGGER LOGIC - Set explore_mode_triggered for learning
+                    if score >= 1.0:  # Lower threshold for explore mode data collection
+                        explore_mode_triggered = True
+                        explore_trigger_reason = f"score_threshold_{score:.3f}"
+                        explore_confidence = min(score / 4.0, 1.0)  # Confidence based on score
+                        print(f"[EXPLORE MODE TRIGGER] {symbol}: Score {score:.3f} >= 1.0 → explore_mode_triggered = True")
+                    elif len(used_signals) >= 5:  # Alternative trigger: many signals
+                        explore_mode_triggered = True
+                        explore_trigger_reason = f"signal_count_{len(used_signals)}"
+                        explore_confidence = len(used_signals) / 10.0  # Confidence based on signal count
+                        print(f"[EXPLORE MODE TRIGGER] {symbol}: {len(used_signals)} signals >= 5 → explore_mode_triggered = True")
+                    elif diamond_enabled and diamond_score >= 0.4:  # AI detector trigger
+                        explore_mode_triggered = True
+                        explore_trigger_reason = f"diamond_ai_{diamond_score:.3f}"
+                        explore_confidence = diamond_score
+                        print(f"[EXPLORE MODE TRIGGER] {symbol}: Diamond AI {diamond_score:.3f} >= 0.4 → explore_mode_triggered = True")
+                    elif californium_enabled and californium_score >= 0.5:  # Californium trigger
+                        explore_mode_triggered = True
+                        explore_trigger_reason = f"californium_ai_{californium_score:.3f}"
+                        explore_confidence = californium_score
+                        print(f"[EXPLORE MODE TRIGGER] {symbol}: Californium AI {californium_score:.3f} >= 0.5 → explore_mode_triggered = True")
+                    else:
+                        explore_mode_triggered = False
+                        print(f"[EXPLORE MODE SKIP] {symbol}: Score {score:.3f}, signals {len(used_signals)}, Diamond {diamond_score:.3f}, Californium {californium_score:.3f} - below thresholds")
+                    
                     # === GOLDEN KEY GNN DETECTOR INTEGRATION ===
                     # 🔥 STAGE: Integrate Golden Key GNN Detector - Graph Neural Networks
                     gnn_subgraph_score = 0.0
@@ -1962,6 +1987,64 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         # EXPLORE MODE: Zapisuj wysokie score dla future agent learning
                         if explore_mode_triggered:
                             print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Wysokie score {score:.3f} zapisane dla agent learning")
+                            
+                            # 🚧 SAVE EXPLORE MODE FILE - Always save explore data for learning
+                            try:
+                                import json
+                                import os
+                                from datetime import datetime
+                                
+                                # Create explore mode data structure
+                                explore_data = {
+                                    "symbol": token_data.get('symbol', 'UNKNOWN'),
+                                    "timestamp": datetime.now().isoformat(),
+                                    "explore_confidence": round(score, 3),
+                                    "explore_reason": f"EXPLORE MODE: stealth signals detected | Score: {score:.3f} | Active signals: {', '.join(list(used_signals)[:5])}",
+                                    "whale_ping_strength": whale_ping_value if 'whale_ping_value' in locals() and whale_ping_value > 0 else 0.0,
+                                    "dex_inflow_usd": 0.0,  # TODO: Extract real DEX inflow USD value
+                                    "stealth_score": score,
+                                    "active_signals": list(used_signals) if 'used_signals' in locals() else [],
+                                    "skip_reason": None,
+                                    "consensus_decision": "UNKNOWN",
+                                    "agent_votes": [],
+                                    "confidence_sources": {
+                                        "diamondwhale_ai": diamond_score if diamond_enabled else 0.0,
+                                        "californiumwhale_ai": californium_score if californium_enabled else 0.0,
+                                        "whale_clip": 0.0,  # WhaleCLIP not available here
+                                        "mastermind_tracing": 0.0  # TODO: Add mastermind score
+                                    },
+                                    "detector_scores": {
+                                        "stealth_engine": score,
+                                        "diamond_whale": diamond_score if diamond_enabled else 0.0,
+                                        "californium_whale": californium_score if californium_enabled else 0.0,
+                                        "whale_clip": 0.0
+                                    },
+                                    "mastermind_tracing": {
+                                        "sequence_detected": False,
+                                        "sequence_length": 0,
+                                        "confidence": 0.0,
+                                        "actors": []
+                                    },
+                                    "graph_features": {
+                                        "accumulation_subgraph_score": 0.0,
+                                        "temporal_pattern_shift": 0.0,
+                                        "whale_loop_probability": 0.0,
+                                        "unique_addresses": 0,
+                                        "avg_tx_interval_seconds": 0.0
+                                    }
+                                }
+                                
+                                # Save explore mode file
+                                os.makedirs("cache/explore_mode", exist_ok=True)
+                                explore_file = f"cache/explore_mode/{token_data.get('symbol', 'UNKNOWN')}_explore.json"
+                                
+                                with open(explore_file, 'w') as f:
+                                    json.dump(explore_data, f, indent=2)
+                                
+                                print(f"[EXPLORE MODE SAVED] {token_data.get('symbol', 'UNKNOWN')}: Explore data saved to {explore_file}")
+                                
+                            except Exception as e:
+                                print(f"[EXPLORE MODE ERROR] {token_data.get('symbol', 'UNKNOWN')}: Failed to save explore data: {e}")
                             print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Trigger reason: {explore_trigger_reason}")
                             print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Agenci będą sprawdzać czy był pump w przyszłości")
                             
