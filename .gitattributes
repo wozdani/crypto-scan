@@ -9,3 +9,4 @@
 *.db binary
 *.png binary
 *.jpg binary
+crypto-scan/feedback_loop/basic_score_results.jsonl merge=ours

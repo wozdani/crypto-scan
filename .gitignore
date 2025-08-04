@@ -143,3 +143,6 @@ pump-analysis/outputs/
 # Git objects temporary files
 .git/objects/tmp_*
 .git/objects/*/tmp_*
+
+# generated results
+crypto-scan/feedback_loop/basic_score_results.jsonl
