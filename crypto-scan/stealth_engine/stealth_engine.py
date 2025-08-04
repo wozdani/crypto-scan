@@ -2439,13 +2439,18 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     }
                     print(f"[CONSENSUS BUILD] {symbol}: Added WhaleCLIP - score={whaleclip_score}, vote={detector_outputs['WhaleCLIP']['vote']}")
                 
-                # Add Stealth Engine - ALWAYS available
-                detector_outputs["StealthEngine"] = {
-                    "vote": "BUY" if score > 2.5 else "HOLD" if score > 1.0 else "AVOID",
-                    "score": score,
-                    "weight": 0.25
-                }
-                print(f"[CONSENSUS BUILD] {symbol}: Added StealthEngine - score={score}, vote={detector_outputs['StealthEngine']['vote']}")
+                # Add Stealth Engine - ALWAYS available with safe handling
+                try:
+                    stealth_vote = "BUY" if score > 2.5 else "HOLD" if score > 1.0 else "AVOID"
+                    detector_outputs["StealthEngine"] = {
+                        "vote": stealth_vote,
+                        "score": float(score),  # Ensure proper type conversion
+                        "weight": 0.25
+                    }
+                    print(f"[CONSENSUS BUILD] {symbol}: Added StealthEngine - score={score:.3f}, vote={stealth_vote}")
+                except Exception as stealth_error:
+                    print(f"[STEALTH ENGINE ERROR] {symbol}: Failed to add to consensus: {stealth_error}")
+                    # Continue without StealthEngine if there's an error
                 
                 print(f"[CONSENSUS BUILT] {symbol}: Built detector outputs: {list(detector_outputs.keys())}")
             

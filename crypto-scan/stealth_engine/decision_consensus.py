@@ -109,6 +109,9 @@ class DecisionConsensusEngine:
             print(f"[MULTI-AGENT INFO] Multi-agent module not available, using fallback weighted voting")
         except Exception as e:
             print(f"[MULTI-AGENT ERROR] System failed: {e}. Using fallback weighted voting.")
+            # Log detailed error for debugging
+            import traceback
+            print(f"[MULTI-AGENT ERROR DETAILS] {traceback.format_exc()}")
                 
         # Fallback to simple weighted voting only if multi-agent fails
         print(f"[FALLBACK VOTING] Processing {token} with weighted voting (multi-agent unavailable)")
@@ -576,10 +579,10 @@ class DecisionConsensusEngine:
                                 asyncio.run,
                                 evaluate_detector_with_agents(
                                     detector_name=detector_name,
-                                    score=score,
+                                    score=float(score),  # Ensure score is proper float
                                     signal_data=signal_data,
-                                    market_data=market_data,
-                                    threshold=threshold
+                                    market_data=market_data or {},  # Provide empty dict fallback
+                                    threshold=float(threshold)  # Ensure threshold is proper float
                                 )
                             )
                             decision, confidence, log = future.result(timeout=10)
@@ -588,10 +591,10 @@ class DecisionConsensusEngine:
                         decision, confidence, log = asyncio.run(
                             evaluate_detector_with_agents(
                                 detector_name=detector_name,
-                                score=score,
+                                score=float(score),  # Ensure score is proper float
                                 signal_data=signal_data,
-                                market_data=market_data,
-                                threshold=threshold
+                                market_data=market_data or {},  # Provide empty dict fallback
+                                threshold=float(threshold)  # Ensure threshold is proper float
                             )
                         )
                     
