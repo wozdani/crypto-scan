@@ -16,6 +16,15 @@ import os
 import random
 from openai import OpenAI
 
+# Import DQN system for advanced reinforcement learning
+try:
+    from .dqn_multi_agent import get_dqn_integration, initialize_dqn_system
+    DQN_AVAILABLE = True
+    print("[MULTI-AGENT] ✅ DQN Advanced Reinforcement Learning system available")
+except ImportError as e:
+    DQN_AVAILABLE = False
+    print(f"[MULTI-AGENT] ⚠️ DQN system not available: {e}")
+
 
 class AgentRole(Enum):
     """Role agentów w systemie decyzyjnym"""
@@ -767,3 +776,214 @@ def evaluate_all_detectors_with_consensus(detectors_data: Dict[str, Dict], thres
         Tuple (final_decision, all_decisions, detailed_log)
     """
     return multi_agent_system.multi_agent_consensus_all_detectors(detectors_data, threshold)
+
+
+class DQNEnhancedMultiAgentSystem(MultiAgentDecisionSystem):
+    """
+    Enhanced Multi-Agent System with DQN Reinforcement Learning
+    Allows agents to learn and adapt based on market feedback
+    """
+    
+    def __init__(self):
+        super().__init__()
+        self.dqn_integration = None
+        self.learning_enabled = True
+        self.feedback_history = []
+        
+        # Initialize DQN system if available
+        if DQN_AVAILABLE:
+            try:
+                self.dqn_integration = initialize_dqn_system()
+                print("[DQN MULTI-AGENT] ✅ Enhanced Multi-Agent System with DQN Reinforcement Learning initialized")
+            except Exception as e:
+                print(f"[DQN MULTI-AGENT] ⚠️ DQN initialization failed: {e}")
+                self.dqn_integration = None
+    
+    async def enhanced_consensus_with_dqn(self,
+                                         symbol: str,
+                                         detector_scores: Dict[str, float],
+                                         detector_votes: Dict[str, str],
+                                         market_context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Enhanced consensus decision with DQN learning integration
+        
+        Args:
+            symbol: Token symbol
+            detector_scores: Detector scores
+            detector_votes: Detector votes (BUY/HOLD/AVOID)
+            market_context: Market data for learning
+            
+        Returns:
+            Enhanced consensus result with DQN adjustments
+        """
+        # Calculate consensus score
+        import numpy as np
+        consensus_score = np.mean(list(detector_scores.values())) if detector_scores else 0.0
+        
+        # Determine majority decision
+        vote_counts = {'BUY': 0, 'HOLD': 0, 'AVOID': 0}
+        for vote in detector_votes.values():
+            vote_counts[vote] = vote_counts.get(vote, 0) + 1
+        
+        consensus_decision = max(vote_counts, key=vote_counts.get)
+        
+        result = {
+            'symbol': symbol,
+            'consensus_score': consensus_score,
+            'consensus_decision': consensus_decision,
+            'detector_scores': detector_scores,
+            'detector_votes': detector_votes,
+            'vote_counts': vote_counts,
+            'market_context': market_context,
+            'dqn_enhanced': False,
+            'dqn_adjustments': {}
+        }
+        
+        # Apply DQN enhancements if available
+        if self.dqn_integration and self.learning_enabled:
+            try:
+                dqn_result = self.dqn_integration.process_consensus_decision(
+                    consensus_score=consensus_score,
+                    consensus_decision=consensus_decision,
+                    detector_votes=detector_votes,
+                    detector_scores=detector_scores,
+                    market_context=market_context
+                )
+                
+                result['dqn_enhanced'] = True
+                result['dqn_adjustments'] = dqn_result
+                result['adjusted_weights'] = dqn_result.get('new_weights', {})
+                result['adjusted_threshold'] = dqn_result.get('new_threshold', 0.7)
+                
+                print(f"[DQN ENHANCED CONSENSUS] {symbol}: DQN action={dqn_result.get('dqn_action')}, threshold={dqn_result.get('new_threshold', 0.7):.3f}")
+                
+            except Exception as e:
+                print(f"[DQN ENHANCED CONSENSUS ERROR] {symbol}: {e}")
+        
+        return result
+    
+    def update_dqn_with_market_feedback(self,
+                                       symbol: str,
+                                       original_decision: str,
+                                       price_change_pct: float,
+                                       time_elapsed_hours: float,
+                                       market_context: Dict[str, Any]):
+        """
+        Update DQN system with actual market feedback
+        
+        Args:
+            symbol: Token symbol
+            original_decision: Original consensus decision
+            price_change_pct: Price change percentage
+            time_elapsed_hours: Hours since decision
+            market_context: Updated market context
+        """
+        if not self.dqn_integration or not self.learning_enabled:
+            return
+        
+        try:
+            # Update DQN with feedback
+            self.dqn_integration.update_with_feedback(
+                symbol=symbol,
+                price_change_pct=price_change_pct,
+                consensus_decision=original_decision,
+                market_context=market_context
+            )
+            
+            # Store feedback for analysis
+            feedback_record = {
+                'timestamp': datetime.now().isoformat(),
+                'symbol': symbol,
+                'original_decision': original_decision,
+                'price_change_pct': price_change_pct,
+                'time_elapsed_hours': time_elapsed_hours,
+                'outcome': 'positive' if price_change_pct > 2.0 else 'negative' if price_change_pct < -2.0 else 'neutral'
+            }
+            
+            self.feedback_history.append(feedback_record)
+            
+            # Keep only last 100 feedback records
+            if len(self.feedback_history) > 100:
+                self.feedback_history = self.feedback_history[-100:]
+            
+            print(f"[DQN FEEDBACK] {symbol}: {original_decision} → {price_change_pct:+.2f}% ({feedback_record['outcome']})")
+            
+        except Exception as e:
+            print(f"[DQN FEEDBACK ERROR] {symbol}: {e}")
+    
+    def get_dqn_adjusted_weights(self) -> Dict[str, float]:
+        """Get current DQN-adjusted detector weights"""
+        if self.dqn_integration:
+            return self.dqn_integration.get_current_weights()
+        return {}
+    
+    def get_dqn_adjusted_threshold(self) -> float:
+        """Get current DQN-adjusted consensus threshold"""
+        if self.dqn_integration:
+            return self.dqn_integration.get_current_threshold()
+        return 0.7
+    
+    def save_dqn_state(self):
+        """Save DQN learning state"""
+        if self.dqn_integration:
+            self.dqn_integration.save_state()
+
+
+# Global enhanced system instance
+enhanced_multi_agent_system = DQNEnhancedMultiAgentSystem()
+
+
+def evaluate_with_dqn_enhancement(symbol: str,
+                                 detector_scores: Dict[str, float],
+                                 detector_votes: Dict[str, str],
+                                 market_context: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Main integration function for DQN-enhanced multi-agent consensus
+    
+    Args:
+        symbol: Token symbol
+        detector_scores: Individual detector scores
+        detector_votes: Individual detector votes
+        market_context: Market data context
+        
+    Returns:
+        Enhanced consensus result with DQN learning
+    """
+    import asyncio
+    
+    # Run enhanced consensus
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        result = loop.run_until_complete(
+            enhanced_multi_agent_system.enhanced_consensus_with_dqn(
+                symbol, detector_scores, detector_votes, market_context
+            )
+        )
+    finally:
+        loop.close()
+    
+    return result
+
+
+def update_dqn_feedback(symbol: str,
+                       original_decision: str,
+                       price_change_pct: float,
+                       time_elapsed_hours: float = 2.0,
+                       market_context: Dict[str, Any] = None):
+    """
+    Update DQN system with market feedback
+    
+    Args:
+        symbol: Token symbol
+        original_decision: Original consensus decision
+        price_change_pct: Price change percentage since decision
+        time_elapsed_hours: Hours elapsed since decision
+        market_context: Updated market context
+    """
+    if market_context is None:
+        market_context = {}
+    
+    enhanced_multi_agent_system.update_dqn_with_market_feedback(
+        symbol, original_decision, price_change_pct, time_elapsed_hours, market_context
+    )
