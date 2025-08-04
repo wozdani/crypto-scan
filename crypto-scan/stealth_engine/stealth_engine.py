@@ -1747,10 +1747,11 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                     print(f"[STEALTH V3 PATTERN] {symbol}: {', '.join(active_detectors)} consensus pattern")
                                 
                                 # Log agent consensus breakdown
-                                votes = consensus_data.get('votes', [])
-                                if isinstance(votes, list) and len(votes) > 0:
-                                    buy_votes = votes.count('BUY')
-                                    print(f"[STEALTH V3 CONSENSUS] {symbol}: {buy_votes}/{len(votes)} BUY votes → {consensus_data.get('decision', 'UNKNOWN')}")
+                                if consensus_data:
+                                    votes = consensus_data.get('votes', [])
+                                    if isinstance(votes, list) and len(votes) > 0:
+                                        buy_votes = votes.count('BUY')
+                                        print(f"[STEALTH V3 CONSENSUS] {symbol}: {buy_votes}/{len(votes)} BUY votes → {consensus_data.get('decision', 'UNKNOWN')}")
                             else:
                                 print(f"[STEALTH V3 ALERT] ℹ️ {symbol}: Alert v3 w cooldown lub błąd")
                                 

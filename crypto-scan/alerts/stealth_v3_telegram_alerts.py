@@ -45,7 +45,7 @@ class StealthV3TelegramAlerts:
         logger.info("[STEALTH V3 ALERTS] Initialized new modular alert system")
     
     def send_stealth_v3_alert(self, symbol: str, detector_results: Dict[str, Any], 
-                             consensus_data: Dict[str, Any], meta_data: Dict[str, Any] = None) -> bool:
+                             consensus_data: Dict[str, Any] = None, meta_data: Dict[str, Any] = None) -> bool:
         """
         Wyślij nowoczesny Stealth v3 alert z pełnym breakdown detektorów i consensus logic
         
@@ -60,6 +60,11 @@ class StealthV3TelegramAlerts:
         """
         
         # 🔐 CRITICAL CONSENSUS DECISION CHECK FIRST - NAJWAŻNIEJSZE SPRAWDZENIE
+        # Handle None consensus_data gracefully
+        if consensus_data is None:
+            logger.info(f"[STEALTH V3 CONSENSUS BLOCK] {symbol} → No consensus data provided - blocking alert")
+            return False
+        
         # 🎯 BUY-ONLY FILTERING: Only "BUY" consensus decisions trigger alerts
         consensus_decision = consensus_data.get('decision', 'HOLD')
         if consensus_decision != "BUY":
@@ -80,7 +85,8 @@ class StealthV3TelegramAlerts:
             return False
         
         # Check cooldown for symbol
-        if not self._check_symbol_cooldown(symbol, consensus_data.get('confidence', 0.0)):
+        consensus_confidence = consensus_data.get('confidence', 0.0) if consensus_data else 0.0
+        if not self._check_symbol_cooldown(symbol, consensus_confidence):
             logger.info(f"[STEALTH V3 COOLDOWN BLOCK] {symbol} → Alert blocked by cooldown protection")
             return False
         
@@ -467,7 +473,7 @@ def get_stealth_v3_alerts() -> StealthV3TelegramAlerts:
     return _stealth_v3_alerts
 
 def send_stealth_v3_alert(symbol: str, detector_results: Dict[str, Any], 
-                         consensus_data: Dict[str, Any], meta_data: Dict[str, Any] = None) -> bool:
+                         consensus_data: Dict[str, Any] = None, meta_data: Dict[str, Any] = None) -> bool:
     """
     Convenience function for sending Stealth v3 alerts
     
