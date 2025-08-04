@@ -291,11 +291,6 @@ class StealthLogger:
         if consensus_decision == 'BUY':
             total_score = token_data.get('base_score', 0.0)
             
-            # TJDE SCORE THRESHOLD: 10.0 (user requested)
-            if total_score < 10.0:
-                print(f"🚫 ALERT SKIPPED [{token}] Score {total_score:.3f} < 10.0 threshold")
-                return
-            
             # Znajdź dominujące źródła
             stealth_signals = token_data.get('stealth_signals', [])
             dominant_sources = []

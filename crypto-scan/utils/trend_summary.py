@@ -30,10 +30,11 @@ def send_top_trendmode_alerts_to_telegram(results: List[Dict], top_n: int = 5) -
             return False
         
         # Filtruj tylko tokeny z decyzją join_trend lub consider_entry
+        # TJDE SCORE THRESHOLD: 10.0 (user requested)
         valid_results = [
             r for r in results 
             if r.get("decision") in ["join_trend", "consider_entry"] 
-            and r.get("final_score", 0) > 0.4
+            and r.get("final_score", 0) > 10.0
         ]
         
         if not valid_results:
