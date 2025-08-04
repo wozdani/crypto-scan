@@ -5,9 +5,15 @@ Precyzyjne logowanie dla nowych detektorów, consensus i feedback loop
 """
 
 import json
+import os
+import requests
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 class StealthLogger:
     """
@@ -307,7 +313,67 @@ class StealthLogger:
             # Wygeneruj alert consensus
             print(f"🚨 ALERT [{token}] Consensus BUY | Score: {total_score:.3f}")
             print(f"🧠 Source: {' + '.join(dominant_sources)}")
-            print("📡 Sent to Telegram")
+            
+            # FAKTYCZNIE WYŚLIJ DO TELEGRAM
+            success = self._send_telegram_alert(token, total_score, token_data)
+            if success:
+                print("📡 Sent to Telegram ✅")
+            else:
+                print("📡 Telegram send FAILED ❌")
+    
+    def _send_telegram_alert(self, token: str, score: float, token_data: Dict) -> bool:
+        """
+        Faktycznie wyślij alert do Telegram
+        """
+        try:
+            bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
+            chat_id = os.getenv('TELEGRAM_CHAT_ID')
+            
+            if not bot_token or not chat_id:
+                print("❌ Missing Telegram credentials")
+                return False
+            
+            # Zbuduj wiadomość
+            whale_ping = self._extract_detector_value(token_data.get('whale_ping', 0.0))
+            dex_inflow = self._extract_detector_value(token_data.get('dex_inflow', 0.0))
+            diamond_score = self._extract_detector_value(token_data.get('diamond_score', 0.0))
+            californium_score = self._extract_detector_value(token_data.get('californium_score', 0.0))
+            consensus_decision = token_data.get('consensus_decision', 'UNKNOWN')
+            consensus_confidence = token_data.get('consensus_confidence', 0.0)
+            
+            message = f"""🚨 <b>CRYPTO ALERT</b> 🚨
+
+📊 <b>{token}</b> - Consensus {consensus_decision}
+💰 <b>Score:</b> {score:.3f} (confidence: {consensus_confidence:.2f})
+
+🔍 <b>Breakdown:</b>
+🐳 Whale Ping: {whale_ping:.2f}
+💧 DEX Inflow: {dex_inflow:.2f}
+💎 DiamondWhale AI: {diamond_score:.2f}
+🌊 CaliforniumWhale: {californium_score:.2f}
+
+⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} UTC
+🤖 Powered by Crypto Scanner AI"""
+
+            url = f'https://api.telegram.org/bot{bot_token}/sendMessage'
+            payload = {
+                'chat_id': chat_id,
+                'text': message,
+                'parse_mode': 'HTML'
+            }
+            
+            response = requests.post(url, json=payload, timeout=10)
+            
+            if response.status_code == 200:
+                return True
+            else:
+                print(f"❌ Telegram API error: {response.status_code}")
+                print(f"Response: {response.text[:100]}...")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Telegram send error: {e}")
+            return False
     
     def log_stealth_analysis_start(self, symbol: str) -> None:
         """Log rozpoczęcia analizy stealth dla tokena"""
