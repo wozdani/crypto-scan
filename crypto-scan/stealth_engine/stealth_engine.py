@@ -1396,7 +1396,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         gnn_active = True
                         print(f"[GNN FALLBACK] {symbol}: Subgraph QIRL score = {gnn_subgraph_score:.3f}")
                     else:
-                        print(f"[GNN FALLBACK] {symbol}: Insufficient signals for subgraph analysis")
+                        print(f"[GNN FALLBACK] {symbol}: Insufficient signals for subgraph analysis (need ≥3 active signals, got {len(used_signals)})")
                     
                     # === MASTERMIND TRACING INTEGRATION ===
                     # Dodaj group activity mastermind zgodnie z uwagami Szefira
@@ -1565,10 +1565,24 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             # Use Decision Consensus Engine with Multi-Agent System
                             try:
                                 consensus_engine = create_decision_consensus_engine()
+                                # Prepare market_data for consensus
+                                consensus_market_data = {
+                                    "symbol": symbol,
+                                    "price": token_data.get('price', 0.0),
+                                    "volume_24h": token_data.get('volume', 0.0),
+                                    "price_change_24h": token_data.get('change_24h', 0.0),
+                                    "market_cap": token_data.get('market_cap', 0.0),
+                                    "timestamp": time.time(),
+                                    "candles_15m": len(token_data.get('candles_15m', [])),
+                                    "candles_5m": len(token_data.get('candles_5m', [])),
+                                    "orderbook_available": bool(token_data.get('orderbook_data'))
+                                }
+                                
                                 consensus_result_obj = consensus_engine.simulate_decision_consensus(
                                     detector_outputs=detector_outputs,
                                     threshold=0.7,
-                                    token=symbol
+                                    token=symbol,
+                                    market_data=consensus_market_data
                                 )
                                 
                                 stored_final_decision = consensus_result_obj.decision

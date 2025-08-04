@@ -297,7 +297,7 @@ class GoldenKeyDetector:
                     'pump_score': 0.0,
                     'alert_decision': 0,
                     'anomaly_scores': [],
-                    'reasoning': 'Insufficient transaction data for graph analysis'
+                    'reasoning': f'Insufficient graph nodes for analysis (need ≥2 nodes, got {G.number_of_nodes()})'
                 }
             
             # Krok 2: Ekstraktuj features dla GNN
