@@ -183,7 +183,9 @@ class StealthLogger:
             print(f"[STEALTH] {symbol} - Active detectors: {', '.join(active_detectors)}")
             print(f"[STEALTH] {symbol} - Pattern identified: {self._identify_pattern(detector_results)}")
         else:
-            print(f"[STEALTH] {symbol} - No active detectors (score: {final_score:.3f})")
+            # Get total score from consensus data if available
+            total_score = consensus_data.get('consensus_score', 0.0)
+            print(f"[STEALTH] {symbol} - No active detectors (score: {total_score:.3f})")
         
         # Multi-agent consensus breakdown
         votes = consensus_data.get('votes', [])
@@ -202,7 +204,7 @@ class StealthLogger:
             print(f"[FEEDBACK] {symbol} - Boost {feedback_adjust:+.3f} from prior success")
     
     def log_detector_activation(self, symbol: str, detector_name: str, score: float, 
-                               confidence: float = None) -> None:
+                               confidence: Optional[float] = None) -> None:
         """
         Enhanced logging dla individual detector activation
         """
@@ -320,36 +322,36 @@ class StealthLogger:
         # Jeśli dotarliśmy tutaj, to mamy valid BUY consensus
         print(f"[CONSENSUS PASS] {token}: Valid BUY consensus confirmed - proceeding with alert")
         total_score = token_data.get('base_score', 0.0)
-            
-            # Znajdź dominujące źródła
-            stealth_signals = token_data.get('stealth_signals', [])
-            dominant_sources = []
-            
-            for signal in stealth_signals:
-                if signal.get('active', False) and signal.get('strength', 0.0) > 0.5:
-                    signal_name = signal.get('signal_name', '')
-                    if 'mastermind' in signal_name.lower():
-                        dominant_sources.append('mastermind_tracing')
-                    elif 'whaleclip' in signal_name.lower():
-                        dominant_sources.append('WhaleCLIP')
-                    elif 'whale_ping' in signal_name.lower():
-                        dominant_sources.append('whale_ping')
-                    elif 'dex_inflow' in signal_name.lower():
-                        dominant_sources.append('dex_inflow')
-            
-            if not dominant_sources:
-                dominant_sources = ['stealth_engine']
-            
-            # Wygeneruj alert consensus
-            print(f"🚨 ALERT [{token}] Consensus BUY | Score: {total_score:.3f}")
-            print(f"🧠 Source: {' + '.join(dominant_sources)}")
-            
-            # FAKTYCZNIE WYŚLIJ DO TELEGRAM
-            success = self._send_telegram_alert(token, total_score, token_data)
-            if success:
-                print("📡 Sent to Telegram ✅")
-            else:
-                print("📡 Telegram send FAILED ❌")
+        
+        # Znajdź dominujące źródła
+        stealth_signals = token_data.get('stealth_signals', [])
+        dominant_sources = []
+        
+        for signal in stealth_signals:
+            if signal.get('active', False) and signal.get('strength', 0.0) > 0.5:
+                signal_name = signal.get('signal_name', '')
+                if 'mastermind' in signal_name.lower():
+                    dominant_sources.append('mastermind_tracing')
+                elif 'whaleclip' in signal_name.lower():
+                    dominant_sources.append('WhaleCLIP')
+                elif 'whale_ping' in signal_name.lower():
+                    dominant_sources.append('whale_ping')
+                elif 'dex_inflow' in signal_name.lower():
+                    dominant_sources.append('dex_inflow')
+        
+        if not dominant_sources:
+            dominant_sources = ['stealth_engine']
+        
+        # Wygeneruj alert consensus
+        print(f"🚨 ALERT [{token}] Consensus BUY | Score: {total_score:.3f}")
+        print(f"🧠 Source: {' + '.join(dominant_sources)}")
+        
+        # FAKTYCZNIE WYŚLIJ DO TELEGRAM
+        success = self._send_telegram_alert(token, total_score, token_data)
+        if success:
+            print("📡 Sent to Telegram ✅")
+        else:
+            print("📡 Telegram send FAILED ❌")
     
     def _send_telegram_alert(self, token: str, score: float, token_data: Dict) -> bool:
         """
