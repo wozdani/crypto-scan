@@ -324,14 +324,26 @@ class PriorityLearningMemory:
                                 try:
                                     timestamp_str = entry.get('timestamp', '')
                                     if timestamp_str:
-                                        entry_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                                        # Handle different timestamp formats
+                                        if timestamp_str.endswith('Z'):
+                                            entry_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                                        elif '+' in timestamp_str or timestamp_str.endswith('00:00'):
+                                            entry_time = datetime.fromisoformat(timestamp_str)
+                                        else:
+                                            # Assume UTC if no timezone info
+                                            entry_time = datetime.fromisoformat(timestamp_str).replace(tzinfo=timezone.utc)
+                                        
+                                        # Ensure both datetimes are timezone-aware
+                                        if entry_time.tzinfo is None:
+                                            entry_time = entry_time.replace(tzinfo=timezone.utc)
+                                        
                                         if entry_time >= week_ago:
                                             multi_agent_entries += 1
                                             # Count as "success" if high confidence YES decision
                                             if (entry.get('final_decision') == 'YES' and 
                                                 entry.get('confidence', 0) > 0.7):
                                                 multi_agent_successes += 1
-                                except (ValueError, KeyError):
+                                except (ValueError, KeyError, TypeError):
                                     continue
                                     
                 print(f"[LEARNING STATS] Found {multi_agent_entries} multi-agent entries in last 7 days")
