@@ -296,44 +296,93 @@ class PriorityLearningMemory:
     def get_learning_statistics(self) -> Dict:
         """
         📊 Pobierz statystyki systemu uczenia
+        ENHANCED: Counts both priority_learning_memory AND multi_agent_decisions
         
         Returns:
-            Dict: Comprehensive learning statistics
+            Dict: Comprehensive learning statistics including 48h operational data
         """
         try:
+            # Priority learning memory stats (old format)
             total_tokens = len(self.memory)
             total_entries = sum(len(entries) for entries in self.memory.values())
             
-            # Success rate statistics
+            # ENHANCED: Count multi-agent decisions for real operational stats
+            multi_agent_entries = 0
+            multi_agent_successes = 0
+            
+            try:
+                multi_agent_file = "cache/multi_agent_decisions.json"
+                if os.path.exists(multi_agent_file):
+                    with open(multi_agent_file, 'r') as f:
+                        multi_agent_data = json.load(f)
+                        if isinstance(multi_agent_data, list):
+                            # Count recent entries from last 7 days
+                            now = datetime.now(timezone.utc)
+                            week_ago = now - timedelta(days=7)
+                            
+                            for entry in multi_agent_data:
+                                try:
+                                    timestamp_str = entry.get('timestamp', '')
+                                    if timestamp_str:
+                                        entry_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                                        if entry_time >= week_ago:
+                                            multi_agent_entries += 1
+                                            # Count as "success" if high confidence YES decision
+                                            if (entry.get('final_decision') == 'YES' and 
+                                                entry.get('confidence', 0) > 0.7):
+                                                multi_agent_successes += 1
+                                except (ValueError, KeyError):
+                                    continue
+                                    
+                print(f"[LEARNING STATS] Found {multi_agent_entries} multi-agent entries in last 7 days")
+                        
+            except Exception as ma_error:
+                print(f"[LEARNING STATS ERROR] Reading multi-agent data: {ma_error}")
+            
+            # Success rate from priority memory
             all_entries = []
             for entries in self.memory.values():
                 all_entries.extend(entries)
             
-            total_evaluated = len(all_entries)
-            successful_entries = sum(1 for entry in all_entries if entry.result_success)
-            overall_success_rate = successful_entries / total_evaluated if total_evaluated > 0 else 0.0
+            priority_evaluated = len(all_entries)
+            priority_successes = sum(1 for entry in all_entries if entry.result_success)
             
-            # Average performance
-            avg_2h_change = sum(entry.price_change_2h for entry in all_entries) / total_evaluated if total_evaluated > 0 else 0.0
-            avg_6h_change = sum(entry.price_change_6h for entry in all_entries) / total_evaluated if total_evaluated > 0 else 0.0
+            # Combined statistics
+            combined_entries = priority_evaluated + multi_agent_entries
+            combined_successes = priority_successes + multi_agent_successes
+            overall_success_rate = combined_successes / combined_entries if combined_entries > 0 else 0.0
+            
+            # Average performance from priority memory only (more reliable)
+            avg_2h_change = sum(entry.price_change_2h for entry in all_entries) / priority_evaluated if priority_evaluated > 0 else 0.0
+            avg_6h_change = sum(entry.price_change_6h for entry in all_entries) / priority_evaluated if priority_evaluated > 0 else 0.0
             
             # Top performing tokens
             top_tokens = self.get_stealth_priority_tokens(5)
             
             return {
                 'total_tokens_tracked': total_tokens,
-                'total_entries': total_entries,
-                'total_evaluated': total_evaluated,
+                'total_entries': combined_entries,  # Combined count for display
+                'total_evaluated': combined_entries,
                 'overall_success_rate': round(overall_success_rate, 3),
+                'success_rate': round(overall_success_rate, 3),  # For compatibility
                 'avg_price_change_2h': round(avg_2h_change, 2),
                 'avg_price_change_6h': round(avg_6h_change, 2),
                 'top_priority_tokens': top_tokens,
-                'entries_per_token': round(total_entries / total_tokens, 1) if total_tokens > 0 else 0.0
+                'entries_per_token': round(combined_entries / max(total_tokens, 1), 1),
+                'multi_agent_entries': multi_agent_entries,
+                'priority_memory_entries': priority_evaluated,
+                'operational_data_available': multi_agent_entries > 0
             }
             
         except Exception as e:
             print(f"[PRIORITY LEARNING ERROR] Statistics failed: {e}")
-            return {}
+            return {
+                'total_entries': 0,
+                'total_evaluated': 0,
+                'overall_success_rate': 0.0,
+                'success_rate': 0.0,
+                'operational_data_available': False
+            }
     
     def cleanup_old_entries(self, max_age_days: int = 30):
         """
