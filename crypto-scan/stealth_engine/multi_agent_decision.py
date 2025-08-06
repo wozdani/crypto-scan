@@ -306,9 +306,10 @@ class MultiAgentDecisionSystem:
         # Oblicz średnią confidence
         avg_confidence = sum(r.confidence for r in all_responses) / total_votes
         
-        # Finalna decyzja - simple majority vote
-        majority_threshold = total_votes // 2 + 1  # Simple majority (more than half)
-        final_decision = "YES" if yes_votes >= majority_threshold else "NO"
+        # Finalna decyzja - majority by 2 votes (większość o 2 głosy)
+        no_votes = total_votes - yes_votes
+        vote_difference = yes_votes - no_votes
+        final_decision = "YES" if vote_difference >= 2 else "NO"
         
         # Jeśli decyzja YES mimo niskiego score - to jest override!
         is_override = final_decision == "YES" and score < threshold
@@ -328,8 +329,9 @@ class MultiAgentDecisionSystem:
         # Podsumowanie głosowania
         print(f"\n[MULTI-AGENT SUMMARY]")
         print(f"  📊 Final Decision: {final_decision}")
-        majority_threshold = total_votes // 2 + 1
-        print(f"  🗳️ Votes: {yes_votes} YES / {total_votes - yes_votes} NO (majority: {majority_threshold}/{total_votes})")
+        no_votes = total_votes - yes_votes
+        vote_difference = yes_votes - no_votes
+        print(f"  🗳️ Votes: {yes_votes} YES / {no_votes} NO (need +2 difference, current: {vote_difference:+d})")
         print(f"  💪 Average Confidence: {avg_confidence:.3f}")
         print(f"  🎯 Detector Score: {score:.3f} (threshold: {threshold:.3f})")
         
