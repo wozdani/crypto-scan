@@ -119,7 +119,7 @@ class QIRLAgent:
             
             state_tensor = torch.tensor(state, dtype=torch.float)
             q_values = self.model(state_tensor)
-            return torch.argmax(q_values).item()
+            return int(torch.argmax(q_values).item())
             
         except Exception as e:
             print(f"[QIRL ACTION ERROR] {e}")
@@ -272,7 +272,7 @@ def californium_whale_detect(symbol: str, agent: QIRLAgent, graph_data: dict) ->
         }
 
 # 🔧 Utility functions
-def create_californium_agent(state_size: int = 20, action_size: int = 2) -> 'QIRLAgent':
+def create_californium_agent(state_size: int = 20, action_size: int = 2):
     """
     Create CaliforniumWhale QIRL Agent using singleton pattern
     
@@ -287,7 +287,7 @@ def create_californium_agent(state_size: int = 20, action_size: int = 2) -> 'QIR
     print(f"[CALIFORNIUM] Using singleton QIRL Agent with state_size={state_size}, action_size={action_size}")
     return agent
 
-def prepare_graph_data(transactions: List[Dict], symbol: str = None) -> Dict:
+def prepare_graph_data(transactions: List[Dict], symbol: Optional[str] = None) -> Dict:
     """
     Prepare graph data from transaction list or use cached mock data
     
@@ -334,15 +334,23 @@ def prepare_graph_data(transactions: List[Dict], symbol: str = None) -> Dict:
         
         for node in nodes:
             # Basic node features
-            in_degree = G.in_degree(node)
-            out_degree = G.out_degree(node)
-            total_value = sum(G[u][node]['weight'] for u in G.predecessors(node))
+            predecessors_list = list(G.predecessors(node))
+            successors_list = list(G.successors(node))
+            neighbors_list = list(G.neighbors(node))
+            
+            total_value = 0.0
+            try:
+                for pred in predecessors_list:
+                    if pred in G and node in G[pred] and 'weight' in G[pred][node]:
+                        total_value += float(G[pred][node]['weight'])
+            except Exception:
+                total_value = 0.0
             
             features.append([
-                float(in_degree),
-                float(out_degree),
+                float(len(predecessors_list)),
+                float(len(successors_list)),
                 float(total_value),
-                float(len(list(G.neighbors(node))))
+                float(len(neighbors_list))
             ])
         
         # Convert to tensors
@@ -365,14 +373,14 @@ def prepare_graph_data(transactions: List[Dict], symbol: str = None) -> Dict:
                 'symbol': symbol,
                 'pattern': 'real_data',
                 'graph_nodes': list(G.nodes()),
-                'graph_edges': [(u, v, data) for u, v, data in G.edges(data=True)],
+                'graph_edges': list(G.edges(data=True)),
                 'features': features_tensor.tolist(),
                 'timestamps': timestamps_tensor.tolist(),
                 'volumes': volumes,
                 'metadata': {
                     'nodes_count': len(G.nodes()),
-                    'edges_count': len(G.edges()),
-                    'total_value': sum([data['weight'] for _, _, data in G.edges(data=True)]),
+                    'edges_count': G.number_of_edges(),
+                    'total_value': sum(data.get('weight', 0) for _, _, data in G.edges(data=True)),
                     'generated_at': datetime.now().isoformat(),
                     'pattern_type': 'real_data'
                 }

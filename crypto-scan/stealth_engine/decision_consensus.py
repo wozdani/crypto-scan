@@ -606,6 +606,9 @@ class DecisionConsensusEngine:
                     
                 except Exception as e:
                     print(f"[MULTI-AGENT ERROR] Failed to evaluate {detector_name}: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    # Still continue with next detector instead of breaking the entire process
                     continue
             
             # Aggregate multi-agent decisions into final consensus

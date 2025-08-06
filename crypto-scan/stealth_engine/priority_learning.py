@@ -67,7 +67,7 @@ class PriorityLearningMemory:
                                 result_success=entry.get('result_success', False),
                                 price_change_2h=entry.get('price_change_2h', 0.0),
                                 price_change_6h=entry.get('price_change_6h', 0.0),
-                                tags=entry.get('tags', []),
+                                tags=entry.get('tags') or [],
                                 confidence=entry.get('confidence', 0.0)
                             ))
                         elif isinstance(entry, str):
@@ -442,7 +442,7 @@ def get_priority_learning_memory() -> PriorityLearningMemory:
 
 def update_stealth_learning(symbol: str, score: float, stealth_score: float = 0.0,
                            result_success: bool = False, price_change_2h: float = 0.0,
-                           price_change_6h: float = 0.0, tags: List[str] = None,
+                           price_change_6h: float = 0.0, tags: Optional[List[str]] = None,
                            confidence: float = 0.0):
     """
     🎯 Convenience function: Update learning memory
@@ -455,7 +455,7 @@ def update_stealth_learning(symbol: str, score: float, stealth_score: float = 0.
         result_success=result_success,
         price_change_2h=price_change_2h,
         price_change_6h=price_change_6h,
-        tags=tags,
+        tags=tags or [],
         confidence=confidence
     )
 

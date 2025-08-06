@@ -338,7 +338,12 @@ class MultiAgentDecisionSystem:
             
         print(f"{'='*80}\n")
         
-        return final_decision, avg_confidence, detailed_log
+        # Ensure we return proper tuple with string types
+        try:
+            return str(final_decision), float(avg_confidence), str(detailed_log)
+        except Exception as e:
+            print(f"[MULTI-AGENT RETURN ERROR] {e}")
+            return "NO", 0.0, f"Return error: {str(e)}"
     
     def _create_detailed_log(
         self, 
