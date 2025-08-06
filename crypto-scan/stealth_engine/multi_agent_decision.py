@@ -801,8 +801,12 @@ class DQNEnhancedMultiAgentSystem(MultiAgentDecisionSystem):
         # Initialize DQN system if available
         if DQN_AVAILABLE:
             try:
-                self.dqn_integration = initialize_dqn_system()
-                print("[DQN MULTI-AGENT] ✅ Enhanced Multi-Agent System with DQN Reinforcement Learning initialized")
+                if 'initialize_dqn_system' in globals():
+                    self.dqn_integration = initialize_dqn_system()
+                    print("[DQN MULTI-AGENT] ✅ Enhanced Multi-Agent System with DQN Reinforcement Learning initialized")
+                else:
+                    print("[DQN MULTI-AGENT] ⚠️ DQN initialize function not available")
+                    self.dqn_integration = None
             except Exception as e:
                 print(f"[DQN MULTI-AGENT] ⚠️ DQN initialization failed: {e}")
                 self.dqn_integration = None
@@ -833,7 +837,7 @@ class DQNEnhancedMultiAgentSystem(MultiAgentDecisionSystem):
         for vote in detector_votes.values():
             vote_counts[vote] = vote_counts.get(vote, 0) + 1
         
-        consensus_decision = max(vote_counts, key=vote_counts.get)
+        consensus_decision = max(vote_counts.keys(), key=lambda k: vote_counts[k])
         
         result = {
             'symbol': symbol,
@@ -992,6 +996,7 @@ def update_dqn_feedback(symbol: str,
     if market_context is None:
         market_context = {}
     
-    enhanced_multi_agent_system.update_dqn_with_market_feedback(
-        symbol, original_decision, price_change_pct, time_elapsed_hours, market_context
-    )
+    if hasattr(enhanced_multi_agent_system, 'update_dqn_with_market_feedback'):
+        enhanced_multi_agent_system.update_dqn_with_market_feedback(
+            symbol, original_decision, price_change_pct, time_elapsed_hours, market_context
+        )

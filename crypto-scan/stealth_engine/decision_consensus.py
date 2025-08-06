@@ -589,7 +589,7 @@ class DecisionConsensusEngine:
                                     threshold=float(threshold)  # Ensure threshold is proper float
                                 )
                             )
-                            decision, confidence, log = future.result(timeout=10)
+                            decision, confidence, log = future.result(timeout=30)
                     except RuntimeError:
                         # No loop running, safe to create new one
                         decision, confidence, log = asyncio.run(
