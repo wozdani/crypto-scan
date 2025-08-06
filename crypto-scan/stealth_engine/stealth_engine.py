@@ -1565,18 +1565,20 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             # Use Decision Consensus Engine with Multi-Agent System
                             try:
                                 consensus_engine = create_decision_consensus_engine()
-                                # Prepare market_data for consensus
+                                # Prepare market_data for consensus - USE CORRECT KEYS
                                 consensus_market_data = {
                                     "symbol": symbol,
-                                    "price": token_data.get('price', 0.0),
-                                    "volume_24h": token_data.get('volume', 0.0),
-                                    "price_change_24h": token_data.get('change_24h', 0.0),
+                                    "price": price,  # Use actual price from stealth analysis
+                                    "volume_24h": volume_24h,  # Use actual volume from stealth analysis 
+                                    "price_change_24h": token_data.get('price_change_24h', 0.0),  # Correct key
                                     "market_cap": token_data.get('market_cap', 0.0),
                                     "timestamp": time.time(),
                                     "candles_15m": len(token_data.get('candles_15m', [])),
                                     "candles_5m": len(token_data.get('candles_5m', [])),
                                     "orderbook_available": bool(token_data.get('orderbook_data'))
                                 }
+                                
+                                print(f"[MARKET DATA DEBUG] {symbol}: consensus_market_data prepared: volume=${consensus_market_data['volume_24h']:,.0f}, price=${consensus_market_data['price']:.6f}, change={consensus_market_data['price_change_24h']:.2f}%")
                                 
                                 consensus_result_obj = consensus_engine.simulate_decision_consensus(
                                     detector_outputs=detector_outputs,

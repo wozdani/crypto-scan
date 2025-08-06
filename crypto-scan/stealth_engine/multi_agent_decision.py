@@ -250,7 +250,10 @@ class MultiAgentDecisionSystem:
         print(f"\n{'='*80}")
         print(f"[MULTI-AGENT VOTING] Starting 5-agent decision for {detector_name}")
         print(f"[MULTI-AGENT VOTING] Score: {score:.3f}, Threshold: {threshold:.3f}")
-        print(f"[MULTI-AGENT VOTING] Market data: Volume ${market_data.get('volume_24h', 0):,.0f}, Price change {market_data.get('price_change_24h', 0):.2f}%")
+        volume_24h = market_data.get('volume_24h', 0) if market_data else 0
+        price_change_24h = market_data.get('price_change_24h', 0) if market_data else 0
+        print(f"[MULTI-AGENT VOTING] Market data: Volume ${volume_24h:,.0f}, Price change {price_change_24h:.2f}%")
+        print(f"[MULTI-AGENT DEBUG] Raw market_data type: {type(market_data)}, keys: {list(market_data.keys()) if market_data else 'None'}")
         print(f"{'='*80}\n")
         
         # Reset historii debaty dla nowej decyzji

@@ -546,6 +546,10 @@ class DecisionConsensusEngine:
             print(f"[MULTI-AGENT CONSENSUS] Starting evaluation for token: {token}")
             print(f"[MULTI-AGENT CONSENSUS] Evaluating {len(detector_outputs)} detectors with 5-agent system")
             print(f"[MULTI-AGENT CONSENSUS] Market data available: {'YES' if market_data else 'NO'}")
+            if market_data:
+                volume = market_data.get('volume_24h', 0)
+                price_change = market_data.get('price_change_24h', 0)
+                print(f"[MULTI-AGENT DEBUG] Market data contents: Volume=${volume:,.0f}, Price change={price_change:.2f}%")
             print(f"{'#'*80}\n")
             
             # Collect all agent evaluations
