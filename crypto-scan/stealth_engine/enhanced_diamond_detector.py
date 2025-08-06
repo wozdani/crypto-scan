@@ -162,7 +162,10 @@ class EnhancedDiamondDetector:
         self.detection_history = []
         self.load_model()
         
-        logger.info(f"[ENHANCED DIAMOND] Initialized TGN + QIRL detector")
+        # Load historical accuracy from multi-agent decisions
+        self.load_historical_accuracy()
+        
+        logger.info(f"[ENHANCED DIAMOND] Initialized TGN + QIRL detector with historical accuracy: {self.qirl_agent.get_accuracy():.3f}")
     
     def build_temporal_graph(self, transactions: List[Dict]) -> Tuple[nx.DiGraph, Dict]:
         """
@@ -543,6 +546,50 @@ class EnhancedDiamondDetector:
                 
             except Exception as e:
                 logger.warning(f"[ENHANCED DIAMOND] Failed to load model: {e}")
+    
+    def load_historical_accuracy(self):
+        """Load historical multi-agent decisions to calculate QIRL accuracy"""
+        try:
+            decisions_path = os.path.join(self.config_path, "multi_agent_decisions.json")
+            if os.path.exists(decisions_path):
+                with open(decisions_path, 'r') as f:
+                    decisions = json.load(f)
+                
+                # Filter only DiamondWhale decisions from last 30 days
+                diamond_decisions = []
+                current_time = datetime.now()
+                
+                for decision in decisions:
+                    if decision.get('detector_name') == 'DiamondWhale':
+                        # Parse timestamp
+                        timestamp_str = decision.get('timestamp', '')
+                        try:
+                            decision_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                            days_ago = (current_time - decision_time).days
+                            if days_ago <= 30:  # Last 30 days only
+                                diamond_decisions.append(decision)
+                        except:
+                            continue
+                
+                # Calculate accuracy from historical decisions
+                if diamond_decisions:
+                    total_decisions = len(diamond_decisions)
+                    # Estimate correct predictions based on final_decision == "YES" patterns
+                    correct_predictions = sum(1 for d in diamond_decisions if d.get('final_decision') == 'YES' and d.get('score', 0) > 0.6)
+                    
+                    # Update QIRL agent statistics
+                    self.qirl_agent.decisions_made = total_decisions
+                    self.qirl_agent.correct_predictions = correct_predictions
+                    
+                    logger.info(f"[ENHANCED DIAMOND QIRL] Loaded historical accuracy: {correct_predictions}/{total_decisions} = {self.qirl_agent.get_accuracy():.3f}")
+                else:
+                    logger.info(f"[ENHANCED DIAMOND QIRL] No historical DiamondWhale decisions found")
+            else:
+                logger.info(f"[ENHANCED DIAMOND QIRL] No multi-agent decisions file found")
+                
+        except Exception as e:
+            logger.error(f"[ENHANCED DIAMOND QIRL] Error loading historical accuracy: {e}")
+            # Keep default 0.000 accuracy
 
 # Global instance
 _enhanced_diamond_detector = None
