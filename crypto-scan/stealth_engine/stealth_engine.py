@@ -1457,7 +1457,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         detector_outputs = {}
                         
                         # StealthEngine - CORE STEALTH SIGNALS + SELF-LEARNING ADAPTATION
-                        if score > 0.5:
+                        # ZAWSZE dodaj StealthEngine jeśli jest aktywny (score > 0.1)
+                        if score > 0.1:
                             # Apply intelligent self-learning score adaptation
                             adapted_stealth_score, adaptation_reason = adapt_detector_score(
                                 "StealthEngine", score, symbol, token_data
@@ -1472,6 +1473,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             }
                             
                             print(f"[STEALTH LEARNING] {symbol}: {score:.3f} → {adapted_stealth_score:.3f} ({adaptation_reason})")
+                            print(f"[DETECTOR ADDED] {symbol}: StealthEngine added to consensus with vote={stealth_vote}, score={adapted_stealth_score:.3f}")
                             
                             # Record decision for future learning
                             record_detector_decision(
@@ -1480,6 +1482,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             )
                         
                         # CaliforniumWhale AI + SELF-LEARNING ADAPTATION  
+                        # ZAWSZE dodaj CaliforniumWhale jeśli jest aktywny (score > 0.0)
                         if californium_enabled and californium_score > 0.0:
                             # Apply intelligent self-learning score adaptation
                             adapted_californium_score, adaptation_reason = adapt_detector_score(
@@ -1495,6 +1498,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             }
                             
                             print(f"[CALIFORNIUM LEARNING] {symbol}: {californium_score:.3f} → {adapted_californium_score:.3f} ({adaptation_reason})")
+                            print(f"[DETECTOR ADDED] {symbol}: CaliforniumWhale added to consensus with vote={calif_vote}, score={adapted_californium_score:.3f}")
                             
                             # Record decision for future learning
                             record_detector_decision(
@@ -1503,6 +1507,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             )
                         
                         # DiamondWhale AI + SELF-LEARNING ADAPTATION
+                        # ZAWSZE dodaj DiamondWhale jeśli jest aktywny (score > 0.0)
                         if diamond_enabled and diamond_score > 0.0:
                             # Apply intelligent self-learning score adaptation
                             adapted_diamond_score, adaptation_reason = adapt_detector_score(
@@ -1518,6 +1523,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             }
                             
                             print(f"[DIAMOND LEARNING] {symbol}: {diamond_score:.3f} → {adapted_diamond_score:.3f} ({adaptation_reason})")
+                            print(f"[DETECTOR ADDED] {symbol}: DiamondWhale added to consensus with vote={diamond_vote}, score={adapted_diamond_score:.3f}")
                             
                             # Record decision for future learning
                             record_detector_decision(
