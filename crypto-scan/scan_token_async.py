@@ -103,7 +103,8 @@ async def get_candles_async(symbol: str, interval: str, session: aiohttp.ClientS
             "limit": str(limit)
         }
         
-        async with session.get(url, params=params, timeout=5) as response:
+        timeout = aiohttp.ClientTimeout(total=5)
+        async with session.get(url, params=params, timeout=timeout) as response:
             if response.status != 200:
                 print(f"[CANDLE API] {symbol} {interval}m → HTTP {response.status}")
                 if response.status == 403:
@@ -153,7 +154,8 @@ async def get_ticker_async(symbol: str, session: aiohttp.ClientSession, max_retr
             url = "https://api.bybit.com/v5/market/tickers"
             params = {"category": "linear", "symbol": symbol}
             
-            async with session.get(url, params=params, timeout=5) as response:
+            timeout = aiohttp.ClientTimeout(total=5)
+            async with session.get(url, params=params, timeout=timeout) as response:
                 if response.status != 200:
                     print(f"[TICKER RETRY] {symbol} → HTTP {response.status} (attempt {attempt + 1}/{max_retries})")
                     if response.status == 403:
@@ -222,7 +224,8 @@ async def get_orderbook_async(symbol: str, session: aiohttp.ClientSession, depth
             "limit": str(depth)
         }
         
-        async with session.get(url, params=params, timeout=5) as response:
+        timeout = aiohttp.ClientTimeout(total=5)
+        async with session.get(url, params=params, timeout=timeout) as response:
             if response.status != 200:
                 print(f"[ORDERBOOK PROD] {symbol} → HTTP {response.status}")
                 if response.status == 403:
