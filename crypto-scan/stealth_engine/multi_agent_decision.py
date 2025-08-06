@@ -242,10 +242,10 @@ class MultiAgentDecisionSystem:
         Returns:
             Tuple (decision, confidence, detailed_log)
         """
-        # WARUNEK WSTĘPNY: Blokuj głosowanie dla score < 0.6
-        if score < 0.6:
-            print(f"[MULTI-AGENT SKIP] {detector_name} score {score:.3f} < 0.6 - skipping agent voting")
-            return "NO", 0.0, f"Score {score:.3f} below voting threshold (0.6) - no agent evaluation needed"
+        # WARUNEK WSTĘPNY: Allow voting for any score >= 0.1 to enable proper evaluation
+        if score < 0.1:
+            print(f"[MULTI-AGENT SKIP] {detector_name} score {score:.3f} < 0.1 - skipping agent voting")
+            return "NO", 0.0, f"Score {score:.3f} below voting threshold (0.1) - no agent evaluation needed"
         
         print(f"\n{'='*80}")
         print(f"[MULTI-AGENT VOTING] Starting 5-agent decision for {detector_name}")
@@ -382,7 +382,7 @@ class MultiAgentDecisionSystem:
         confidence: float,
         responses: List[AgentResponse],
         is_override: bool
-    ):
+    ) -> None:
         """Zapisuje log decyzji do pliku dla feedback loop"""
         
         decision_entry = {
@@ -843,7 +843,7 @@ class DQNEnhancedMultiAgentSystem(MultiAgentDecisionSystem):
         if self.dqn_integration and self.learning_enabled:
             try:
                 dqn_result = self.dqn_integration.process_consensus_decision(
-                    consensus_score=consensus_score,
+                    consensus_score=float(consensus_score),
                     consensus_decision=consensus_decision,
                     detector_votes=detector_votes,
                     detector_scores=detector_scores,
@@ -970,7 +970,7 @@ def update_dqn_feedback(symbol: str,
                        original_decision: str,
                        price_change_pct: float,
                        time_elapsed_hours: float = 2.0,
-                       market_context: Dict[str, Any] = None):
+                       market_context: Dict[str, Any] = None) -> None:
     """
     Update DQN system with market feedback
     
