@@ -1390,13 +1390,15 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         print(f"[GOLDEN KEY ERROR] {symbol}: Continuing without GNN analysis")
                     
                     # Fallback GNN score calculation if real analysis failed
-                    if not gnn_active and len(used_signals) >= 2 and score > 1.0:
+                    if not gnn_active and len(used_signals) >= 3 and score > 1.0:
                         # Symuluj GNN subgraph analysis na podstawie dostępnych sygnałów
                         gnn_subgraph_score = min(score * 0.3, 0.9)  # Derived from stealth signals
                         gnn_active = True
                         print(f"[GNN FALLBACK] {symbol}: Subgraph QIRL score = {gnn_subgraph_score:.3f}")
-                    else:
+                    elif not gnn_active and len(used_signals) < 3:
                         print(f"[GNN FALLBACK] {symbol}: Insufficient signals for subgraph analysis (need ≥3 active signals, got {len(used_signals)})")
+                    elif not gnn_active and score <= 1.0:
+                        print(f"[GNN FALLBACK] {symbol}: Score too low for subgraph analysis (need >1.0, got {score:.3f})")
                     
                     # === MASTERMIND TRACING INTEGRATION ===
                     # Dodaj group activity mastermind zgodnie z uwagami Szefira
