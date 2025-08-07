@@ -646,6 +646,14 @@ def main():
     global ADAPTIVE_LEARNING_AVAILABLE  # Declare global access to ADAPTIVE_LEARNING_AVAILABLE
     print("Starting Crypto Scanner Service (Enhanced with Feedback Loop)")
     
+    # Initialize detector learning system at startup
+    try:
+        from stealth_engine.detector_learning_system import get_detector_learning_system
+        learning_system = get_detector_learning_system()
+        print(f"[SYSTEM INIT] ✅ Detector Learning System initialized successfully")
+    except Exception as e:
+        print(f"[SYSTEM INIT ERROR] ❌ Failed to initialize Detector Learning System: {e}")
+    
     # 🔍 COMPREHENSIVE STAGE 1-7 DIAGNOSTIC CHECK
     print("\n🔍 === STAGE 1-7 COMPREHENSIVE DIAGNOSTIC CHECK ===")
     
