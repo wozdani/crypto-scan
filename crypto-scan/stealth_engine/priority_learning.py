@@ -306,7 +306,53 @@ class PriorityLearningMemory:
             total_tokens = len(self.memory)
             total_entries = sum(len(entries) for entries in self.memory.values())
             
-            # ENHANCED: Count multi-agent decisions for real operational stats
+            # ENHANCED: Count ALL explore mode files for unlimited learning memory
+            explore_mode_entries = 0
+            explore_mode_successes = 0
+            
+            # Load ALL explore mode files (unlimited entries as requested)
+            explore_dir = "cache/explore_mode"
+            if os.path.exists(explore_dir):
+                try:
+                    explore_files = [f for f in os.listdir(explore_dir) if f.endswith('.json')]
+                    print(f"[EXPLORE MODE LEARNING] Found {len(explore_files)} explore mode files")
+                    
+                    # Clean up old files (older than 3 days as requested)
+                    now = datetime.now(timezone.utc)
+                    cleanup_cutoff = now - timedelta(days=3)
+                    cleaned_count = 0
+                    
+                    for explore_file in explore_files[:]:  # Create copy to modify during iteration
+                        file_path = os.path.join(explore_dir, explore_file)
+                        try:
+                            # Check file age
+                            file_mtime = datetime.fromtimestamp(os.path.getmtime(file_path), tz=timezone.utc)
+                            
+                            if file_mtime < cleanup_cutoff:
+                                os.remove(file_path)
+                                cleaned_count += 1
+                                explore_files.remove(explore_file)  # Remove from processing list
+                                continue
+                                
+                            # Process remaining files for statistics
+                            with open(file_path, 'r') as f:
+                                explore_data = json.load(f)
+                                if isinstance(explore_data, dict):
+                                    explore_mode_entries += 1
+                                    # Count as success if high score (> 2.0)
+                                    final_score = explore_data.get('final_score', 0.0)
+                                    if final_score > 2.0:
+                                        explore_mode_successes += 1
+                        except Exception as file_error:
+                            print(f"[EXPLORE MODE ERROR] Reading {explore_file}: {file_error}")
+                    
+                    if cleaned_count > 0:
+                        print(f"[EXPLORE MODE CLEANUP] Removed {cleaned_count} files older than 3 days")
+                            
+                except Exception as dir_error:
+                    print(f"[EXPLORE MODE ERROR] Reading directory: {dir_error}")
+            
+            # Also count multi-agent decisions 
             multi_agent_entries = 0
             multi_agent_successes = 0
             
@@ -316,40 +362,14 @@ class PriorityLearningMemory:
                     with open(multi_agent_file, 'r') as f:
                         multi_agent_data = json.load(f)
                         if isinstance(multi_agent_data, list):
-                            # Count recent entries from last 7 days
-                            now = datetime.now(timezone.utc)
-                            week_ago = now - timedelta(days=7)
-                            
-                            for entry in multi_agent_data:
-                                try:
-                                    timestamp_str = entry.get('timestamp', '')
-                                    if timestamp_str:
-                                        # Handle different timestamp formats
-                                        if timestamp_str.endswith('Z'):
-                                            entry_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-                                        elif '+' in timestamp_str or timestamp_str.endswith('00:00'):
-                                            entry_time = datetime.fromisoformat(timestamp_str)
-                                        else:
-                                            # Assume UTC if no timezone info
-                                            entry_time = datetime.fromisoformat(timestamp_str).replace(tzinfo=timezone.utc)
-                                        
-                                        # Ensure both datetimes are timezone-aware
-                                        if entry_time.tzinfo is None:
-                                            entry_time = entry_time.replace(tzinfo=timezone.utc)
-                                        
-                                        if entry_time >= week_ago:
-                                            multi_agent_entries += 1
-                                            # Count as "success" if high confidence YES decision
-                                            if (entry.get('final_decision') == 'YES' and 
-                                                entry.get('confidence', 0) > 0.7):
-                                                multi_agent_successes += 1
-                                except (ValueError, KeyError, TypeError):
-                                    continue
+                            multi_agent_entries = len(multi_agent_data)
+                            # Count as "success" if high confidence YES decision
+                            multi_agent_successes = sum(1 for entry in multi_agent_data 
+                                                       if (entry.get('final_decision') == 'YES' and 
+                                                           entry.get('confidence', 0) > 0.7))
                                     
-                print(f"[LEARNING STATS] Found 1000 multi-agent entries in last 7 days")
-                        
             except Exception as ma_error:
-                print(f"[LEARNING STATS ERROR] Reading multi-agent data: {ma_error}")
+                print(f"[MULTI-AGENT ERROR] Reading multi_agent_decisions: {ma_error}")
             
             # Success rate from priority memory
             all_entries = []
@@ -359,10 +379,15 @@ class PriorityLearningMemory:
             priority_evaluated = len(all_entries)
             priority_successes = sum(1 for entry in all_entries if entry.result_success)
             
-            # Combined statistics - Fixed values as specified
-            combined_entries = 1000  # Fixed value
-            combined_successes = 77  # 7.7% of 1000
-            overall_success_rate = 0.077  # 7.7%
+            # Combined statistics - UNLIMITED entries from all sources
+            combined_entries = explore_mode_entries + multi_agent_entries + priority_evaluated
+            combined_successes = explore_mode_successes + multi_agent_successes + priority_successes
+            overall_success_rate = combined_successes / combined_entries if combined_entries > 0 else 0.0
+            
+            print(f"[LEARNING STATS] Explore mode: {explore_mode_entries} entries, {explore_mode_successes} successes")
+            print(f"[LEARNING STATS] Multi-agent: {multi_agent_entries} entries, {multi_agent_successes} successes") 
+            print(f"[LEARNING STATS] Priority memory: {priority_evaluated} entries, {priority_successes} successes")
+            print(f"[LEARNING STATS] UNLIMITED TOTAL: {combined_entries} entries, {overall_success_rate:.1%} success rate")
             
             # Average performance from priority memory only (more reliable)
             avg_2h_change = sum(entry.price_change_2h for entry in all_entries) / priority_evaluated if priority_evaluated > 0 else 0.0
