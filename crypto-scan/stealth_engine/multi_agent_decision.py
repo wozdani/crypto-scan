@@ -72,6 +72,41 @@ class MultiAgentDecisionSystem:
             self.use_real_llm = False
             print(f"[MULTI-AGENT] ⚠️ OpenAI initialization failed: {e} - using enhanced simulation")
         
+    async def batch_llm_reasoning(self, all_contexts: List[Tuple[AgentRole, Dict[str, Any]]]) -> List[AgentResponse]:
+        """
+        OPTIMIZED: Pojedyncze zapytanie OpenAI dla wszystkich 5 agentów naraz
+        Eliminuje problem 429 rate limiting przez redukcję z 5 zapytań do 1 zapytania
+        """
+        if not self.use_real_llm or not self.openai_client:
+            # Fallback dla wszystkich agentów
+            return [self._fallback_reasoning(role, context) for role, context in all_contexts]
+        
+        try:
+            # Przygotuj batch prompt dla wszystkich 5 agentów
+            batch_prompt = self._create_batch_prompt(all_contexts)
+            
+            response = await asyncio.to_thread(
+                self.openai_client.chat.completions.create,
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "You are a cryptocurrency trading analysis panel of 5 expert agents. Each agent has a specialized role."},
+                    {"role": "user", "content": batch_prompt}
+                ],
+                response_format={"type": "json_object"},
+                timeout=30,
+                temperature=0.7,
+                max_tokens=2000
+            )
+            
+            # Parse batch response
+            batch_result = json.loads(response.choices[0].message.content)
+            return self._parse_batch_response(batch_result, all_contexts)
+            
+        except Exception as e:
+            print(f"[MULTI-AGENT BATCH ERROR] OpenAI batch call failed: {e}")
+            # Fallback dla wszystkich agentów
+            return [self._fallback_reasoning(role, context) for role, context in all_contexts]
+
     async def llm_reasoning(self, role: AgentRole, context: Dict[str, Any]) -> AgentResponse:
         """
         Real OpenAI LLM reasoning for agent decisions
@@ -290,6 +325,84 @@ class MultiAgentDecisionSystem:
         log += f"{'='*80}\n"
         
         return log
+    
+    def _create_batch_prompt(self, all_contexts: List[Tuple[AgentRole, Dict[str, Any]]]) -> str:
+        """Tworzy batch prompt dla wszystkich 5 agentów w jednym zapytaniu"""
+        detector_name = all_contexts[0][1]['detector_name']
+        score = all_contexts[0][1]['score']
+        threshold = all_contexts[0][1]['threshold']
+        
+        batch_prompt = f"""
+Analyze cryptocurrency detector '{detector_name}' with score {score:.3f} (threshold: {threshold}).
+
+You are a panel of 5 expert cryptocurrency trading agents. Each agent must independently evaluate whether to recommend a BUY decision based on the detector score.
+
+For each agent role below, provide your analysis in JSON format:
+
+1. ANALYZER: Examines raw technical data and patterns
+2. REASONER: Applies logical reasoning to market conditions  
+3. VOTER: Makes binary investment decisions
+4. DEBATER: Challenges assumptions and finds counterarguments
+5. DECIDER: Makes final executive decisions
+
+Respond in this exact JSON format:
+{{
+  "analyzer": {{
+    "decision": "YES" or "NO",
+    "confidence": 0.0-1.0,
+    "reasoning": "Technical analysis explanation..."
+  }},
+  "reasoner": {{
+    "decision": "YES" or "NO", 
+    "confidence": 0.0-1.0,
+    "reasoning": "Logical reasoning explanation..."
+  }},
+  "voter": {{
+    "decision": "YES" or "NO",
+    "confidence": 0.0-1.0, 
+    "reasoning": "Investment decision explanation..."
+  }},
+  "debater": {{
+    "decision": "YES" or "NO",
+    "confidence": 0.0-1.0,
+    "reasoning": "Critical analysis and counterarguments..."
+  }},
+  "decider": {{
+    "decision": "YES" or "NO",
+    "confidence": 0.0-1.0,
+    "reasoning": "Executive decision rationale..."
+  }}
+}}
+"""
+        return batch_prompt
+
+    def _parse_batch_response(self, batch_result: Dict[str, Any], all_contexts: List[Tuple[AgentRole, Dict[str, Any]]]) -> List[AgentResponse]:
+        """Parse batch OpenAI response do AgentResponse objects"""
+        responses = []
+        role_mapping = {
+            'analyzer': AgentRole.ANALYZER,
+            'reasoner': AgentRole.REASONER,
+            'voter': AgentRole.VOTER,
+            'debater': AgentRole.DEBATER,
+            'decider': AgentRole.DECIDER
+        }
+        
+        for role_key, role_enum in role_mapping.items():
+            if role_key in batch_result:
+                agent_data = batch_result[role_key]
+                response = AgentResponse(
+                    role=role_enum,
+                    decision=agent_data.get('decision', 'NO'),
+                    reasoning=agent_data.get('reasoning', f'Fallback reasoning for {role_enum.value}'),
+                    confidence=float(agent_data.get('confidence', 0.5))
+                )
+                responses.append(response)
+            else:
+                # Fallback if role missing
+                context = dict(all_contexts[0][1])  # Use shared context
+                responses.append(self._fallback_reasoning(role_enum, context))
+        
+        return responses
     
     def _save_decision_log(
         self, 

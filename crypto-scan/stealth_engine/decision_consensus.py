@@ -426,6 +426,103 @@ class DecisionConsensusEngine:
         
         return detector_stats
     
+    async def _batch_evaluate_all_detectors(
+        self,
+        active_detectors: Dict[str, Dict[str, Any]],
+        market_data: Dict[str, Any], 
+        threshold: float
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        OPTIMIZED: Batch evaluate all detectors with single OpenAI call
+        Eliminuje problem 429 rate limiting przez zmniejszenie zapytań z N*5 do 1
+        
+        Args:
+            active_detectors: Dict of detector data {detector_name: {score, weight, etc}}
+            market_data: Market data for context
+            threshold: Decision threshold
+            
+        Returns:
+            Dict with evaluation results for each detector
+        """
+        from .multi_agent_decision import MultiAgentDecisionSystem, AgentRole
+        from datetime import datetime
+        
+        print(f"[BATCH EVALUATION] Starting batch evaluation for {len(active_detectors)} detectors")
+        
+        # Initialize multi-agent system
+        multi_agent = MultiAgentDecisionSystem()
+        
+        # Prepare contexts for ALL detectors and ALL agents (5 per detector)
+        all_contexts = []
+        detector_mapping = {}  # Track which contexts belong to which detector
+        
+        context_idx = 0
+        for detector_name, detector_data in active_detectors.items():
+            score = detector_data.get("score", 0.0)
+            
+            shared_context = {
+                'detector_name': detector_name,
+                'score': score,
+                'threshold': threshold,
+                'timestamp': datetime.now().isoformat(),
+                'market_data': market_data,
+                'signal_data': {}  # Could be enhanced later
+            }
+            
+            # Add contexts for all 5 agents for this detector
+            for role in [AgentRole.ANALYZER, AgentRole.REASONER, 
+                        AgentRole.VOTER, AgentRole.DEBATER, AgentRole.DECIDER]:
+                all_contexts.append((role, shared_context))
+                # Track which detector this context belongs to
+                if detector_name not in detector_mapping:
+                    detector_mapping[detector_name] = []
+                detector_mapping[detector_name].append(context_idx)
+                context_idx += 1
+        
+        print(f"[BATCH EVALUATION] Prepared {len(all_contexts)} agent contexts for batch processing")
+        
+        try:
+            # SINGLE OpenAI API call for ALL agents of ALL detectors
+            all_responses = await multi_agent.batch_llm_reasoning(all_contexts)
+            
+            # Group responses back by detector
+            results = {}
+            for detector_name, context_indices in detector_mapping.items():
+                # Extract the 5 agent responses for this detector
+                detector_responses = [all_responses[i] for i in context_indices]
+                
+                # Process responses for this detector (same logic as original)
+                yes_votes = sum(1 for r in detector_responses if r.decision == "YES")
+                no_votes = sum(1 for r in detector_responses if r.decision == "NO") 
+                total_votes = len(detector_responses)
+                
+                # Decision based on majority vote
+                decision = "YES" if yes_votes > no_votes else "NO"
+                confidence = sum(r.confidence for r in detector_responses) / total_votes
+                
+                # Generate log summary
+                log_summary = f"[MULTI-AGENT BATCH] {detector_name}: {yes_votes} YES / {no_votes} NO votes"
+                for response in detector_responses:
+                    log_summary += f"\n  {response.role.value}: {response.decision} ({response.confidence:.3f}) - {response.reasoning[:100]}..."
+                
+                results[detector_name] = {
+                    "decision": decision,
+                    "confidence": confidence,
+                    "log": log_summary
+                }
+                
+                print(f"[BATCH RESULT] {detector_name}: {decision} (confidence: {confidence:.3f}, votes: {yes_votes}/{total_votes})")
+            
+            print(f"[BATCH EVALUATION] Successfully processed {len(results)} detectors with single OpenAI call")
+            return results
+            
+        except Exception as e:
+            print(f"[BATCH EVALUATION ERROR] Batch processing failed: {e}")
+            import traceback
+            traceback.print_exc()
+            # Return empty results on failure
+            return {}
+    
     def get_consensus_statistics(self) -> Dict[str, Any]:
         """
         Pobiera statystyki consensus decision engine
@@ -557,63 +654,58 @@ class DecisionConsensusEngine:
             agent_confidences = {}
             all_logs = []
             
-            # Run multi-agent evaluation for each detector
-            for detector_name, detector_data in detector_outputs.items():
-                score = detector_data.get("score", 0.0)
+            # OPTIMIZED: Batch multi-agent evaluation for ALL detectors at once
+            print(f"[MULTI-AGENT BATCH] Starting optimized batch evaluation for {len(detector_outputs)} detectors...")
+            
+            # Filter only active detectors (score > 0)
+            active_detectors = {name: data for name, data in detector_outputs.items() if data.get("score", 0) > 0}
+            
+            if not active_detectors:
+                print(f"[MULTI-AGENT SKIP] No active detectors with score > 0")
+                return None
                 
-                print(f"\n[DETECTOR CHECK] {detector_name}: score = {score:.3f}")
-                
-                # Skip detectors with zero score
-                if score <= 0:
-                    print(f"[DETECTOR SKIP] {detector_name}: Zero score, skipping evaluation")
-                    continue
-                
-                # Prepare signal data (empty for now, can be enhanced later)
-                signal_data = {}
-                
-                # Run 5-agent evaluation synchronously
+            print(f"[MULTI-AGENT BATCH] Processing {len(active_detectors)} active detectors: {list(active_detectors.keys())}")
+            
+            # Run BATCH evaluation for all detectors at once
+            try:
+                # Check if event loop is already running  
                 try:
-                    # Check if event loop is already running
-                    try:
-                        loop = asyncio.get_running_loop()
-                        # If loop is running, create task in existing loop
-                        import concurrent.futures
-                        with concurrent.futures.ThreadPoolExecutor() as executor:
-                            future = executor.submit(
-                                asyncio.run,
-                                evaluate_detector_with_agents(
-                                    detector_name=detector_name,
-                                    score=float(score),  # Ensure score is proper float
-                                    signal_data=signal_data,
-                                    market_data=market_data or {},  # Provide empty dict fallback
-                                    threshold=float(threshold)  # Ensure threshold is proper float
-                                )
-                            )
-                            decision, confidence, log = future.result(timeout=30)
-                    except RuntimeError:
-                        # No loop running, safe to create new one
-                        decision, confidence, log = asyncio.run(
-                            evaluate_detector_with_agents(
-                                detector_name=detector_name,
-                                score=float(score),  # Ensure score is proper float
-                                signal_data=signal_data,
-                                market_data=market_data or {},  # Provide empty dict fallback
-                                threshold=float(threshold)  # Ensure threshold is proper float
+                    loop = asyncio.get_running_loop()
+                    # If loop is running, create task in existing loop
+                    import concurrent.futures
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        future = executor.submit(
+                            asyncio.run,
+                            self._batch_evaluate_all_detectors(
+                                active_detectors, 
+                                market_data or {}, 
+                                float(threshold)
                             )
                         )
-                    
-                    agent_decisions[detector_name] = decision
-                    agent_confidences[detector_name] = confidence
-                    all_logs.append(log)
-                    
-                    print(f"[MULTI-AGENT RESULT] {detector_name}: Decision={decision}, Confidence={confidence:.3f}")
-                    
-                except Exception as e:
-                    print(f"[MULTI-AGENT ERROR] Failed to evaluate {detector_name}: {e}")
-                    import traceback
-                    traceback.print_exc()
-                    # Still continue with next detector instead of breaking the entire process
-                    continue
+                        batch_results = future.result(timeout=60)  # Increased timeout for batch
+                except RuntimeError:
+                    # No loop running, safe to create new one
+                    batch_results = asyncio.run(
+                        self._batch_evaluate_all_detectors(
+                            active_detectors, 
+                            market_data or {}, 
+                            float(threshold)
+                        )
+                    )
+                
+                # Parse batch results
+                for detector_name, result in batch_results.items():
+                    agent_decisions[detector_name] = result["decision"]
+                    agent_confidences[detector_name] = result["confidence"]
+                    all_logs.append(result["log"])
+                    print(f"[MULTI-AGENT BATCH RESULT] {detector_name}: Decision={result['decision']}, Confidence={result['confidence']:.3f}")
+                
+            except Exception as e:
+                print(f"[MULTI-AGENT BATCH ERROR] Failed batch evaluation: {e}")
+                import traceback
+                traceback.print_exc()
+                # Fallback to individual evaluations if batch fails
+                return None
             
             # Aggregate multi-agent decisions into final consensus
             if agent_decisions:
