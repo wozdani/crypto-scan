@@ -328,9 +328,8 @@ class StealthFeedbackSystem:
             
             feedback_log.append(log_entry)
             
-            # Zachowaj tylko ostatnie 1000 wpisów
-            if len(feedback_log) > 1000:
-                feedback_log = feedback_log[-1000:]
+            # USUNIĘTO LIMIT 1000 - system zachowuje wszystkie wpisy z explore mode
+            # Automatyczne czyszczenie explore mode odbywa się w osobnej funkcji
             
             # Zapisz log
             with open(self.feedback_log_file, 'w', encoding='utf-8') as f:

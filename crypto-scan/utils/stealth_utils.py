@@ -3,6 +3,10 @@ Stealth Engine Utilities
 Utility functions for stealth signal detection and analysis
 """
 
+import os
+import json
+import time
+from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 
 def is_cold_start(token_data: Dict[str, Any]) -> bool:
@@ -34,7 +38,7 @@ def should_explore_mode_trigger(token_data: Dict[str, Any]) -> bool:
     """
     final_score = token_data.get("final_score", 0.0)
     # 🔧 BELUSDT FIX: Much lower explore mode threshold for experimental alerts
-    explore_score_threshold = 0.8  # Lowered from 1.8 to 0.8 for broader experimental detection
+    explore_score_threshold = 2.0  # Zwiększony z 0.8 na 2.0 - tylko wysokie score trafiają do explore mode
     
     # Additional quality checks
     whale_ping_strength = token_data.get("whale_ping_strength", 0.0)
@@ -267,3 +271,89 @@ def get_cold_start_statistics(token_data_list: List[Dict[str, Any]]) -> Dict[str
         "explore_eligible": explore_eligible,
         "explore_eligible_percentage": round((explore_eligible / cold_start_count) * 100, 2) if cold_start_count > 0 else 0.0
     }
+
+def cleanup_old_explore_mode_data(base_path: str = "crypto-scan") -> Dict[str, int]:
+    """
+    Automatyczne czyszczenie starych danych explore mode (starsze niż 3 dni).
+    
+    Args:
+        base_path: Ścieżka bazowa do folderu crypto-scan
+        
+    Returns:
+        Statystyki usunięcia: {"removed_files": count, "removed_entries": count}
+    """
+    cleanup_stats = {"removed_files": 0, "removed_entries": 0}
+    cutoff_time = time.time() - (3 * 24 * 3600)  # 3 dni w sekundach
+    
+    print(f"[EXPLORE CLEANUP] Starting cleanup of explore mode data older than 3 days...")
+    
+    # Ścieżki do plików explore mode
+    explore_files = [
+        f"{base_path}/data/explore_mode.json",
+        f"{base_path}/data/explore_results.json", 
+        f"{base_path}/cache/explore_cache.json",
+        f"{base_path}/stealth_engine/cache/multi_agent_decisions.json"
+    ]
+    
+    for file_path in explore_files:
+        if not os.path.exists(file_path):
+            continue
+            
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            if isinstance(data, list):
+                # Lista wpisów z timestampami
+                original_count = len(data)
+                filtered_data = []
+                
+                for entry in data:
+                    entry_time = entry.get("timestamp", 0)
+                    if isinstance(entry_time, str):
+                        # Konwertuj ISO string na timestamp
+                        try:
+                            entry_time = datetime.fromisoformat(entry_time.replace('Z', '+00:00')).timestamp()
+                        except:
+                            entry_time = 0
+                    
+                    if entry_time > cutoff_time:
+                        filtered_data.append(entry)
+                
+                removed_count = original_count - len(filtered_data)
+                if removed_count > 0:
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        json.dump(filtered_data, f, indent=2, ensure_ascii=False)
+                    
+                    cleanup_stats["removed_entries"] += removed_count
+                    print(f"[EXPLORE CLEANUP] {file_path}: Removed {removed_count} old entries, kept {len(filtered_data)}")
+                    
+            elif isinstance(data, dict):
+                # Słownik wpisów
+                original_count = len(data)
+                filtered_data = {}
+                
+                for key, entry in data.items():
+                    entry_time = entry.get("timestamp", 0) if isinstance(entry, dict) else 0
+                    if isinstance(entry_time, str):
+                        try:
+                            entry_time = datetime.fromisoformat(entry_time.replace('Z', '+00:00')).timestamp()
+                        except:
+                            entry_time = 0
+                    
+                    if entry_time > cutoff_time:
+                        filtered_data[key] = entry
+                
+                removed_count = original_count - len(filtered_data)
+                if removed_count > 0:
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        json.dump(filtered_data, f, indent=2, ensure_ascii=False)
+                    
+                    cleanup_stats["removed_entries"] += removed_count
+                    print(f"[EXPLORE CLEANUP] {file_path}: Removed {removed_count} old entries, kept {len(filtered_data)}")
+                    
+        except Exception as e:
+            print(f"[EXPLORE CLEANUP ERROR] Failed to cleanup {file_path}: {e}")
+    
+    print(f"[EXPLORE CLEANUP] Completed: Removed {cleanup_stats['removed_entries']} old entries from explore mode data")
+    return cleanup_stats

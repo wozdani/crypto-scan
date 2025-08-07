@@ -18,6 +18,14 @@ try:
 except ImportError:
     raise RuntimeError("🚨 pytesseract is required for TradingView chart validation – please install it.")
 
+# Import explore mode cleanup funkcji
+try:
+    from utils.stealth_utils import cleanup_old_explore_mode_data
+    EXPLORE_CLEANUP_AVAILABLE = True
+except ImportError:
+    EXPLORE_CLEANUP_AVAILABLE = False
+    print("[EXPLORE CLEANUP] Cleanup function not available")
+
 # Global scan warnings system
 SCAN_WARNINGS = []
 
@@ -254,6 +262,15 @@ def scan_cycle():
     
     # Clear warnings from previous scan
     clear_scan_warnings()
+    
+    # Automatyczne czyszczenie explore mode (co 10% skanów)
+    if EXPLORE_CLEANUP_AVAILABLE and system_random.random() < 0.1:  # 10% szans na wywołanie
+        try:
+            cleanup_stats = cleanup_old_explore_mode_data()
+            if cleanup_stats["removed_entries"] > 0:
+                print(f"[EXPLORE CLEANUP] Removed {cleanup_stats['removed_entries']} old explore mode entries (>3 days)")
+        except Exception as e:
+            print(f"[EXPLORE CLEANUP ERROR] {e}")
     
     start_time = time.time()
     

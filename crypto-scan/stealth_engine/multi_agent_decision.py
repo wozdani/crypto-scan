@@ -428,9 +428,8 @@ class MultiAgentDecisionSystem:
         # Dodaj nowy wpis
         logs.append(decision_entry)
         
-        # Zachowaj tylko ostatnie 1000 wpisów
-        if len(logs) > 1000:
-            logs = logs[-1000:]
+        # USUNIĘTO LIMIT 1000 - system zachowuje wszystkie wpisy
+        # Automatyczne czyszczenie explore mode odbywa się w osobnej funkcji
         
         # Zapisz
         os.makedirs(os.path.dirname(self.decision_log_file), exist_ok=True)
