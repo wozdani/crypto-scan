@@ -14,15 +14,18 @@ from dataclasses import dataclass
 from enum import Enum
 import os
 import random
+import time
 from openai import OpenAI
 
 # Import DQN system for advanced reinforcement learning
 try:
     from .dqn_multi_agent import get_dqn_integration, initialize_dqn_system
     DQN_AVAILABLE = True
+    initialize_dqn_system = initialize_dqn_system  # Declare for LSP
     print("[MULTI-AGENT] ✅ DQN Advanced Reinforcement Learning system available")
 except ImportError as e:
     DQN_AVAILABLE = False
+    initialize_dqn_system = None  # Fallback for LSP
     print(f"[MULTI-AGENT] ⚠️ DQN system not available: {e}")
 
 
@@ -89,110 +92,12 @@ class MultiAgentDecisionSystem:
         # Use real OpenAI API if available, otherwise fallback to simulation
         if self.use_real_llm:
             try:
-                return await self._real_llm_reasoning(role, context)
+                return await self._real_llm_reasoning_with_retry(role, context)
             except Exception as e:
                 print(f"[MULTI-AGENT LLM ERROR] {e} - falling back to simulation")
         
-        # Fallback simulation logic (enhanced for better performance)
-        
-        if role == AgentRole.ANALYZER:
-            # Analyzer sprawdza wiarygodność danych (LOWERED THRESHOLDS FOR MORE BUY VOTES)
-            if score > 0.5:  # Lowered from 0.8 to 0.5
-                reasoning = f"Score {score:.3f} is reliable for analysis. Signal data shows good patterns: {len(signal_data)} active signals."
-                decision = "YES"
-                confidence = 0.9
-            elif score > threshold * 0.7:  # Lowered threshold multiplier from 1.0 to 0.7
-                reasoning = f"Score {score:.3f} above adjusted threshold ({threshold * 0.7:.2f}). Data quality: moderate."
-                decision = "YES"
-                confidence = 0.7
-            else:
-                reasoning = f"Score {score:.3f} below threshold. Data reliability questionable."
-                decision = "NO"
-                confidence = 0.8
-                
-        elif role == AgentRole.REASONER:
-            # Reasoner ocenia kontekst rynkowy (LOWERED VOLUME REQUIREMENTS)
-            volume_24h = market_data.get('volume_24h', 0)
-            price_change = market_data.get('price_change_24h', 0)
-            
-            if volume_24h > 500000 and price_change > -5:  # Lowered from 1M to 500k, allow some negative price change
-                reasoning = f"Market context acceptable: volume ${volume_24h:,.0f}, price change {price_change:.2f}%"
-                decision = "YES"
-                confidence = 0.85
-            elif volume_24h < 100000:  # Lowered from 500k to 100k
-                reasoning = f"Very low volume ${volume_24h:,.0f} suggests high caution"
-                decision = "NO"
-                confidence = 0.75
-            else:
-                reasoning = f"Market signals neutral: volume moderate, evaluating by score"
-                decision = "YES" if score > threshold * 0.8 else "NO"  # Lowered threshold multiplier
-                confidence = 0.6
-                
-        elif role == AgentRole.VOTER:
-            # Voter głosuje na podstawie overall assessment (LOWERED SIGNAL REQUIREMENTS)
-            active_signals = len([s for s in signal_data.values() if s])
-            if score > threshold:  # Simplified: if score above threshold, vote YES
-                reasoning = f"Strong vote YES: score {score:.3f} above threshold ({threshold:.2f})"
-                decision = "YES"
-                confidence = 0.95
-            elif score > threshold * 0.7:  # Even if score slightly below threshold
-                reasoning = f"Moderate support: score {score:.3f} close to threshold"
-                decision = "YES"
-                confidence = 0.7
-            else:
-                reasoning = f"Weak score: {score:.3f} too far below threshold"
-                decision = "NO"
-                confidence = 0.8
-                
-        elif role == AgentRole.DEBATER:
-            # Debater supports good scores instead of being contrarian (LESS CONTRARIAN)
-            if len(self.debate_history) > 0:
-                prev_decisions = [h['decision'] for h in self.debate_history[-3:]]
-                yes_count = prev_decisions.count("YES")
-                if yes_count >= 2 and score > threshold * 0.6:  # Support if majority YES and decent score
-                    reasoning = "Previous agents support this, and score warrants agreement"
-                    decision = "YES"
-                    confidence = 0.75
-                elif score > threshold * 0.8:  # Support high scores regardless of previous votes
-                    reasoning = "Score is strong enough to overcome skepticism"
-                    decision = "YES"
-                    confidence = 0.7
-                else:
-                    reasoning = "Insufficient evidence for strong recommendation"
-                    decision = "NO"
-                    confidence = 0.65
-            else:
-                reasoning = "Initial assessment: evaluating by score threshold"
-                decision = "YES" if score > threshold * 0.7 else "NO"  # Lowered from 0.9 to 0.7
-                confidence = 0.6
-                
-        elif role == AgentRole.DECIDER:
-            # Decider podejmuje finalną decyzję (LOWERED CONSENSUS REQUIREMENTS)
-            yes_votes = sum(1 for h in self.debate_history if h['decision'] == "YES")
-            total_votes = len(self.debate_history)
-            
-            if yes_votes >= 2:  # Lowered from 3 to 2 YES votes needed
-                reasoning = f"Final decision: YES ({yes_votes}/{total_votes} agents support)"
-                decision = "YES"
-                confidence = 0.9
-            elif yes_votes >= 1 and score > threshold * 0.8:  # Even with 1 YES vote if score high
-                reasoning = f"Strong score override: YES (score {score:.3f} justifies decision)"
-                decision = "YES"
-                confidence = 0.75
-            else:
-                reasoning = f"Insufficient consensus: NO ({yes_votes}/{total_votes} YES votes)"
-                decision = "NO"
-                confidence = 0.85
-        
-        # Dodaj losowy element dla większej różnorodności (symulacja LLM variability)
-        confidence *= (0.9 + random.random() * 0.2)
-        
-        return AgentResponse(
-            role=role,
-            decision=decision,
-            reasoning=reasoning,
-            confidence=min(confidence, 1.0)
-        )
+        # Fallback to enhanced simulation when OpenAI unavailable
+        return self._simulate_agent_decision(role, detector_name, score, threshold, market_data, signal_data)
     
     async def agent_task(self, role: AgentRole, context: Dict[str, Any]) -> AgentResponse:
         """
@@ -436,6 +341,117 @@ class MultiAgentDecisionSystem:
         with open(self.decision_log_file, 'w') as f:
             json.dump(logs, f, indent=2)
     
+    async def _real_llm_reasoning_with_retry(self, role: AgentRole, context: Dict[str, Any], retries: int = 3) -> AgentResponse:
+        """
+        Real OpenAI API reasoning with retry logic and fallback handling
+        """
+        for attempt in range(retries):
+            try:
+                return await self._real_llm_reasoning(role, context)
+            except Exception as e:
+                error_str = str(e)
+                print(f"[MULTI-AGENT OpenAI ERROR] {role.value}: {error_str}")
+                
+                # Handle rate limiting (429) with exponential backoff
+                if "insufficient_quota" in error_str or "429" in error_str or "rate_limit" in error_str.lower():
+                    if attempt < retries - 1:
+                        wait_time = 2 ** attempt
+                        print(f"[MULTI-AGENT RETRY] {role.value}: Rate limit hit, waiting {wait_time}s before retry...")
+                        await asyncio.sleep(wait_time)
+                        continue
+                    else:
+                        print(f"[MULTI-AGENT FALLBACK] {role.value}: All retries exhausted, using fallback reasoning")
+                        return self._fallback_reasoning(role, context)
+                
+                # Handle invalid API key (401) or other critical errors
+                elif "invalid_api_key" in error_str or "401" in error_str:
+                    print(f"[MULTI-AGENT FALLBACK] {role.value}: Invalid API key, using fallback reasoning")
+                    return self._fallback_reasoning(role, context)
+                
+                # Handle other errors with retry
+                elif attempt < retries - 1:
+                    wait_time = 1 + attempt
+                    print(f"[MULTI-AGENT RETRY] {role.value}: Error occurred, retrying in {wait_time}s...")
+                    await asyncio.sleep(wait_time)
+                    continue
+                else:
+                    print(f"[MULTI-AGENT FALLBACK] {role.value}: All retries failed, using fallback reasoning")
+                    return self._fallback_reasoning(role, context)
+        
+        # Should not reach here, but safety fallback
+        return self._fallback_reasoning(role, context)
+    
+    def _fallback_reasoning(self, role: AgentRole, context: Dict[str, Any]) -> AgentResponse:
+        """Enhanced fallback reasoning when OpenAI API is unavailable"""
+        detector_name = context.get('detector_name', 'unknown')
+        score = context.get('score', 0.0)
+        threshold = context.get('threshold', 0.7)
+        market_data = context.get('market_data', {})
+        signal_data = context.get('signal_data', {})
+        
+        return self._simulate_agent_decision(role, detector_name, score, threshold, market_data, signal_data)
+    
+    def _simulate_agent_decision(self, role: AgentRole, detector_name: str, score: float, threshold: float, market_data: Dict, signal_data: Dict) -> AgentResponse:
+        """Simulate agent decision with enhanced logic (extracted from original llm_reasoning)"""
+        
+        if role == AgentRole.ANALYZER:
+            if score > 0.6:  # Lowered from 0.8 to 0.6
+                reasoning = f"Analysis: Score {score:.3f} above reliability threshold ({0.6})"
+                decision = "YES"
+                confidence = 0.750
+            else:
+                reasoning = f"Analysis: Score {score:.3f} below reliability threshold ({0.6})"
+                decision = "NO"
+                confidence = 0.750
+                
+        elif role == AgentRole.REASONER:
+            volume_24h = market_data.get('volume_24h', 0)
+            reasoning = f"Market reasoning: Volume ${volume_24h:,.0f}, score context acceptable"
+            decision = "YES" if score > threshold * 0.8 else "NO"
+            confidence = 0.800
+                
+        elif role == AgentRole.VOTER:
+            if score > threshold:
+                reasoning = f"Vote: Score {score:.3f} meets voting criteria (threshold: {threshold:.1f})"
+                decision = "YES"
+                confidence = 0.900
+            else:
+                reasoning = f"Vote: Score {score:.3f} fails voting criteria (threshold: {threshold:.1f})"
+                decision = "NO"
+                confidence = 0.900
+                
+        elif role == AgentRole.DEBATER:
+            if score > threshold * 0.8:
+                reasoning = f"Debate: Supporting based on evidence (threshold: {threshold:.1f})"
+                decision = "YES"
+                confidence = 0.750
+            else:
+                reasoning = f"Debate: Opposing based on evidence (threshold: {threshold:.1f})"
+                decision = "NO"
+                confidence = 0.750
+                
+        elif role == AgentRole.DECIDER:
+            yes_votes = sum(1 for h in self.debate_history if h.get('decision') == "YES")
+            if yes_votes >= 2:  # Majority of 4 previous agents
+                reasoning = f"Final decision: {yes_votes}/4 agents support (score threshold: {threshold:.1f})"
+                decision = "YES"
+                confidence = 0.900
+            else:
+                reasoning = f"Final decision: {yes_votes}/4 agents support (score threshold: {threshold:.1f})"
+                decision = "NO"
+                confidence = 0.900
+        else:
+            reasoning = "Default reasoning"
+            decision = "NO"
+            confidence = 0.500
+        
+        return AgentResponse(
+            role=role,
+            decision=decision,
+            reasoning=reasoning,
+            confidence=confidence
+        )
+
     async def _real_llm_reasoning(self, role: AgentRole, context: Dict[str, Any]) -> AgentResponse:
         """
         Real OpenAI API reasoning for sophisticated agent decision making
