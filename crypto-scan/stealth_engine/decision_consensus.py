@@ -485,11 +485,34 @@ class DecisionConsensusEngine:
             # SINGLE OpenAI API call for ALL agents of ALL detectors
             all_responses = await multi_agent.batch_llm_reasoning(all_contexts)
             
+            print(f"[BATCH EVALUATION] Expected {len(all_contexts)} responses, got {len(all_responses)}")
+            
+            # Validate response count matches expected
+            if len(all_responses) != len(all_contexts):
+                print(f"[BATCH EVALUATION WARNING] Response count mismatch - expected {len(all_contexts)}, got {len(all_responses)}")
+            
             # Group responses back by detector
             results = {}
             for detector_name, context_indices in detector_mapping.items():
-                # Extract the 5 agent responses for this detector
-                detector_responses = [all_responses[i] for i in context_indices]
+                # Extract the 5 agent responses for this detector with bounds checking
+                detector_responses = []
+                for i in context_indices:
+                    if i < len(all_responses):
+                        detector_responses.append(all_responses[i])
+                    else:
+                        print(f"[BATCH EVALUATION ERROR] Missing response for index {i} (detector: {detector_name})")
+                        # Create fallback response
+                        from multi_agent.multi_agent_decision import AgentResponse
+                        fallback_response = AgentResponse(
+                            decision="NO",
+                            confidence=0.1,
+                            reasoning="Fallback due to missing batch response"
+                        )
+                        detector_responses.append(fallback_response)
+                
+                if len(detector_responses) == 0:
+                    print(f"[BATCH EVALUATION ERROR] No responses available for detector {detector_name}")
+                    continue
                 
                 # Process responses for this detector (same logic as original)
                 yes_votes = sum(1 for r in detector_responses if r.decision == "YES")
