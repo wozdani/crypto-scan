@@ -189,12 +189,7 @@ def convert_one(
     except OverflowError:
         p_raw = 1.0 if z_raw > 0 else 0.0
     
-    # 8) Determine sample weight (lower if no on-chain core)
-    has_onchain = (
-        sig["whale_ping"]["strength"] > 0.0 or 
-        sig["dex_inflow"]["strength"] > 0.0
-    )
-    sample_weight = 1.0 if has_onchain else 0.5
+    # 8) Calculate final probabilities (moved up from previous position)
     
     # Build output record
     out = {
@@ -233,8 +228,7 @@ def convert_one(
             "lookback_min": 90,
             "consensus": rec.get("consensus_decision", "UNKNOWN"),
             "explore_confidence": rec.get("explore_confidence", 0.0)
-        },
-        "sample_weight": sample_weight
+        }
     }
     
     return out
