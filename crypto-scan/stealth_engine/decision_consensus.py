@@ -497,10 +497,29 @@ class DecisionConsensusEngine:
                 # Extract the 5 agent responses for this detector with bounds checking
                 detector_responses = []
                 for i in context_indices:
-                    if i < len(all_responses):
-                        detector_responses.append(all_responses[i])
+                    if i < len(all_responses) and all_responses[i] is not None:
+                        # Validate response has required attributes
+                        response = all_responses[i]
+                        if hasattr(response, 'decision') and hasattr(response, 'confidence'):
+                            detector_responses.append(response)
+                        else:
+                            print(f"[BATCH EVALUATION ERROR] Invalid response format for index {i} (detector: {detector_name})")
+                            # Create fallback for invalid response
+                            from stealth_engine.multi_agent_decision import AgentResponse, AgentRole
+                            agent_index = i % 5
+                            agent_roles = [AgentRole.ANALYZER, AgentRole.REASONER, AgentRole.VOTER, AgentRole.DEBATER, AgentRole.DECIDER]
+                            fallback_response = AgentResponse(
+                                role=agent_roles[agent_index],
+                                decision="NO",
+                                confidence=0.1,
+                                reasoning="Fallback due to invalid response format"
+                            )
+                            detector_responses.append(fallback_response)
                     else:
-                        print(f"[BATCH EVALUATION ERROR] Missing response for index {i} (detector: {detector_name})")
+                        if i >= len(all_responses):
+                            print(f"[BATCH EVALUATION ERROR] Missing response for index {i} (detector: {detector_name})")
+                        else:
+                            print(f"[BATCH EVALUATION ERROR] Null response for index {i} (detector: {detector_name})")
                         # Create fallback response
                         from stealth_engine.multi_agent_decision import AgentResponse, AgentRole
                         # Determine which agent role this index corresponds to
