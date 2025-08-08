@@ -2038,7 +2038,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                 print(f"[UNIFIED ALERT] {symbol_name}: Votes: {stored_consensus_data.get('votes', [])}")
                                 print(f"[UNIFIED ALERT] {symbol_name}: Contributing detectors: {stored_consensus_data.get('contributing_detectors', [])}") 
                         else:
-                            print(f"[UNIFIED BLOCK] {symbol_name}: NO ALERT - {unified_decision['reason']}")
+                            print(f"[UNIFIED BLOCK] {symbol_name}: NO ALERT - decision={unified_decision_hardgate}")
                             print(f"[CONSENSUS VOTE] {token_data.get('symbol', 'UNKNOWN')}: Agents need to learn from historical data to vote")
                         
                         # 🎓 EXPLORE MODE LEARNING SYSTEM - zapisuj wysokie score dla uczenia agentów
