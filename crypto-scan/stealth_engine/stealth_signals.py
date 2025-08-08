@@ -191,24 +191,25 @@ class StealthSignalDetector:
         print(f"[DEBUG FLOW] {symbol} - get_active_stealth_signals() completed with {len(signals)} signals")
         return signals
     
-    def compute_adaptive_whale_threshold(self, volume_24h: float) -> float:
+    def whale_threshold_usd(self, vol_24h_usd: float) -> float:
         """
-        Oblicza adaptacyjny próg whale_ping na podstawie wolumenu 24h
+        HOTFIX: Dynamic whale threshold - 2% dziennego wolumenu, z bezpiecznymi clampami
         
         Args:
-            volume_24h: Wolumen 24h w USD
+            vol_24h_usd: 24h volume in USD
             
         Returns:
-            float: Adaptacyjny próg w USD (minimum $1000 lub 1% volume)
+            float: Dynamic threshold USD (2% of volume, clamped $25k-$150k)
         """
-        if not volume_24h or volume_24h <= 0:
-            return 1000.0  # Default minimum threshold
-        
-        # Minimum $1000 lub 1% volume jako dynamiczny próg
-        adaptive_threshold = max(1000.0, volume_24h * 0.01)
-        
-        # Cap na poziomie $50,000 dla bardzo dużych tokenów
-        return min(adaptive_threshold, 50000.0)
+        # 2% dziennego wolumenu, z bezpiecznymi clampami
+        return max(25_000.0, min(150_000.0, 0.02 * float(vol_24h_usd)))
+    
+    def compute_adaptive_whale_threshold(self, volume_24h: float) -> float:
+        """
+        DEPRECATED: Use whale_threshold_usd instead
+        Kept for backward compatibility
+        """
+        return self.whale_threshold_usd(volume_24h)
 
     def get_dynamic_whale_threshold(self, orderbook: dict) -> float:
         """
@@ -291,9 +292,9 @@ class StealthSignalDetector:
                 if not volume_24h:
                     volume_24h = 0
             
-            # 🚀 NEW: Import and use adaptive threshold system
-            from .adaptive_thresholds import compute_adaptive_whale_threshold
-            adaptive_threshold = compute_adaptive_whale_threshold(volume_24h)
+            # 🧯 HOTFIX: Use new dynamic whale threshold (2% volume, $25k-$150k range)
+            TH_USD = self.whale_threshold_usd(volume_24h)
+            threshold = TH_USD  # For compatibility with existing code
             
             if not bids or not asks:
                 print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] INPUT → bids={len(bids)}, asks={len(asks)}, insufficient_data=True")
