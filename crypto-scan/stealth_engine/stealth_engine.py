@@ -1465,8 +1465,9 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             )
                             
                             # Skip simple threshold vote - will use 5-agent AI consensus instead
+                            stealth_vote = "PENDING"  # Define stealth_vote variable
                             detector_outputs["StealthEngine"] = {
-                                "vote": "PENDING",  # Will be set by 5-agent consensus
+                                "vote": stealth_vote,  # Will be set by 5-agent consensus
                                 "score": adapted_stealth_score,
                                 "confidence": 0.70,
                                 "weight": 0.25
@@ -2481,8 +2482,9 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 # Add Stealth Engine - ALWAYS available with safe handling
                 try:
                     # Skip simple threshold vote - will use 5-agent AI consensus instead
+                    stealth_vote = "PENDING"  # Define stealth_vote variable
                     detector_outputs["StealthEngine"] = {
-                        "vote": "PENDING",  # Will be set by 5-agent consensus
+                        "vote": stealth_vote,  # Will be set by 5-agent consensus
                         "score": float(score),  # Ensure proper type conversion
                         "weight": 0.25
                     }
