@@ -754,12 +754,19 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         from core.smart_money import apply_smart_money_boost
         from detectors.orderbook_features import compute_ob_signals
         
-        # FEATURES: Resolve price reference once for entire scan - beginning of FEATURES
-        candles_15m = token_data.get("candles_15m", [])
-        ticker_price = token_data.get("ticker", {}).get("price", 0.0)
-        candle_price = candles_15m[-1]["close"] if candles_15m else 0.0
-        price_ref = resolve_price_ref(ticker_price, candle_price)
-        print(f"[PRICE REF] {symbol}: Using price_ref=${price_ref:.6f}")
+        # FEATURES: Use consistent price from market data processing - beginning of FEATURES
+        # 🎯 PRICE CONSISTENCY: Use already processed price_usd from market data instead of recalculating
+        price_ref = token_data.get("price_usd", 0.0)
+        
+        # Fallback only if price_usd not available (shouldn't happen in normal flow)
+        if price_ref <= 0:
+            candles_15m = token_data.get("candles_15m", [])
+            ticker_price = token_data.get("ticker", {}).get("price", 0.0)
+            candle_price = candles_15m[-1]["close"] if candles_15m else 0.0
+            price_ref = resolve_price_ref(ticker_price, candle_price)
+            print(f"[PRICE FALLBACK] {symbol}: Market data price unavailable, using fallback=${price_ref:.6f}")
+        else:
+            print(f"[PRICE CONSISTENT] {symbol}: Using market data price=${price_ref:.6f}")
         
         # ⛔ Hard-filter: Skip tokens with too low daily volume  
         volume_24h = token_data.get("volume_24h", 0)
