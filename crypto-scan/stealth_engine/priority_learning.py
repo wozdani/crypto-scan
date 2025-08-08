@@ -339,9 +339,24 @@ class PriorityLearningMemory:
                                 explore_data = json.load(f)
                                 if isinstance(explore_data, dict):
                                     explore_mode_entries += 1
-                                    # Count as success if high score (> 2.0)
-                                    final_score = explore_data.get('final_score', 0.0)
-                                    if final_score > 2.0:
+                                    
+                                    # Count as success if verified successful OR consensus decision SUCCESS
+                                    is_success = False
+                                    
+                                    # Check success_verification field first
+                                    success_verification = explore_data.get('success_verification', {})
+                                    if success_verification.get('result_success') == True:
+                                        is_success = True
+                                    
+                                    # Also check consensus_decision field
+                                    elif explore_data.get('consensus_decision') == 'SUCCESS':
+                                        is_success = True
+                                    
+                                    # Fallback to high score for backwards compatibility
+                                    elif explore_data.get('final_score', 0.0) > 2.0:
+                                        is_success = True
+                                    
+                                    if is_success:
                                         explore_mode_successes += 1
                         except Exception as file_error:
                             print(f"[EXPLORE MODE ERROR] Reading {explore_file}: {file_error}")
