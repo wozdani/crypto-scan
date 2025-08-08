@@ -502,7 +502,7 @@ class DecisionConsensusEngine:
                     else:
                         print(f"[BATCH EVALUATION ERROR] Missing response for index {i} (detector: {detector_name})")
                         # Create fallback response
-                        from multi_agent.multi_agent_decision import AgentResponse
+                        from stealth_engine.multi_agent_decision import AgentResponse
                         fallback_response = AgentResponse(
                             decision="NO",
                             confidence=0.1,
