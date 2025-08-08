@@ -818,10 +818,9 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 except Exception as cache_error:
                     print(f"[STEALTH CACHE ERROR] {symbol} → Failed to update cache: {cache_error}")
                 
-                # 🔧 MOCAUSDT FIX 7: Dodaj stealth_alert_type na podstawie score
-                if stealth_score >= 0.70:
-                    alert_type = "stealth_alert"
-                elif stealth_score >= 0.50:
+                # WYMAGANIE #7: Remove score fallback logic - use only hard gating
+                # Removed: if stealth_score >= 0.70 fallback logic
+                if stealth_score >= 0.50:
                     alert_type = "stealth_warning" 
                 elif stealth_score >= 0.20:
                     alert_type = "stealth_watchlist"
@@ -1311,9 +1310,9 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     
                     print(f"[TJDE FINAL] {symbol}: score={final_score:.2f}, decision={decision}")
                     
-                    # Alert check for high scores
-                    if final_score >= 0.7:
-                        print(f"[ALERT TRIGGER] {symbol} → TJDE={final_score:.2f} → HIGH SCORE DETECTED")
+                    # WYMAGANIE #7: Removed score≥0.7 fallback logic - use only hard gating
+                    # Removed: if final_score >= 0.7 fallback check
+                    print(f"[HARD GATING] {symbol} → TJDE={final_score:.2f} → Using hard gating logic only")
                         
                 else:
                     print(f"[TJDE INVALID] {symbol}: No valid TJDE result - skipping token")

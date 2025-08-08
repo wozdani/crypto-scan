@@ -1075,23 +1075,20 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         if hasattr(signal, 'active') and signal.active:
                             used_signals.append(signal.name)
                     
-                    # Use new aggregator for scoring
+                    # WYMAGANIE #6: Use aggregator p_raw directly without modifications
                     agg_result = aggregate(aggregator_signals, weights)
-                    score = agg_result["p_raw"]  # Use p_raw instead of final_score
+                    score = agg_result["p_raw"]  # Pure p_raw from aggregator - NO MODIFICATIONS
                     
                     # Log contributions (updated for new contrib structure)
                     for name, contrib in agg_result["contrib"].items():
                         print(f"[AGGREGATOR] {name}: strength={contrib['s']:.3f}, weight={contrib['w']:.3f}, contribution={contrib['v']:.3f}")
                     
-                    # 🧠 PARTIAL SCORING MECHANISM - zgodnie z user request
+                    # WYMAGANIE #6: Remove scaling mechanism - use pure p_raw from aggregator
                     data_coverage = available_signals / total_signals if total_signals > 0 else 0
+                    print(f"[WYMAGANIE #6] {symbol}: Using pure aggregator p_raw={score:.6f} (data_coverage={data_coverage:.1%}, no scaling)")
                     
-                    # Jeśli mało danych dostępnych (≤50%), zastosuj scaling
-                    if data_coverage <= 0.5 and available_signals >= 3:
-                        # Proporcjonalne przeliczenie - scale up score based on data coverage
-                        scaling_factor = min(2.0, 1.0 / data_coverage) if data_coverage > 0 else 1.0
-                        original_score = score
-                        score = score * scaling_factor
+                    # REMOVED: Scaling mechanism that modified p_raw
+                    # No scaling_factor, no score modifications - pure aggregator result
                         print(f"[STEALTH PARTIAL] {symbol}: Low data coverage ({data_coverage:.1%}), scaling {original_score:.3f} → {score:.3f} (factor: {scaling_factor:.2f})")
                     
                     # Dodaj bonus zgodnie z nową specyfikacją: +0.025 za każdą aktywną regułę
@@ -2402,7 +2399,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
     consensus_data = None
     consensus_result = None
     consensus_error = None
-    final_score = score  # Default to stealth score
+    final_score = score  # WYMAGANIE #6: Use pure aggregator p_raw
     
     # Initialize skip_reason if not defined
     if 'skip_reason' not in locals():
@@ -2531,7 +2528,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     # Calculate weighted score as fallback
                     total_weighted_score = sum(d["score"] * d["weight"] for d in detector_outputs.values())
                     total_weight = sum(d["weight"] for d in detector_outputs.values())
-                    final_score = total_weighted_score / total_weight if total_weight > 0 else score
+                    # WYMAGANIE #6: Keep pure aggregator p_raw instead of recalculating
+                    final_score = score  # Use original aggregator p_raw, not weighted average
                     confidence = min(0.95, max(0.1, final_score / 3.0))
                     threshold_met = final_score >= 1.0 and buy_votes > 0
                     

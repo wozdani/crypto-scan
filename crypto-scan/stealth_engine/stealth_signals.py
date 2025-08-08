@@ -637,14 +637,20 @@ class StealthSignalDetector:
                     from core.smart_money import apply_smart_money_boost
                     from utils.blockchain_scanners import load_known_exchange_addresses
                     
-                    # Get known exchanges
+                    # WYMAGANIE #4: Get known exchanges for CEX exclusion
                     known_exchanges = set()
                     try:
                         exchanges_data = load_known_exchange_addresses()
                         for chain_exchanges in exchanges_data.values():
                             if isinstance(chain_exchanges, list):
                                 known_exchanges.update(addr.lower() for addr in chain_exchanges)
-                    except:
+                            elif isinstance(chain_exchanges, dict):  # DEX routers
+                                for router_list in chain_exchanges.values():
+                                    if isinstance(router_list, list):
+                                        known_exchanges.update(addr.lower() for addr in router_list)
+                        print(f"[WHALE PING CEX EXCLUSION] Loaded {len(known_exchanges)} known CEX/DEX addresses")
+                    except Exception as e:
+                        print(f"[WHALE PING WARNING] Could not load known exchanges: {e}")
                         pass
                     
                     # Use the best available address (real or synthesized)
@@ -1163,7 +1169,8 @@ class StealthSignalDetector:
                             max_transfer_addr = transfer['from']
                     
                     if max_transfer_addr:
-                        # Apply boost based on smart money characteristics
+                        # WYMAGANIE #4: Apply boost with CEX exclusion (all_known_addresses includes CEX)
+                        print(f"[DEX INFLOW CEX EXCLUSION] Using {len(all_known_addresses)} known CEX/DEX addresses")
                         boosted_strength = apply_smart_money_boost(
                             base_strength=strength,
                             trust=0.7,  # Default trust for DEX inflow addresses
@@ -1436,6 +1443,14 @@ class StealthSignalDetector:
         """
         FUNC_NAME = "ask_wall_removal"
         symbol = token_data.get("symbol", "UNKNOWN")
+        # OB_ENABLED check: disable on synthetic or shallow L2
+        orderbook = token_data.get('orderbook', {})
+        ob_source = orderbook.get("source", "synthetic")
+        ob_depth = orderbook.get("top10_depth_usd", 0.0)
+        if ob_source != "real" or ob_depth < 200_000:
+            print(f"[STEALTH DEBUG] ask_wall_removal for {symbol}: DISABLED → source={ob_source}, depth=${ob_depth:,.0f} (need real + ≥$200k)")
+            return StealthSignal("ask_wall_removal", False, 0.0)
+        
         # Placeholder - w rzeczywistości potrzebne są dane historyczne orderbook
         active = token_data.get("ask_walls_removed", False)
         
@@ -1517,6 +1532,13 @@ class StealthSignalDetector:
         orderbook = token_data.get('orderbook', {})
         bids = orderbook.get('bids', [])
         asks = orderbook.get('asks', [])
+        
+        # OB_ENABLED check: disable on synthetic or shallow L2
+        ob_source = orderbook.get("source", "synthetic")
+        ob_depth = orderbook.get("top10_depth_usd", 0.0)
+        if ob_source != "real" or ob_depth < 200_000:
+            print(f"[STEALTH DEBUG] bid_ask_spread_tightening for {symbol}: DISABLED → source={ob_source}, depth=${ob_depth:,.0f} (need real + ≥$200k)")
+            return StealthSignal("bid_ask_spread_tightening", False, 0.0)
         
         print(f"[STEALTH DEBUG] spread_tightening for {symbol}: checking bid-ask spread compression...")
         

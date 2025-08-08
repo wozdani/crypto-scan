@@ -111,7 +111,7 @@ class AddressTracker:
         self._save_history()
     
     def get_repeated_addresses_boost(self, token: str, current_addresses: List[str], 
-                                   history_days: int = 7) -> Tuple[float, Dict]:
+                                   history_days: int = 30) -> Tuple[float, Dict]:  # WYMAGANIE #5: Zwiększone z 7 do 30 dni
         """
         Calculate boost score based on repeated address appearances on SAME token
         
@@ -229,12 +229,12 @@ class AddressTracker:
             "window_hours": window_hours
         }
     
-    def _cleanup_old_records(self, days_to_keep: int = 7):
+    def _cleanup_old_records(self, days_to_keep: int = 60):  # WYMAGANIE #5: Zwiększone z 7 do 60 dni
         """
-        Clean up old address records
+        WYMAGANIE #5: Clean up VERY old address records - preserve boost counters
         
         Args:
-            days_to_keep: Number of days to keep in history
+            days_to_keep: Number of days to keep in history (increased to 60)
         """
         cutoff_date = datetime.now() - timedelta(days=days_to_keep)
         cutoff_iso = cutoff_date.isoformat()

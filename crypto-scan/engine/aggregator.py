@@ -60,7 +60,7 @@ def aggregate(signals: Dict, weights: Dict) -> Dict:
         if w == 0.0:
             continue
             
-        val = w * logit(s) if 0.0 < s < 1.0 else 0.0
+        val = w * logit(s)  # logit() handles edge cases with EPS, no need for 0.0 < s < 1.0 restriction
         z += val
         contrib[name] = {"s": s, "w": w, "v": val}
     

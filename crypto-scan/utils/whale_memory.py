@@ -12,7 +12,7 @@ from datetime import datetime
 
 # Konfiguracja pamięci wielorybów
 WALLET_MEMORY_PATH = "crypto-scan/cache/repeat_wallets.json"
-MEMORY_WINDOW_SECONDS = 7 * 24 * 60 * 60  # 7 dni
+MEMORY_WINDOW_SECONDS = 30 * 24 * 60 * 60  # WYMAGANIE #5: Zwiększone z 7 do 30 dni (nie kasować starych)
 MIN_REPEAT_COUNT = 3  # Minimum powtórzeń dla uznania za wieloryba
 
 class WhaleMemoryManager:
@@ -203,7 +203,7 @@ class WhaleMemoryManager:
     
     def cleanup_old_entries(self) -> int:
         """
-        Wyczyść stare wpisy (starsze niż 7 dni)
+        WYMAGANIE #5: Wyczyść BARDZO stare wpisy (60 dni) - zachowaj boost countery
         
         Returns:
             Liczba usuniętych wpisów
@@ -220,9 +220,10 @@ class WhaleMemoryManager:
                 timestamps = addr_data.get("timestamps", [])
                 sources = addr_data.get("sources", [])
                 
-                # Przefiltruj do aktualnych wpisów
+                # WYMAGANIE #5: Bardzo liberalne filtrowanie (60 dni) - zachowaj boost countery
+                extended_window = 60 * 24 * 60 * 60  # 60 dni zamiast self.memory_window (30 dni)
                 filtered_data = [(ts, src) for ts, src in zip(timestamps, sources)
-                               if current_time - ts < self.memory_window]
+                               if current_time - ts < extended_window]
                 
                 if filtered_data:
                     # Zaktualizuj dane

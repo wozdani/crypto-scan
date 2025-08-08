@@ -141,11 +141,10 @@ async def send_stealth_alert(symbol: str, stealth_score: float, active_signals: 
             print(f"[STEALTH CONSENSUS PASS] {symbol} → Consensus decision BUY allows alert (score={stealth_score:.3f})")
     else:
         # Fallback - bez consensus, sprawdź score threshold
-        if stealth_score < 0.7:
-            print(f"[STEALTH NO CONSENSUS] {symbol} → No consensus, score {stealth_score:.3f} < 0.7 threshold - blocking alert")
-            return
-        else:
-            print(f"[STEALTH FALLBACK] {symbol} → No consensus, valid score {stealth_score:.3f} >= 0.7 allows alert")
+        # WYMAGANIE #7: Remove score≥0.7 fallback logic - hard gating only
+        print(f"[HARD GATING ONLY] {symbol} → No consensus, score {stealth_score:.3f} - using hard gating requirements only")
+        # Removed score >= 0.7 fallback logic - rely on hard gating checks
+        return  # Block alert without proper hard gating criteria
     
     # Sprawdź intelligent cooldown z current score
     if not stealth_alert_manager.should_send_alert(symbol, stealth_score):

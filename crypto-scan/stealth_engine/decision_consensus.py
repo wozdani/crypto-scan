@@ -17,7 +17,7 @@ class DetectorResult:
     score: float  # 0.0 - 1.0
     weight: float  # dynamiczna waga detektora
     confidence: float = 0.0  # poziom pewności
-    metadata: Dict[str, Any] = None
+    metadata: Dict[str, Any] = None  # type: ignore
 
 @dataclass
 class ConsensusResult:
@@ -30,7 +30,7 @@ class ConsensusResult:
     reasoning: str
     timestamp: str
     threshold_met: bool
-    votes: List[str] = None  # Lista głosów detektorów: ["BUY", "HOLD", "AVOID", ...]
+    votes: List[str] = None  # type: ignore  # Lista głosów detektorów: ["BUY", "HOLD", "AVOID", ...]
 
 class DecisionConsensusEngine:
     """
@@ -67,7 +67,7 @@ class DecisionConsensusEngine:
     def simulate_decision_consensus(self, detector_outputs: Dict[str, Dict[str, Any]], 
                                   threshold: float = 0.7, 
                                   token: str = "UNKNOWN",
-                                  market_data: Dict[str, Any] = None) -> ConsensusResult:
+                                  market_data: Optional[Dict[str, Any]] = None) -> ConsensusResult:
         """
         ETAP 7: Główna funkcja konsensusu - finalna decyzja na podstawie ważonych głosów
         
@@ -803,7 +803,7 @@ class DecisionConsensusEngine:
                     final_score=decision_strength,
                     confidence=avg_confidence,
                     contributing_detectors=list(agent_decisions.keys()),
-                    weighted_scores=detector_outputs,
+                    weighted_scores={k: v.get('score', 0.0) for k, v in detector_outputs.items()},
                     reasoning=reasoning,
                     timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     threshold_met=decision_strength >= threshold,

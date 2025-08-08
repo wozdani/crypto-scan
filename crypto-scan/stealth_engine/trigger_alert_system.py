@@ -80,6 +80,7 @@ class TriggerAlertSystem:
                                address_trust_manager) -> Tuple[bool, List[Dict]]:
         """
         Sprawdź czy wykryte adresy to trigger addresses (smart money)
+        WYMAGANIE #4: Wykluczanie adresów CEX z smart money boost
         
         Args:
             detected_addresses: Lista wykrytych adresów
@@ -90,6 +91,24 @@ class TriggerAlertSystem:
         """
         print(f"[SMART MONEY CHECK] Starting check for {len(detected_addresses)} addresses...")
         print(f"[SMART MONEY CHECK] Thresholds: trust≥{self.trust_threshold:.1%}, predictions≥{self.min_predictions}")
+        
+        # WYMAGANIE #4: Load known exchange addresses for CEX exclusion
+        known_exchanges = set()
+        try:
+            from utils.blockchain_scanners import load_known_exchange_addresses
+            exchanges_data = load_known_exchange_addresses()
+            for chain_exchanges in exchanges_data.values():
+                if isinstance(chain_exchanges, list):
+                    known_exchanges.update(addr.lower() for addr in chain_exchanges)
+                elif isinstance(chain_exchanges, dict):  # DEX routers
+                    for router_list in chain_exchanges.values():
+                        if isinstance(router_list, list):
+                            known_exchanges.update(addr.lower() for addr in router_list)
+            print(f"[SMART MONEY CHECK] Loaded {len(known_exchanges)} known CEX/DEX addresses for exclusion")
+        except Exception as e:
+            print(f"[SMART MONEY CHECK WARNING] Could not load known exchanges: {e}")
+            known_exchanges = set()
+        
         trigger_addresses = []
         
         for i, addr in enumerate(detected_addresses):
@@ -114,6 +133,11 @@ class TriggerAlertSystem:
                         stats = address_trust_manager.get_trust_statistics(addr)
                         signal.alarm(0)  # Cancel timeout
                         print(f"[TRIGGER DEBUG] Got stats for {addr[:12]}: trust={stats.get('trust_score', 0):.3f}")
+                        
+                        # WYMAGANIE #4: CEX EXCLUSION - Check if address is known exchange
+                        if addr.lower() in known_exchanges:
+                            print(f"[SMART MONEY CEX EXCLUSION] Skipping {addr[:12]}... - known CEX/DEX address")
+                            continue
                         
                         # Sprawdź czy spełnia kryteria trigger
                         if (stats['trust_score'] >= self.trust_threshold and 
