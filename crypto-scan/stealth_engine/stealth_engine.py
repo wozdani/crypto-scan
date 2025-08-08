@@ -2073,7 +2073,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             except Exception as e:
                                 print(f"[EXPLORE MODE ERROR] {token_data.get('symbol', 'UNKNOWN')}: Failed to save explore data: {e}")
                             print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Trigger reason: {explore_trigger_reason}")
-                            print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Agenci będą sprawdzać czy był pump w przyszłości")
+                            print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Agenci będą sprawdzać czy był pump w przeszłości")
                             
                             # Zapisz explore mode data dla agent feedback learning
                             try:
