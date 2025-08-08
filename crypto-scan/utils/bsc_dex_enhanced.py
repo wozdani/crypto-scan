@@ -17,6 +17,17 @@ if parent_dir not in sys.path:
 
 from config.stealth_config import STEALTH
 
+# PUNKT 10: Import once_per_scan decorator
+try:
+    from engine.rl_gateway import once_per_scan
+    ONCE_PER_SCAN_AVAILABLE = True
+except ImportError:
+    ONCE_PER_SCAN_AVAILABLE = False
+    def once_per_scan(category, subcategory):
+        def decorator(func):
+            return func
+        return decorator
+
 # BSC RPC endpoints (fallback list)
 BSC_RPC_ENDPOINTS = [
     "https://bsc-dataseed1.binance.org/",
@@ -37,7 +48,8 @@ BSC_DEX_ROUTERS = [
     "0x1b02da8cb0d097eb8d57a175b88c7d8b47997506"   # SushiSwap
 ]
 
-def detect_bsc_dex_inflow(token_address: str, bscscan_api_key: str = None) -> Dict:
+@once_per_scan("BSC", "dex_inflow")
+def detect_bsc_dex_inflow(token_address: str, bscscan_api_key: Optional[str] = None) -> Dict:
     """
     Enhanced BSC DEX inflow detection with multiple fallback methods
     
@@ -252,5 +264,6 @@ def _analyze_logs(logs: List[Dict], token_address: str) -> float:
         except:
             continue
     
+    # PUNKT 10: Log only once per scan to avoid spam
     print(f"[BSC RPC] Found {dex_tx_count} potential DEX transfers, estimated inflow=${total_inflow:,.0f}")
     return total_inflow

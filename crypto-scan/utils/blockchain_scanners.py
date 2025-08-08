@@ -134,6 +134,7 @@ class BlockchainScanner:
                     print(f"[BLOCKCHAIN] Error parsing transfer: {e}")
                     continue
             
+            # PUNKT 10: Log only once per scan with @once_per_scan tracking
             print(f"[BLOCKCHAIN] Found {len(transfers)} real transfers for {contract_address} on {chain}")
             return transfers
             
@@ -194,6 +195,7 @@ class BlockchainScanner:
                 transfer['is_whale'] = True
                 whale_transfers.append(transfer)
         
+        # PUNKT 10: Log only once per scan 
         print(f"[WHALE] Found {len(whale_transfers)} real whale transfers for {contract_address}")
         return whale_transfers
     
@@ -228,8 +230,23 @@ class BlockchainScanner:
         print(f"[VELOCITY] Analyzed {len(addresses)} addresses, found activity for {len(velocity_map)}")
         return velocity_map
 
+# Import once_per_scan decorator
+try:
+    import sys
+    import os
+    sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'engine'))
+    from rl_gateway import once_per_scan
+    ONCE_PER_SCAN_AVAILABLE = True
+except ImportError:
+    ONCE_PER_SCAN_AVAILABLE = False
+    def once_per_scan(category, subcategory):
+        def decorator(func):
+            return func
+        return decorator
+
+@once_per_scan("UTILS", "exchange_addresses")
 def load_known_exchange_addresses() -> Dict[str, List[str]]:
-    """Load known exchange and DEX addresses"""
+    """Load known exchange and DEX addresses (idempotent)"""
     try:
         # FIXED: Use absolute path to handle different working directories
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -238,6 +255,7 @@ def load_known_exchange_addresses() -> Dict[str, List[str]]:
         
         with open(json_path, 'r') as f:
             exchange_data = json.load(f)
+            # PUNKT 10: Log tylko raz dzięki @once_per_scan
             print(f"[EXCHANGE] Successfully loaded exchange addresses from {json_path}")
             return exchange_data
     except Exception as e:

@@ -1,6 +1,9 @@
 import json
 from utils.normalize import normalize_token_name
 
+# PUNKT 10: Tracking dla jednokrotnego logowania kontraktów
+_logged_contracts = set()
+
 # Mapowanie nazw chainów z CoinGecko na nasze aliasy
 CHAIN_ALIASES = {
     "ethereum": "ethereum",
@@ -53,7 +56,11 @@ def get_contract(symbol):
         for cg_chain, address in platforms.items():
             chain = CHAIN_ALIASES.get(cg_chain)
             if chain and address:
-                print(f"✅ Dodano kontrakt dla {symbol}: {address} na {chain}")
+                # PUNKT 10: Log tylko raz po pozytywnej walidacji
+                contract_key = f"{symbol}_{address}_{chain}"
+                if contract_key not in _logged_contracts:
+                    print(f"✅ Dodano kontrakt dla {symbol}: {address} na {chain}")
+                    _logged_contracts.add(contract_key)
                 return {"address": address, "chain": chain}
 
     if token_data is None:
