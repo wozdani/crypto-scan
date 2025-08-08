@@ -161,8 +161,11 @@ class BasicScoreLogger:
                         scan_time = datetime.fromisoformat(entry['timestamp'])
                         time_since_scan = datetime.now() - scan_time
                         
-                        # Ewaluuj jeśli minęło ≥6h
-                        if time_since_scan.total_seconds() >= 6 * 3600:
+                        # Ewaluuj tylko wpisy między 6h a 3 dniami (maksymalny wiek)
+                        max_age_seconds = 3 * 24 * 3600  # 3 dni maksimum
+                        min_age_seconds = 6 * 3600  # 6h minimum
+                        
+                        if (min_age_seconds <= time_since_scan.total_seconds() <= max_age_seconds):
                             print(f"[EVALUATION] Evaluating {entry['symbol']} after {time_since_scan}")
                             
                             # Pobierz cenę po 6h

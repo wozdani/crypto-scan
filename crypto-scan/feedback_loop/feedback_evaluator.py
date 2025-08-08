@@ -348,16 +348,53 @@ def fetch_nearest_historical_price(symbol: str, target_timestamp: datetime) -> O
             # Znajdź najbliższą świeczkę
             candles = data["result"]["list"]
             if candles:
-                # Użyj pierwszej dostępnej świecy (najbliższej w czasie)
-                closest_candle = candles[0]
-                close_price = float(closest_candle[4])
+                # Znajdź najbliższą świeczkę czasowo
+                best_candle = None
+                best_time_diff = float('inf')
                 
-                candle_time = datetime.fromtimestamp(int(closest_candle[0]) / 1000)
-                time_diff = abs((candle_time - target_timestamp).total_seconds() / 60)
+                for candle in candles:
+                    candle_time = datetime.fromtimestamp(int(candle[0]) / 1000)
+                    time_diff = abs((candle_time - target_timestamp).total_seconds())
+                    
+                    if time_diff < best_time_diff:
+                        best_time_diff = time_diff
+                        best_candle = candle
                 
-                print(f"[FALLBACK PRICE] {symbol}: Found price {close_price} at {candle_time.isoformat()} ({time_diff:.1f}min from target)")
-                return close_price
+                if best_candle:
+                    close_price = float(best_candle[4])
+                    candle_time = datetime.fromtimestamp(int(best_candle[0]) / 1000)
+                    time_diff_min = best_time_diff / 60
+                    
+                    print(f"[FALLBACK PRICE] {symbol}: Found price {close_price} at {candle_time.isoformat()} ({time_diff_min:.1f}min from target)")
+                    return close_price
                 
+        # Jeśli nie ma dokładnych danych, spróbuj poszerzyć zakres do ±2h
+        extended_start = target_timestamp - timedelta(hours=2)
+        extended_end = target_timestamp + timedelta(hours=2)
+        
+        extended_start_ms = int(extended_start.timestamp() * 1000)
+        extended_end_ms = int(extended_end.timestamp() * 1000)
+        
+        # Ostatnia próba z szerszym zakresem
+        try:
+            params["start"] = extended_start_ms
+            params["end"] = extended_end_ms
+            params["limit"] = 50
+            
+            response = requests.get(url, params=params, timeout=15)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("retCode") == 0 and data.get("result", {}).get("list"):
+                    candles = data["result"]["list"]
+                    if candles:
+                        # Użyj środkowej świecy jako przybliżenie
+                        middle_candle = candles[len(candles)//2]
+                        fallback_price = float(middle_candle[4])
+                        print(f"[FALLBACK PRICE EXTENDED] {symbol}: Using extended range price {fallback_price}")
+                        return fallback_price
+        except:
+            pass
+            
         print(f"[FALLBACK PRICE] {symbol}: No historical data available around {target_timestamp.isoformat()}")
         return None
         
