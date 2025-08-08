@@ -1719,7 +1719,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                 pass
                             
                             # Use consensus_data if available, otherwise create fallback
-                            if not consensus_data:
+                            if not stored_consensus_data:
                                 consensus_data = {
                                     "decision": final_decision,
                                     "votes": ["fallback_mode"],
@@ -1728,6 +1728,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                     "threshold_met": score > 2.0,
                                     "contributing_detectors": ["stealth_fallback"]
                                 }
+                            else:
+                                consensus_data = stored_consensus_data
                             
                             # Update consensus_data with feedback adjustment
                             consensus_data["feedback_adjust"] = round(feedback_adjustment, 3)
