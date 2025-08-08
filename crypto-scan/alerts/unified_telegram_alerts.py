@@ -16,6 +16,16 @@ import time
 from datetime import datetime
 from typing import Dict, Any, Optional
 import logging
+import sys
+
+# Add parent directory to path for imports
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+
+from utils.hard_alert_gating import should_trigger_alert, check_conflicting_fallbacks, ensure_active_signals_format
+from utils.dynamic_whale_thresholds import validate_whale_strength, get_whale_context_info
+from config.stealth_config import STEALTH
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -202,20 +212,39 @@ class UnifiedTelegramAlerts:
             True if alert sent successfully, False otherwise
         """
         
-        # 🔐 CRITICAL CONSENSUS DECISION CHECK FIRST - NAJWAŻNIEJSZE SPRAWDZENIE
-        if consensus_enabled and consensus_decision:
-            if consensus_decision != "BUY":
-                logger.info(f"[UNIFIED CONSENSUS BLOCK] {token_symbol} → Consensus decision {consensus_decision} blocks alert ({detector_name}, score={score:.3f})")
-                return False  # Blokuj alert jeśli consensus != BUY
-            else:
-                logger.info(f"[UNIFIED CONSENSUS PASS] {token_symbol} → Consensus decision BUY allows alert ({detector_name}, score={score:.3f})")
+        # 🧯 HOTFIX: Hard gating system - Alert only when whale>=0.8 AND dex>=0.8 AND p>=τ
+        # Removes conflicting score fallback logic for EDUUSDT case
+        
+        # Extract signals data from additional_data
+        whale_strength = 0.0
+        dex_inflow_strength = 0.0
+        active_signals = []
+        
+        if additional_data:
+            whale_strength = additional_data.get('whale_strength', 0.0)
+            dex_inflow_strength = additional_data.get('dex_inflow_strength', 0.0) 
+            active_signals = ensure_active_signals_format(additional_data.get('active_signals', []))
+        
+        # Check for conflicting fallback patterns first
+        if check_conflicting_fallbacks(detector_name, score):
+            logger.info(f"[UNIFIED HOTFIX] {token_symbol} → Blocked conflicting fallback: {detector_name}")
+            return False
+        
+        # Apply hard gating logic
+        should_alert, reason, details = should_trigger_alert(
+            whale_strength=whale_strength,
+            dex_inflow_strength=dex_inflow_strength,
+            final_probability=score,
+            consensus_decision=consensus_decision if consensus_enabled else "UNKNOWN",
+            symbol=token_symbol,
+            active_signals=active_signals
+        )
+        
+        if not should_alert:
+            logger.info(f"[UNIFIED HARD GATING] {token_symbol} → BLOCKED: {reason}")
+            return False
         else:
-            # Fallback - bez consensus, sprawdź score threshold
-            if score < 0.7:
-                logger.info(f"[UNIFIED NO CONSENSUS] {token_symbol} → No consensus, score {score:.3f} < 0.7 threshold - blocking alert ({detector_name})")
-                return False
-            else:
-                logger.info(f"[UNIFIED FALLBACK] {token_symbol} → No consensus, valid score {score:.3f} >= 0.7 allows alert ({detector_name})")
+            logger.info(f"[UNIFIED HARD GATING] {token_symbol} → APPROVED: {reason}")
         
         # Validate credentials
         if not self.bot_token or not self.chat_id:

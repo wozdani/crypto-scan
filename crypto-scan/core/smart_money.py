@@ -13,6 +13,7 @@ if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
 from config.stealth_config import STEALTH
+from utils.dynamic_whale_thresholds import calculate_dynamic_whale_threshold, validate_whale_strength
 
 def is_exchange(addr: str, known_exchanges: Set[str]) -> bool:
     """Check if address is a known exchange"""
