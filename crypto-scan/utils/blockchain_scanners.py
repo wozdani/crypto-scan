@@ -92,7 +92,7 @@ class BlockchainScanner:
                 'apikey': self.api_keys[chain]
             }
             
-            response = requests.get(self.api_endpoints[chain], params=params, timeout=2)
+            response = requests.get(self.api_endpoints[chain], params=params, timeout=15)
             signal.alarm(0)  # Cancel timeout on success
             
             if response.status_code != 200:
