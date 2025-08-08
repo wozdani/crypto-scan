@@ -49,32 +49,48 @@ def is_smart_money(addr: str, trust: float, preds: int, usd: float,
     
     return False
 
-def apply_smart_money_boost(base_strength: float, trust: float, preds: int, 
-                           usd: float, repeats_7d: int, addr: str, 
-                           known_exchanges: Set[str]) -> float:
+def check_trust_ok(addresses: list, known_exchanges: Set[str], min_trust: float = 0.6) -> bool:
     """
-    Apply boost only for real smart money. Safe clamp to [0,1].
+    PUNKT 5 FIX: Sprawdź czy jest co najmniej 1 adres z trust>=min_trust i nie-CEX
     
     Args:
-        base_strength: Base signal strength
-        trust: Address trust score
-        preds: Number of predictions
-        usd: Transaction USD value
-        repeats_7d: Repeat count in 7 days
-        addr: Address string
-        known_exchanges: Set of known exchange addresses
+        addresses: Lista słowników z adresami i ich parametrami (trust, addr)
+        known_exchanges: Set znanych adresów giełd CEX
+        min_trust: Minimalny wymagany trust score (domyślnie 0.6)
     
     Returns:
-        float: Boosted strength, clamped to [0,1]
+        bool: True jeśli co najmniej 1 adres spełnia warunki
     """
-    # Ensure base strength is in valid range
-    s = max(0.0, min(1.0, base_strength))
+    for addr_info in addresses:
+        addr = addr_info.get("addr", "")
+        trust = addr_info.get("trust", 0.0)
+        
+        # Sprawdź: trust >= 0.6 AND nie jest CEX
+        if trust >= min_trust and not is_exchange(addr, known_exchanges):
+            return True
     
-    # Apply boost only if address qualifies as smart money
-    if is_smart_money(addr, trust, preds, usd, repeats_7d, known_exchanges):
-        s = min(1.0, s + STEALTH["SM_MAX_BOOST"])
-        print(f"[SMART MONEY] Applied boost +{STEALTH['SM_MAX_BOOST']} to {addr[:10]}... (trust={trust:.2f}, preds={preds})")
-    else:
-        print(f"[SMART MONEY] No boost for {addr[:10]}... (trust={trust:.2f}, preds={preds}, not qualified)")
+    return False
+
+def apply_smart_money_boost(sig: dict, trust_ok: bool) -> dict:
+    """
+    PUNKT 5 FIX: Jednoznaczny boost smart-money (bez karuzeli 3.0→1.0)
+    Tylko raz i tylko jeśli trust_ok
     
-    return s
+    Args:
+        sig: Signal dictionary with 'strength' and 'meta' fields
+        trust_ok: True if at least 1 address has trust>=0.6 and is not CEX
+    
+    Returns:
+        dict: Modified signal with smart money boost if applicable
+    """
+    # Tylko jeśli trust_ok, dodaj jednolity mały boost
+    if not trust_ok:
+        return sig
+    
+    s = sig.get("strength", 0.0)
+    sig["strength"] = min(1.0, s + 0.2)  # Jednolity, mały boost +0.2
+    sig["meta"] = {**sig.get("meta", {}), "smart_money_boost": True}
+    
+    print(f"[SMART MONEY] Applied fixed boost +0.2 (trust_ok=True)")
+    
+    return sig

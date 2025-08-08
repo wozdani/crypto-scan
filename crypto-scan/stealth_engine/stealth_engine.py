@@ -1089,7 +1089,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     
                     # REMOVED: Scaling mechanism that modified p_raw
                     # No scaling_factor, no score modifications - pure aggregator result
-                        print(f"[STEALTH PARTIAL] {symbol}: Low data coverage ({data_coverage:.1%}), scaling {original_score:.3f} → {score:.3f} (factor: {scaling_factor:.2f})")
+                    # print(f"[STEALTH PARTIAL] {symbol}: Low data coverage ({data_coverage:.1%}), scaling {original_score:.3f} → {score:.3f} (factor: {scaling_factor:.2f})")
                     
                     # Dodaj bonus zgodnie z nową specyfikacją: +0.025 za każdą aktywną regułę
                     active_rules_bonus = len(used_signals) * 0.025

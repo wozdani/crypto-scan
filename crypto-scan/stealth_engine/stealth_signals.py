@@ -2427,10 +2427,9 @@ class StealthSignalDetector:
                 history_days=7
             )
             
-            # 🔧 FIX: Obniż próg aktywacji - aktywuj przy 1+ adresach
-            # Jeśli mamy jakiekolwiek adresy, daj minimum boost 0.05
-            if len(current_addresses) >= 1 and boost_score == 0:
-                boost_score = 0.05 * len(current_addresses)  # Minimum boost za obecność adresów
+            # PUNKT 6 FIX: Usunięto minimum boost - jeśli repeats == 0, zwróć 0
+            # if len(current_addresses) >= 1 and boost_score == 0:
+            #     boost_score = 0.05 * len(current_addresses)  # USUNIĘTE - żadnego minimum boost
             
             active = boost_score > 0 or len(current_addresses) >= 1  # Aktywuj jeśli są adresy
             strength = min(boost_score / 0.6, 1.0)  # Normalizuj do 0-1 (max boost 0.6)
@@ -2501,10 +2500,10 @@ class StealthSignalDetector:
                 window_minutes=60
             )
             
-            # 🔧 FIX: Dodaj minimum boost dla 2+ adresów w krótkim czasie
-            if len(current_addresses) >= 2 and velocity_boost == 0:
-                velocity_boost = 0.05 * len(current_addresses)  # Minimum boost za szybką aktywność
-                print(f"[STEALTH DEBUG] velocity_boost: Added minimum boost for {len(current_addresses)} addresses: +{velocity_boost:.2f}")
+            # PUNKT 6 FIX: Usunięto minimum boost - jeśli n_addresses == 0, zwróć 0
+            # if len(current_addresses) >= 2 and velocity_boost == 0:
+            #     velocity_boost = 0.05 * len(current_addresses)  # USUNIĘTE - żadnego minimum boost
+            #     print(f"[STEALTH DEBUG] velocity_boost: Added minimum boost for {len(current_addresses)} addresses: +{velocity_boost:.2f}")
             
             # Próg aktywacji: velocity_boost > 0.05 (obniżony z 0.1)
             is_active = velocity_boost > 0.05

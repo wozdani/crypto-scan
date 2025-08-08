@@ -123,6 +123,10 @@ class AddressTracker:
         Returns:
             Tuple of (boost_score, details_dict)
         """
+        # PUNKT 6 FIX: Jeśli brak adresów, zwróć 0 bez żadnego minimum boost
+        if not current_addresses or len(current_addresses) == 0:
+            return 0.0, {"repeated_addresses": 0, "details": []}
+        
         # Calculate cutoff date
         cutoff_date = datetime.now() - timedelta(days=history_days)
         cutoff_iso = cutoff_date.isoformat()
@@ -278,7 +282,8 @@ class AddressTracker:
             Tuple[velocity_boost_score, velocity_details]
         """
         try:
-            if not current_addresses:
+            # PUNKT 6 FIX: Jeśli brak adresów, zwróć 0 bez żadnego minimum boost
+            if not current_addresses or len(current_addresses) == 0:
                 return 0.0, {"velocity_addresses": 0, "details": []}
                 
             velocity_details = []
