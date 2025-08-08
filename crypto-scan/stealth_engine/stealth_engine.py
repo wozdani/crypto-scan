@@ -1663,17 +1663,27 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     gnn_note = f", GNN={gnn_subgraph_score:.3f}" if gnn_active else ""
                     mastermind_note = f", Mastermind={len(mastermind_addresses)} addresses" if mastermind_addresses else ""
                     
-                    # Use unified decision module
-                    decision_result = make_decision(score, stored_final_decision)
-                    alert_eligible = decision_result["send_alert"]
+                    # WYMAGANIE #8: Use hard gating logic instead of p≥0.7 fallback
+                    from engine.decision import final_decision
                     
-                    # Log alert decision with consensus data
-                    print(f"[ALERT DECISION] {symbol}: {decision_result['reason']}")
-                    print(f"[ALERT DECISION] {symbol}: Consensus={stored_final_decision}, Score={score:.3f}, Eligible={alert_eligible}")
+                    # Prepare signals dictionary for hard gating
+                    hard_gating_signals = {
+                        "whale_ping": {"strength": signal_details.get("whale_ping", {}).get("strength", 0.0)},
+                        "dex_inflow": {"strength": signal_details.get("dex_inflow", {}).get("strength", 0.0)}
+                    }
                     
-                    # ✅ ALERT TRIGGER - Use unified decision result
-                    # Alert system now integrated with unified decision pathway
-                    if decision_result["send_alert"]:  # Use decision module result
+                    decision_result_hardgate = final_decision(score, hard_gating_signals, stored_final_decision)
+                    alert_eligible = (decision_result_hardgate == "ALERT")
+                    
+                    # Log hard gating decision with detailed requirements
+                    whale_strength = hard_gating_signals["whale_ping"]["strength"]
+                    dex_strength = hard_gating_signals["dex_inflow"]["strength"]
+                    print(f"[HARD GATING] {symbol}: Decision={decision_result_hardgate}, Score={score:.3f}, Whale={whale_strength:.3f}, DEX={dex_strength:.3f}")
+                    print(f"[HARD GATING] {symbol}: Consensus={stored_final_decision}, Alert={alert_eligible} (whale≥0.8 AND dex≥0.8 AND p≥0.72)")
+                    
+                    # ✅ ALERT TRIGGER - Use hard gating decision result
+                    # Alert system now integrated with hard gating logic
+                    if alert_eligible:  # Use hard gating decision result
                         # Main alert for BUY consensus
                         try:
                             from alerts.stealth_v3_telegram_alerts import send_stealth_v3_alert
@@ -1998,13 +2008,25 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         consensus_decision = stored_consensus_data.get("decision") if 'stored_consensus_data' in locals() and stored_consensus_data else None
                         stealth_p = score  # Use the stealth score as probability
                         
-                        # Get unified decision
-                        unified_decision = make_decision(stealth_p, consensus_decision)
-                        should_alert = unified_decision["send_alert"]
+                        # WYMAGANIE #8: Use hard gating logic instead of p≥0.7 fallback
+                        from engine.decision import final_decision
                         
-                        # Log decision
+                        # Extract whale and dex strengths for hard gating
+                        signals_data = stealth_data.get('signal_details', {})
+                        hard_gating_signals = {
+                            "whale_ping": {"strength": signals_data.get("whale_ping", {}).get("strength", 0.0)},
+                            "dex_inflow": {"strength": signals_data.get("dex_inflow", {}).get("strength", 0.0)}
+                        }
+                        
+                        unified_decision_hardgate = final_decision(stealth_p, hard_gating_signals, consensus_decision)
+                        should_alert = (unified_decision_hardgate == "ALERT")
+                        
+                        # Log hard gating decision
                         symbol_name = token_data.get('symbol', 'UNKNOWN')
-                        print(f"[UNIFIED DECISION] {symbol_name}: {unified_decision['reason']}")
+                        whale_strength = hard_gating_signals["whale_ping"]["strength"]
+                        dex_strength = hard_gating_signals["dex_inflow"]["strength"]
+                        print(f"[HARD GATING DECISION] {symbol_name}: Decision={unified_decision_hardgate}, P={stealth_p:.3f}")
+                        print(f"[HARD GATING DECISION] {symbol_name}: whale≥0.8={whale_strength:.3f}, dex≥0.8={dex_strength:.3f}, consensus={consensus_decision}")
                         
                         if should_alert:
                             print(f"[UNIFIED ALERT] {symbol_name}: ALERT TRIGGERED")

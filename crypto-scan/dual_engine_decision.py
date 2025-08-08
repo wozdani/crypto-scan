@@ -54,16 +54,36 @@ def compute_dual_engine_decision(symbol: str, market_data: Dict, tjde_result: Di
     stealth_score = stealth_result.get('stealth_score', 0.0)
     stealth_signals = stealth_result.get('active_signals', [])
     
-    # Stealth Decision Logic
-    if stealth_score >= 0.75:
+    # WYMAGANIE #8: Stealth Decision Logic with hard gating (whale≥0.8 AND dex≥0.8)
+    from engine.decision import final_decision
+    
+    # Extract whale and dex signals for hard gating
+    stealth_signal_details = stealth_result.get('signal_details', {})
+    hard_gating_signals = {
+        "whale_ping": {"strength": stealth_signal_details.get("whale_ping", {}).get("strength", 0.0)},
+        "dex_inflow": {"strength": stealth_signal_details.get("dex_inflow", {}).get("strength", 0.0)}
+    }
+    
+    # Get consensus from stealth result
+    stealth_consensus = stealth_result.get('consensus_decision')
+    
+    # Use hard gating decision instead of simple score threshold
+    stealth_hardgate_decision = final_decision(stealth_score, hard_gating_signals, stealth_consensus)
+    
+    if stealth_hardgate_decision == "ALERT":
         stealth_decision = "stealth_alert"
         stealth_priority = "high"
-    elif stealth_score >= 0.5:
-        stealth_decision = "stealth_watch"
+    elif stealth_hardgate_decision == "WATCHLIST":
+        stealth_decision = "stealth_watch" 
         stealth_priority = "medium"
     else:
         stealth_decision = "none"
         stealth_priority = "low"
+    
+    # Log hard gating decision
+    whale_str = hard_gating_signals["whale_ping"]["strength"]
+    dex_str = hard_gating_signals["dex_inflow"]["strength"]
+    print(f"[STEALTH HARD GATING] {symbol}: Decision={stealth_hardgate_decision}, whale={whale_str:.3f}, dex={dex_str:.3f}, consensus={stealth_consensus}")
     
     print(f"[STEALTH ENGINE] {symbol}: Score={stealth_score:.3f}, Decision={stealth_decision}")
     
@@ -172,8 +192,23 @@ def build_decision_reasoning(tjde_result: Dict, stealth_result: Dict, final_deci
     stealth_score = stealth_result.get('stealth_score', 0.0)
     active_signals = stealth_result.get('active_signals', [])
     
-    if stealth_score >= 0.75:
-        reasons.append(f"Strong smart money activity - Stealth {stealth_score:.3f}")
+    # WYMAGANIE #8: Use hard gating logic instead of score≥0.75 fallback
+    from engine.decision import final_decision
+    
+    # Extract hard gating signals
+    stealth_signal_details = stealth_result.get('signal_details', {})
+    hard_gating_signals = {
+        "whale_ping": {"strength": stealth_signal_details.get("whale_ping", {}).get("strength", 0.0)},
+        "dex_inflow": {"strength": stealth_signal_details.get("dex_inflow", {}).get("strength", 0.0)}
+    }
+    
+    stealth_consensus = stealth_result.get('consensus_decision')
+    stealth_hardgate_decision = final_decision(stealth_score, hard_gating_signals, stealth_consensus)
+    
+    if stealth_hardgate_decision == "ALERT":
+        whale_str = hard_gating_signals["whale_ping"]["strength"]
+        dex_str = hard_gating_signals["dex_inflow"]["strength"]
+        reasons.append(f"Strong smart money activity - Stealth {stealth_score:.3f} (whale≥0.8={whale_str:.3f}, dex≥0.8={dex_str:.3f})")
         if active_signals:
             top_signals = sorted(active_signals, key=lambda x: x.get('strength', 0), reverse=True)[:2]
             signal_names = [s.get('name', 'unknown') for s in top_signals]
