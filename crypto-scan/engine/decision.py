@@ -63,3 +63,28 @@ def make_decision(stealth_p: float, consensus: Optional[str] = None) -> Dict:
         print(f"[DECISION] WATCHLIST: {result['reason']}")
     
     return result
+
+def final_decision(p: float, signals: dict, consensus: str = None) -> str:
+    """
+    Core decision logic requiring whale≥0.8 AND dex≥0.8 AND p≥τ
+    Removes fallback score≥0.7 logic to prevent EDUUSDT conflicts
+    
+    Args:
+        p: Final probability from aggregator
+        signals: Signal strengths dictionary
+        consensus: Multi-agent consensus decision
+        
+    Returns:
+        str: "ALERT", "WATCHLIST", or "NO_ALERT"
+    """
+    sW = signals.get("whale_ping", {}).get("strength", 0.0)
+    sD = signals.get("dex_inflow", {}).get("strength", 0.0)
+    core_ok = (sW >= 0.8 and sD >= 0.8)
+    
+    if consensus in ("HOLD", "AVOID"):
+        return "WATCHLIST"
+    
+    if core_ok and p >= STEALTH.get("ALERT_TAU", 0.72):
+        return "ALERT"
+    
+    return "NO_ALERT"
