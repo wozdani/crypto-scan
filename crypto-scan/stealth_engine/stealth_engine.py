@@ -2629,50 +2629,51 @@ def compute_stealth_score(token_data: Dict) -> Dict:
     # 🎯 ULTIMATE DEBUG TEST - This print MUST appear if Enhanced RL section is reached!
     print(f"[ULTIMATE DEBUG TEST] {symbol}: CODE BEFORE ENHANCED RL REACHED! score={score}")
     
-    # 🧠 ENHANCED RL INTEGRATION - DQN + RLAgentV3 ON EVERY QUALIFIED TOKEN (MOVED TO MAIN EXECUTION FLOW)
-    print(f"[ENHANCED RL ENTRY] {symbol}: Entering Enhanced RL section - this proves the code is reachable!")
+    # PUNKT 9 FIX: RL/Enhanced RL Gateway - raz i tylko "borderline"
+    from engine.rl_gateway import maybe_run_rl
+    
     enhanced_rl_decision = None
     enhanced_rl_data = None
     
-    print(f"[ENHANCED RL DEBUG] {symbol}: ENHANCED_RL_AVAILABLE={ENHANCED_RL_AVAILABLE}, skip_reason={skip_reason}, score={score}")
-    print(f"[ENHANCED RL DEBUG] {symbol}: Enhanced RL section reached in MAIN EXECUTION FLOW!")
-    print(f"[ENHANCED RL DEBUG] {symbol}: Condition check - ENHANCED_RL_AVAILABLE={ENHANCED_RL_AVAILABLE} AND score={score} > 0.0 = {ENHANCED_RL_AVAILABLE and score > 0.0}")
-    
-    if ENHANCED_RL_AVAILABLE and score > 0.0:  # Process any token with score > 0
-        try:
-            print(f"[ENHANCED RL] Processing {symbol} with unified RL intelligence...")
+    # PUNKT 9 FIX: Użyj gateway z borderline logic (0.65 <= p_raw <= 0.80, consensus != "BUY")
+    try:
+        # Get consensus decision z wcześniejszej analizy
+        consensus_decision = final_decision if 'final_decision' in locals() else 'WATCH'
+        
+        # Prepare stealth data dla RL gateway
+        stealth_data_rl = {
+            'score': score,
+            'diamond_score': diamond_score if 'diamond_score' in locals() else 0.0,
+            'whaleclip_score': whaleclip_score if 'whaleclip_score' in locals() else 0.0,
+            'dex_inflow': locals().get('dex_inflow_value', 0.0),
+            'whale_ping': whale_ping_score if 'whale_ping_score' in locals() else 0.0,
+            'volume_spike': 1.0 if any('volume_spike' in sig for sig in used_signals) else 0.0,
+            'consensus_decision': consensus_decision,
+            'consensus_confidence': consensus_data.get('confidence', 0.0) if 'consensus_data' in locals() and consensus_data else 0.0
+        }
+        
+        # Market data dla context
+        market_data_rl = {
+            'price': token_data.get('price_usd', 0.0),
+            'volume': token_data.get('volume_24h', 0.0),
+            'volatility': 0.2,
+            'trend': 0.0
+        }
+        
+        # PUNKT 9 FIX: Use gateway instead of direct Enhanced RL call
+        rl_result = maybe_run_rl(symbol, score, consensus_decision, stealth_data_rl, market_data_rl)
+        
+        if rl_result.get('status') == 'completed':
+            enhanced_rl_data = rl_result.get('enhanced_result')
+            enhanced_rl_decision = rl_result.get('decision')
+            print(f"[RL GATEWAY SUCCESS] {symbol}: Decision={enhanced_rl_decision}, Score={rl_result.get('weighted_score', 0):.3f}")
+        else:
+            print(f"[RL GATEWAY SKIP] {symbol}: {rl_result.get('reason', 'unknown')}")
             
-            # Prepare stealth data dla Enhanced RL
-            stealth_data = {
-                'score': score,
-                'diamond_score': diamond_score if 'diamond_score' in locals() else 0.0,
-                'whaleclip_score': whaleclip_score if 'whaleclip_score' in locals() else 0.0,
-                'dex_inflow': locals().get('dex_inflow_value', 0.0),
-                'whale_ping': whale_ping_score if 'whale_ping_score' in locals() else 0.0,
-                'volume_spike': 1.0 if any('volume_spike' in sig for sig in used_signals) else 0.0,
-                'consensus_decision': final_decision if 'final_decision' in locals() else 'WATCH',
-                'consensus_confidence': consensus_data.get('confidence', 0.0) if 'consensus_data' in locals() and consensus_data else 0.0
-            }
-            
-            # Market data dla context
-            market_data = {
-                'price': token_data.get('price_usd', 0.0),
-                'volume': token_data.get('volume_24h', 0.0),
-                'volatility': 0.2,  # Default volatility estimate
-                'trend': 0.0  # Neutral trend default
-            }
-            
-            # Process z Enhanced RL system
-            enhanced_rl_data = process_stealth_with_enhanced_rl(symbol, stealth_data, market_data)
-            enhanced_rl_decision = enhanced_rl_data['decision']
-            
-            # Log Enhanced RL results
-            print(f"[ENHANCED RL RESULT] {symbol}: Decision={enhanced_rl_decision}, RL Score={enhanced_rl_data['weighted_score']:.3f}, Threshold={enhanced_rl_data['adaptive_threshold']:.3f}")
-            
-        except Exception as enhanced_rl_error:
-            print(f"[ENHANCED RL ERROR] {symbol}: {enhanced_rl_error}")
-            enhanced_rl_decision = None
-            enhanced_rl_data = None
+    except Exception as rl_gateway_error:
+        print(f"[RL GATEWAY ERROR] {symbol}: {rl_gateway_error}")
+        enhanced_rl_decision = None
+        enhanced_rl_data = None
 
     # 🚨 STEALTH V3 TELEGRAM ALERT SYSTEM - ENHANCED RL CONSENSUS-BASED ALERTS
     alert_threshold = 0.70
