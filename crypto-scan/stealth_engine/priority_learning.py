@@ -316,6 +316,8 @@ class PriorityLearningMemory:
                 try:
                     explore_files = [f for f in os.listdir(explore_dir) if f.endswith('.json')]
                     print(f"[EXPLORE MODE LEARNING] Found {len(explore_files)} explore mode files")
+                    print(f"[EXPLORE MODE DEBUG] Working directory: {os.getcwd()}")
+                    print(f"[EXPLORE MODE DEBUG] Full path: {os.path.abspath(explore_dir)}")
                     
                     # Clean up old files (older than 3 days as requested)
                     now = datetime.now(timezone.utc)
@@ -347,14 +349,25 @@ class PriorityLearningMemory:
                                     success_verification = explore_data.get('success_verification', {})
                                     if success_verification.get('result_success') == True:
                                         is_success = True
+                                        print(f"[SUCCESS DEBUG] {explore_file}: SUCCESS via verification (result_success=True)")
                                     
                                     # Also check consensus_decision field
                                     elif explore_data.get('consensus_decision') == 'SUCCESS':
                                         is_success = True
+                                        print(f"[SUCCESS DEBUG] {explore_file}: SUCCESS via consensus (consensus_decision=SUCCESS)")
                                     
                                     # Fallback to high score for backwards compatibility
                                     elif explore_data.get('final_score', 0.0) > 2.0:
                                         is_success = True
+                                        print(f"[SUCCESS DEBUG] {explore_file}: SUCCESS via score ({explore_data.get('final_score', 0):.3f} > 2.0)")
+                                    else:
+                                        # Debug why file was not considered success
+                                        consensus = explore_data.get('consensus_decision')
+                                        score = explore_data.get('final_score', 0)
+                                        has_verification = bool(success_verification)
+                                        result_success = success_verification.get('result_success') if success_verification else None
+                                        if explore_file == 'BIOUSDT_explore.json':
+                                            print(f"[SUCCESS DEBUG] {explore_file}: NOT SUCCESS - consensus={consensus}, score={score:.3f}, has_verification={has_verification}, result_success={result_success}")
                                     
                                     if is_success:
                                         explore_mode_successes += 1
