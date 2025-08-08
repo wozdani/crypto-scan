@@ -2010,10 +2010,9 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         from engine.decision import final_decision
                         
                         # Extract whale and dex strengths for hard gating
-                        signals_data = stealth_data.get('signal_details', {})
                         hard_gating_signals = {
-                            "whale_ping": {"strength": signals_data.get("whale_ping", {}).get("strength", 0.0)},
-                            "dex_inflow": {"strength": signals_data.get("dex_inflow", {}).get("strength", 0.0)}
+                            "whale_ping": {"strength": result.get("whale_ping", 0.0)},
+                            "dex_inflow": {"strength": result.get("dex_inflow", 0.0)}
                         }
                         
                         unified_decision_hardgate = final_decision(stealth_p, hard_gating_signals, consensus_decision)
