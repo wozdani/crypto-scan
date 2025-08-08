@@ -1479,6 +1479,11 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     stored_consensus_data = None
                     stored_consensus_result = None
                     
+                    # Import consensus functions at the beginning to ensure they're available
+                    create_decision_consensus_engine = None
+                    adapt_detector_score = None
+                    record_detector_decision = None
+                    
                     try:
                         from .decision_consensus import create_decision_consensus_engine
                         from .detector_learning_system import adapt_detector_score, record_detector_decision
@@ -1600,6 +1605,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             
                             # Use Decision Consensus Engine with Multi-Agent System
                             try:
+                                if create_decision_consensus_engine is None:
+                                    raise ImportError("create_decision_consensus_engine not imported successfully")
                                 consensus_engine = create_decision_consensus_engine()
                                 # Prepare market_data for consensus - USE CORRECT KEYS
                                 consensus_market_data = {
@@ -2517,6 +2524,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 
                 # Use Decision Consensus Engine with Multi-Agent System
                 try:
+                    if create_decision_consensus_engine is None:
+                        raise ImportError("create_decision_consensus_engine not imported successfully")
                     consensus_engine = create_decision_consensus_engine()
                     consensus_result_obj = consensus_engine.simulate_decision_consensus(
                         detector_outputs=detector_outputs,
