@@ -267,296 +267,34 @@ def get_recent_alerts(hours: int = 24) -> List[Dict]:
         return []
 
 
-def compute_ppwcs(signals: Dict, symbol: str = None) -> float:
-    """Legacy PPWCS computation for backward compatibility"""
-    try:
-        base_score = 0.0
-        
-        # Simple scoring based on available signals
-        if signals.get("volume_spike", False):
-            base_score += 15
-        if signals.get("price_movement", False):
-            base_score += 10
-        if signals.get("whale_activity", False):
-            base_score += 20
-        if signals.get("dex_inflow", False):
-            base_score += 15
-        if signals.get("social_momentum", False):
-            base_score += 10
-        
-        return min(base_score, 100.0)
-        
-    except Exception as e:
-        print(f"⚠️ Error in compute_ppwcs: {e}")
-        return 0.0
+# Legacy compute_ppwcs removed - using TJDE v2 only
 
 
-def should_alert(score: float, symbol: str = None) -> bool:
-    """Legacy alert logic for backward compatibility"""
-    return score >= 50.0
+# Legacy should_alert removed - using TJDE v2 only
 
 
-def log_ppwcs_score(symbol: str, score: float, signals: Dict) -> bool:
-    """Legacy score logging for backward compatibility"""
-    try:
-        os.makedirs("data/scores", exist_ok=True)
-        
-        log_entry = {
-            "symbol": symbol,
-            "score": score,
-            "signals": signals,
-            "timestamp": datetime.now().isoformat()
-        }
-        
-        with open("data/scores/ppwcs_log.json", "a", encoding="utf-8") as f:
-            f.write(f"{json.dumps(log_entry)}\n")
-        
-        return True
-        
-    except Exception as e:
-        print(f"⚠️ Error logging score: {e}")
-        return False
+# Legacy log_ppwcs_score removed - using TJDE v2 only
 
 
-def get_previous_score(symbol: str) -> Optional[float]:
-    """Legacy function to get previous score"""
-    try:
-        score_file = "data/scores/ppwcs_log.json"
-        if not os.path.exists(score_file):
-            return None
-        
-        with open(score_file, "r", encoding="utf-8") as f:
-            lines = f.readlines()
-        
-        for line in reversed(lines):
-            if line.strip():
-                try:
-                    data = json.loads(line)
-                    if data.get("symbol") == symbol:
-                        return data.get("score", 0.0)
-                except:
-                    continue
-        
-        return None
-        
-    except Exception:
-        return None
+# Legacy get_previous_score removed - using TJDE v2 only
 
 
-def save_score(symbol: str, score: float, data: Dict) -> bool:
-    """Legacy score saving function"""
-    return log_ppwcs_score(symbol, score, data)
+# Legacy save_score removed - using TJDE v2 only
 
 
-def get_top_performers(hours: int = 24, limit: int = 10) -> List[Dict]:
-    """Legacy top performers function"""
-    try:
-        performers = []
-        score_file = "data/scores/ppwcs_log.json"
-        
-        if not os.path.exists(score_file):
-            return performers
-        
-        cutoff_time = datetime.now() - timedelta(hours=hours)
-        symbol_scores = {}
-        
-        with open(score_file, "r", encoding="utf-8") as f:
-            for line in f:
-                if line.strip():
-                    try:
-                        data = json.loads(line)
-                        timestamp = datetime.fromisoformat(data.get("timestamp", ""))
-                        
-                        if timestamp >= cutoff_time:
-                            symbol = data.get("symbol", "")
-                            score = data.get("score", 0.0)
-                            
-                            if symbol not in symbol_scores or score > symbol_scores[symbol]["score"]:
-                                symbol_scores[symbol] = {
-                                    "symbol": symbol,
-                                    "score": score,
-                                    "timestamp": data.get("timestamp")
-                                }
-                    except:
-                        continue
-        
-        # Sort by score and return top performers
-        sorted_performers = sorted(symbol_scores.values(), key=lambda x: x["score"], reverse=True)
-        return sorted_performers[:limit]
-        
-    except Exception as e:
-        print(f"⚠️ Error getting top performers: {e}")
-        return []
+# Legacy get_top_performers removed - using TJDE v2 only
 
 
-def get_symbol_stats(symbol: str) -> Dict:
-    """Legacy symbol statistics function"""
-    try:
-        stats = {
-            "symbol": symbol,
-            "recent_score": get_previous_score(symbol) or 0.0,
-            "alert_count": 0,
-            "last_alert": None
-        }
-        
-        return stats
-        
-    except Exception as e:
-        print(f"⚠️ Error getting symbol stats: {e}")
-        return {"symbol": symbol, "recent_score": 0.0, "alert_count": 0}
+# Legacy get_symbol_stats removed - using TJDE v2 only
 
 
-def compute_combined_scores(signals: Dict, symbol: str = None) -> Dict:
-    """
-    Legacy compute_combined_scores function returning dict format for stage_minus2_1
-    
-    Args:
-        signals: Dictionary of detected signals
-        symbol: Trading symbol (optional)
-        
-    Returns:
-        Dict with scoring results (compatible with stage_minus2_1.py)
-    """
-    try:
-        # Basic PPWCS-style scoring
-        base_ppwcs = 0
-        
-        # Count active signals for PPWCS calculation
-        whale_active = signals.get("whale_activity", False)
-        dex_active = signals.get("dex_inflow", False)
-        volume_active = signals.get("volume_spike_active", False)
-        shadow_active = signals.get("shadow_sync_active", False)
-        compression_active = signals.get("compressed", False)
-        
-        # PPWCS base calculation
-        if whale_active:
-            base_ppwcs += 15
-        if dex_active:
-            base_ppwcs += 12
-        if volume_active:
-            base_ppwcs += 8
-        if shadow_active:
-            base_ppwcs += 10
-        if compression_active:
-            base_ppwcs += 5
-        
-        # Checklist calculation
-        checklist_items = [
-            whale_active, dex_active, volume_active, 
-            shadow_active, compression_active,
-            signals.get("heatmap_exhaustion", False),
-            signals.get("spoofing_suspected", False),
-            signals.get("vwap_pinned", False)
-        ]
-        
-        active_count = sum(1 for item in checklist_items if item)
-        checklist_score = min(active_count * 10, 90)
-        
-        # Summary for checklist
-        checklist_summary = []
-        if whale_active:
-            checklist_summary.append("whale_activity")
-        if dex_active:
-            checklist_summary.append("dex_inflow")
-        if volume_active:
-            checklist_summary.append("volume_spike")
-        if shadow_active:
-            checklist_summary.append("shadow_sync")
-        if compression_active:
-            checklist_summary.append("compression")
-        
-        # Total combined score
-        total_combined = base_ppwcs + checklist_score
-        
-        # Signal counts
-        hard_signals = sum([whale_active, dex_active, volume_active])
-        soft_signals = sum([shadow_active, compression_active])
-        
-        return {
-            "ppwcs": base_ppwcs,
-            "checklist_score": checklist_score,
-            "checklist_summary": checklist_summary,
-            "total_combined": total_combined,
-            "hard_signal_count": hard_signals,
-            "soft_signal_count": soft_signals
-        }
-        
-    except Exception as e:
-        print(f"⚠️ Error in compute_combined_scores: {e}")
-        return {
-            "ppwcs": 0,
-            "checklist_score": 0, 
-            "checklist_summary": [],
-            "total_combined": 0,
-            "hard_signal_count": 0,
-            "soft_signal_count": 0
-        }
+# Legacy compute_combined_scores removed - using TJDE v2 only
 
 
-def compute_checklist_score(signals: Dict) -> Tuple[float, List[str]]:
-    """
-    Legacy checklist scoring function returning score and summary list
-    
-    Args:
-        signals: Dictionary of signals
-        
-    Returns:
-        Tuple[checklist_score, summary_list] compatible with stage_minus2_1.py
-    """
-    try:
-        checklist_items = {
-            "whale_activity": signals.get("whale_activity", False),
-            "dex_inflow": signals.get("dex_inflow", False),
-            "volume_spike": signals.get("volume_spike_active", False),
-            "compression": signals.get("compressed", False),
-            "shadow_sync": signals.get("shadow_sync_active", False),
-            "heatmap_exhaustion": signals.get("heatmap_exhaustion", False),
-            "spoofing": signals.get("spoofing_suspected", False)
-        }
-        
-        # Calculate score
-        active_count = sum(1 for v in checklist_items.values() if v)
-        total_possible = len(checklist_items)
-        checklist_score = (active_count / total_possible) * 100
-        
-        # Create summary list of active items
-        summary_list = []
-        for key, value in checklist_items.items():
-            if value:
-                summary_list.append(key)
-        
-        return checklist_score, summary_list
-        
-    except Exception as e:
-        print(f"⚠️ Error in compute_checklist_score: {e}")
-        return 0.0, []
+# Legacy compute_checklist_score removed - using TJDE v2 only
 
 
-def get_alert_level(ppwcs_score: float, checklist_score: float) -> int:
-    """
-    Legacy alert level function for backward compatibility
-    
-    Args:
-        ppwcs_score: PPWCS score (0-100)
-        checklist_score: Checklist score (0-100)
-        
-    Returns:
-        int: Alert level (0=no alert, 1=low, 2=medium, 3=high)
-    """
-    try:
-        # Combined scoring logic
-        if ppwcs_score >= 65:
-            return 3  # High alert
-        elif ppwcs_score >= 50 or (ppwcs_score >= 35 and checklist_score >= 35):
-            return 2  # Medium alert
-        elif ppwcs_score >= 35 or checklist_score >= 50:
-            return 1  # Low alert
-        else:
-            return 0  # No alert
-            
-    except Exception as e:
-        print(f"⚠️ Error in get_alert_level: {e}")
-        return 0
+# Legacy get_alert_level removed - using TJDE v2 only
 
 
 if __name__ == "__main__":

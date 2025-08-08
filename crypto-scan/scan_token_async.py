@@ -23,7 +23,7 @@ try:
     from stealth_engine.stealth_engine import compute_stealth_score, classify_stealth_alert
     from stealth_alert_system import send_stealth_alert
     STEALTH_ENGINE_AVAILABLE = True
-    print("[STEALTH ENGINE] PrePump Engine v2 - Stealth AI system loaded successfully")
+    print("[STEALTH ENGINE] Stealth Engine v2 - Advanced detection system loaded successfully")
 except ImportError as e:
     print(f"[STEALTH ENGINE ERROR] Failed to import Stealth Engine: {e}")
     STEALTH_ENGINE_AVAILABLE = False
@@ -1513,12 +1513,12 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             try:
                 # UNIFIED TJDE ALERT SYSTEM - Handle all market phases
                 if tjde_phase == "pre-pump" and enhanced_decision in ["early_entry", "monitor"]:
-                    # PRE-PUMP EARLY ENTRY ALERT
-                    print(f"[🚀 PRE-PUMP DETECTED] {symbol}: {enhanced_decision.upper()} opportunity")
+                    # STEALTH EARLY ENTRY ALERT
+                    print(f"[🚀 STEALTH DETECTED] {symbol}: {enhanced_decision.upper()} opportunity")
                     from utils.prepump_alert_system import send_prepump_alert_with_cooldown
                     
-                    # Prepare unified pre-pump alert data
-                    prepump_alert_data = {
+                    # Prepare unified stealth alert data
+                    stealth_alert_data = {
                         "symbol": symbol,
                         "final_score": tjde_score,
                         "decision": enhanced_decision,
@@ -1532,8 +1532,8 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         "timestamp": datetime.now().isoformat()
                     }
                     
-                    # Send pre-pump alert with 2-hour cooldown
-                    tjde_alert_success = send_prepump_alert_with_cooldown(prepump_alert_data)
+                    # Send stealth alert with 2-hour cooldown
+                    tjde_alert_success = send_prepump_alert_with_cooldown(stealth_alert_data)
                     
                     if tjde_alert_success:
                         print(f"[✅ PRE-PUMP ALERT SENT] {symbol}: {enhanced_decision.upper()} - Early entry opportunity detected")

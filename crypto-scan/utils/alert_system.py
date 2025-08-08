@@ -64,35 +64,9 @@ def update_cooldown(token):
     tracker[token] = datetime.now(timezone.utc).isoformat()
     save_cooldown_tracker(tracker)
 
-def determine_alert_level(ppwcs_score, stage1g_quality=0):
-    """
-    Determine alert level based on PPWCS score and Stage 1g quality
-    PPWCS 2.6: Stage 1g quality > 12 allows alerts at 60-69 range
-    """
-    # Stage 1g quality boost: quality > 12 allows watchlist promotion
-    quality_boost = stage1g_quality > 12
-    
-    if ppwcs_score >= 80:
-        return "strong_alert", "🚨 STRONG ALERT"
-    elif ppwcs_score >= 70:
-        return "pre_pump_active", "⚠️ PRE-PUMP WATCH"
-    elif ppwcs_score >= 60 and quality_boost:
-        return "pre_pump_active", "⚠️ PRE-PUMP WATCH (Quality Boost)"
-    elif ppwcs_score >= 60:
-        return "watchlist", "📊 WATCHLIST"
-    else:
-        return "none", ""
+# Legacy determine_alert_level removed - using TJDE v2 only
 
-def calculate_stage1g_quality(signals):
-    """
-    Calculate Stage 1g quality score for PPWCS 2.6
-    Returns: int (0-20+ points)
-    """
-    from utils.scoring import score_stage_1g
-    
-    if signals.get("stage1g_active"):
-        return score_stage_1g(signals)
-    return 0
+# Legacy calculate_stage1g_quality removed - using TJDE v2 only
 
 def forecast_take_profit_levels(signals):
     """Generate TP levels based on signal strength"""
@@ -123,7 +97,7 @@ def save_alert_cache_to_file(active_alerts: dict, filename="data/alerts_cache.js
         for symbol, data in active_alerts.items():
             serializable_alerts[symbol] = {
                 "timestamp": data["timestamp"].isoformat(),
-                "ppwcs": data["ppwcs"],
+                # Legacy ppwcs removed
                 "signals": data["signals"]
             }
 
@@ -143,7 +117,7 @@ def load_alert_cache_from_file(filename="data/alerts_cache.json"):
         for symbol, data in raw.items():
             parsed[symbol] = {
                 "timestamp": datetime.fromisoformat(data["timestamp"]),
-                "ppwcs": data["ppwcs"],
+                # Legacy ppwcs removed
                 "signals": data["signals"]
             }
 
@@ -154,28 +128,26 @@ def load_alert_cache_from_file(filename="data/alerts_cache.json"):
         logger.error(f"Error loading alerts cache: {e}")
         return {}
 
-def update_alert_cache(symbol, new_signals: dict, ppwcs_score: float, active_alerts: dict):
+def update_alert_cache(symbol, new_signals: dict, active_alerts: dict):
     """
     Update alert cache entry after sending alert or alert update
     
     Args:
         symbol: e.g. 'PEPEUSDT'
         new_signals: current signals dict, e.g. {"dex_inflow": True, "spoofing": False}
-        ppwcs_score: current PPWCS scoring
         active_alerts: global dict with alert cache
     
     Saves:
         - timestamp: time of last alert or update
-        - ppwcs: last score
         - signals: last signal state
     """
     active_alerts[symbol] = {
         "timestamp": datetime.now(timezone.utc),
-        "ppwcs": ppwcs_score,
+        # Legacy ppwcs removed
         "signals": new_signals.copy()
     }
 
-def should_update_alert(symbol, new_signals: dict, active_alerts: dict, ppwcs_score: float):
+def should_update_alert(symbol, new_signals: dict, active_alerts: dict):
     """
     Determine if alert for given symbol should be updated
     
@@ -183,7 +155,6 @@ def should_update_alert(symbol, new_signals: dict, active_alerts: dict, ppwcs_sc
         symbol: token symbol
         new_signals: dict with new signals (e.g. {"dex_inflow": True, "spoofing": True})
         active_alerts: dict with saved active alerts and their timestamps
-        ppwcs_score: current scoring result
 
     Returns:
         - update_needed: bool
@@ -198,7 +169,7 @@ def should_update_alert(symbol, new_signals: dict, active_alerts: dict, ppwcs_sc
         return False, "no_active_alert"
 
     last_alert_time = active_alerts[symbol]["timestamp"]
-    last_ppwcs = active_alerts[symbol].get("ppwcs", 0)
+    # Legacy ppwcs removed
 
     # If an hour has passed - new alert
     if now - last_alert_time > cooldown:
@@ -209,33 +180,21 @@ def should_update_alert(symbol, new_signals: dict, active_alerts: dict, ppwcs_sc
         if new_signals.get(key) and not active_alerts[symbol]["signals"].get(key):
             return True, f"new_signal: {key}"
 
-    # If PPWCS increased significantly (by ≥5)
-    if ppwcs_score - last_ppwcs >= 5:
-        return True, "ppwcs_rise"
+    # Legacy PPWCS check removed
 
     # Otherwise - no update needed
     return False, "no_update_needed"
 
-def send_alert(symbol, ppwcs, checklist_score, checklist_summary, signals):
+def send_alert(symbol, signals):
     """
-    Enhanced alert function with checklist_score integration
-    Changes alert content based on structure quality
+    Alert function using TJDE v2 system
     """
     try:
         alert_lines = []
 
-        # Header with enhanced structure assessment
-        alert_lines.append(f"🚨 **PRE-PUMP ALERT** – {symbol}")
-        alert_lines.append(f"PPWCS Score: {ppwcs}/100")
-        alert_lines.append(f"Checklist Score: {checklist_score}/100")
-
-        # Structure quality assessment
-        if checklist_score >= 70:
-            alert_lines.append("✅ Struktura: bardzo silna (setup high-confidence)")
-        elif checklist_score >= 50:
-            alert_lines.append("⚠️ Struktura: akceptowalna, ale warto monitorować")
-        else:
-            alert_lines.append("❗ Uwaga: słaba struktura – możliwy fałszywy sygnał")
+        # Header
+        alert_lines.append(f"🚨 **STEALTH ALERT** – {symbol}")
+        # Using TJDE v2 scoring system
 
         # Active signals section
         alert_lines.append("\n📡 Aktywne sygnały:")
@@ -245,17 +204,6 @@ def send_alert(symbol, ppwcs, checklist_score, checklist_summary, signals):
             elif isinstance(v, str) and v.strip():
                 alert_lines.append(f"• {k}: {v}")
         
-        # Structure setup summary
-        if checklist_summary:
-            alert_lines.append("\n🧠 Struktura setupu:")
-            # Show first 8 conditions, then summarize rest
-            if len(checklist_summary) <= 8:
-                alert_lines.append(" + ".join(checklist_summary))
-            else:
-                main_conditions = " + ".join(checklist_summary[:6])
-                additional_count = len(checklist_summary) - 6
-                alert_lines.append(f"{main_conditions} + {additional_count} more")
-
         # Add chart link
         alert_lines.append(f"\n🔗 Sprawdź wykres: https://www.bybit.com/en-US/trade/spot/{symbol}")
         
@@ -296,19 +244,13 @@ def send_alert(symbol, ppwcs, checklist_score, checklist_summary, signals):
         logger.error(f"Error sending enhanced alert for {symbol}: {e}")
         return False
 
-def send_telegram_alert(token, ppwcs_score, stage_signals, tp_forecast, stage1g_trigger_type=None, 
-                       gpt_feedback=None, feedback_score=None, is_update=False, new_signals=None, update_reason=None):
+def send_telegram_alert(token, stage_signals, tp_forecast=None, gpt_feedback=None, feedback_score=None):
     """
-    Enhanced Telegram alert that uses new send_alert function with checklist integration
-    Maintained for backward compatibility
+    Telegram alert using TJDE v2 system
     """
     try:
-        # Extract checklist data from signals
-        checklist_score = stage_signals.get('checklist_score', 0)
-        checklist_summary = stage_signals.get('checklist_summary', [])
-        
-        # Use new enhanced alert function
-        success = send_alert(token, ppwcs_score, checklist_score, checklist_summary, stage_signals)
+        # Use new alert function
+        success = send_alert(token, stage_signals)
         
         # Add TP forecast and GPT feedback for legacy compatibility
         if success and (tp_forecast or gpt_feedback):
@@ -321,7 +263,7 @@ def send_telegram_alert(token, ppwcs_score, stage_signals, tp_forecast, stage1g_
                 additional_lines.append(f"• TP3: +{tp_forecast['TP3']}%")
                 additional_lines.append(f"• Trailing TP: +{tp_forecast['TrailingTP']}%")
             
-            if gpt_feedback and ppwcs_score >= 80:
+            if gpt_feedback:
                 icon = get_feedback_icon(feedback_score or 0)
                 additional_lines.append(f"\n🤖 GPT Feedback {icon}:\n{gpt_feedback}")
             
@@ -346,22 +288,18 @@ def send_telegram_alert(token, ppwcs_score, stage_signals, tp_forecast, stage1g_
         print(f"❌ Error sending Telegram alert: {e}")
         return False
 
-def process_alert(token, ppwcs_score, signals, gpt_analysis=None):
-    """Main alert processing function with dynamic updates"""
+def process_alert(token, signals, gpt_analysis=None):
+    """Main alert processing function using TJDE v2"""
     try:
-        # Extract checklist data for alert generation
-        checklist_score = signals.get('checklist_score', 0)
-        checklist_summary = signals.get('checklist_summary', [])
-        
-        # Send alert using the working send_alert function
-        alert_success = send_alert(token, ppwcs_score, checklist_score, checklist_summary, signals)
+        # Send alert using TJDE v2 system
+        alert_success = send_alert(token, signals)
         
         return alert_success
             
     except Exception as e:
         return False
 
-def log_to_watchlist(token, ppwcs_score, signals):
+def log_to_watchlist(token, signals):
     """Log watchlist entries (60-69 score) to CSV"""
     try:
         watchlist_file = os.path.join("data", "watchlist.csv")
@@ -373,13 +311,13 @@ def log_to_watchlist(token, ppwcs_score, signals):
         # Create header if file doesn't exist
         if not os.path.exists(watchlist_file):
             with open(watchlist_file, "w") as f:
-                f.write("timestamp,token,ppwcs_score,active_signals\n")
+                f.write("timestamp,token,active_signals\n")
         
         # Append entry
         with open(watchlist_file, "a") as f:
-            f.write(f"{now.isoformat()},{token},{ppwcs_score},\"{';'.join(active_signals)}\"\n")
+            f.write(f"{now.isoformat()},{token},\"{';'.join(active_signals)}\"\n")
             
-        print(f"📋 {token} added to watchlist (Score: {ppwcs_score})")
+        print(f"📋 {token} added to watchlist")
         
     except Exception as e:
         print(f"❌ Error logging to watchlist: {e}")

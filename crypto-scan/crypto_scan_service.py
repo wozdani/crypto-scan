@@ -151,7 +151,7 @@ def display_top5_stealth_tokens():
 # Import only essential modules
 from utils.bybit_cache_manager import get_bybit_symbols_cached
 from stages.stage_minus2_1 import detect_stage_minus2_1
-from utils.scoring import compute_ppwcs, compute_checklist_score, get_alert_level, save_score, log_ppwcs_score
+# Legacy PPWCS/checklist functions removed - using TJDE v2 only
 from utils.data_fetchers import get_market_data
 from utils.alert_system import process_alert
 from utils.coingecko import build_coingecko_cache
@@ -183,73 +183,14 @@ def scan_single_token(symbol):
         # Basic Stage-2.1 analysis only
         stage2_pass, signals, inflow_usd, stage1g_active = detect_stage_minus2_1(symbol, price_usd)
         
-        # Simple scoring
-        final_score = compute_ppwcs(signals, symbol)
-        if isinstance(final_score, tuple):
-            final_score = final_score[0]
-        final_score = float(final_score) if final_score else 0.0
-        
-        checklist_score = compute_checklist_score(signals)
-        if isinstance(checklist_score, tuple):
-            checklist_score = checklist_score[0]
-        checklist_score = float(checklist_score) if checklist_score else 0.0
-        
-        # Save and alert
-        save_score(symbol, final_score, signals)
-        log_ppwcs_score(symbol, final_score, signals)
-        
-        alert_level = get_alert_level(final_score, checklist_score)
-        if alert_level >= 2:
-            process_alert(symbol, final_score, signals, None)
+        # Legacy PPWCS/checklist removed - using TJDE v2 only
+        # Alerts are now handled by TJDE and Stealth Engine
 
-        # Training chart generation for quality setups - RESTRICTED TO TOP 5 ONLY
-        if final_score >= 40 or checklist_score >= 35:
-            # 🎯 CRITICAL FIX: Check if token is in TOP 5 before generating training data
-            try:
-                from utils.top5_selector import should_generate_training_data, warn_about_non_top5_generation
-                
-                if should_generate_training_data(symbol):
-                    print(f"[TRAINING] {symbol} → Generating training chart (PPWCS: {final_score}, Checklist: {checklist_score}) - TOP 5 token")
-                    try:
-                        # Initialize training data manager
-                        training_manager = TrainingDataManager()
-                        
-                        # Prepare context features for training
-                        context_features = {
-                            "ppwcs_score": final_score,
-                            "checklist_score": checklist_score,
-                            "alert_level": alert_level,
-                            "price": signals.get("price", 0),
-                            "volume_24h": signals.get("volume_24h", 0),
-                            "market_phase": "simple_scan",
-                            "scan_timestamp": datetime.now().isoformat(),
-                            "signals_count": len([k for k, v in signals.items() if v and k != 'price' and k != 'volume_24h'])
-                        }
-                        
-                        # Generate and save training chart
-                        chart_id = training_manager.collect_from_scan(symbol, context_features)
-                        if chart_id:
-                            print(f"[TRAINING] {symbol} → Chart saved: {chart_id}")
-                        else:
-                            print(f"[TRAINING] {symbol} → Chart generation failed")
-                            
-                    except Exception as e:
-                        print(f"[TRAINING ERROR] {symbol} → {e}")
-                else:
-                    # Token qualifies but is not in TOP 5 - log warning about dataset quality
-                    warn_about_non_top5_generation(symbol, f"PPWCS scan - score {final_score}")
-                    
-            except ImportError:
-                # TOP5 selector not available - skip training to avoid dataset degradation
-                print(f"[TRAINING SKIP] {symbol} → TOP5 selector not available, skipping to maintain dataset quality")
-            except Exception as e:
-                print(f"[TRAINING TOP5 ERROR] {symbol} → {e}")
+        # Training chart generation removed - handled by TJDE v2
 
         return {
             'symbol': symbol,
-            'final_score': final_score,
-            'signals': signals,
-            'checklist_score': checklist_score
+            'signals': signals
         }
         
     except Exception as e:
@@ -505,7 +446,7 @@ def simple_scan_fallback(symbols):
                 results.append(result)
                 processed += 1
                 if processed % 10 == 0:  # Progress every 10 tokens
-                    print(f"[{processed}/{len(symbols)}] Progress: {symbol}: PPWCS {result.get('final_score', 0):.1f}")
+                    print(f"[{processed}/{len(symbols)}] Progress: {symbol}: Processed")
             else:
                 failed_tokens += 1
         except Exception as token_error:

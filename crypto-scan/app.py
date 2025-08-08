@@ -10,7 +10,7 @@ try:
 except ImportError:
     raise RuntimeError("🚨 pytesseract is required for TradingView chart validation – please install it.")
 
-from utils.scoring import get_top_performers, get_symbol_stats
+# Legacy PPWCS functions removed - using TJDE v2 only
 from utils.reports import get_latest_reports
 from utils.gpt_feedback import get_recent_gpt_analyses
 from utils.telegram_bot import test_telegram_connection
@@ -54,7 +54,8 @@ def get_top_performers_api():
         hours = int(request.args.get('hours', 24))
         limit = int(request.args.get('limit', 10))
         
-        performers = get_top_performers(limit=limit, hours=hours)
+        # Legacy PPWCS removed - returning empty data
+        performers = []
         
         return jsonify({
             'performers': performers,
@@ -107,8 +108,12 @@ def get_symbol_info(symbol):
     try:
         symbol = symbol.upper()
         
-        # Get symbol stats
-        stats = get_symbol_stats(symbol)
+        # Legacy PPWCS removed - returning basic stats
+        stats = {
+            'symbol': symbol,
+            'recent_score': 0.0,
+            'alert_count': 0
+        }
         
         # Get recent scores
         scores_file = "data/scores/ppwcs_scores.json"
@@ -225,8 +230,8 @@ def get_stage_minus1_alerts_api():
 def get_market_overview():
     """Get market overview data"""
     try:
-        # Get recent performers
-        top_performers = get_top_performers(limit=5, hours=24)
+        # Legacy PPWCS removed - returning empty data
+        top_performers = []
         
         # Get alert statistics
         alerts_file = "data/alerts/alerts_history.json"

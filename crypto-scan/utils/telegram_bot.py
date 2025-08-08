@@ -181,7 +181,7 @@ def format_alert(symbol, score, tags, compressed, stage1g_active, gpt_analysis=N
     compression_status = "✅" if compressed.get('momentum', False) and compressed.get('technical_alignment', False) else "❌"
     stage1g_status = "✅" if stage1g_active else "❌"
 
-    message = f"""🚨 *{symbol}* – *PPWCS: {score}*
+    message = f"""🚨 *{symbol}* – *STEALTH DETECTION*
 *Tags:* `{tag_line}`
 *Compressed:* {compression_status}
 *Stage 1g:* {stage1g_status}"""
@@ -200,7 +200,7 @@ def format_alert(symbol, score, tags, compressed, stage1g_active, gpt_analysis=N
 *Prediction:* {prediction}
 *Entry:* {entry}"""
 
-    message += "\n\n#PrePumpAlert"
+    message += "\n\n#StealthAlert"
     
     return message.strip()
 
