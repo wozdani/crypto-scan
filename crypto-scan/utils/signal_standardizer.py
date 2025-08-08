@@ -95,32 +95,14 @@ def standardize_stealth_result(
 
 def _extract_active_signals(signals: Dict) -> List[Dict]:
     """Extract active signals as list of objects"""
-    active_signals = []
-    
-    for name, payload in signals.items():
-        try:
-            if isinstance(payload, dict):
-                is_active = payload.get("active", False)
-                strength = payload.get("strength", 0.0)
-                
-                if is_active and strength > 0:
-                    active_signals.append({
-                        "name": name,
-                        "strength": float(strength),
-                        "active": True,
-                        "category": _get_signal_category(name),
-                        "payload": payload
-                    })
-            elif payload and payload > 0:  # Handle legacy numeric format
-                active_signals.append({
-                    "name": name,
-                    "strength": float(payload),
-                    "active": True,
-                    "category": _get_signal_category(name),
-                    "payload": {"strength": payload, "active": True}
-                })
-        except Exception as e:
-            print(f"[SIGNAL STANDARDIZER] Error processing signal {name}: {e}")
+    active_signals = [{"name":k,"strength":v.get("strength",0.0),"active":v.get("active",False)}
+                      for k,v in signals.items() if v.get("active")]
+    if len(active_signals) == 0:
+        # ochronnie loguj i zwróć minimalny rdzeń, żeby Explore nie działał na ślepo
+        print(f"[SIGNAL WARN] active_signals empty despite detections; forcing core export")
+        for name in ("whale_ping","dex_inflow"):
+            if name in signals:
+                active_signals.append({"name":name,"strength":signals[name].get("strength",0.0),"active":signals[name].get("active",False)})
     
     return active_signals
 
