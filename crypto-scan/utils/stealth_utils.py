@@ -38,7 +38,7 @@ def should_explore_mode_trigger(token_data: Dict[str, Any]) -> bool:
     """
     final_score = token_data.get("final_score", 0.0)
     # 🔧 BELUSDT FIX: Much lower explore mode threshold for experimental alerts
-    explore_score_threshold = 2.0  # Zwiększony z 0.8 na 2.0 - tylko wysokie score trafiają do explore mode
+    explore_score_threshold = 1.0  # Obniżony z 2.0 na 1.0 - więcej tokenów w explore mode
     
     # Additional quality checks
     whale_ping_strength = token_data.get("whale_ping_strength", 0.0)

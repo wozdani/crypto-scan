@@ -571,7 +571,7 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         print(f"[WHALE_PING_EXTRACTION] {symbol}: Method 2 - whale_ping in active_signals, using strength=3.0")
                     
                     # Method 2b: Check directly in stealth_result for whale signal strength
-                    elif stealth_result.get("final_score", 0) > 2.0:  # Strong stealth signals suggest whale activity
+                    elif stealth_result.get("final_score", 0) > 1.0:  # Strong stealth signals suggest whale activity
                         # Parse the score and look for whale indicators
                         whale_ping_strength = 2.0  # Conservative estimate for strong stealth signals
                         print(f"[WHALE_PING_EXTRACTION] {symbol}: Method 2b - Strong stealth score ({stealth_result.get('final_score', 0):.3f}), estimated whale_ping=2.0")

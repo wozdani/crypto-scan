@@ -355,9 +355,9 @@ class PriorityLearningMemory:
                                         is_success = True
                                     
                                     # Fallback to high score for backwards compatibility (check multiple score fields)
-                                    elif (explore_data.get('final_score', 0.0) > 2.0 or 
-                                          explore_data.get('stealth_score', 0.0) > 2.0 or
-                                          explore_data.get('explore_confidence', 0.0) > 2.0):
+                                    elif (explore_data.get('final_score', 0.0) > 1.0 or 
+                                          explore_data.get('stealth_score', 0.0) > 1.0 or
+                                          explore_data.get('explore_confidence', 0.0) > 1.0):
                                         score_used = max(explore_data.get('final_score', 0.0), explore_data.get('stealth_score', 0.0), explore_data.get('explore_confidence', 0.0))
                                         is_success = True
                                     # File not considered success - no debug output needed
