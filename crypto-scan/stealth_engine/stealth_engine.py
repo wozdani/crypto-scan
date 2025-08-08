@@ -1499,9 +1499,9 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                 "StealthEngine", score, symbol, token_data
                             )
                             
-                            stealth_vote = "BUY" if adapted_stealth_score > 2.0 else ("HOLD" if adapted_stealth_score > 1.0 else "AVOID")
+                            # Skip simple threshold vote - will use 5-agent AI consensus instead
                             detector_outputs["StealthEngine"] = {
-                                "vote": stealth_vote,
+                                "vote": "PENDING",  # Will be set by 5-agent consensus
                                 "score": adapted_stealth_score,
                                 "confidence": 0.70,
                                 "weight": 0.25
@@ -1524,9 +1524,9 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                 "CaliforniumWhale", californium_score, symbol, token_data
                             )
                             
-                            calif_vote = "BUY" if adapted_californium_score > 0.7 else ("HOLD" if adapted_californium_score > 0.4 else "AVOID")
+                            # Skip simple threshold vote - will use 5-agent AI consensus instead
                             detector_outputs["CaliforniumWhale"] = {
-                                "vote": calif_vote,
+                                "vote": "PENDING",  # Will be set by 5-agent consensus
                                 "score": adapted_californium_score,
                                 "confidence": 0.85,
                                 "weight": 0.33
@@ -1549,9 +1549,9 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                 "DiamondWhale", diamond_score, symbol, token_data
                             )
                             
-                            diamond_vote = "BUY" if adapted_diamond_score > 0.6 else ("HOLD" if adapted_diamond_score > 0.3 else "AVOID")
+                            # Skip simple threshold vote - will use 5-agent AI consensus instead
                             detector_outputs["DiamondWhale"] = {
-                                "vote": diamond_vote,
+                                "vote": "PENDING",  # Will be set by 5-agent consensus
                                 "score": adapted_diamond_score,
                                 "confidence": 0.80,
                                 "weight": 0.25
@@ -1573,9 +1573,9 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                 "WhaleCLIP", whaleclip_score, symbol, token_data
                             )
                             
-                            whaleclip_vote = "BUY" if adapted_whaleclip_score > 0.5 else ("HOLD" if adapted_whaleclip_score > 0.2 else "AVOID")
+                            # Skip simple threshold vote - will use 5-agent AI consensus instead
                             detector_outputs["WhaleCLIP"] = {
-                                "vote": whaleclip_vote,
+                                "vote": "PENDING",  # Will be set by 5-agent consensus
                                 "score": adapted_whaleclip_score,
                                 "confidence": 0.75,
                                 "weight": 0.26
@@ -1596,7 +1596,12 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         if detector_outputs:
                             print(f"[MULTI-AGENT CONSENSUS] {symbol}: Using Multi-Agent decision system with {len(detector_outputs)} detectors")
                             
-                            # Passing directly to Multi-Agent Consensus System (no simple vote logging)
+                            # Log individual detector votes for multi-agent analysis
+                            for detector_name, data in detector_outputs.items():
+                                detector_score = data["score"]
+                                detector_weight = data["weight"]
+                                detector_vote = data["vote"]
+                                print(f"[DETECTOR VOTE] {symbol}: {detector_name} → Score={detector_score:.3f}, Weight={detector_weight}, Vote={detector_vote}")
                             
                             # Use Decision Consensus Engine with Multi-Agent System
                             try:
@@ -2493,9 +2498,9 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 
                 # Add Stealth Engine - ALWAYS available with safe handling
                 try:
-                    stealth_vote = "BUY" if score > 2.5 else "HOLD" if score > 1.0 else "AVOID"
+                    # Skip simple threshold vote - will use 5-agent AI consensus instead
                     detector_outputs["StealthEngine"] = {
-                        "vote": stealth_vote,
+                        "vote": "PENDING",  # Will be set by 5-agent consensus
                         "score": float(score),  # Ensure proper type conversion
                         "weight": 0.25
                     }
@@ -2510,7 +2515,12 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 # MULTI-AGENT CONSENSUS - Restored Real AI Voting System
                 print(f"[MULTI-AGENT CONSENSUS] {symbol}: Using Multi-Agent decision system with {len(detector_outputs)} detectors")
                 
-                # Passing directly to Multi-Agent Consensus System (no simple vote logging)
+                # Log individual detector votes for multi-agent analysis
+                for detector_name, data in detector_outputs.items():
+                    detector_score = data["score"]
+                    detector_weight = data["weight"]
+                    detector_vote = data["vote"]
+                    print(f"[DETECTOR VOTE] {symbol}: {detector_name} → Score={detector_score:.3f}, Weight={detector_weight}, Vote={detector_vote}")
                 
                 # Use Decision Consensus Engine with Multi-Agent System
                 try:
