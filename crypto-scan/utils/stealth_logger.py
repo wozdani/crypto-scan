@@ -164,60 +164,7 @@ class StealthLogger:
         feedback_adjust = token_data.get('feedback_adjust', 0.0)
         print(f" - 🔁 feedback_adjust:   {feedback_adjust:+5.2f}")
     
-    def log_stealth_analysis_complete(self, symbol: str, detector_results: Dict[str, float], 
-                                    consensus_data: Dict[str, Any]) -> None:
-        """
-        Comprehensive logging dla kompletnej stealth analysis
-        """
-        print(f"\n[STEALTH ANALYSIS] {symbol} - Complete diagnostic breakdown:")
-        
-        # Active Detectors z scores
-        active_detectors = []
-        for detector, score in detector_results.items():
-            # Extract numeric value from detector result (supports bool, float, or dict)
-            numeric_score = self._extract_detector_value(score) if hasattr(self, '_extract_detector_value') else score
-            if isinstance(numeric_score, (int, float)) and numeric_score > 0.0:
-                active_detectors.append(f"{detector}: {numeric_score:.3f}")
-        
-        if active_detectors:
-            print(f"[STEALTH] {symbol} - Active detectors: {', '.join(active_detectors)}")
-            print(f"[STEALTH] {symbol} - Pattern identified: {self._identify_pattern(detector_results)}")
-        else:
-            # Get total score from consensus data if available
-            total_score = consensus_data.get('consensus_score', 0.0)
-            print(f"[STEALTH] {symbol} - No active detectors (score: {total_score:.3f})")
-        
-        # Multi-agent consensus breakdown
-        votes = consensus_data.get('votes', [])
-        decision = consensus_data.get('decision', 'UNKNOWN')
-        confidence = consensus_data.get('confidence', 0.0)
-        
-        if isinstance(votes, list) and len(votes) > 0:
-            buy_votes = votes.count('BUY')
-            total_votes = len(votes)
-            print(f"[RL VOTE] {symbol} - Agents: {votes} → Final: {decision}")
-            print(f"[RL VOTE] {symbol} - Consensus: {buy_votes}/{total_votes} BUY (confidence: {confidence:.3f})")
-        
-        # Feedback boost info
-        feedback_adjust = consensus_data.get('feedback_adjust', 0.0)
-        if feedback_adjust != 0.0:
-            print(f"[FEEDBACK] {symbol} - Boost {feedback_adjust:+.3f} from prior success")
     
-    def log_detector_activation(self, symbol: str, detector_name: str, score: float, 
-                               confidence: Optional[float] = None) -> None:
-        """
-        Enhanced logging dla individual detector activation
-        """
-        emoji = self.detector_symbols.get(detector_name, '🔍')
-        confidence_text = f" (confidence: {confidence:.2f})" if confidence else ""
-        
-        # Extract numeric value from score (supports bool, float, or dict)
-        numeric_score = self._extract_detector_value(score)
-        
-        if numeric_score > 0.5:
-            print(f"[STEALTH] {emoji} {detector_name} detected pattern{confidence_text} - Score: {numeric_score:.3f}")
-        elif numeric_score > 0.0:
-            print(f"[STEALTH] {emoji} {detector_name} weak signal{confidence_text} - Score: {numeric_score:.3f}")
     
     def _extract_detector_value(self, detector_value) -> float:
         """Extract numeric value from detector result (supports bool, float, or dict)"""
@@ -306,13 +253,17 @@ class StealthLogger:
                     avoid_count += 1
             
             total_votes = len(consensus_votes)
-            majority_buy = buy_count > total_votes // 2  # Majority required
+            # 🔐 CRITICAL FIX: Require 2-vote difference (yes_votes - no_votes >= 2)
+            vote_difference = buy_count - avoid_count
+            sufficient_consensus = vote_difference >= 2  # Minimum 2-vote difference required
             
-            print(f"[CONSENSUS VALIDATION] {token}: BUY={buy_count}, HOLD={hold_count}, AVOID={avoid_count}, total={total_votes}, majority_buy={majority_buy}")
+            print(f"[CONSENSUS VALIDATION] {token}: BUY={buy_count}, HOLD={hold_count}, AVOID={avoid_count}, total={total_votes}, vote_difference={vote_difference}")
+            print(f"[CONSENSUS VALIDATION] {token}: Vote difference: {buy_count} BUY - {avoid_count} AVOID = {vote_difference} (need ≥2 for alert)")
             
-            # Alert tylko jeśli rzeczywiście jest majority BUY
-            if not majority_buy:
-                print(f"[CONSENSUS BLOCK] {token}: No majority BUY consensus ({buy_count}/{total_votes}) - BLOCKING alert")
+            # Alert tylko jeśli jest różnica co najmniej 2 głosów BUY vs AVOID
+            if not sufficient_consensus:
+                print(f"[CONSENSUS BLOCK] {token}: Insufficient vote difference ({vote_difference} < 2) - BLOCKING alert")
+                print(f"[CONSENSUS BLOCK] {token}: Need at least {avoid_count + 2} BUY votes vs {avoid_count} AVOID votes")
                 print(f"[CONSENSUS BLOCK] {token}: Votes breakdown: BUY={buy_count}, HOLD={hold_count}, AVOID={avoid_count}")
                 return
         elif consensus_decision != 'BUY':
