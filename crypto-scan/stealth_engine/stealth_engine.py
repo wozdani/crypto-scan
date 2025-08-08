@@ -1091,15 +1091,12 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     # No scaling_factor, no score modifications - pure aggregator result
                     # print(f"[STEALTH PARTIAL] {symbol}: Low data coverage ({data_coverage:.1%}), scaling {original_score:.3f} → {score:.3f} (factor: {scaling_factor:.2f})")
                     
-                    # Dodaj bonus zgodnie z nową specyfikacją: +0.025 za każdą aktywną regułę
-                    active_rules_bonus = len(used_signals) * 0.025
-                    score += active_rules_bonus
-                    
-                    # Dodaj minimalny baseline score jeśli wykryto jakiekolwiek pozytywne sygnały
-                    if len(used_signals) > 0 and score < 0.5:
-                        baseline_bonus = 0.3 * len(used_signals) / total_signals
-                        score += baseline_bonus
-                        print(f"[STEALTH PARTIAL] {symbol}: Added baseline bonus +{baseline_bonus:.3f} for {len(used_signals)} active signals")
+                    # PUNKT 7 FIX: Usunięto wszystkie bonusy - używamy tylko pure aggregator p_raw
+                    # active_rules_bonus = len(used_signals) * 0.025  # USUNIĘTE
+                    # score += active_rules_bonus  # USUNIĘTE
+                    # baseline_bonus = 0.3 * len(used_signals) / total_signals  # USUNIĘTE
+                    # score += baseline_bonus  # USUNIĘTE
+                    active_rules_bonus = 0.0  # PUNKT 7 FIX: Dummy dla kompatybilności
                     
                     # === DIAMOND WHALE AI DETECTOR INTEGRATION ===
                     # 🔥 STAGE 2/7: Integrate DiamondWhale AI Temporal Graph + QIRL Detector
@@ -1287,7 +1284,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     californium_note = f" + Californium: {californium_score:.3f}" if californium_enabled else ""
                     
                     print(f"[STEALTH SCORING] {symbol} final calculation:")
-                    base_score = score - active_rules_bonus
+                    base_score = score  # PUNKT 7 FIX: Nie odejmujemy active_rules_bonus (został usunięty)
                     if diamond_enabled:
                         base_score -= diamond_score * 0.3
                     if whaleclip_enabled:
@@ -1295,7 +1292,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     if californium_enabled:
                         base_score -= californium_score * 0.25
                     print(f"  Base score: {base_score:.3f}")
-                    print(f"  Active rules bonus: {len(used_signals)} × 0.025 = +{active_rules_bonus:.3f}")
+                    # print(f"  Active rules bonus: {len(used_signals)} × 0.025 = +{active_rules_bonus:.3f}")  # PUNKT 7 FIX: USUNIĘTE
                     if diamond_enabled:
                         print(f"  Diamond AI contribution: {diamond_score:.3f} × 0.3 = +{diamond_score * 0.3:.3f}")
                     if whaleclip_enabled:

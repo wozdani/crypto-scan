@@ -16,56 +16,31 @@ if parent_dir not in sys.path:
 # Note: No longer importing STEALTH config for whitelist
 
 EPS = 1e-6
-ACTIVE_RULES_BONUS = 0.0   # OFF
 
-def logit(p: float) -> float:
-    """
-    Logit transformation for probability
-    
-    Args:
-        p: Probability value [0,1]
-    
-    Returns:
-        float: Logit transformed value
-    """
-    p = max(EPS, min(1.0 - EPS, p))
-    return log(p/(1.0-p))
+def logit(p):
+    """PUNKT 7 FIX: z-logit transformation with clamp"""
+    p = max(EPS, min(1-EPS, p))
+    return log(p/(1-p))
 
-def aggregate(signals: Dict, weights: Dict) -> Dict:
-    """
-    Aggregate signals using logit transformation without active rules bonus
-    
-    Args:
-        signals: {name: {"active": bool, "strength": float}}
-        weights: {name: float}
-    
-    Returns:
-        Dict with z_raw, p_raw, and contrib
-    
-    Key features:
-    - z_raw can be >1, p_raw ∈ (0,1)
-    - No active rules bonus (ACTIVE_RULES_BONUS = 0.0)
-    - Logit transformation for all active signals
-    """
+def aggregate(signals: dict, weights: dict):
+    """PUNKT 7 FIX: z-logit + clamp, bez bonusów"""
     z = 0.0
     contrib = {}
     
-    for name, payload in signals.items():
-        if not payload.get("active"):
+    for name, s in signals.items():
+        if not s.get("active"):
             continue
-            
-        s = max(0.0, min(1.0, float(payload.get("strength", 0.0))))
-        w = float(weights.get(name, 0.0))
         
-        if w == 0.0:
+        w = float(weights.get(name, 0.0))
+        x = float(s.get("strength", 0.0))
+        
+        if w == 0.0 or x <= 0.0 or x >= 1.0:
+            contrib[name] = 0.0
             continue
             
-        val = w * logit(s)  # logit() handles edge cases with EPS, no need for 0.0 < s < 1.0 restriction
+        val = w * logit(x)
         z += val
-        contrib[name] = {"s": s, "w": w, "v": val}
+        contrib[name] = val
     
-    return {
-        "z_raw": z, 
-        "p_raw": 1/(1+pow(2.718281828, -z)), 
-        "contrib": contrib
-    }
+    p = 1 / (1 + 2.718281828**(-z))
+    return {"z_raw": z, "p_raw": p, "contrib": contrib}
