@@ -2191,22 +2191,27 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                             market_context=token_data
                                         )
                                         
-                                    print(f"[DETECTOR LEARNING] {token_data.get('symbol', 'UNKNOWN')}: Explore mode decisions recorded dla wszystkich active detectors")
+                                    symbol = token_data.get('symbol', 'UNKNOWN') if token_data else 'UNKNOWN'
+                                    print(f"[DETECTOR LEARNING] {symbol}: Explore mode decisions recorded dla wszystkich active detectors")
                                     
                                 except Exception as learning_error:
-                                    print(f"[DETECTOR LEARNING ERROR] {token_data.get('symbol', 'UNKNOWN')}: Failed to record explore decisions: {learning_error}")
+                                    symbol = token_data.get('symbol', 'UNKNOWN') if token_data else 'UNKNOWN'
+                                    print(f"[DETECTOR LEARNING ERROR] {symbol}: Failed to record explore decisions: {learning_error}")
                                     
-                                print(f"[EXPLORE SAVE] {token_data.get('symbol', 'UNKNOWN')}: Enhanced learning data saved dla detector training")
+                                symbol = token_data.get('symbol', 'UNKNOWN') if token_data else 'UNKNOWN'
+                                print(f"[EXPLORE SAVE] {symbol}: Enhanced learning data saved dla detector training")
                                 
                             except Exception as e:
-                                print(f"[EXPLORE ERROR] {token_data.get('symbol', 'UNKNOWN')}: Failed to save learning data: {e}")
+                                symbol = token_data.get('symbol', 'UNKNOWN') if token_data else 'UNKNOWN'
+                                print(f"[EXPLORE ERROR] {symbol}: Failed to save learning data: {e}")
                             
                             # W explore mode nie wysyłamy alertów - tylko zbieramy dane do nauki
                             should_alert = False
-                            print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: No alert sent - collecting learning data only")
+                            symbol = token_data.get('symbol', 'UNKNOWN') if token_data else 'UNKNOWN'
+                            print(f"[EXPLORE MODE] {symbol}: No alert sent - collecting learning data only")
                         
                         if should_alert:
-                            symbol = token_data.get('symbol', 'UNKNOWN')
+                            symbol = token_data.get('symbol', 'UNKNOWN') if token_data else 'UNKNOWN'
                             
                             # Przygotuj detector results - mapuj aktywne sygnały na detektory
                             detector_results = {}
