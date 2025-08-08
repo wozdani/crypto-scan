@@ -364,8 +364,7 @@ class StealthSignalDetector:
                 print(f"[STEALTH DEBUG] whale_ping for {symbol}: invalid ask structure after conversion: {type(asks[0])}, content: {asks[0]}")
                 return StealthSignal("whale_ping", False, 0.0)
             
-            # 🚀 ADAPTIVE THRESHOLD: Replace old dynamic threshold with volume-based calculation
-            threshold = adaptive_threshold
+            # 🚀 ADAPTIVE THRESHOLD: Threshold already calculated above (line 297: threshold = TH_USD)
             
             # === OBLICZ MAX ORDER USD ===
             max_order_check = 0
