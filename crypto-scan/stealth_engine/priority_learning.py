@@ -349,12 +349,10 @@ class PriorityLearningMemory:
                                     success_verification = explore_data.get('success_verification', {})
                                     if success_verification.get('result_success') == True or success_verification.get('result_success') == 'true' or success_verification.get('result_success') is True:
                                         is_success = True
-                                        print(f"[SUCCESS DEBUG] {explore_file}: SUCCESS via verification (result_success={success_verification.get('result_success')})")
                                     
                                     # Also check consensus_decision field
                                     elif explore_data.get('consensus_decision') == 'SUCCESS':
                                         is_success = True
-                                        print(f"[SUCCESS DEBUG] {explore_file}: SUCCESS via consensus (consensus_decision=SUCCESS)")
                                     
                                     # Fallback to high score for backwards compatibility (check multiple score fields)
                                     elif (explore_data.get('final_score', 0.0) > 2.0 or 
@@ -362,15 +360,7 @@ class PriorityLearningMemory:
                                           explore_data.get('explore_confidence', 0.0) > 2.0):
                                         score_used = max(explore_data.get('final_score', 0.0), explore_data.get('stealth_score', 0.0), explore_data.get('explore_confidence', 0.0))
                                         is_success = True
-                                        print(f"[SUCCESS DEBUG] {explore_file}: SUCCESS via score ({score_used:.3f} > 2.0)")
-                                    else:
-                                        # Debug why file was not considered success
-                                        consensus = explore_data.get('consensus_decision')
-                                        final_score = explore_data.get('final_score', 0)
-                                        stealth_score = explore_data.get('stealth_score', 0) 
-                                        has_verification = bool(success_verification)
-                                        result_success = success_verification.get('result_success') if success_verification else None
-                                        print(f"[SUCCESS DEBUG] {explore_file}: NOT SUCCESS - consensus={consensus}, final_score={final_score:.3f}, stealth_score={stealth_score:.3f}, has_verification={has_verification}, result_success={result_success}")
+                                    # File not considered success - no debug output needed
                                     
                                     if is_success:
                                         explore_mode_successes += 1
