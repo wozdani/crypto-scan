@@ -1506,12 +1506,12 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             }
                             
                             print(f"[CALIFORNIUM LEARNING] {symbol}: {californium_score:.3f} → {adapted_californium_score:.3f} ({adaptation_reason})")
-                            print(f"[DETECTOR ADDED] {symbol}: CaliforniumWhale added to consensus with vote={calif_vote}, score={adapted_californium_score:.3f}")
+                            print(f"[DETECTOR ADDED] {symbol}: CaliforniumWhale added to consensus with vote={detector_outputs['CaliforniumWhale']['vote']}, score={adapted_californium_score:.3f}")
                             
                             # Record decision for future learning
                             record_detector_decision(
                                 "CaliforniumWhale", symbol, californium_score, adapted_californium_score, 
-                                calif_vote, explore_mode=False, market_context=token_data
+                                detector_outputs['CaliforniumWhale']['vote'], explore_mode=False, market_context=token_data
                             )
                         
                         # DiamondWhale AI + SELF-LEARNING ADAPTATION
@@ -1531,12 +1531,12 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             }
                             
                             print(f"[DIAMOND LEARNING] {symbol}: {diamond_score:.3f} → {adapted_diamond_score:.3f} ({adaptation_reason})")
-                            print(f"[DETECTOR ADDED] {symbol}: DiamondWhale added to consensus with vote={diamond_vote}, score={adapted_diamond_score:.3f}")
+                            print(f"[DETECTOR ADDED] {symbol}: DiamondWhale added to consensus with vote={detector_outputs['DiamondWhale']['vote']}, score={adapted_diamond_score:.3f}")
                             
                             # Record decision for future learning
                             record_detector_decision(
                                 "DiamondWhale", symbol, diamond_score, adapted_diamond_score, 
-                                diamond_vote, explore_mode=False, market_context=token_data
+                                detector_outputs['DiamondWhale']['vote'], explore_mode=False, market_context=token_data
                             )
                         
                         # WhaleCLIP AI + SELF-LEARNING ADAPTATION  
