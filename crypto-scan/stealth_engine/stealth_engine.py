@@ -2131,28 +2131,28 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                         record_detector_decision(
                                             "StealthEngine", token_data.get('symbol', 'UNKNOWN'), 
                                             score, score, "EXPLORE", explore_mode=True, 
-                                            market_context=market_data
+                                            market_context=token_data
                                         )
                                         
                                     if diamond_enabled and diamond_score > 0.0:
                                         record_detector_decision(
                                             "DiamondWhale", token_data.get('symbol', 'UNKNOWN'), 
                                             diamond_score, diamond_score, "EXPLORE", explore_mode=True, 
-                                            market_context=market_data
+                                            market_context=token_data
                                         )
                                         
                                     if californium_enabled and californium_score > 0.0:
                                         record_detector_decision(
                                             "CaliforniumWhale", token_data.get('symbol', 'UNKNOWN'), 
                                             californium_score, californium_score, "EXPLORE", explore_mode=True, 
-                                            market_context=market_data
+                                            market_context=token_data
                                         )
                                         
                                     if 'whaleclip_final_score' in locals() and whaleclip_final_score > 0.0:
                                         record_detector_decision(
                                             "WhaleCLIP", token_data.get('symbol', 'UNKNOWN'), 
                                             whaleclip_final_score, whaleclip_final_score, "EXPLORE", explore_mode=True, 
-                                            market_context=market_data
+                                            market_context=token_data
                                         )
                                         
                                     print(f"[DETECTOR LEARNING] {token_data.get('symbol', 'UNKNOWN')}: Explore mode decisions recorded dla wszystkich active detectors")
