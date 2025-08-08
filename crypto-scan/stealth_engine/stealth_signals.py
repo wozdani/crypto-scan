@@ -631,6 +631,41 @@ class StealthSignalDetector:
                 except Exception as memory_e:
                     print(f"[WHALE MEMORY] Error for {symbol}: {memory_e}")
             
+            # Apply smart money boost before final return
+            if active and max_order_usd > 0:
+                try:
+                    from core.smart_money import apply_smart_money_boost
+                    from utils.blockchain_scanners import load_known_exchange_addresses
+                    
+                    # Get known exchanges
+                    known_exchanges = set()
+                    try:
+                        exchanges_data = load_known_exchange_addresses()
+                        for chain_exchanges in exchanges_data.values():
+                            if isinstance(chain_exchanges, list):
+                                known_exchanges.update(addr.lower() for addr in chain_exchanges)
+                    except:
+                        pass
+                    
+                    # Use the best available address (real or synthesized)
+                    best_address = real_whale_addresses[0] if real_whale_addresses else max_whale_address
+                    if best_address:
+                        # Apply boost with whale characteristics
+                        boosted_strength = apply_smart_money_boost(
+                            base_strength=strength,
+                            trust=0.6,  # Default trust for whale addresses
+                            preds=1,    # Default predictions
+                            usd=max_order_usd,
+                            repeats_7d=1,  # Default repeats
+                            addr=best_address,
+                            known_exchanges=known_exchanges
+                        )
+                        if boosted_strength != strength:
+                            print(f"[WHALE PING BOOST] {symbol}: Smart money boost applied: {strength:.3f} → {boosted_strength:.3f}")
+                            strength = boosted_strength
+                except Exception as e:
+                    print(f"[WHALE PING BOOST ERROR] {symbol}: {e}")
+            
             # RESULT LOG - końcowa decyzja i siła sygnału
             print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] RESULT → active={active}, strength={strength:.3f}")
             
@@ -1107,6 +1142,36 @@ class StealthSignalDetector:
             print(f"[DEBUG FLOW] {symbol} - All DEX inflow processing completed, preparing result...")
             
             # 🔧 CRITICAL FIX #7: FINAL RESULT LOG with strength tracking summary
+            # Apply smart money boost before final result
+            if spike_detected and total_inflow_usd > 0:
+                try:
+                    from core.smart_money import apply_smart_money_boost
+                    
+                    # Find the address with highest value transfer
+                    max_transfer_addr = None
+                    max_transfer_value = 0
+                    for transfer in real_transfers:
+                        if transfer['to'] in all_known_addresses and transfer['value_usd'] > max_transfer_value:
+                            max_transfer_value = transfer['value_usd']
+                            max_transfer_addr = transfer['from']
+                    
+                    if max_transfer_addr:
+                        # Apply boost based on smart money characteristics
+                        boosted_strength = apply_smart_money_boost(
+                            base_strength=strength,
+                            trust=0.7,  # Default trust for DEX inflow addresses
+                            preds=2,    # Default predictions
+                            usd=max_transfer_value,
+                            repeats_7d=len([a for a in real_addresses if a == max_transfer_addr]),
+                            addr=max_transfer_addr,
+                            known_exchanges=all_known_addresses
+                        )
+                        if boosted_strength != strength:
+                            print(f"[DEX INFLOW BOOST] {symbol}: Smart money boost applied: {strength:.3f} → {boosted_strength:.3f}")
+                            strength = boosted_strength
+                except Exception as e:
+                    print(f"[DEX INFLOW BOOST ERROR] {symbol}: {e}")
+            
             strength_change = strength - base_strength if 'base_strength' in locals() else 0.0
             print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] FINAL RESULT → active={spike_detected}, final_strength={strength:.3f} (base: {base_strength:.3f}, boosts: +{strength_change:.3f})")
             print(f"[BOOST TRACKING] {symbol} - FINAL SUMMARY: All boosts applied, final strength: {strength:.3f}")

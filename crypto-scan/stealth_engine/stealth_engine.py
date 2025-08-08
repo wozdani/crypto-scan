@@ -748,6 +748,11 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         # Import lokalny aby uniknąć circular imports
         from .stealth_signals import StealthSignalDetector
         from .stealth_weights import load_weights
+        from engine.aggregator import aggregate
+        from engine.price_ref import resolve_price_ref
+        from engine.decision import make_decision
+        from core.smart_money import apply_smart_money_boost
+        from detectors.orderbook_features import compute_ob_signals
         
         # ⛔ Hard-filter: Skip tokens with too low daily volume  
         volume_24h = token_data.get("volume_24h", 0)
@@ -802,22 +807,39 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         orderbook = token_data.get("orderbook", {})
         dex_inflow = token_data.get("dex_inflow", 0)
         
-        # ENHANCED: Calculate real dex_inflow for display
+        # Resolve price reference once for entire scan
+        try:
+            ticker_price = token_data.get("ticker", {}).get("price", 0.0)
+            candle_price = candles_15m[-1]["close"] if candles_15m else 0.0
+            price_ref = resolve_price_ref(ticker_price, candle_price)
+            print(f"[PRICE REF] {symbol}: Using price_ref=${price_ref:.6f}")
+        except ValueError as e:
+            print(f"[PRICE REF ERROR] {symbol}: {e}")
+            return {
+                "score": 0.0,
+                "active_signals": [],
+                "error": str(e)
+            }
+        
+        # ENHANCED: Calculate real dex_inflow with smart money boost
         try:
             from utils.contracts import get_contract
             from utils.blockchain_scanners import get_token_transfers_last_24h, load_known_exchange_addresses
             
             contract_info = get_contract(symbol)
+            known_exchanges_data = load_known_exchange_addresses()
+            known_exchanges = set()
+            
             if contract_info:
                 real_transfers = get_token_transfers_last_24h(
                     symbol=symbol,
                     chain=contract_info['chain'],
                     contract_address=contract_info['address']
                 )
-                known_exchanges = load_known_exchange_addresses()
-                exchange_addresses = known_exchanges.get(contract_info['chain'], [])
-                dex_routers = known_exchanges.get('dex_routers', {}).get(contract_info['chain'], [])
+                exchange_addresses = known_exchanges_data.get(contract_info['chain'], [])
+                dex_routers = known_exchanges_data.get('dex_routers', {}).get(contract_info['chain'], [])
                 all_known_addresses = set(addr.lower() for addr in exchange_addresses + dex_routers)
+                known_exchanges = all_known_addresses
                 
                 # Calculate actual DEX inflow for display
                 real_dex_inflow = 0
@@ -827,6 +849,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 
                 dex_inflow = real_dex_inflow  # Use real value for display
         except:
+            known_exchanges = set()  # Empty set if loading fails
             pass  # Keep original value if calculation fails
         
         print(f"[STEALTH INPUT] {symbol} data validation:")
@@ -1045,7 +1068,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     total_signals = len(signals)
                     available_signals = 0  # Sygnały z danymi (niezależnie od aktywności)
                     
-                    # Oblicz score tylko z aktywnych sygnałów + liczenie dostępności
+                    # Prepare signals for aggregator
+                    aggregator_signals = {}
                     for signal in signals:
                         # 🔍 FIX 3: Sprawdź czy sygnał ma dane (nie jest placeholder) - poprawiona logika
                         has_data = True
@@ -1071,18 +1095,22 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         if has_data:
                             available_signals += 1
                         
+                        # Add signal to aggregator format
+                        aggregator_signals[signal.name] = {
+                            "active": hasattr(signal, 'active') and signal.active,
+                            "strength": getattr(signal, 'strength', 0.0)
+                        }
+                        
                         if hasattr(signal, 'active') and signal.active:
-                            # Pobierz wagę dla tego sygnału (fallback na 1.0)
-                            weight = weights.get(signal.name, 1.0)
-                            
-                            # Wkład sygnału = waga * siła sygnału
-                            contribution = weight * signal.strength
-                            score += contribution
                             used_signals.append(signal.name)
-                            
-                            # LOG: Każdy aktywny sygnał
-                            if signal.strength > 0:
-                                print(f"[STEALTH] Signal {signal.name}: strength={signal.strength:.3f}, weight={weight:.3f}, contribution=+{contribution:.3f}")
+                    
+                    # Use new aggregator for scoring
+                    agg_result = aggregate(aggregator_signals, weights)
+                    score = agg_result["final_score"]
+                    
+                    # Log contributions
+                    for name, contrib in agg_result["contrib"].items():
+                        print(f"[AGGREGATOR] {name}: strength={contrib['strength']:.3f}, weight={contrib['weight']:.3f}, contribution={contrib['contribution']:.3f}")
                     
                     # 🧠 PARTIAL SCORING MECHANISM - zgodnie z user request
                     data_coverage = available_signals / total_signals if total_signals > 0 else 0
@@ -1665,12 +1693,17 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     gnn_note = f", GNN={gnn_subgraph_score:.3f}" if gnn_active else ""
                     mastermind_note = f", Mastermind={len(mastermind_addresses)} addresses" if mastermind_addresses else ""
                     
+                    # Use unified decision module
+                    decision_result = make_decision(score, stored_final_decision)
+                    alert_eligible = decision_result["send_alert"]
+                    
                     # Log alert decision with consensus data
+                    print(f"[ALERT DECISION] {symbol}: {decision_result['reason']}")
                     print(f"[ALERT DECISION] {symbol}: Consensus={stored_final_decision}, Score={score:.3f}, Eligible={alert_eligible}")
                     
-                    # ✅ ALERT TRIGGER - Check consensus for BUY decision
-                    # Alert system now integrated with multi-agent consensus voting
-                    if stored_final_decision == "BUY" and score >= 0.70:  # Enable alerts for BUY consensus
+                    # ✅ ALERT TRIGGER - Use unified decision result
+                    # Alert system now integrated with unified decision pathway
+                    if decision_result["send_alert"]:  # Use decision module result
                         # Main alert for BUY consensus
                         try:
                             from alerts.stealth_v3_telegram_alerts import send_stealth_v3_alert
@@ -1990,21 +2023,26 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         explore_trigger_reason = None
                         explore_confidence = 0.0
                         
-                        # 🎯 CONSENSUS VOTE ONLY LOGIC - jak requestował user
-                        # Alert logic based ONLY on consensus decision - ignore score thresholds completely
-                        if 'stored_consensus_data' in locals() and stored_consensus_data and stored_consensus_data.get("decision") == "BUY":
-                            should_alert = True
-                            print(f"[CONSENSUS VOTE ALERT] {token_data.get('symbol', 'UNKNOWN')}: Majority agents vote BUY → ALERT TRIGGERED")
-                            print(f"[CONSENSUS VOTE ALERT] {token_data.get('symbol', 'UNKNOWN')}: Votes: {stored_consensus_data.get('votes', [])}")
-                            print(f"[CONSENSUS VOTE ALERT] {token_data.get('symbol', 'UNKNOWN')}: Contributing detectors: {stored_consensus_data.get('contributing_detectors', [])}")
-                        elif 'stored_consensus_data' in locals() and stored_consensus_data and stored_consensus_data.get("decision") in ["HOLD", "AVOID", "WATCH"]:
-                            should_alert = False  
-                            print(f"[CONSENSUS VOTE BLOCK] {token_data.get('symbol', 'UNKNOWN')}: Majority agents vote {stored_consensus_data.get('decision')} → NO ALERT")
-                            print(f"[CONSENSUS VOTE BLOCK] {token_data.get('symbol', 'UNKNOWN')}: Score {score:.3f} ignored (consensus-based logic)")
+                        # 🎯 USE UNIFIED DECISION MODULE
+                        # Alert logic based on unified decision pathway
+                        consensus_decision = stored_consensus_data.get("decision") if 'stored_consensus_data' in locals() and stored_consensus_data else None
+                        stealth_p = score  # Use the stealth score as probability
+                        
+                        # Get unified decision
+                        unified_decision = make_decision(stealth_p, consensus_decision)
+                        should_alert = unified_decision["send_alert"]
+                        
+                        # Log decision
+                        symbol_name = token_data.get('symbol', 'UNKNOWN')
+                        print(f"[UNIFIED DECISION] {symbol_name}: {unified_decision['reason']}")
+                        
+                        if should_alert:
+                            print(f"[UNIFIED ALERT] {symbol_name}: ALERT TRIGGERED")
+                            if 'stored_consensus_data' in locals() and stored_consensus_data:
+                                print(f"[UNIFIED ALERT] {symbol_name}: Votes: {stored_consensus_data.get('votes', [])}")
+                                print(f"[UNIFIED ALERT] {symbol_name}: Contributing detectors: {stored_consensus_data.get('contributing_detectors', [])}") 
                         else:
-                            # No consensus available - default to no alert (explore mode can handle edge cases)
-                            should_alert = False
-                            print(f"[CONSENSUS VOTE] {token_data.get('symbol', 'UNKNOWN')}: No consensus available → NO ALERT (score {score:.3f} ignored)")
+                            print(f"[UNIFIED BLOCK] {symbol_name}: NO ALERT - {unified_decision['reason']}")
                             print(f"[CONSENSUS VOTE] {token_data.get('symbol', 'UNKNOWN')}: Agents need to learn from historical data to vote")
                         
                         # 🎓 EXPLORE MODE LEARNING SYSTEM - zapisuj wysokie score dla uczenia agentów
