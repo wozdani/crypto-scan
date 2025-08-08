@@ -3,6 +3,8 @@ Price Reference Module
 Provides consistent price reference for entire scan run
 """
 
+from typing import Optional
+
 def resolve_price_ref(ticker_price: Optional[float], candle_price: Optional[float]) -> float:
     """
     Return one price_ref for entire scan. Prefer ticker if >0,
