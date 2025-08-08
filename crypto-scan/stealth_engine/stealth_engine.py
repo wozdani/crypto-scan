@@ -1596,12 +1596,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         if detector_outputs:
                             print(f"[MULTI-AGENT CONSENSUS] {symbol}: Using Multi-Agent decision system with {len(detector_outputs)} detectors")
                             
-                            # Log individual detector votes for multi-agent analysis
-                            for detector_name, data in detector_outputs.items():
-                                detector_score = data["score"]
-                                detector_weight = data["weight"]
-                                detector_vote = data["vote"]
-                                print(f"[DETECTOR VOTE] {symbol}: {detector_name} → Score={detector_score:.3f}, Weight={detector_weight}, Vote={detector_vote}")
+                            # Passing directly to Multi-Agent Consensus System (no simple vote logging)
                             
                             # Use Decision Consensus Engine with Multi-Agent System
                             try:
@@ -2515,12 +2510,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 # MULTI-AGENT CONSENSUS - Restored Real AI Voting System
                 print(f"[MULTI-AGENT CONSENSUS] {symbol}: Using Multi-Agent decision system with {len(detector_outputs)} detectors")
                 
-                # Log individual detector votes for multi-agent analysis
-                for detector_name, data in detector_outputs.items():
-                    detector_score = data["score"]
-                    detector_weight = data["weight"]
-                    detector_vote = data["vote"]
-                    print(f"[DETECTOR VOTE] {symbol}: {detector_name} → Score={detector_score:.3f}, Weight={detector_weight}, Vote={detector_vote}")
+                # Passing directly to Multi-Agent Consensus System (no simple vote logging)
                 
                 # Use Decision Consensus Engine with Multi-Agent System
                 try:
