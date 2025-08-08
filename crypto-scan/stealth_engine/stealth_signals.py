@@ -1375,7 +1375,7 @@ class StealthSignalDetector:
         volume_threshold = 5.0 if len(bids) <= 1 else 10.0  # Lower for microcap tokens
         
         # ENHANCED: Adaptive logic for low-liquidity tokens
-        token_price = token_data.get("price_usd", 1.0)
+        token_price = token_data.get("price_ref", 1.0)
         is_microcap = token_price < 1.0  # Tokens under $1 are considered microcap
         
         min_levels_required = 1 if is_microcap else 3  # Relaxed requirement for microcap

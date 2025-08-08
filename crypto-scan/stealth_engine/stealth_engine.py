@@ -754,6 +754,13 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         from core.smart_money import apply_smart_money_boost
         from detectors.orderbook_features import compute_ob_signals
         
+        # FEATURES: Resolve price reference once for entire scan - beginning of FEATURES
+        candles_15m = token_data.get("candles_15m", [])
+        ticker_price = token_data.get("ticker", {}).get("price", 0.0)
+        candle_price = candles_15m[-1]["close"] if candles_15m else 0.0
+        price_ref = resolve_price_ref(ticker_price, candle_price)
+        print(f"[PRICE REF] {symbol}: Using price_ref=${price_ref:.6f}")
+        
         # ⛔ Hard-filter: Skip tokens with too low daily volume  
         volume_24h = token_data.get("volume_24h", 0)
         skip_reason = None
@@ -765,30 +772,6 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         else:
             # LOG: Rozpoczęcie analizy Stealth Engine
             print(f"[STEALTH] Checking token: {symbol}...")
-            
-            # Walidacja tickera z fallback na cenę ze świeczek
-            price = token_data.get("price_usd", 0)
-        
-        # 🔧 PRICE FALLBACK: Use candles_15m close price if ticker price_usd == 0
-        if price == 0:
-            try:
-                candles_15m = token_data.get("candles_15m", [])
-                if candles_15m and len(candles_15m) > 0:
-                    last_candle = candles_15m[-1]
-                    if isinstance(last_candle, dict) and "close" in last_candle:
-                        price = float(last_candle["close"])
-                        print(f"[STEALTH PRICE FALLBACK] {symbol} → Using candle price: ${price}")
-                    elif isinstance(last_candle, (list, tuple)) and len(last_candle) >= 5:
-                        price = float(last_candle[4])  # close price in OHLCV format
-                        print(f"[STEALTH PRICE FALLBACK] {symbol} → Using candle price: ${price}")
-            except Exception as e:
-                print(f"[STEALTH PRICE FALLBACK ERROR] {symbol} → Cannot extract fallback price: {e}")
-        
-            if price == 0:
-                print(f"[STEALTH SKIPPED] {symbol}: No valid price data (ticker and candles both failed) - blocking STEALTH analysis")
-                skip_reason = "no_price_data"
-                score = 0.0
-                active_signals = []
         
         if volume_24h == 0:
             print(f"[STEALTH VOLUME WARNING] {symbol}: 24h volume is 0 - possible data issue")
@@ -802,24 +785,12 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         detector = StealthSignalDetector()
         
         # Debug danych wejściowych przed analizą sygnałów
-        candles_15m = token_data.get("candles_15m", [])
         candles_5m = token_data.get("candles_5m", [])
         orderbook = token_data.get("orderbook", {})
         dex_inflow = token_data.get("dex_inflow", 0)
         
-        # Resolve price reference once for entire scan
-        try:
-            ticker_price = token_data.get("ticker", {}).get("price", 0.0)
-            candle_price = candles_15m[-1]["close"] if candles_15m else 0.0
-            price_ref = resolve_price_ref(ticker_price, candle_price)
-            print(f"[PRICE REF] {symbol}: Using price_ref=${price_ref:.6f}")
-        except ValueError as e:
-            print(f"[PRICE REF ERROR] {symbol}: {e}")
-            return {
-                "score": 0.0,
-                "active_signals": [],
-                "error": str(e)
-            }
+        # Add price_ref to token_data for use in all detectors
+        token_data["price_ref"] = price_ref
         
         # ENHANCED: Calculate real dex_inflow with smart money boost
         try:
@@ -943,7 +914,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         mid_price = (bid_price + ask_price) / 2
                         spread_pct = (ask_price - bid_price) / mid_price
                     else:
-                        mid_price = price or 0
+                        mid_price = price_ref or 0
                         spread_pct = 0.01  # Default spread
                     
                     # Safe volume calculation
