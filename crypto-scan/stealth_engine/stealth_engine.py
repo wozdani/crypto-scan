@@ -1106,11 +1106,11 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     
                     # Use new aggregator for scoring
                     agg_result = aggregate(aggregator_signals, weights)
-                    score = agg_result["final_score"]
+                    score = agg_result["p_raw"]  # Use p_raw instead of final_score
                     
-                    # Log contributions
+                    # Log contributions (updated for new contrib structure)
                     for name, contrib in agg_result["contrib"].items():
-                        print(f"[AGGREGATOR] {name}: strength={contrib['strength']:.3f}, weight={contrib['weight']:.3f}, contribution={contrib['contribution']:.3f}")
+                        print(f"[AGGREGATOR] {name}: strength={contrib['s']:.3f}, weight={contrib['w']:.3f}, contribution={contrib['v']:.3f}")
                     
                     # 🧠 PARTIAL SCORING MECHANISM - zgodnie z user request
                     data_coverage = available_signals / total_signals if total_signals > 0 else 0
