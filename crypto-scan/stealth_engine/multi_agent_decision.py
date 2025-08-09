@@ -280,7 +280,7 @@ class MultiAgentDecisionSystem:
         print(f"[MULTI-AGENT BATCH] Running batch evaluation for {detector_name} with all 5 agents in 1 API call...")
         
         # Uruchom batch evaluation dla wszystkich 5 agentów naraz
-        all_responses = await self.batch_agent_evaluation(all_contexts)
+        all_responses = await self.batch_llm_reasoning(all_contexts)
         
         # Wyświetl głosy każdego agenta
         print(f"\n[MULTI-AGENT VOTES] Individual agent decisions:")
@@ -385,99 +385,150 @@ class MultiAgentDecisionSystem:
         
         return log
     
+    async def batch_llm_reasoning(self, all_contexts: List[Tuple[AgentRole, Dict[str, Any]]]) -> List[AgentResponse]:
+        """
+        Wykonuje batch OpenAI call dla wszystkich 5 agentów w jednym zapytaniu
+        """
+        if not all_contexts:
+            return []
+            
+        # Stwórz batch prompt dla wszystkich 5 agentów
+        batch_prompt = self._create_batch_prompt(all_contexts)
+        
+        try:
+            print(f"[BATCH API] Calling OpenAI with GPT-5 for {len(all_contexts)} agents...")
+            
+            # Single OpenAI API call for all 5 agents
+            response = await asyncio.to_thread(
+                self.openai_client.chat.completions.create,
+                model="gpt-5",
+                messages=[{"role": "user", "content": batch_prompt}],
+                response_format={"type": "json_object"},
+                max_tokens=2000,
+                temperature=0.1,
+                timeout=self.timeout
+            )
+            
+            # Parse JSON response
+            batch_result = json.loads(response.choices[0].message.content)
+            
+            # Convert batch result to individual AgentResponse objects
+            responses = self._parse_batch_response(batch_result, all_contexts)
+            
+            print(f"[BATCH SUCCESS] Got {len(responses)} agent responses from single API call")
+            return responses
+            
+        except asyncio.TimeoutError:
+            print(f"[BATCH TIMEOUT] Batch API call timed out after {self.timeout}s")
+            return [self._fallback_reasoning(role, context) for role, context in all_contexts]
+        except json.JSONDecodeError as e:
+            print(f"[BATCH JSON ERROR] Failed to parse batch response: {e}")
+            return [self._fallback_reasoning(role, context) for role, context in all_contexts]
+        except Exception as e:
+            print(f"[BATCH ERROR] Batch evaluation failed: {e}")
+            return [self._fallback_reasoning(role, context) for role, context in all_contexts]
+    
     def _create_batch_prompt(self, all_contexts: List[Tuple[AgentRole, Dict[str, Any]]]) -> str:
-        """Tworzy batch prompt dla wszystkich detektorów i ich agentów w jednym zapytaniu"""
-        # Group contexts by detector
-        detectors = {}
-        for role, context in all_contexts:
-            detector_name = context['detector_name']
-            if detector_name not in detectors:
-                detectors[detector_name] = {
-                    'score': context['score'],
-                    'threshold': context['threshold'],
-                    'roles': []
-                }
-            detectors[detector_name]['roles'].append(role)
+        """
+        Tworzy batch prompt dla wszystkich 5 agentów w jednym zapytaniu
+        """
+        if not all_contexts:
+            return ""
+            
+        # Wyciągnij podstawowe dane z pierwszego kontekstu (wszystkie mają te same dane)
+        _, context = all_contexts[0]
+        detector_name = context.get('detector_name', 'unknown')
+        score = context.get('score', 0.0)
+        threshold = context.get('threshold', 0.7)
+        market_data = context.get('market_data', {})
+        signal_data = context.get('signal_data', {})
         
-        # Build prompt for all detectors
-        batch_prompt = """You are a panel of 5 expert cryptocurrency trading agents evaluating multiple detectors.
+        volume_24h = market_data.get('volume_24h', 0) if market_data else 0
+        price_change_24h = market_data.get('price_change_24h', 0) if market_data else 0
+        
+        prompt = f"""Analyze cryptocurrency detector signal: {detector_name}
 
-For EACH detector below, ALL 5 agents must provide their independent analysis.
+DETECTOR DATA:
+- Score: {score:.3f}
+- Threshold: {threshold:.3f}
+- Signal Data: {signal_data}
 
-Detectors to evaluate:
-"""
-        
-        for detector_name, data in detectors.items():
-            batch_prompt += f"\n- {detector_name}: score={data['score']:.3f} (threshold={data['threshold']})"
-        
-        batch_prompt += """
+MARKET CONTEXT:
+- Volume 24h: ${volume_24h:,.0f}
+- Price Change 24h: {price_change_24h:.2f}%
+- Market Data: {market_data}
 
-Respond in this exact JSON format with ALL detectors:
-{
-"""
-        
-        # Add expected format for each detector
-        detector_list = list(detectors.keys())
-        for i, detector_name in enumerate(detector_list):
-            batch_prompt += f'''  "{detector_name}": {{
-    "analyzer": {{"decision": "YES" or "NO", "confidence": 0.0-1.0, "reasoning": "..."}},
-    "reasoner": {{"decision": "YES" or "NO", "confidence": 0.0-1.0, "reasoning": "..."}},
-    "voter": {{"decision": "YES" or "NO", "confidence": 0.0-1.0, "reasoning": "..."}},
-    "debater": {{"decision": "YES" or "NO", "confidence": 0.0-1.0, "reasoning": "..."}},
-    "decider": {{"decision": "YES" or "NO", "confidence": 0.0-1.0, "reasoning": "..."}}
-  }}'''
-            if i < len(detector_list) - 1:
-                batch_prompt += ",\n"
-            else:
-                batch_prompt += "\n"
-        
-        batch_prompt += "}"
-        return batch_prompt
+You are a panel of 5 expert cryptocurrency trading agents. Each agent must evaluate this detector signal and provide a decision.
 
-    def _parse_batch_response(self, batch_result: Dict[str, Any], all_contexts: List[Tuple[AgentRole, Dict[str, Any]]]) -> List[AgentResponse]:
-        """Parse batch OpenAI response dla wielu detektorów do AgentResponse objects"""
+Return JSON with exactly this structure:
+{{
+    "analyzer": {{
+        "decision": "YES" or "NO",
+        "confidence": 0.0-1.0,
+        "reasoning": "detailed analysis reasoning"
+    }},
+    "reasoner": {{
+        "decision": "YES" or "NO", 
+        "confidence": 0.0-1.0,
+        "reasoning": "market reasoning and context"
+    }},
+    "voter": {{
+        "decision": "YES" or "NO",
+        "confidence": 0.0-1.0,
+        "reasoning": "voting decision rationale"
+    }},
+    "debater": {{
+        "decision": "YES" or "NO",
+        "confidence": 0.0-1.0,
+        "reasoning": "debate perspective and counterarguments"
+    }},
+    "decider": {{
+        "decision": "YES" or "NO",
+        "confidence": 0.0-1.0,
+        "reasoning": "final decision based on all evidence"
+    }}
+}}
+
+AGENT ROLES:
+- Analyzer: Technical analysis of detector score vs threshold
+- Reasoner: Market context and volume analysis
+- Voter: Binary voting decision with confidence
+- Debater: Challenge assumptions and provide counterarguments
+- Decider: Final consensus based on other agents
+
+Each agent should decide YES (recommend BUY) or NO (avoid/hold) based on the detector signal strength and market conditions."""
+
+        return prompt
+
+    def _parse_batch_response(self, batch_result: Dict, all_contexts: List[Tuple[AgentRole, Dict[str, Any]]]) -> List[AgentResponse]:
+        """
+        Parsuje batch response z OpenAI na listę AgentResponse
+        """
         responses = []
-        role_mapping = {
-            'analyzer': AgentRole.ANALYZER,
-            'reasoner': AgentRole.REASONER,
-            'voter': AgentRole.VOTER,
-            'debater': AgentRole.DEBATER,
-            'decider': AgentRole.DECIDER
-        }
         
-        # Group contexts by detector to maintain order
-        detector_order = []
-        detector_contexts = {}
-        for role, context in all_contexts:
-            detector_name = context['detector_name']
-            if detector_name not in detector_order:
-                detector_order.append(detector_name)
-                detector_contexts[detector_name] = []
-            detector_contexts[detector_name].append((role, context))
+        agent_keys = ['analyzer', 'reasoner', 'voter', 'debater', 'decider']
+        agent_roles = [AgentRole.ANALYZER, AgentRole.REASONER, AgentRole.VOTER, AgentRole.DEBATER, AgentRole.DECIDER]
         
-        # Process each detector in order
-        for detector_name in detector_order:
-            if detector_name in batch_result:
-                detector_data = batch_result[detector_name]
-                # Process each role for this detector
-                for role_key, role_enum in role_mapping.items():
-                    if role_key in detector_data:
-                        agent_data = detector_data[role_key]
-                        response = AgentResponse(
-                            role=role_enum,
-                            decision=agent_data.get('decision', 'NO'),
-                            reasoning=agent_data.get('reasoning', f'Fallback for {detector_name} {role_enum.value}'),
-                            confidence=float(agent_data.get('confidence', 0.5))
-                        )
-                        responses.append(response)
-                    else:
-                        # Fallback if role missing
-                        context = detector_contexts[detector_name][0][1]  # Use first context for this detector
-                        responses.append(self._fallback_reasoning(role_enum, context))
-            else:
-                # Fallback for entire detector missing
-                for role, context in detector_contexts[detector_name]:
-                    responses.append(self._fallback_reasoning(role, context))
+        for i, (role, agent_key) in enumerate(zip(agent_roles, agent_keys)):
+            try:
+                agent_data = batch_result.get(agent_key, {})
+                decision = agent_data.get('decision', 'NO')
+                confidence = float(agent_data.get('confidence', 0.5))
+                reasoning = agent_data.get('reasoning', f'Default {role.value} reasoning')
+                
+                response = AgentResponse(
+                    role=role,
+                    decision=decision,
+                    confidence=confidence,
+                    reasoning=reasoning
+                )
+                responses.append(response)
+                
+            except Exception as e:
+                print(f"[BATCH PARSE ERROR] Failed to parse {agent_key}: {e}")
+                # Fallback response
+                _, context = all_contexts[i] if i < len(all_contexts) else (role, {})
+                responses.append(self._fallback_reasoning(role, context))
         
         return responses
     
