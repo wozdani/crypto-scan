@@ -98,23 +98,35 @@ class MultiAgentDecisionSystem:
                 max_completion_tokens=2000
             )
             
-            # Parse batch response with proper error handling
+            # Enhanced error handling for OpenAI response
+            if not response.choices or len(response.choices) == 0:
+                print(f"[MULTI-AGENT BATCH ERROR] No choices in OpenAI response")
+                return [self._fallback_reasoning(role, context) for role, context in all_contexts]
+            
             response_content = response.choices[0].message.content
             if not response_content or response_content.strip() == "":
                 print(f"[MULTI-AGENT BATCH ERROR] Empty response from OpenAI API")
+                print(f"[MULTI-AGENT BATCH ERROR] Response object: {response}")
+                print(f"[MULTI-AGENT BATCH ERROR] Falling back to intelligent simulation")
                 return [self._fallback_reasoning(role, context) for role, context in all_contexts]
                 
             try:
                 batch_result = json.loads(response_content)
+                if not isinstance(batch_result, dict):
+                    print(f"[MULTI-AGENT BATCH ERROR] Response is not a valid JSON object")
+                    return [self._fallback_reasoning(role, context) for role, context in all_contexts]
                 return self._parse_batch_response(batch_result, all_contexts)
             except json.JSONDecodeError as e:
                 print(f"[MULTI-AGENT BATCH ERROR] Invalid JSON in response: {e}")
-                print(f"[MULTI-AGENT BATCH ERROR] Raw response: {response_content[:200]}...")
+                print(f"[MULTI-AGENT BATCH ERROR] Raw response: {response_content[:300]}...")
                 return [self._fallback_reasoning(role, context) for role, context in all_contexts]
             
         except Exception as e:
             print(f"[MULTI-AGENT BATCH ERROR] OpenAI batch call failed: {e}")
-            # Fallback dla wszystkich agentów
+            import traceback
+            print(f"[MULTI-AGENT BATCH ERROR] Traceback: {traceback.format_exc()}")
+            print(f"[MULTI-AGENT BATCH ERROR] Using intelligent fallback for all agents")
+            # Enhanced fallback dla wszystkich agentów
             return [self._fallback_reasoning(role, context) for role, context in all_contexts]
 
     async def llm_reasoning(self, role: AgentRole, context: Dict[str, Any]) -> AgentResponse:
@@ -523,75 +535,48 @@ Respond in this exact JSON format with ALL detectors:
         return self._fallback_reasoning(role, context)
     
     def _fallback_reasoning(self, role: AgentRole, context: Dict[str, Any]) -> AgentResponse:
-        """Enhanced fallback reasoning when OpenAI API is unavailable"""
-        detector_name = context.get('detector_name', 'unknown')
+        """Enhanced fallback reasoning when OpenAI API fails or returns empty response"""
         score = context.get('score', 0.0)
         threshold = context.get('threshold', 0.7)
-        market_data = context.get('market_data', {})
-        signal_data = context.get('signal_data', {})
         
-        return self._simulate_agent_decision(role, detector_name, score, threshold, market_data, signal_data)
-    
-    def _simulate_agent_decision(self, role: AgentRole, detector_name: str, score: float, threshold: float, market_data: Dict, signal_data: Dict) -> AgentResponse:
-        """Simulate agent decision with enhanced logic (extracted from original llm_reasoning)"""
-        
+        # Enhanced thresholds for better decision making - lowered for score >0.6
         if role == AgentRole.ANALYZER:
-            if score > 0.6:  # Lowered from 0.8 to 0.6
-                reasoning = f"Analysis: Score {score:.3f} above reliability threshold ({0.6})"
-                decision = "YES"
-                confidence = 0.750
-            else:
-                reasoning = f"Analysis: Score {score:.3f} below reliability threshold ({0.6})"
-                decision = "NO"
-                confidence = 0.750
-                
+            decision = "YES" if score > 0.6 else "NO"
+            confidence = 0.9 if score > 0.8 else 0.75
+            reasoning = f"Analysis: Score {score:.3f} {'above' if decision == 'YES' else 'below'} reliability threshold (0.6)"
+            
         elif role == AgentRole.REASONER:
-            volume_24h = market_data.get('volume_24h', 0)
-            reasoning = f"Market reasoning: Volume ${volume_24h:,.0f}, score context acceptable"
-            decision = "YES" if score > threshold * 0.8 else "NO"
-            confidence = 0.800
-                
+            volume = context.get('market_data', {}).get('volume_24h', 0)
+            decision = "YES" if volume > 300000 and score > 0.6 else "NO"
+            confidence = 0.8
+            reasoning = f"Market reasoning: Volume ${volume:,.0f}, score context acceptable"
+            
         elif role == AgentRole.VOTER:
-            if score > threshold:
-                reasoning = f"Vote: Score {score:.3f} meets voting criteria (threshold: {threshold:.1f})"
-                decision = "YES"
-                confidence = 0.900
-            else:
-                reasoning = f"Vote: Score {score:.3f} fails voting criteria (threshold: {threshold:.1f})"
-                decision = "NO"
-                confidence = 0.900
-                
+            decision = "YES" if score > 0.6 else "NO"
+            confidence = 0.9
+            reasoning = f"Vote: Score {score:.3f} {'meets' if decision == 'YES' else 'fails'} voting criteria (threshold: 0.6)"
+            
         elif role == AgentRole.DEBATER:
-            if score > threshold * 0.8:
-                reasoning = f"Debate: Supporting based on evidence (threshold: {threshold:.1f})"
-                decision = "YES"
-                confidence = 0.750
-            else:
-                reasoning = f"Debate: Opposing based on evidence (threshold: {threshold:.1f})"
-                decision = "NO"
-                confidence = 0.750
-                
+            yes_count = sum(1 for h in self.debate_history if h.get('decision') == 'YES')
+            decision = "YES" if (yes_count >= 1 and score > 0.6) or score > 0.8 else "NO"
+            confidence = 0.75
+            reasoning = f"Debate: {'Supporting' if decision == 'YES' else 'Opposing'} based on evidence (threshold: 0.6)"
+            
         elif role == AgentRole.DECIDER:
-            yes_votes = sum(1 for h in self.debate_history if h.get('decision') == "YES")
-            if yes_votes >= 2:  # Majority of 4 previous agents
-                reasoning = f"Final decision: {yes_votes}/4 agents support (score threshold: {threshold:.1f})"
-                decision = "YES"
-                confidence = 0.900
-            else:
-                reasoning = f"Final decision: {yes_votes}/4 agents support (score threshold: {threshold:.1f})"
-                decision = "NO"
-                confidence = 0.900
+            yes_votes = sum(1 for h in self.debate_history if h.get('decision') == 'YES')
+            decision = "YES" if yes_votes >= 2 and score > 0.6 else "NO"
+            confidence = 0.9
+            reasoning = f"Final decision: {yes_votes}/{len(self.debate_history)} agents support (score threshold: 0.6)"
+            
         else:
-            reasoning = "Default reasoning"
-            decision = "NO"
-            confidence = 0.500
-        
-        return AgentResponse(
-            role=role,
-            decision=decision,
-            reasoning=reasoning,
-            confidence=confidence
-        )
+            # Default fallback for any unknown role
+            decision = "YES" if score > 0.6 else "NO"
+            confidence = 0.7
+            reasoning = f"Default fallback: Score {score:.3f} evaluated with 0.6 threshold"
+            
+        return AgentResponse(role=role, decision=decision, reasoning=reasoning, confidence=confidence)
+    
+# Function removed - now using consolidated _fallback_reasoning instead
 
     async def _real_llm_reasoning(self, role: AgentRole, context: Dict[str, Any]) -> AgentResponse:
         """
