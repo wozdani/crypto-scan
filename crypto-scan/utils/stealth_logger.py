@@ -253,17 +253,18 @@ class StealthLogger:
                     avoid_count += 1
             
             total_votes = len(consensus_votes)
-            # 🔐 CRITICAL FIX: Require 2-vote difference (yes_votes - no_votes >= 2)
-            vote_difference = buy_count - avoid_count
+            # 🔐 CRITICAL FIX: Require 2-vote difference (BUY vs HOLD+AVOID >= 2)
+            non_buy_votes = hold_count + avoid_count
+            vote_difference = buy_count - non_buy_votes
             sufficient_consensus = vote_difference >= 2  # Minimum 2-vote difference required
             
             print(f"[CONSENSUS VALIDATION] {token}: BUY={buy_count}, HOLD={hold_count}, AVOID={avoid_count}, total={total_votes}, vote_difference={vote_difference}")
-            print(f"[CONSENSUS VALIDATION] {token}: Vote difference: {buy_count} BUY - {avoid_count} AVOID = {vote_difference} (need ≥2 for alert)")
+            print(f"[CONSENSUS VALIDATION] {token}: Vote difference: {buy_count} BUY - ({hold_count} HOLD + {avoid_count} AVOID) = {vote_difference} (need ≥2 for alert)")
             
-            # Alert tylko jeśli jest różnica co najmniej 2 głosów BUY vs AVOID
+            # Alert tylko jeśli jest różnica co najmniej 2 głosów BUY vs (HOLD+AVOID)
             if not sufficient_consensus:
                 print(f"[CONSENSUS BLOCK] {token}: Insufficient vote difference ({vote_difference} < 2) - BLOCKING alert")
-                print(f"[CONSENSUS BLOCK] {token}: Need at least {avoid_count + 2} BUY votes vs {avoid_count} AVOID votes")
+                print(f"[CONSENSUS BLOCK] {token}: Need at least {non_buy_votes + 2} BUY votes vs ({hold_count} HOLD + {avoid_count} AVOID) votes")
                 print(f"[CONSENSUS BLOCK] {token}: Votes breakdown: BUY={buy_count}, HOLD={hold_count}, AVOID={avoid_count}")
                 return
         elif consensus_decision != 'BUY':
