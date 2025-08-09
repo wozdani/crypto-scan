@@ -19,6 +19,11 @@ class AddressTracker:
         self.history_file = Path(history_file)
         self.history_file.parent.mkdir(exist_ok=True)
         self.address_history = self._load_history()
+        
+        # 🎯 CONTEXT TRACKING: Current round tracking per token_uid
+        self.current_round_context = {}  # token_uid -> round_id
+        self.round_addresses = {}  # token_uid -> set of addresses in current round
+        
         self._migrate_to_new_format()
     
     def _load_history(self) -> Dict:
@@ -76,28 +81,57 @@ class AddressTracker:
             self._save_history()
             print(f"[ADDRESS TRACKER] Migrated to new format: {len(new_format)} addresses, {migrated_count} activities")
 
-    def record_address_activity(self, token: str, address: str, usd_value: float, 
-                               source: str, timestamp: str = None):
+    def begin_round(self, token: str, chain: str, contract: str, round_id: str):
         """
-        Record address activity for a token (NEW FORMAT: address-centric)
+        Begin new scan round for a specific token with context reset
+        
+        Args:
+            token: Token symbol (e.g., "BTCUSDT")
+            chain: Blockchain chain (e.g., "ethereum")
+            contract: Contract address
+            round_id: Unique round identifier
+        """
+        # 🎯 CREATE COMPOSITE KEY: chain:contract:symbol
+        token_uid = f"{chain}:{contract}:{token}"
+        
+        # Reset context for this token_uid
+        self.current_round_context[token_uid] = round_id
+        self.round_addresses[token_uid] = set()
+        
+        print(f"[ADDRESS TRACKER] Round started: {token_uid} (round_id: {round_id})")
+    
+    def record_address_activity(self, token: str, address: str, usd_value: float, 
+                               source: str, chain: str = None, contract: str = None, timestamp: str = None):
+        """
+        Record address activity for a token with composite key tracking
         
         Args:
             token: Token symbol (e.g., "BTCUSDT")
             address: Wallet address
             usd_value: USD value of transaction/order
             source: Source of activity ("dex_inflow" or "whale_ping")
+            chain: Blockchain chain (for composite key)
+            contract: Contract address (for composite key)
             timestamp: ISO timestamp (defaults to now)
         """
         if timestamp is None:
             timestamp = datetime.now().isoformat()
         
+        # 🎯 CREATE COMPOSITE KEY if chain/contract provided
+        token_uid = f"{chain}:{contract}:{token}" if chain and contract else token
+        
+        # Track address in current round
+        if token_uid in self.round_addresses:
+            self.round_addresses[token_uid].add(address)
+        
         # Initialize address if not exists (NEW FORMAT)
         if address not in self.address_history:
             self.address_history[address] = []
         
-        # Add new activity record with token field
+        # Add new activity record with token field and token_uid
         activity = {
             "token": token,
+            "token_uid": token_uid,
             "timestamp": timestamp,
             "usd_value": usd_value,
             "source": source
@@ -105,20 +139,23 @@ class AddressTracker:
         
         self.address_history[address].append(activity)
         
-        print(f"[ADDRESS TRACKER] Recorded {source} activity: {token} | {address[:8]}... | ${usd_value:,.0f}")
+        # 🎯 ENHANCED LOGGING with token_uid for context clarity
+        print(f"[ADDRESS TRACKER] Recorded {source} activity: {token_uid} | {address[:8]}... | ${usd_value:,.0f}")
         
         # Save updated history
         self._save_history()
     
     def get_repeated_addresses_boost(self, token: str, current_addresses: List[str], 
-                                   history_days: int = 30) -> Tuple[float, Dict]:  # WYMAGANIE #5: Zwiększone z 7 do 30 dni
+                                   history_days: int = 30, chain: str = None, contract: str = None) -> Tuple[float, Dict]:  # WYMAGANIE #5: Zwiększone z 7 do 30 dni
         """
-        Calculate boost score based on repeated address appearances on SAME token
+        Calculate boost score based on repeated address appearances on SAME token with composite key support
         
         Args:
             token: Token symbol
             current_addresses: List of addresses active in current scan
             history_days: Days to look back in history
+            chain: Blockchain chain (for composite key matching)
+            contract: Contract address (for composite key matching)
             
         Returns:
             Tuple of (boost_score, details_dict)
@@ -126,6 +163,9 @@ class AddressTracker:
         # PUNKT 6 FIX: Jeśli brak adresów, zwróć 0 bez żadnego minimum boost
         if not current_addresses or len(current_addresses) == 0:
             return 0.0, {"repeated_addresses": 0, "details": []}
+        
+        # 🎯 CREATE COMPOSITE KEY for precise token matching
+        token_uid = f"{chain}:{contract}:{token}" if chain and contract else token
         
         # Calculate cutoff date
         cutoff_date = datetime.now() - timedelta(days=history_days)
@@ -136,10 +176,11 @@ class AddressTracker:
         
         for address in current_addresses:
             if address in self.address_history:
-                # Filter activities for this token within time window
+                # Filter activities for this token_uid within time window (COMPOSITE KEY MATCH)
                 token_activities = [
                     activity for activity in self.address_history[address]
-                    if activity.get("token") == token and activity["timestamp"] >= cutoff_iso
+                    if (activity.get("token_uid", activity.get("token")) == token_uid or 
+                        activity.get("token") == token) and activity["timestamp"] >= cutoff_iso
                 ]
                 
                 if len(token_activities) > 1:  # Address appeared more than once on this token
