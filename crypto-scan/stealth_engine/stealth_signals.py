@@ -656,16 +656,16 @@ class StealthSignalDetector:
                     # Use the best available address (real or synthesized)
                     best_address = real_whale_addresses[0] if real_whale_addresses else max_whale_address
                     if best_address:
-                        # Apply boost with whale characteristics
-                        boosted_strength = apply_smart_money_boost(
-                            base_strength=strength,
-                            trust=0.6,  # Default trust for whale addresses
-                            preds=1,    # Default predictions
-                            usd=max_order_usd,
-                            repeats_7d=1,  # Default repeats
-                            addr=best_address,
-                            known_exchanges=known_exchanges
-                        )
+                        # Check if address has sufficient trust (not a CEX)
+                        from core.smart_money import check_trust_ok
+                        addresses = [{"addr": best_address, "trust": 0.6}]
+                        trust_ok = check_trust_ok(addresses, known_exchanges, min_trust=0.6)
+                        
+                        # Create signal dict and apply boost
+                        sig = {"strength": strength, "meta": {}}
+                        boosted_sig = apply_smart_money_boost(sig, trust_ok)
+                        boosted_strength = boosted_sig["strength"]
+                        
                         if boosted_strength != strength:
                             print(f"[WHALE PING BOOST] {symbol}: Smart money boost applied: {strength:.3f} → {boosted_strength:.3f}")
                             strength = boosted_strength
@@ -1171,15 +1171,17 @@ class StealthSignalDetector:
                     if max_transfer_addr:
                         # WYMAGANIE #4: Apply boost with CEX exclusion (all_known_addresses includes CEX)
                         print(f"[DEX INFLOW CEX EXCLUSION] Using {len(all_known_addresses)} known CEX/DEX addresses")
-                        boosted_strength = apply_smart_money_boost(
-                            base_strength=strength,
-                            trust=0.7,  # Default trust for DEX inflow addresses
-                            preds=2,    # Default predictions
-                            usd=max_transfer_value,
-                            repeats_7d=len([a for a in real_addresses if a == max_transfer_addr]),
-                            addr=max_transfer_addr,
-                            known_exchanges=all_known_addresses
-                        )
+                        
+                        # Check if address has sufficient trust (not a CEX)
+                        from core.smart_money import check_trust_ok
+                        addresses = [{"addr": max_transfer_addr, "trust": 0.7}]
+                        trust_ok = check_trust_ok(addresses, all_known_addresses, min_trust=0.6)
+                        
+                        # Create signal dict and apply boost
+                        sig = {"strength": strength, "meta": {}}
+                        boosted_sig = apply_smart_money_boost(sig, trust_ok)
+                        boosted_strength = boosted_sig["strength"]
+                        
                         if boosted_strength != strength:
                             print(f"[DEX INFLOW BOOST] {symbol}: Smart money boost applied: {strength:.3f} → {boosted_strength:.3f}")
                             strength = boosted_strength
