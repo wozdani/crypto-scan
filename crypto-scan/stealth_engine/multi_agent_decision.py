@@ -415,7 +415,7 @@ class MultiAgentDecisionSystem:
                 model="gpt-5",
                 messages=[{"role": "user", "content": batch_prompt}],
                 response_format={"type": "json_object"},
-                max_tokens=2000,
+                max_completion_tokens=2000,
                 temperature=0.1,
                 timeout=self.timeout
             )

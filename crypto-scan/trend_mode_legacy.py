@@ -928,7 +928,7 @@ Focus on: trend quality, pullback depth, support levels, volume confirmation, en
                     {"role": "user", "content": prompt}
                 ],
                 temperature=1.0,
-                max_tokens=200
+                max_completion_tokens=200
             )
             
             # Parse response

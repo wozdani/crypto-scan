@@ -163,7 +163,7 @@ Provide brief analysis (max 100 words) with risk level (low/medium/high), confid
         response = openai.chat.completions.create(
             model="gpt-5",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=150
+            max_completion_tokens=150
         )
         return response.choices[0].message.content.strip() if response.choices[0].message.content else "No response"
     except Exception as e:

@@ -261,7 +261,7 @@ Format odpowiedzi:
                     ]
                 }
             ],
-            max_tokens=800
+            max_completion_tokens=800
         )
         
         commentary = response.choices[0].message.content
@@ -343,7 +343,7 @@ Bądź konkretny i wskaż specific visual patterns."""
                     ]
                 }
             ],
-            max_tokens=600
+            max_completion_tokens=600
         )
         
         explanation = response.choices[0].message.content
@@ -427,7 +427,7 @@ Bądź krytyczny i wskaż konkretne problemy."""
                     ]
                 }
             ],
-            max_tokens=700
+            max_completion_tokens=700
         )
         
         audit_report = response.choices[0].message.content
@@ -499,7 +499,7 @@ Bądź precyzyjny i używaj terminologii technicznej."""
                     ]
                 }
             ],
-            max_tokens=500
+            max_completion_tokens=500
         )
         
         description = response.choices[0].message.content
@@ -568,7 +568,7 @@ Przykład: "Obserwujemy cofnięcie do strefy wsparcia w silnym trendzie. Wolumen
         response = openai_client.chat.completions.create(
             model="gpt-5",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=200
+            max_completion_tokens=200
         )
         
         commentary = response.choices[0].message.content.strip()
