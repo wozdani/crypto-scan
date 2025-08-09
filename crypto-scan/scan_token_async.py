@@ -591,17 +591,26 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     elif stealth_result.get("final_score", 0) > 1.0:  # Strong stealth signals suggest whale activity
                         # Parse the score and look for whale indicators
                         whale_ping_strength = 2.0  # Conservative estimate for strong stealth signals
-                        print(f"[WHALE_PING_EXTRACTION] {symbol}: Method 2b - Strong stealth score ({stealth_result.get('final_score', 0):.3f}), estimated whale_ping=2.0")
+                        # Add whale_ping to enhanced signals since we detected it via score estimation
+                        if "whale_ping" not in enhanced_active_signals:
+                            enhanced_active_signals.append("whale_ping")
+                        print(f"[WHALE_PING_EXTRACTION] {symbol}: Method 2b - Strong stealth score ({stealth_result.get('final_score', 0):.3f}), estimated whale_ping=2.0, added to active_signals")
                     
                     # Method 3: Check if whale_ping appears in used_signals (fallback)
                     elif stealth_result.get("used_signals") and "whale_ping" in str(stealth_result.get("used_signals", [])):
                         whale_ping_strength = 1.0  # Conservative fallback
-                        print(f"[WHALE_PING_EXTRACTION] {symbol}: Method 3 - whale_ping in used_signals, using strength=1.0")
+                        # Add whale_ping to enhanced signals since we detected it via used_signals
+                        if "whale_ping" not in enhanced_active_signals:
+                            enhanced_active_signals.append("whale_ping")
+                        print(f"[WHALE_PING_EXTRACTION] {symbol}: Method 3 - whale_ping in used_signals, using strength=1.0, added to active_signals")
                     
                     # Method 4: Check for whale signal strength from market_data (if available)
                     elif market_data.get("whale_ping_strength") and market_data["whale_ping_strength"] > 0:
                         whale_ping_strength = market_data["whale_ping_strength"]
-                        print(f"[WHALE_PING_EXTRACTION] {symbol}: Method 4 - whale_ping_strength from market_data={whale_ping_strength}")
+                        # Add whale_ping to enhanced signals since we detected it via market_data
+                        if "whale_ping" not in enhanced_active_signals:
+                            enhanced_active_signals.append("whale_ping")
+                        print(f"[WHALE_PING_EXTRACTION] {symbol}: Method 4 - whale_ping_strength from market_data={whale_ping_strength}, added to active_signals")
                     
                     else:
                         print(f"[WHALE_PING_EXTRACTION] {symbol}: No whale_ping signal detected through any method, strength=0.0")
@@ -611,7 +620,10 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     # 🔧 CRITICAL FORCE WHALE STRENGTH: If whale_ping was detected in logs but extraction failed, force minimum strength
                     if whale_ping_strength == 0.0 and any("whale_ping" in str(sig).lower() for sig in active_signals):
                         whale_ping_strength = 1.5  # Force minimum qualifying strength
-                        print(f"[WHALE_PING_FORCE] {symbol}: Forced whale_ping_strength=1.5 due to active whale signals")
+                        # Ensure whale_ping is in enhanced signals since we're forcing strength
+                        if "whale_ping" not in enhanced_active_signals:
+                            enhanced_active_signals.append("whale_ping")
+                        print(f"[WHALE_PING_FORCE] {symbol}: Forced whale_ping_strength=1.5 due to active whale signals, added to active_signals")
 
                     # Przygotuj token data dla explore mode z poprawioną wartością DEX inflow
                     explore_token_data = {
