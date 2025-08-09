@@ -404,21 +404,22 @@ class StealthSignalDetector:
                 if parent_dir not in sys.path:
                     sys.path.insert(0, parent_dir)
                 
+                from utils.chain_router import chain_router, get_chain_status_for_dex
                 from utils.blockchain_scanners import get_whale_transfers
-                from utils.contracts import get_contract
                 from .address_tracker import AddressTracker
                 
-                # Get real whale transfers from blockchain - ENHANCED with fallback
-                contract_info = get_contract(symbol)
+                # 🎯 CHAIN ROUTER INTEGRATION - Use same chain/contract as dex_inflow
+                chain, contract_address, routing_status = chain_router(symbol)
+                print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] CHAIN_ROUTER → chain={chain}, contract={contract_address[:10] if contract_address else None}..., status={routing_status}")
                 
-                # ALWAYS try blockchain detection, even without explicit contract
+                # ALWAYS try blockchain detection using routed chain/contract
                 try:
-                    # Get real whale transfers using blockchain API (with fallback for unknown contracts)
-                    whale_transfers = get_whale_transfers(symbol, min_usd=threshold)
+                    # Get real whale transfers using chain_router data for consistency
+                    whale_transfers = get_whale_transfers(symbol, min_usd=threshold, chain=chain, contract_address=contract_address)
                     real_whale_addresses = [t['from'] for t in whale_transfers if t['value_usd'] >= threshold][:10]
                     has_real_whales = len(real_whale_addresses) > 0
                     
-                    print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MID → contract_found={bool(contract_info)}, whale_transfers={len(whale_transfers)}, real_whale_addresses_found={len(real_whale_addresses)}, has_real_whales={has_real_whales}")
+                    print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MID → chain={chain}, whale_transfers={len(whale_transfers)}, real_whale_addresses_found={len(real_whale_addresses)}, has_real_whales={has_real_whales}")
                     
                     # Track REAL addresses from blockchain
                     if has_real_whales:
@@ -431,7 +432,7 @@ class StealthSignalDetector:
                                 usd_value=value_usd,
                                 source="whale_ping_real"
                             )
-                        print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MID → tracked {len(real_whale_addresses)} real whale addresses")
+                        print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MID → tracked {len(real_whale_addresses)} real whale addresses from {chain}")
                         
                 except Exception as inner_e:
                     print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] blockchain API error: {inner_e}")
@@ -839,13 +840,13 @@ class StealthSignalDetector:
     def check_dex_inflow(self, token_data: Dict) -> StealthSignal:
         """
         DEX inflow detector - REAL BLOCKCHAIN DATA detection of DEX inflows
-        Uses authentic blockchain transfer data instead of mock addresses
+        Uses chain_router for consistent chain/contract mapping across modules
         """
         FUNC_NAME = "dex_inflow"
         symbol = token_data.get("symbol", "UNKNOWN")
         
         try:
-            # Import real blockchain scanner
+            # Import chain router and blockchain scanner
             import sys
             import os
             current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -853,36 +854,43 @@ class StealthSignalDetector:
             if parent_dir not in sys.path:
                 sys.path.insert(0, parent_dir)
             
+            from utils.chain_router import chain_router, get_chain_status_for_dex
             from utils.blockchain_scanners import get_token_transfers_last_24h, load_known_exchange_addresses
-            from utils.contracts import get_contract
             
-            # Get real contract info for the token
-            contract_info = get_contract(symbol)
-            if not contract_info:
-                # Fallback to legacy inflow data if no contract found
-                inflow_usd = token_data.get("dex_inflow", 0)
-                inflow_history = token_data.get("dex_inflow_history", [])[-8:]
-                avg_recent = sum(inflow_history) / len(inflow_history) if inflow_history else 0
-                
-                print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] INPUT → fallback_mode, inflow_usd=${inflow_usd:.2f}, avg_recent=${avg_recent:.2f}")
-                
-                spike_detected = inflow_usd > avg_recent * 2 and inflow_usd > 1000
-                strength = min(inflow_usd / (avg_recent * 5 + 1), 0.8) if avg_recent > 0 else 0.0
-                
-                print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] RESULT → active={spike_detected}, strength={strength:.3f} (fallback)")
-                return StealthSignal("dex_inflow", spike_detected, strength)
+            # 🎯 CHAIN ROUTER INTEGRATION - Use consistent chain/contract
+            chain, contract_address, routing_status = chain_router(symbol)
+            dex_enabled, dex_reason = get_chain_status_for_dex(symbol)
             
-            # Get real blockchain transfers in last 24h
+            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] CHAIN_ROUTER → chain={chain}, contract={contract_address[:10] if contract_address else None}..., status={routing_status}")
+            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] DEX_STATUS → enabled={dex_enabled}, reason={dex_reason}")
+            
+            # Handle chain mismatches and unavailable contracts
+            if not dex_enabled:
+                # Chain mismatch or contract not found - return disabled signal
+                if 'chain_mismatch' in dex_reason:
+                    print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] DISABLED → {dex_reason} (CEX symbol vs blockchain asset)")
+                    print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] RESULT → active=False, strength=0.000 (chain_mismatch)")
+                    return StealthSignal("dex_inflow", False, 0.0)
+                elif 'not_found' in dex_reason:
+                    print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] DISABLED → {dex_reason} (no contract available)")
+                    print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] RESULT → active=False, strength=0.000 (no_contract)")
+                    return StealthSignal("dex_inflow", False, 0.0)
+                else:
+                    print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] DISABLED → {dex_reason} (unknown_reason)")
+                    print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] RESULT → active=False, strength=0.000 (disabled)")
+                    return StealthSignal("dex_inflow", False, 0.0)
+            
+            # Get real blockchain transfers using chain_router data
             real_transfers = get_token_transfers_last_24h(
                 symbol=symbol,
-                chain=contract_info['chain'],
-                contract_address=contract_info['address']
+                chain=chain,
+                contract_address=contract_address
             )
             
-            # Load known exchange addresses
+            # Load known exchange addresses for the routed chain
             known_exchanges = load_known_exchange_addresses()
-            exchange_addresses = known_exchanges.get(contract_info['chain'], [])
-            dex_routers = known_exchanges.get('dex_routers', {}).get(contract_info['chain'], [])
+            exchange_addresses = known_exchanges.get(chain, [])
+            dex_routers = known_exchanges.get('dex_routers', {}).get(chain, [])
             all_known_addresses = set(addr.lower() for addr in exchange_addresses + dex_routers)
             
             # Calculate real DEX inflow from blockchain data
@@ -901,8 +909,8 @@ class StealthSignalDetector:
             historical_baseline = token_data.get("dex_inflow_history", [])[-8:]
             avg_recent = sum(historical_baseline) / len(historical_baseline) if historical_baseline else 1000
             
-            # INPUT LOG - real blockchain data
-            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] INPUT → real_transfers={len(real_transfers)}, total_inflow_usd=${total_inflow_usd:.2f}, unique_addresses={len(real_addresses)}, avg_baseline=${avg_recent:.2f}")
+            # INPUT LOG - real blockchain data with chain router info
+            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] INPUT → chain={chain}, real_transfers={len(real_transfers)}, total_inflow_usd=${total_inflow_usd:.2f}, unique_addresses={len(real_addresses)}, avg_baseline=${avg_recent:.2f}")
             
             # CRITICAL FIX: Set inflow_usd for metadata consistency
             inflow_usd = total_inflow_usd

@@ -313,27 +313,31 @@ def get_token_transfers_last_24h(symbol: str, chain: str = None,
     
     return scanner.get_token_transfers_last_24h(contract_address, chain)
 
-def get_whale_transfers(symbol: str, min_usd: float = 10000) -> List[Dict]:
+def get_whale_transfers(symbol: str, min_usd: float = 10000, 
+                      chain: str = None, contract_address: str = None) -> List[Dict]:
     """
     Convenience function to get real whale transfers
     
     Args:
         symbol: Token symbol
         min_usd: Minimum USD value for whale classification
+        chain: Blockchain name (auto-detected if None)
+        contract_address: Contract address (auto-detected if None)
         
     Returns:
         List of real whale transfer data
     """
     scanner = BlockchainScanner()
     
-    from utils.contracts import get_contract
-    contract_info = get_contract(symbol)
-    if not contract_info:
-        print(f"[WHALE] Could not find contract for {symbol}")
-        return []
+    # Use provided chain/contract or auto-detect
+    if not contract_address or not chain:
+        from utils.contracts import get_contract
+        contract_info = get_contract(symbol)
+        if not contract_info:
+            print(f"[WHALE] Could not find contract for {symbol}")
+            return []
+        
+        contract_address = contract_address or contract_info['address']
+        chain = chain or contract_info['chain']
     
-    return scanner.get_whale_activity(
-        contract_info['address'], 
-        contract_info['chain'], 
-        min_usd
-    )
+    return scanner.get_whale_activity(contract_address, chain, min_usd)

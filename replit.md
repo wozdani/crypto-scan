@@ -4,6 +4,13 @@
 
 This project is a cryptocurrency market scanner designed to detect pre-pump signals using advanced multi-stage analysis. It monitors markets in real-time, analyzes various indicators (liquidity, whale activity, on-chain data) to identify potential pre-pump conditions, and sends AI-powered analysis alerts via Telegram. The system aims for institutional-grade detection accuracy and adaptive cryptocurrency intelligence. Its business vision is to provide a robust, intelligent tool for navigating volatile crypto markets, offering a significant edge in identifying lucrative opportunities before major price movements.
 
+## Recent Changes (August 2025)
+
+- **Canonical Price System**: Deployed frozen price system across all modules ensuring single price per token per scan round for consistent multi-agent reasoning
+- **Chain Router Integration**: Implemented consistent (chain, contract) mapping between whale_ping and dex_inflow modules to eliminate chain mismatch issues like WIF ethereum vs Solana routing
+- **Stealth Engine Integration**: Chain router system integrated into stealth_signals.py for dex_inflow and whale_ping consistency with proper chain mismatch detection
+- **Multi-Agent Consensus**: Enhanced 5-agent AI consensus system with canonical price integration for consistent decision making across all detector evaluations
+
 ## User Preferences
 
 - Language: Polish for user-facing messages and alerts
@@ -43,6 +50,8 @@ The system employs a multi-stage detection pipeline for pre-pump signals, built 
     -   **Contextual Chart Generation**: Generates TradingView-style charts with contextual overlays for Vision-AI training.
     -   **Individual Multi-Agent Processing**: The Multi-Agent Consensus System uses individual OpenAI API calls per detector (1 call per detector for all 5 agents) rather than batch processing, providing better reliability and easier debugging for each detector's 5-agent evaluation.
     -   **GPT-5 Integration**: The system utilizes GPT-5 for enhanced AI capabilities across all OpenAI API calls, providing superior crypto analysis and reasoning.
+    -   **Canonical Price System**: Single frozen price per token per scan round eliminates dispersed price fallback logic, ensuring consistent pricing across all modules and agents.
+    -   **Chain Router System**: Consistent (chain, contract) mapping across whale_ping and dex_inflow modules prevents chain mismatches like WIF ethereum vs Solana routing inconsistencies.
 
 ## External Dependencies
 
