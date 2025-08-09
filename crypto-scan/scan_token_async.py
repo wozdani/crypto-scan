@@ -1526,9 +1526,9 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
             print(f"[TJDE ALERT FIX] {symbol}: {tjde_alert_fix['original_decision']} → {tjde_alert_fix['enhanced_decision']}")
             print(f"[TJDE ALERT FIX] Reasoning: {'; '.join(tjde_alert_fix['reasoning'])}")
         
-        # TJDE v2-ONLY ALERT SYSTEM - PPWCS completely removed
-        tjde_alert_condition = tjde_alert_fix.get("alert_generated", False)
-        if tjde_alert_condition:
+        # TJDE ALERTS DISABLED - Only Stealth Pre-Pump Engine Multi-Agent System active
+        tjde_alert_condition = False  # Disable all TJDE alerts
+        if False:  # tjde_alert_condition disabled
             alert_level = tjde_alert_fix.get("alert_level", 2)
             enhanced_decision = tjde_alert_fix.get("enhanced_decision", tjde_decision)
             
@@ -1561,8 +1561,9 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         "timestamp": datetime.now().isoformat()
                     }
                     
-                    # Send stealth alert with 2-hour cooldown
-                    tjde_alert_success = send_prepump_alert_with_cooldown(stealth_alert_data)
+                    # TJDE ALERT DISABLED - Only Stealth Pre-Pump Engine alerts allowed
+                    print(f"[TJDE ALERT DISABLED] {symbol} → Pre-pump alert disabled, use Stealth Pre-Pump Engine instead")
+                    tjde_alert_success = False
                     
                     if tjde_alert_success:
                         print(f"[✅ PRE-PUMP ALERT SENT] {symbol}: {enhanced_decision.upper()} - Early entry opportunity detected")
@@ -1586,8 +1587,9 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         "timestamp": datetime.now().isoformat()
                     }
                     
-                    # Send TJDE trend-mode alert (60-minute cooldown)
-                    tjde_alert_success = send_tjde_trend_alert_with_cooldown(tjde_alert_data)
+                    # TJDE ALERT DISABLED - Only Stealth Pre-Pump Engine alerts allowed
+                    print(f"[TJDE ALERT DISABLED] {symbol} → Trend-mode alert disabled, use Stealth Pre-Pump Engine instead")
+                    tjde_alert_success = False
                 
                 if tjde_alert_success:
                     print(f"[TJDE ALERT SUCCESS] {symbol} → Level {alert_level} alert sent with cooldown")
