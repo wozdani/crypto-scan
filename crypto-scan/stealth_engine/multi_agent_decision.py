@@ -98,9 +98,19 @@ class MultiAgentDecisionSystem:
                 max_completion_tokens=2000
             )
             
-            # Parse batch response
-            batch_result = json.loads(response.choices[0].message.content)
-            return self._parse_batch_response(batch_result, all_contexts)
+            # Parse batch response with proper error handling
+            response_content = response.choices[0].message.content
+            if not response_content or response_content.strip() == "":
+                print(f"[MULTI-AGENT BATCH ERROR] Empty response from OpenAI API")
+                return [self._fallback_reasoning(role, context) for role, context in all_contexts]
+                
+            try:
+                batch_result = json.loads(response_content)
+                return self._parse_batch_response(batch_result, all_contexts)
+            except json.JSONDecodeError as e:
+                print(f"[MULTI-AGENT BATCH ERROR] Invalid JSON in response: {e}")
+                print(f"[MULTI-AGENT BATCH ERROR] Raw response: {response_content[:200]}...")
+                return [self._fallback_reasoning(role, context) for role, context in all_contexts]
             
         except Exception as e:
             print(f"[MULTI-AGENT BATCH ERROR] OpenAI batch call failed: {e}")
