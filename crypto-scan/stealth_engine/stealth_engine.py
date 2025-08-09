@@ -1086,9 +1086,20 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     agg_result = aggregate(aggregator_signals, weights)
                     score = agg_result["p_raw"]  # Pure p_raw from aggregator - NO MODIFICATIONS
                     
-                    # Log contributions (updated for new contrib structure)
+                    # Log contributions (handle both dict and float formats)
                     for name, contrib in agg_result["contrib"].items():
-                        print(f"[AGGREGATOR] {name}: strength={contrib['s']:.3f}, weight={contrib['w']:.3f}, contribution={contrib['v']:.3f}")
+                        if isinstance(contrib, dict):
+                            # Dictionary format with s, w, v keys
+                            strength = contrib.get('s', 0.0)
+                            weight = contrib.get('w', 0.0) 
+                            value = contrib.get('v', 0.0)
+                            print(f"[AGGREGATOR] {name}: strength={strength:.3f}, weight={weight:.3f}, contribution={value:.3f}")
+                        else:
+                            # Float format - contrib is just the contribution value
+                            signal_data = aggregator_signals.get(name, {})
+                            strength = signal_data.get('strength', 0.0)
+                            weight = weights.get(name, 0.0)
+                            print(f"[AGGREGATOR] {name}: strength={strength:.3f}, weight={weight:.3f}, contribution={contrib:.3f}")
                     
                     # WYMAGANIE #6: Remove scaling mechanism - use pure p_raw from aggregator
                     data_coverage = available_signals / total_signals if total_signals > 0 else 0
