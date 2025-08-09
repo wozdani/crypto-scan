@@ -517,9 +517,26 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     stealth_score = raw_score
                 
                 active_signals = stealth_result.get("active_signals", [])
-                print(f"[FLOW DEBUG] {symbol}: Extracted stealth_score={stealth_score}, active_signals={len(active_signals)}")
+                
+                # Add AI detectors to active_signals for better explore mode debug
+                ai_detectors_active = []
+                if stealth_result.get("diamond_score", 0) > 0:
+                    ai_detectors_active.append("diamond_ai")
+                if stealth_result.get("californium_score", 0) > 0:
+                    ai_detectors_active.append("californium_ai") 
+                if stealth_result.get("whaleclip_score", 0) > 0:
+                    ai_detectors_active.append("whaleclip_ai")
+                if stealth_score > 0.5:  # StealthEngine is active if has decent score
+                    ai_detectors_active.append("stealth_engine")
+                
+                # Combine basic signals with AI detectors for comprehensive view
+                enhanced_active_signals = active_signals + ai_detectors_active
+                
+                print(f"[FLOW DEBUG] {symbol}: Extracted stealth_score={stealth_score}, active_signals={len(active_signals)}, ai_detectors={len(ai_detectors_active)}")
                 print(f"[FLOW DEBUG] {symbol}: Stealth result keys: {list(stealth_result.keys())}")
-                print(f"[FLOW DEBUG] {symbol}: Active signals list: {active_signals}")
+                print(f"[FLOW DEBUG] {symbol}: Basic signals: {active_signals}")
+                print(f"[FLOW DEBUG] {symbol}: AI detectors: {ai_detectors_active}")
+                print(f"[FLOW DEBUG] {symbol}: Enhanced signals: {enhanced_active_signals}")
                 print(f"[CRITICAL DEBUG] {symbol}: REACHED EXPLORE MODE SECTION - TESTING IF THIS LOG APPEARS")
                 
                 # 🚧 EXPLORE MODE - Experimental Cold Start Alerts - INTEGRATION INTO MAIN PIPELINE
@@ -602,7 +619,7 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         "feedback_history": [],  # No historical feedback for new tokens
                         "whale_memory_entries": 0,
                         "historical_alerts": [],
-                        "active_signals": list(active_signals),
+                        "active_signals": list(enhanced_active_signals),  # Use enhanced signals including AI detectors
                         "whale_ping_strength": whale_ping_strength,  # Use extracted whale ping strength
                         "dex_inflow_usd": stealth_dex_inflow,  # Use corrected DEX inflow value
                         "final_score": stealth_score
