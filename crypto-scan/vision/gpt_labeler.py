@@ -110,7 +110,7 @@ def gpt_label_with_context(context: Dict) -> Dict:
             ],
             response_format={"type": "json_object"},
             max_completion_tokens=300,
-            temperature=0.3  # Lower temperature for more consistent analysis
+
         )
         
         # Parse response

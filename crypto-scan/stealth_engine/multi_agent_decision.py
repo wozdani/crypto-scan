@@ -94,7 +94,6 @@ class MultiAgentDecisionSystem:
                 ],
                 response_format={"type": "json_object"},
                 timeout=30,
-                temperature=0.7,
                 max_completion_tokens=2000
             )
             
@@ -675,8 +674,7 @@ Respond with JSON format:
                     {"role": "user", "content": role_prompts[role]}
                 ],
                 response_format={"type": "json_object"},
-                max_completion_tokens=300,
-                temperature=0.7
+                max_completion_tokens=300
             )
             
             result = json.loads(response.choices[0].message.content or "{}")

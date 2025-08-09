@@ -298,7 +298,7 @@ class TraderLevelAIEngine:
                 model="gpt-5",
                 messages=[{"role": "user", "content": prompt}],
                 max_completion_tokens=150,
-                temperature=0.3
+
             )
             
             commentary = response.choices[0].message.content.strip()

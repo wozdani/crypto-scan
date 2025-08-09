@@ -132,8 +132,7 @@ Odpowiedz tylko jedną etykietą, która najlepiej opisuje sytuację na wykresie
                         ]
                     }
                 ],
-                max_completion_tokens=20,  # Short response expected
-                temperature=0.1  # Low temperature for consistent classification
+                max_completion_tokens=20  # Short response expected
             )
             
             # Extract label from response
