@@ -1579,7 +1579,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                 # Prepare market_data for consensus - USE CORRECT KEYS
                                 consensus_market_data = {
                                     "symbol": symbol,
-                                    "price": price,  # Use actual price from stealth analysis
+                                    "price": price_ref,  # Use actual price from stealth analysis
                                     "volume_24h": volume_24h,  # Use actual volume from stealth analysis 
                                     "price_change_24h": token_data.get('price_change_24h', 0.0),  # Correct key
                                     "market_cap": token_data.get('market_cap', 0.0),
