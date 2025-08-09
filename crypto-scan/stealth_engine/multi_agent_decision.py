@@ -42,7 +42,7 @@ class AgentRole(Enum):
 class AgentResponse:
     """Odpowiedź pojedynczego agenta"""
     role: AgentRole
-    decision: str  # YES/NO
+    decision: str  # BUY/HOLD/AVOID
     reasoning: str
     confidence: float
 
@@ -246,7 +246,7 @@ class MultiAgentDecisionSystem:
         # WARUNEK WSTĘPNY: Allow voting for any score >= 0.1 to enable proper evaluation
         if score < 0.1:
             print(f"[MULTI-AGENT SKIP] {detector_name} score {score:.3f} < 0.1 - skipping agent voting")
-            return "NO", 0.0, f"Score {score:.3f} below voting threshold (0.1) - no agent evaluation needed"
+            return "AVOID", 0.0, f"Score {score:.3f} below voting threshold (0.1) - no agent evaluation needed"
         
         print(f"\n{'='*80}")
         print(f"[MULTI-AGENT VOTING] Starting 5-agent decision for {detector_name}")
@@ -286,7 +286,7 @@ class MultiAgentDecisionSystem:
         # Wyświetl głosy każdego agenta
         print(f"\n[MULTI-AGENT VOTES] Individual agent decisions:")
         for response in all_responses:
-            vote_symbol = "✅" if response.decision == "YES" else "❌"
+            vote_symbol = "🟢" if response.decision == "BUY" else "🟡" if response.decision == "HOLD" else "🔴"
             print(f"  {vote_symbol} {response.role.value}: {response.decision} (confidence: {response.confidence:.3f})")
             print(f"     Reasoning: {response.reasoning[:100]}...")
             
@@ -299,20 +299,25 @@ class MultiAgentDecisionSystem:
                 'timestamp': datetime.now().isoformat()
             })
         
-        # Policz głosy
-        yes_votes = sum(1 for r in all_responses if r.decision == "YES")
+        # Zlicz głosy agentów
+        buy_votes = sum(1 for response in all_responses if response.decision == "BUY")
+        hold_votes = sum(1 for response in all_responses if response.decision == "HOLD")
+        avoid_votes = sum(1 for response in all_responses if response.decision == "AVOID")
         total_votes = len(all_responses)
         
         # Oblicz średnią confidence
         avg_confidence = sum(r.confidence for r in all_responses) / total_votes
         
-        # Finalna decyzja - majority by 2 votes (większość o 2 głosy)
-        no_votes = total_votes - yes_votes
-        vote_difference = yes_votes - no_votes
-        final_decision = "YES" if vote_difference >= 2 else "NO"
+        # Logika decyzyjna: BUY wymaga przewagi nad HOLD+AVOID
+        if buy_votes > hold_votes + avoid_votes and buy_votes >= 3:
+            final_decision = "BUY"
+        elif hold_votes > buy_votes + avoid_votes:
+            final_decision = "HOLD"
+        else:
+            final_decision = "AVOID"
         
-        # Jeśli decyzja YES mimo niskiego score - to jest override!
-        is_override = final_decision == "YES" and score < threshold
+        # Jeśli decyzja BUY mimo niskiego score - to jest override!
+        is_override = final_decision == "BUY" and score < threshold
         
         # Stwórz detailed log
         detailed_log = self._create_detailed_log(
@@ -329,19 +334,21 @@ class MultiAgentDecisionSystem:
         # Podsumowanie głosowania
         print(f"\n[MULTI-AGENT SUMMARY]")
         print(f"  📊 Final Decision: {final_decision}")
-        no_votes = total_votes - yes_votes
-        vote_difference = yes_votes - no_votes
-        print(f"  🗳️ Votes: {yes_votes} YES / {no_votes} NO (need +2 difference, current: {vote_difference:+d})")
+        # Calculate vote distribution
+        vote_difference = buy_votes - (hold_votes + avoid_votes)
+        print(f"  🗳️ Votes: {buy_votes} BUY / {hold_votes} HOLD / {avoid_votes} AVOID")
         print(f"  💪 Average Confidence: {avg_confidence:.3f}")
         print(f"  🎯 Detector Score: {score:.3f} (threshold: {threshold:.3f})")
         
         if is_override:
-            print(f"  ⚡ OVERRIDE ALERT! Agents voted YES despite low score {score:.3f}")
+            print(f"  ⚡ OVERRIDE ALERT! Agents voted BUY despite low score {score:.3f}")
         
-        if final_decision == "YES":
+        if final_decision == "BUY":
             print(f"  ✅ ALERT WILL BE TRIGGERED - Majority agents agree to BUY!")
+        elif final_decision == "HOLD":
+            print(f"  🟡 HOLD DECISION - Agents recommend waiting for more data")
         else:
-            print(f"  ❌ NO ALERT - Insufficient agent support")
+            print(f"  ❌ AVOID DECISION - Agents recommend avoiding this signal")
             
         print(f"{'='*80}\n")
         
@@ -350,7 +357,7 @@ class MultiAgentDecisionSystem:
             return str(final_decision), float(avg_confidence), str(detailed_log)
         except Exception as e:
             print(f"[MULTI-AGENT RETURN ERROR] {e}")
-            return "NO", 0.0, f"Return error: {str(e)}"
+            return "AVOID", 0.0, f"Return error: {str(e)}"
     
     def _create_detailed_log(
         self, 
@@ -377,7 +384,10 @@ class MultiAgentDecisionSystem:
         log += f"{'-'*80}\n"
         log += f"FINAL DECISION: {final_decision}\n"
         log += f"Average Confidence: {avg_confidence:.3f}\n"
-        log += f"Votes: {sum(1 for r in responses if r.decision == 'YES')}/{len(responses)} YES\n"
+        buy_count = sum(1 for r in responses if r.decision == 'BUY')
+        hold_count = sum(1 for r in responses if r.decision == 'HOLD')
+        avoid_count = sum(1 for r in responses if r.decision == 'AVOID')
+        log += f"Votes: {buy_count} BUY / {hold_count} HOLD / {avoid_count} AVOID\n"
         
         if is_override:
             log += f"\n⚡ OVERRIDE ALERT - Agents overruled low score!\n"
@@ -464,27 +474,27 @@ You are a panel of 5 expert cryptocurrency trading agents. Each agent must evalu
 Return JSON with exactly this structure:
 {{
     "analyzer": {{
-        "decision": "YES" or "NO",
+        "decision": "BUY" or "HOLD" or "AVOID",
         "confidence": 0.0-1.0,
         "reasoning": "detailed analysis reasoning"
     }},
     "reasoner": {{
-        "decision": "YES" or "NO", 
+        "decision": "BUY" or "HOLD" or "AVOID", 
         "confidence": 0.0-1.0,
         "reasoning": "market reasoning and context"
     }},
     "voter": {{
-        "decision": "YES" or "NO",
+        "decision": "BUY" or "HOLD" or "AVOID",
         "confidence": 0.0-1.0,
         "reasoning": "voting decision rationale"
     }},
     "debater": {{
-        "decision": "YES" or "NO",
+        "decision": "BUY" or "HOLD" or "AVOID",
         "confidence": 0.0-1.0,
         "reasoning": "debate perspective and counterarguments"
     }},
     "decider": {{
-        "decision": "YES" or "NO",
+        "decision": "BUY" or "HOLD" or "AVOID",
         "confidence": 0.0-1.0,
         "reasoning": "final decision based on all evidence"
     }}
@@ -497,7 +507,7 @@ AGENT ROLES:
 - Debater: Challenge assumptions and provide counterarguments
 - Decider: Final consensus based on other agents
 
-Each agent should decide YES (recommend BUY) or NO (avoid/hold) based on the detector signal strength and market conditions."""
+Each agent should decide BUY (strong signal), HOLD (wait for more data), or AVOID (weak signal) based on the detector signal strength and market conditions."""
 
         return prompt
 
@@ -513,7 +523,7 @@ Each agent should decide YES (recommend BUY) or NO (avoid/hold) based on the det
         for i, (role, agent_key) in enumerate(zip(agent_roles, agent_keys)):
             try:
                 agent_data = batch_result.get(agent_key, {})
-                decision = agent_data.get('decision', 'NO')
+                decision = agent_data.get('decision', 'AVOID')
                 confidence = float(agent_data.get('confidence', 0.5))
                 reasoning = agent_data.get('reasoning', f'Default {role.value} reasoning')
                 
