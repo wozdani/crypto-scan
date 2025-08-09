@@ -564,16 +564,23 @@ class DecisionConsensusEngine:
                     continue
                 
                 # Process responses for this detector (same logic as original)
-                yes_votes = sum(1 for r in detector_responses if r.decision == "YES")
-                no_votes = sum(1 for r in detector_responses if r.decision == "NO") 
+                buy_votes = sum(1 for r in detector_responses if r.decision == "BUY")
+                hold_votes = sum(1 for r in detector_responses if r.decision == "HOLD")
+                avoid_votes = sum(1 for r in detector_responses if r.decision == "AVOID")
                 total_votes = len(detector_responses)
                 
-                # Decision based on majority vote
-                decision = "YES" if yes_votes > no_votes else "NO"
+                # Decision based on BUY/HOLD/AVOID logic
+                if buy_votes > hold_votes + avoid_votes and buy_votes >= 3:
+                    decision = "BUY"
+                elif hold_votes > buy_votes + avoid_votes:
+                    decision = "HOLD"
+                else:
+                    decision = "AVOID"
+                    
                 confidence = sum(r.confidence for r in detector_responses) / total_votes
                 
                 # Generate log summary
-                log_summary = f"[MULTI-AGENT BATCH] {detector_name}: {yes_votes} YES / {no_votes} NO votes"
+                log_summary = f"[MULTI-AGENT BATCH] {detector_name}: {buy_votes} BUY / {hold_votes} HOLD / {avoid_votes} AVOID"
                 for response in detector_responses:
                     log_summary += f"\n  {response.role.value}: {response.decision} ({response.confidence:.3f}) - {response.reasoning[:100]}..."
                 
@@ -583,7 +590,7 @@ class DecisionConsensusEngine:
                     "log": log_summary
                 }
                 
-                print(f"[BATCH RESULT] {detector_name}: {decision} (confidence: {confidence:.3f}, votes: {yes_votes}/{total_votes})")
+                print(f"[BATCH RESULT] {detector_name}: {decision} (confidence: {confidence:.3f}, votes: {buy_votes}B/{hold_votes}H/{avoid_votes}A)")
             
             print(f"[BATCH EVALUATION] Successfully processed {len(results)} detectors with single OpenAI call")
             return results
@@ -792,15 +799,15 @@ class DecisionConsensusEngine:
                     # Enhanced fallback for this specific detector
                     score = detector_data.get("score", 0.0)
                     if score >= 0.65:  # High confidence BUY
-                        agent_decisions[detector_name] = "YES"
+                        agent_decisions[detector_name] = "BUY"
                         agent_confidences[detector_name] = min(0.9, score + 0.1)
                         print(f"[FALLBACK BUY] {detector_name}: Score {score:.3f} ≥ 0.65 → BUY")
                     elif score >= 0.45:  # Medium confidence HOLD
-                        agent_decisions[detector_name] = "NO"  # Conservative approach
+                        agent_decisions[detector_name] = "HOLD"
                         agent_confidences[detector_name] = 0.6
                         print(f"[FALLBACK HOLD] {detector_name}: Score {score:.3f} ≥ 0.45 → HOLD")
                     else:  # Low confidence AVOID
-                        agent_decisions[detector_name] = "NO"
+                        agent_decisions[detector_name] = "AVOID"
                         agent_confidences[detector_name] = 0.7
                         print(f"[FALLBACK AVOID] {detector_name}: Score {score:.3f} < 0.45 → AVOID")
             
@@ -810,35 +817,36 @@ class DecisionConsensusEngine:
             if agent_decisions:
                 print(f"\n[CONSENSUS AGGREGATION] Combining detector decisions...")
                 
-                # Count YES/NO votes
-                yes_votes = sum(1 for d in agent_decisions.values() if d == "YES")
-                no_votes = sum(1 for d in agent_decisions.values() if d == "NO")
+                # Count BUY/HOLD/AVOID votes
+                buy_votes = sum(1 for d in agent_decisions.values() if d == "BUY")
+                hold_votes = sum(1 for d in agent_decisions.values() if d == "HOLD")  
+                avoid_votes = sum(1 for d in agent_decisions.values() if d == "AVOID")
                 total_votes = len(agent_decisions)
                 
-                print(f"[CONSENSUS VOTES] Detector votes: {yes_votes} YES / {no_votes} NO (total: {total_votes})")
+                print(f"[CONSENSUS VOTES] Detector votes: {buy_votes} BUY / {hold_votes} HOLD / {avoid_votes} AVOID (total: {total_votes})")
                 
                 # Calculate average confidence
                 avg_confidence = sum(agent_confidences.values()) / len(agent_confidences)
                 
-                # Determine final decision
-                if yes_votes > no_votes:
+                # Determine final decision with proper BUY/HOLD/AVOID logic
+                if buy_votes > hold_votes + avoid_votes and buy_votes >= 3:
                     final_decision = "BUY"
-                    decision_strength = yes_votes / total_votes
-                    print(f"[CONSENSUS DECISION] Majority YES → BUY decision!")
-                elif no_votes > yes_votes:
-                    final_decision = "AVOID"
-                    decision_strength = no_votes / total_votes
-                    print(f"[CONSENSUS DECISION] Majority NO → AVOID decision")
-                else:
+                    decision_strength = buy_votes / total_votes
+                    print(f"[CONSENSUS DECISION] Majority BUY → BUY decision!")
+                elif hold_votes > buy_votes + avoid_votes:
                     final_decision = "HOLD"
-                    decision_strength = 0.5
-                    print(f"[CONSENSUS DECISION] Tie vote → HOLD decision")
+                    decision_strength = hold_votes / total_votes
+                    print(f"[CONSENSUS DECISION] Majority HOLD → HOLD decision")
+                else:
+                    final_decision = "AVOID"
+                    decision_strength = max(avoid_votes, buy_votes, hold_votes) / total_votes
+                    print(f"[CONSENSUS DECISION] AVOID decision (weak signals)")
                 
                 print(f"[CONSENSUS STRENGTH] Decision strength: {decision_strength:.3f}")
                 print(f"[CONSENSUS CONFIDENCE] Average confidence: {avg_confidence:.3f}")
                 
                 # Create reasoning
-                reasoning = f"5-Agent Multi-Agent Consensus: {yes_votes} YES, {no_votes} NO votes. "
+                reasoning = f"5-Agent Multi-Agent Consensus: {buy_votes} BUY, {hold_votes} HOLD, {avoid_votes} AVOID votes. "
                 reasoning += f"Average confidence: {avg_confidence:.3f}. "
                 reasoning += f"Detectors evaluated: {', '.join(agent_decisions.keys())}. "
                 reasoning += f"Primary decision mechanism using 5 agents per detector."
@@ -847,7 +855,7 @@ class DecisionConsensusEngine:
                 votes_list = []
                 for detector_name, agent_decision in agent_decisions.items():
                     # Format: "DetectorName: DECISION" 
-                    vote_text = f"{detector_name}: {'BUY' if agent_decision == 'YES' else 'AVOID'}"
+                    vote_text = f"{detector_name}: {agent_decision}"
                     votes_list.append(vote_text)
                 
                 # Create ConsensusResult
@@ -878,7 +886,7 @@ class DecisionConsensusEngine:
                 print(f"  📊 Decision: {final_decision}")
                 print(f"  💪 Strength: {decision_strength:.3f}")
                 print(f"  🎯 Confidence: {avg_confidence:.3f}")
-                print(f"  🗳️ Votes: {yes_votes} YES / {no_votes} NO from {total_votes} detectors")
+                print(f"  🗳️ Votes: {buy_votes} BUY / {hold_votes} HOLD / {avoid_votes} AVOID from {total_votes} detectors")
                 print(f"  🤖 Each detector evaluated by 5 AI agents")
                 if final_decision == "BUY":
                     print(f"  ✅ ALERT WILL BE SENT - Consensus reached for BUY!")
