@@ -156,6 +156,32 @@ class DecisionConsensusEngine:
         print(f"[CONSENSUS DEBUG] Total weight: {total_weight:.3f}")
         print(f"[CONSENSUS DEBUG] Active detectors: {active_count}")
         
+        # 🛠️ WARUNEK MINIMUM 2 DETEKTORÓW: Blokuj alert jeśli mniej niż 2 aktywne detektory
+        if active_count < 2:
+            print(f"[CONSENSUS BLOCK] Only {active_count} active detector(s) - need minimum 2 for consensus decision")
+            decision = "HOLD"
+            final_score = 0.0
+            threshold_met = False
+            confidence = 0.0
+            reasoning = f"Insufficient active detectors ({active_count}/minimum 2) - blocking consensus decision"
+            
+            result = ConsensusResult(
+                decision=decision,
+                final_score=final_score,
+                confidence=confidence,
+                contributing_detectors=contributing_detectors,
+                weighted_scores={k: 0.0 for k in weighted_scores.keys()},
+                reasoning=reasoning,
+                timestamp=datetime.now().isoformat(),
+                threshold_met=threshold_met,
+                votes=[]
+            )
+            
+            # Zapisz decyzję HOLD z blokadą
+            self._save_decision(result, token)
+            print(f"[CONSENSUS MINIMUM BLOCK] {token}: Decision blocked - need ≥2 active detectors for consensus")
+            return result
+        
         # 🛠️ SPECJALNY PRZYPADEK: Jeśli tylko 2 detektory aktywne i oba głosują BUY
         if active_count == 2 and weighted_scores["BUY"] > 0:
             # Sprawdź czy oba detektory głosują na BUY
