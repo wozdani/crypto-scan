@@ -726,8 +726,8 @@ class DecisionConsensusEngine:
             agent_confidences = {}
             all_logs = []
             
-            # OPTIMIZED: Batch multi-agent evaluation for ALL detectors at once
-            print(f"[MULTI-AGENT BATCH] Starting optimized batch evaluation for {len(detector_outputs)} detectors...")
+            # INDIVIDUAL: Multi-agent evaluation per detector (1 zapytanie per detektor)
+            print(f"[MULTI-AGENT INDIVIDUAL] Starting individual evaluation for {len(detector_outputs)} detectors...")
             
             # Filter only active detectors (score > 0)
             active_detectors = {name: data for name, data in detector_outputs.items() if data.get("score", 0) > 0}
@@ -736,55 +736,61 @@ class DecisionConsensusEngine:
                 print(f"[MULTI-AGENT SKIP] No active detectors with score > 0")
                 return None
                 
-            print(f"[MULTI-AGENT BATCH] Processing {len(active_detectors)} active detectors: {list(active_detectors.keys())}")
+            print(f"[MULTI-AGENT INDIVIDUAL] Processing {len(active_detectors)} active detectors: {list(active_detectors.keys())}")
             
-            # Run BATCH evaluation for all detectors at once
-            try:
-                # Check if event loop is already running  
+            # Run INDIVIDUAL evaluation for each detector separately
+            for detector_name, detector_data in active_detectors.items():
                 try:
-                    loop = asyncio.get_running_loop()
-                    # If loop is running, create task in existing loop
-                    import concurrent.futures
-                    with concurrent.futures.ThreadPoolExecutor() as executor:
-                        future = executor.submit(
-                            asyncio.run,
-                            self._batch_evaluate_all_detectors(
-                                active_detectors, 
-                                market_data or {}, 
+                    print(f"[MULTI-AGENT INDIVIDUAL] Processing {detector_name}...")
+                    
+                    # Prepare context for this specific detector
+                    detector_context = {
+                        'detector_name': detector_name,
+                        'score': detector_data.get("score", 0.0),
+                        'threshold': float(threshold),
+                        'market_data': market_data or {},
+                        'signal_data': detector_data
+                    }
+                    
+                    # Run individual multi-agent evaluation for this detector
+                    try:
+                        loop = asyncio.get_running_loop()
+                        # If loop is running, create task in existing loop
+                        import concurrent.futures
+                        with concurrent.futures.ThreadPoolExecutor() as executor:
+                            future = executor.submit(
+                                asyncio.run,
+                                evaluate_detector_with_agents(
+                                    detector_name,
+                                    detector_data.get("score", 0.0),
+                                    detector_data,
+                                    market_data or {},
+                                    float(threshold)
+                                )
+                            )
+                            decision, confidence, log = future.result(timeout=60)  # 60s timeout per detector
+                    except RuntimeError:
+                        # No loop running, safe to create new one
+                        decision, confidence, log = asyncio.run(
+                            evaluate_detector_with_agents(
+                                detector_name,
+                                detector_data.get("score", 0.0),
+                                detector_data,
+                                market_data or {},
                                 float(threshold)
                             )
                         )
-                        batch_results = future.result(timeout=120)  # Further increased timeout for batch processing
-                except RuntimeError:
-                    # No loop running, safe to create new one
-                    batch_results = asyncio.run(
-                        self._batch_evaluate_all_detectors(
-                            active_detectors, 
-                            market_data or {}, 
-                            float(threshold)
-                        )
-                    )
-                
-                # Parse batch results
-                for detector_name, result in batch_results.items():
-                    agent_decisions[detector_name] = result["decision"]
-                    agent_confidences[detector_name] = result["confidence"]
-                    all_logs.append(result["log"])
-                    print(f"[MULTI-AGENT BATCH RESULT] {detector_name}: Decision={result['decision']}, Confidence={result['confidence']:.3f}")
-                
-            except Exception as e:
-                print(f"[MULTI-AGENT BATCH ERROR] Failed batch evaluation: {e}")
-                import traceback
-                traceback.print_exc()
-                print(f"[MULTI-AGENT FALLBACK] Using individual detector fallback due to batch failure")
-                
-                # Enhanced fallback: use individual detector scores with intelligent thresholds
-                agent_decisions = {}
-                agent_confidences = {}
-                
-                for detector_name, detector_data in active_detectors.items():
+                    
+                    # Store results
+                    agent_decisions[detector_name] = decision
+                    agent_confidences[detector_name] = confidence
+                    all_logs.append(log)
+                    print(f"[MULTI-AGENT RESULT] {detector_name}: Decision={decision}, Confidence={confidence:.3f}")
+                    
+                except Exception as detector_error:
+                    print(f"[MULTI-AGENT ERROR] Failed evaluation for {detector_name}: {detector_error}")
+                    # Enhanced fallback for this specific detector
                     score = detector_data.get("score", 0.0)
-                    # Smart threshold-based decision for each detector
                     if score >= 0.65:  # High confidence BUY
                         agent_decisions[detector_name] = "YES"
                         agent_confidences[detector_name] = min(0.9, score + 0.1)
@@ -797,8 +803,8 @@ class DecisionConsensusEngine:
                         agent_decisions[detector_name] = "NO"
                         agent_confidences[detector_name] = 0.7
                         print(f"[FALLBACK AVOID] {detector_name}: Score {score:.3f} < 0.45 → AVOID")
-                
-                print(f"[FALLBACK COMPLETE] Processed {len(agent_decisions)} detectors with intelligent fallback")
+            
+            print(f"[MULTI-AGENT INDIVIDUAL] Completed evaluation of {len(agent_decisions)} detectors")
             
             # Aggregate multi-agent decisions into final consensus
             if agent_decisions:
