@@ -410,13 +410,13 @@ class MultiAgentDecisionSystem:
             print(f"[BATCH API] Calling OpenAI with GPT-5 for {len(all_contexts)} agents...")
             
             # Single OpenAI API call for all 5 agents
+            # GPT-5 only supports default temperature=1, not 0.1
             response = await asyncio.to_thread(
                 self.openai_client.chat.completions.create,
                 model="gpt-5",
                 messages=[{"role": "user", "content": batch_prompt}],
                 response_format={"type": "json_object"},
                 max_completion_tokens=2000,
-                temperature=0.1,
                 timeout=self.timeout
             )
             
@@ -838,7 +838,7 @@ Respond with JSON format:
             
             return AgentResponse(
                 role=role,
-                decision=result.get('decision', 'NO'),
+                decision=result.get('decision', 'AVOID'),
                 reasoning=result.get('reasoning', 'AI analysis completed'),
                 confidence=float(result.get('confidence', 0.5))
             )
@@ -848,41 +848,7 @@ Respond with JSON format:
             # Fallback to enhanced simulation
             return self._fallback_reasoning(role, context)
     
-    def _fallback_reasoning(self, role: AgentRole, context: Dict[str, Any]) -> AgentResponse:
-        """Enhanced fallback reasoning when OpenAI API fails"""
-        score = context.get('score', 0.0)
-        threshold = context.get('threshold', 0.7)
-        
-        # Enhanced thresholds for better decision making - lowered for score >0.6
-        if role == AgentRole.ANALYZER:
-            decision = "YES" if score > 0.6 else "NO"
-            confidence = 0.9 if score > 0.8 else 0.75
-            reasoning = f"Analysis: Score {score:.3f} {'above' if decision == 'YES' else 'below'} reliability threshold (0.6)"
-            
-        elif role == AgentRole.REASONER:
-            volume = context.get('market_data', {}).get('volume_24h', 0)
-            decision = "YES" if volume > 300000 and score > 0.6 else "NO"
-            confidence = 0.8
-            reasoning = f"Market reasoning: Volume ${volume:,.0f}, score context acceptable"
-            
-        elif role == AgentRole.VOTER:
-            decision = "YES" if score > 0.6 else "NO"
-            confidence = 0.9
-            reasoning = f"Vote: Score {score:.3f} {'meets' if decision == 'YES' else 'fails'} voting criteria (threshold: 0.6)"
-            
-        elif role == AgentRole.DEBATER:
-            yes_count = sum(1 for h in self.debate_history if h.get('decision') == 'YES')
-            decision = "YES" if (yes_count >= 1 and score > 0.6) or score > 0.8 else "NO"
-            confidence = 0.75
-            reasoning = f"Debate: {'Supporting' if decision == 'YES' else 'Opposing'} based on evidence (threshold: 0.6)"
-            
-        elif role == AgentRole.DECIDER:
-            yes_votes = sum(1 for h in self.debate_history if h.get('decision') == 'YES')
-            decision = "YES" if yes_votes >= 2 and score > 0.6 else "NO"
-            confidence = 0.9
-            reasoning = f"Final decision: {yes_votes}/{len(self.debate_history)} agents support (score threshold: 0.6)"
-            
-        return AgentResponse(role=role, decision=decision, reasoning=reasoning, confidence=confidence)
+    # Removed duplicate _fallback_reasoning - using the correct BUY/HOLD/AVOID version above
     
     # === NOWE FUNKCJE Z STANDALONE KODU ===
     
