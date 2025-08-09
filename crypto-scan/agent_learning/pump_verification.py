@@ -180,12 +180,9 @@ class PumpVerificationSystem:
         pump_percentage = price_data["pump_percentage"]
         end_percentage = price_data["end_percentage"]
         
-        # Pump classification thresholds - Updated: >+5% = PUMP
-        if pump_percentage >= 15.0:
+        # Pump classification thresholds - Updated: >=5% = STRONG_PUMP
+        if pump_percentage >= 5.0:  # >=5% = STRONG_PUMP
             pump_level = "STRONG_PUMP"
-            agent_should_have_voted = "BUY"
-        elif pump_percentage >= 5.0:  # >+5% = definicja pump-u według użytkownika
-            pump_level = "PUMP" 
             agent_should_have_voted = "BUY"
         elif pump_percentage >= 2.0:
             pump_level = "WEAK_SIGNAL"
