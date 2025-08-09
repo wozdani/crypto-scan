@@ -35,10 +35,10 @@ class StealthFeedbackSystem:
         self.feedback_log_file = os.path.join(feedback_dir, "feedback_log.json")
         self.performance_file = os.path.join(feedback_dir, "performance.json")
         
-        # Konfiguracja feedback loop
+        # Konfiguracja feedback loop - Updated: >+5% = pump
         self.evaluation_hours = [2, 6]  # Sprawdzaj skuteczność po 2h i 6h
-        self.success_threshold = 0.02   # +2% = sukces
-        self.failure_threshold = -0.01  # -1% = porażka
+        self.success_threshold = 0.05   # +5% = pump/sukces (zgodnie z definicją użytkownika)
+        self.failure_threshold = -0.02  # -2% = porażka
         
         # Upewnij się że katalogi istnieją
         self.ensure_directories()
