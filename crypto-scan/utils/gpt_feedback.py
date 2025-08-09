@@ -32,7 +32,7 @@ def send_report_to_chatgpt(symbol: str, tags: list[str], score: float, compresse
         )
 
         response = client.chat.completions.create(
-            model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+            model="gpt-5",  # Upgraded to GPT-5 for enhanced crypto analysis capabilities
             messages=[
                 {"role": "system", "content": "Jesteś ekspertem rynku kryptowalut specjalizującym się w analizie sygnałów pre-pump."},
                 {"role": "user", "content": prompt}
@@ -253,7 +253,7 @@ TP Forecast:
 Evaluate the quality and strength of this signal. Provide a confident but concise assessment in 3 short sentences, including any risk factors and probability of continuation. Reply in Polish."""
 
         response = client.chat.completions.create(
-            model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+            model="gpt-5",  # Upgraded to GPT-5 for enhanced crypto signal evaluation capabilities
             messages=[
                 {"role": "system", "content": "You are a crypto signal quality evaluator. Respond in Polish."},
                 {"role": "user", "content": prompt}

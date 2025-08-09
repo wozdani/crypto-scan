@@ -100,7 +100,7 @@ Keep it concise and technical. Focus on the most obvious pattern visible on the 
             
             # Call GPT Vision API
             response = self.client.chat.completions.create(
-                model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+                model="gpt-5",  # Upgraded to GPT-5 for enhanced chart pattern recognition capabilities
                 messages=[
                     {
                         "role": "user",

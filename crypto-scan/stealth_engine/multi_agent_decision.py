@@ -87,7 +87,7 @@ class MultiAgentDecisionSystem:
             
             response = await asyncio.to_thread(
                 self.openai_client.chat.completions.create,
-                model="gpt-4o",
+                model="gpt-5",
                 messages=[
                     {"role": "system", "content": "You are a cryptocurrency trading analysis panel of 5 expert agents. Each agent has a specialized role."},
                     {"role": "user", "content": batch_prompt}

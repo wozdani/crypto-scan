@@ -206,10 +206,10 @@ ANALYSIS: [2-3 sentence technical explanation why you chose this specific setup]
 
 Be consistent - the SETUP field must match your analysis description exactly."""
 
-        # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
-        # do not change this unless explicitly requested by the user
+        # Upgraded to GPT-5 for enhanced crypto chart analysis capabilities
+        # using latest OpenAI model for superior pattern recognition
         response = openai_client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-5",
             messages=[
                 {
                     "role": "user",
