@@ -56,6 +56,7 @@ class MultiAgentDecisionSystem:
     def __init__(self):
         self.decision_log_file = "cache/multi_agent_decisions.json"
         self.debate_history = []
+        self.timeout = 30  # Default timeout for API calls
         # Initialize OpenAI client with proper error handling
         try:
             api_key = os.environ.get("OPENAI_API_KEY")
