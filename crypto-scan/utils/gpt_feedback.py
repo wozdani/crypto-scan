@@ -303,9 +303,9 @@ def test_openai_connection():
     """
     try:
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-5",
             messages=[{"role": "user", "content": "Hello, respond with 'Connection successful'"}],
-            max_tokens=50
+            max_completion_tokens=50
         )
         
         if response.choices[0].message.content:

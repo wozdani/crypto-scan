@@ -227,7 +227,7 @@ Be consistent - the SETUP field must match your analysis description exactly."""
                     ]
                 }
             ],
-            max_tokens=300,
+            max_completion_tokens=300,
             temperature=0.3
         )
         

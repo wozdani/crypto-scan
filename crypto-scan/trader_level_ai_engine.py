@@ -292,12 +292,12 @@ class TraderLevelAIEngine:
             Użyj konkretnego języka rynkowego. Nie podejmuj decyzji - tylko wyjaśnij kontekst.
             """
             
-            # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
-            # do not change this unless explicitly requested by the user
+            # Upgraded to GPT-5 for enhanced crypto trading commentary
+            # using latest OpenAI model for superior market analysis
             response = self.openai_client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-5",
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=150,
+                max_completion_tokens=150,
                 temperature=0.3
             )
             

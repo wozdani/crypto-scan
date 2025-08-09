@@ -87,9 +87,9 @@ Podaj tylko w formacie JSON:
 
 Bez wyjaśnień."""
             
-            # Call GPT Vision
+            # Call GPT-5 Vision for enhanced chart analysis
             response = self.client.chat.completions.create(
-                model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+                model="gpt-5",  # Upgraded to GPT-5 for enhanced chart pattern recognition capabilities
                 messages=[
                     {
                         "role": "user",
@@ -105,7 +105,7 @@ Bez wyjaśnień."""
                         ]
                     }
                 ],
-                max_tokens=150,
+                max_completion_tokens=150,
                 temperature=0.1,
                 response_format={"type": "json_object"}
             )

@@ -114,9 +114,9 @@ Odpowiedz tylko jedną etykietą, która najlepiej opisuje sytuację na wykresie
             # Create prompt with features
             prompt = self.create_vision_prompt(features)
             
-            # Call OpenAI Vision API
+            # Call OpenAI Vision API with GPT-5
             response = self.client.chat.completions.create(
-                model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+                model="gpt-5",  # Upgraded to GPT-5 for enhanced chart pattern recognition capabilities
                 messages=[
                     {
                         "role": "user",
@@ -132,7 +132,7 @@ Odpowiedz tylko jedną etykietą, która najlepiej opisuje sytuację na wykresie
                         ]
                     }
                 ],
-                max_tokens=20,  # Short response expected
+                max_completion_tokens=20,  # Short response expected
                 temperature=0.1  # Low temperature for consistent classification
             )
             

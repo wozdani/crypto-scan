@@ -95,7 +95,7 @@ class MultiAgentDecisionSystem:
                 response_format={"type": "json_object"},
                 timeout=30,
                 temperature=0.7,
-                max_tokens=2000
+                max_completion_tokens=2000
             )
             
             # Parse batch response
@@ -666,16 +666,16 @@ Respond with JSON format:
                 
             print(f"[MULTI-AGENT OpenAI] {role.value}: Calling OpenAI API...")
             
-            # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
-            # do not change this unless explicitly requested by the user
+            # Upgraded to GPT-5 for enhanced crypto trading decision capabilities
+            # using latest OpenAI model for superior pattern recognition
             response = self.openai_client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-5",
                 messages=[
                     {"role": "system", "content": "You are an expert cryptocurrency trading AI agent. Always respond with valid JSON."},
                     {"role": "user", "content": role_prompts[role]}
                 ],
                 response_format={"type": "json_object"},
-                max_tokens=300,
+                max_completion_tokens=300,
                 temperature=0.7
             )
             

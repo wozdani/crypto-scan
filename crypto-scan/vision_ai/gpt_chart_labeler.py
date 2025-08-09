@@ -116,7 +116,7 @@ Keep it concise and technical. Focus on the most obvious pattern visible on the 
                         ]
                     }
                 ],
-                max_tokens=100,
+                max_completion_tokens=100,
                 temperature=0.1
             )
             

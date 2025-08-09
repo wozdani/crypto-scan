@@ -95,9 +95,9 @@ def gpt_label_with_context(context: Dict) -> Dict:
         
         logger.info("[GPT VISION] 🧠 Analyzing market context with GPT-4o...")
         
-        # Call GPT-4o
+        # Call GPT-5 for enhanced technical analysis
         response = client.chat.completions.create(
-            model="gpt-4o",  # Latest model for best visual understanding
+            model="gpt-5",  # Latest model for best visual understanding
             messages=[
                 {
                     "role": "system",
@@ -109,7 +109,7 @@ def gpt_label_with_context(context: Dict) -> Dict:
                 }
             ],
             response_format={"type": "json_object"},
-            max_tokens=300,
+            max_completion_tokens=300,
             temperature=0.3  # Lower temperature for more consistent analysis
         )
         
