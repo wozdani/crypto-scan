@@ -293,7 +293,7 @@ Be consistent - the SETUP field must match your analysis description exactly."""
             'symbol': symbol,
             'tjde_score': tjde_score,
             'image_path': image_path,
-            'model': 'gpt-4o',
+            'model': 'gpt-5',
             'tokens_used': response.usage.total_tokens if response.usage else None,
             'label_conflict': label_conflict,
             'consistency_check': consistency_check
@@ -373,7 +373,7 @@ def rename_chart_with_setup_label(
                 metadata.update({
                     'gpt_analysis': gpt_analysis.get('gpt_commentary', ''),
                     'setup_label': setup_label,
-                    'gpt_model': gpt_analysis.get('model', 'gpt-4o'),
+                    'gpt_model': gpt_analysis.get('model', 'gpt-5'),
                     'gpt_tokens': gpt_analysis.get('tokens_used'),
                     'original_filename': original_filename,
                     'renamed_for_clip_training': True,

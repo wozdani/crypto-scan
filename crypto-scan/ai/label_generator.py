@@ -116,7 +116,7 @@ Bez wyjaśnień."""
             # Validate and clean response
             cleaned_result = self._validate_labels(result)
             cleaned_result["timestamp"] = datetime.now(timezone.utc).isoformat()
-            cleaned_result["labeler"] = "gpt-4o-vision"
+            cleaned_result["labeler"] = "gpt-5-vision"
             
             print(f"[LABEL GEN] GPT labeled: {cleaned_result['phase_type']} / {cleaned_result['setup_type']} ({cleaned_result['confidence']:.2f})")
             return cleaned_result
