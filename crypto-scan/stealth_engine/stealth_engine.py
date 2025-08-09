@@ -2013,44 +2013,38 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         # Import nowego systemu alertów Stealth v3
                         from alerts.stealth_v3_telegram_alerts import send_stealth_v3_alert
                         
-                        # 🔐 CRITICAL CONSENSUS DECISION ONLY - IGNORE SCORE THRESHOLDS
+                        # 🔐 CRITICAL CONSENSUS DECISION ONLY - BUY DECISION TRIGGERS IMMEDIATE ALERT
                         should_alert = False
                         explore_mode = False
                         explore_trigger_reason = None
                         explore_confidence = 0.0
                         
-                        # 🎯 USE UNIFIED DECISION MODULE
-                        # Alert logic based on unified decision pathway
+                        # 🎯 SIMPLIFIED ALERT LOGIC - ONLY CONSENSUS DECISION MATTERS
                         consensus_decision = stored_consensus_data.get("decision") if 'stored_consensus_data' in locals() and stored_consensus_data else None
-                        stealth_p = score  # Use the stealth score as probability
                         
-                        # WYMAGANIE #8: Use hard gating logic instead of p≥0.7 fallback
-                        from engine.decision import final_decision
+                        # **CRITICAL FIX**: Alert IMMEDIATELY when Multi-Agent Consensus says BUY
+                        if consensus_decision == "BUY":
+                            should_alert = True
+                            unified_decision_hardgate = "ALERT"
+                            print(f"[CONSENSUS ALERT] {token_data.get('symbol', 'UNKNOWN')}: BUY decision → IMMEDIATE ALERT")
+                        else:
+                            should_alert = False
+                            unified_decision_hardgate = "NO_ALERT"
+                            print(f"[CONSENSUS BLOCK] {token_data.get('symbol', 'UNKNOWN')}: Decision={consensus_decision} → NO ALERT")
                         
-                        # Extract whale and dex strengths for hard gating
-                        hard_gating_signals = {
-                            "whale_ping": {"strength": result.get("whale_ping", 0.0)},
-                            "dex_inflow": {"strength": result.get("dex_inflow", 0.0)}
-                        }
-                        
-                        unified_decision_hardgate = final_decision(stealth_p, hard_gating_signals, consensus_decision)
-                        should_alert = (unified_decision_hardgate == "ALERT")
-                        
-                        # Log hard gating decision
+                        # Log consensus-based decision
                         symbol_name = token_data.get('symbol', 'UNKNOWN')
-                        whale_strength = hard_gating_signals["whale_ping"]["strength"]
-                        dex_strength = hard_gating_signals["dex_inflow"]["strength"]
-                        print(f"[HARD GATING DECISION] {symbol_name}: Decision={unified_decision_hardgate}, P={stealth_p:.3f}")
-                        print(f"[HARD GATING DECISION] {symbol_name}: whale≥0.8={whale_strength:.3f}, dex≥0.8={dex_strength:.3f}, consensus={consensus_decision}")
+                        stealth_p = score  # Use the stealth score as probability for logging
                         
                         if should_alert:
-                            print(f"[UNIFIED ALERT] {symbol_name}: ALERT TRIGGERED")
+                            print(f"[CONSENSUS ALERT] {symbol_name}: ALERT TRIGGERED - Multi-Agent Consensus = BUY")
                             if 'stored_consensus_data' in locals() and stored_consensus_data:
-                                print(f"[UNIFIED ALERT] {symbol_name}: Votes: {stored_consensus_data.get('votes', [])}")
-                                print(f"[UNIFIED ALERT] {symbol_name}: Contributing detectors: {stored_consensus_data.get('contributing_detectors', [])}") 
+                                print(f"[CONSENSUS ALERT] {symbol_name}: Votes: {stored_consensus_data.get('votes', [])}")
+                                print(f"[CONSENSUS ALERT] {symbol_name}: Contributing detectors: {stored_consensus_data.get('contributing_detectors', [])}") 
+                                print(f"[CONSENSUS ALERT] {symbol_name}: Confidence: {stored_consensus_data.get('confidence', 0.0):.3f}")
                         else:
-                            print(f"[UNIFIED BLOCK] {symbol_name}: NO ALERT - decision={unified_decision_hardgate}")
-                            print(f"[CONSENSUS VOTE] {token_data.get('symbol', 'UNKNOWN')}: Agents need to learn from historical data to vote")
+                            print(f"[CONSENSUS BLOCK] {symbol_name}: NO ALERT - Multi-Agent decision: {consensus_decision}")
+                            print(f"[CONSENSUS VOTE] {token_data.get('symbol', 'UNKNOWN')}: Only BUY decisions trigger alerts")
                         
                         # 🎓 EXPLORE MODE LEARNING SYSTEM - zapisuj wysokie score dla uczenia agentów
                         # Use explore mode results from earlier analysis
