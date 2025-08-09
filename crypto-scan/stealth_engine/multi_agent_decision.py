@@ -251,9 +251,15 @@ class MultiAgentDecisionSystem:
         print(f"\n{'='*80}")
         print(f"[MULTI-AGENT VOTING] Starting 5-agent decision for {detector_name}")
         print(f"[MULTI-AGENT VOTING] Score: {score:.3f}, Threshold: {threshold:.3f}")
+        
+        # 🎯 CANONICAL PRICE INTEGRATION - Use consistent price for all agents
         volume_24h = market_data.get('volume_24h', 0) if market_data else 0
         price_change_24h = market_data.get('price_change_24h', 0) if market_data else 0
+        canonical_price = market_data.get('canonical_price', 0) if market_data else 0
+        price_source = market_data.get('canonical_price_source', 'unknown') if market_data else 'unknown'
+        
         print(f"[MULTI-AGENT VOTING] Market data: Volume ${volume_24h:,.0f}, Price change {price_change_24h:.2f}%")
+        print(f"[MULTI-AGENT VOTING] Canonical price: ${canonical_price:.6f} (source: {price_source})")
         print(f"[MULTI-AGENT DEBUG] Raw market_data type: {type(market_data)}, keys: {list(market_data.keys()) if market_data else 'None'}")
         print(f"{'='*80}\n")
         
@@ -640,47 +646,59 @@ Each agent should decide BUY (strong signal), HOLD (wait for more data), or AVOI
         
         # Enhanced thresholds for better decision making using BUY/HOLD/AVOID
         if role == AgentRole.ANALYZER:
+            market_data = context.get('market_data', {})
+            canonical_price = market_data.get('canonical_price', 0)
+            price_source = market_data.get('canonical_price_source', 'unknown')
+            
             if score >= 0.75:
                 decision = "BUY"
                 confidence = 0.9
-                reasoning = f"Analysis: Score {score:.3f} above strong threshold (0.75) - reliable signal"
+                reasoning = f"Analysis: Score {score:.3f} above strong threshold (0.75) - reliable signal. Price: ${canonical_price:.6f} ({price_source})"
             elif score >= 0.55:
                 decision = "HOLD"
                 confidence = 0.7
-                reasoning = f"Analysis: Score {score:.3f} moderate - need more data"
+                reasoning = f"Analysis: Score {score:.3f} moderate - need more data. Price: ${canonical_price:.6f} ({price_source})"
             else:
                 decision = "AVOID"
                 confidence = 0.75
-                reasoning = f"Analysis: Score {score:.3f} below reliability threshold (0.55)"
+                reasoning = f"Analysis: Score {score:.3f} below reliability threshold (0.55). Price: ${canonical_price:.6f} ({price_source})"
             
         elif role == AgentRole.REASONER:
-            volume = context.get('market_data', {}).get('volume_24h', 0)
+            market_data = context.get('market_data', {})
+            volume = market_data.get('volume_24h', 0)
+            canonical_price = market_data.get('canonical_price', 0)
+            price_source = market_data.get('canonical_price_source', 'unknown')
+            
             if volume > 1000000 and score >= 0.7:
                 decision = "BUY"
                 confidence = 0.8
-                reasoning = f"Market reasoning: High volume ${volume:,.0f}, strong score context"
+                reasoning = f"Market reasoning: High volume ${volume:,.0f}, price ${canonical_price:.6f} ({price_source}), strong score context"
             elif volume > 300000 and score >= 0.6:
                 decision = "HOLD"
                 confidence = 0.7
-                reasoning = f"Market reasoning: Volume ${volume:,.0f}, moderate score context"
+                reasoning = f"Market reasoning: Volume ${volume:,.0f}, price ${canonical_price:.6f} ({price_source}), moderate score context"
             else:
                 decision = "AVOID"
                 confidence = 0.8
-                reasoning = f"Market reasoning: Volume ${volume:,.0f}, insufficient for trading"
+                reasoning = f"Market reasoning: Volume ${volume:,.0f}, price ${canonical_price:.6f} ({price_source}), insufficient for trading"
             
         elif role == AgentRole.VOTER:
+            market_data = context.get('market_data', {})
+            canonical_price = market_data.get('canonical_price', 0)
+            price_source = market_data.get('canonical_price_source', 'unknown')
+            
             if score >= 0.7:
                 decision = "BUY"
                 confidence = 0.9
-                reasoning = f"Vote: Score {score:.3f} meets strong voting criteria (≥0.7)"
+                reasoning = f"Vote: Score {score:.3f} meets strong voting criteria (≥0.7). Price: ${canonical_price:.6f} ({price_source})"
             elif score >= 0.55:
                 decision = "HOLD"
                 confidence = 0.7
-                reasoning = f"Vote: Score {score:.3f} meets moderate criteria - watchlist"
+                reasoning = f"Vote: Score {score:.3f} meets moderate criteria - watchlist. Price: ${canonical_price:.6f} ({price_source})"
             else:
                 decision = "AVOID"
                 confidence = 0.85
-                reasoning = f"Vote: Score {score:.3f} fails voting criteria (<0.55)"
+                reasoning = f"Vote: Score {score:.3f} fails voting criteria (<0.55). Price: ${canonical_price:.6f} ({price_source})"
             
         elif role == AgentRole.DEBATER:
             buy_count = sum(1 for h in self.debate_history if h.get('decision') == 'BUY')

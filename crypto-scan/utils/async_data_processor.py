@@ -55,29 +55,12 @@ def process_async_data_enhanced_with_5m(symbol: str, ticker_data: Optional[Dict]
             price_usd = float(ticker.get("lastPrice", 0)) if ticker.get("lastPrice") else 0.0
             volume_24h = float(ticker.get("volume24h", 0)) if ticker.get("volume24h") else 0.0
             
-            # 🔧 BELUSDT FIX: Enhanced ticker validation with candle fallback
+            # 🔧 BELUSDT FIX: Enhanced ticker validation - defer to canonical_price for fallback
             if price_usd <= 0.0 or volume_24h <= 0.0:
-                print(f"[TICKER INVALID] {symbol}: Price ${price_usd}, Volume {volume_24h} - will use candle fallback")
+                print(f"[TICKER INVALID] {symbol}: Price ${price_usd}, Volume {volume_24h} - will defer to canonical_price")
                 has_ticker = False
-                ticker_invalid = True  # Will trigger fallback to candle price
-                
-                # Immediately try candle price fallback
-                candle_price = 0.0
-                if candles_data and candles_data.get("result", {}).get("list"):
-                    try:
-                        latest_candle = candles_data["result"]["list"][0]
-                        candle_price = float(latest_candle[4])  # Close price (OHLCV format)
-                        if candle_price > 0:
-                            price_usd = candle_price
-                            has_price = True
-                            print(f"[CANDLE FALLBACK] {symbol}: Price ${candle_price} from 15M candles")
-                        else:
-                            has_price = False
-                    except (IndexError, ValueError, KeyError) as e:
-                        print(f"[CANDLE FALLBACK ERROR] {symbol}: Cannot extract candle price: {e}")
-                        has_price = False
-                else:
-                    has_price = False
+                ticker_invalid = True  # Canonical price system will handle fallback
+                has_price = False  # Let canonical_price decide the final price
                     
                 # If no volume from ticker, estimate from candles
                 if volume_24h <= 0.0 and candles_data:
@@ -136,16 +119,8 @@ def process_async_data_enhanced_with_5m(symbol: str, ticker_data: Optional[Dict]
             except (ValueError, IndexError, TypeError):
                 continue
         
-        # FALLBACK: Extract price from latest candle if ticker failed
-        if price_usd <= 0 and candles_15m:
-            price_usd = candles_15m[-1]["close"]  # Use most recent candle close price
-            # Calculate 24h volume from available candles
-            if len(candles_15m) >= 96:  # Full day of 15m candles
-                volume_24h = sum(c["volume"] for c in candles_15m[-96:])
-            else:
-                # Estimate based on available candles
-                volume_24h = sum(c["volume"] for c in candles_15m) * (96 / len(candles_15m))
-            print(f"[CANDLE FALLBACK] {symbol}: Price ${price_usd} from {len(candles_15m)} 15M candles")
+        # PRICE HANDLING: Let canonical_price system handle all price fallback logic
+        # No dispersed fallback logic here - centralized in canonical_price.py
     
     # PRIORITY 3: Process 5M candles if available
     if candles_5m_data and candles_5m_data.get("result", {}).get("list"):
@@ -210,41 +185,11 @@ def process_async_data_enhanced_with_5m(symbol: str, ticker_data: Optional[Dict]
         print(f"[DATA VALIDATION FAILED] {symbol} → Enhanced processor rejected data")
         return None
     
-    # If no price but we have candles, try final price extraction
-    if not has_price and has_15m_candles:
-        # Try to extract from last candle first (most recent)
-        try:
-            last_candle = candles_15m[-1]
-            if isinstance(last_candle, dict) and "close" in last_candle and last_candle["close"] > 0:
-                price_usd = float(last_candle["close"])
-                print(f"[PRICE RECOVERY] {symbol}: Extracted ${price_usd} from last candle fallback")
-            elif isinstance(last_candle, (list, tuple)) and len(last_candle) >= 5 and last_candle[4] > 0:
-                price_usd = float(last_candle[4])  # close price in OHLCV format
-                print(f"[PRICE RECOVERY] {symbol}: Extracted ${price_usd} from last candle fallback")
-            else:
-                # Fallback to any candle with valid price
-                for candle in candles_15m:
-                    if isinstance(candle, dict) and candle.get("close", 0) > 0:
-                        price_usd = float(candle["close"])
-                        print(f"[PRICE RECOVERY] {symbol}: Extracted ${price_usd} from candle fallback")
-                        break
-                    elif isinstance(candle, (list, tuple)) and len(candle) >= 5 and candle[4] > 0:
-                        price_usd = float(candle[4])
-                        print(f"[PRICE RECOVERY] {symbol}: Extracted ${price_usd} from candle fallback")
-                        break
-        except Exception as e:
-            print(f"[PRICE RECOVERY ERROR] {symbol}: {e}")
-            # Fallback to original logic
-            for candle in candles_15m:
-                if candle.get("close", 0) > 0:
-                    price_usd = candle["close"]
-                    print(f"[PRICE RECOVERY] {symbol}: Extracted ${price_usd} from candle fallback")
-                    break
+    # PRICE HANDLING: All price fallback logic moved to canonical_price.py
+    # No dispersed price recovery here - centralized approach
         
-    # Final price validation 
-    if price_usd <= 0:
-        print(f"[VALIDATION FAILED] {symbol}: No valid price found")
-        return None
+    # PRICE VALIDATION: Defer to canonical_price system for final validation
+    # No premature price validation here
     
     # Determine data completeness - CRITICAL for TOP5 filtering
     # FIXED LOGIC: Token is COMPLETE if has both 15M + 5M candles, regardless of ticker status
@@ -259,7 +204,7 @@ def process_async_data_enhanced_with_5m(symbol: str, ticker_data: Optional[Dict]
         data_quality = "COMPLETE"
         print(f"[DATA QUALITY] {symbol}: ✅ COMPLETE - 15M + 5M candles available")
         if ticker_invalid:
-            print(f"[DATA QUALITY] {symbol}: Note: Using candle fallback price due to invalid ticker")
+            print(f"[DATA QUALITY] {symbol}: Note: Invalid ticker - canonical_price will handle price selection")
     
     # FIX 1: Load AI-EYE label from Vision-AI labeling system (SINGLE LOAD)
     ai_label_data = load_ai_label_for_symbol(symbol)
@@ -436,19 +381,8 @@ def process_async_data_enhanced(symbol: str, ticker_data: Optional[Dict], candle
         print(f"[VALIDATION FAILED] {symbol}: No candle data")
         return None
     
-    # If no price but we have candles, try final price extraction
-    if not has_price and has_candles:
-        # Try to extract from any candle
-        for candle in candles:
-            if candle.get("close", 0) > 0:
-                price_usd = candle["close"]
-                print(f"[PRICE RECOVERY] {symbol}: Extracted ${price_usd} from candle fallback")
-                break
-        
-        # If still no price, use 1.0 as placeholder for processing
-        if price_usd <= 0:
-            price_usd = 1.0
-            print(f"[PRICE PLACEHOLDER] {symbol}: Using placeholder price for candle-only processing")
+    # PRICE HANDLING: All price extraction moved to canonical_price.py
+    # No dispersed placeholder logic here
     
     # SUCCESS: Return processed data with partial status tracking
     components = []
