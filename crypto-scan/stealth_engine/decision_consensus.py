@@ -752,7 +752,7 @@ class DecisionConsensusEngine:
                         'signal_data': detector_data
                     }
                     
-                    # Run individual multi-agent evaluation for this detector
+                    # Run individual multi-agent evaluation for this detector (1 API call per detector)
                     try:
                         loop = asyncio.get_running_loop()
                         # If loop is running, create task in existing loop
@@ -768,7 +768,7 @@ class DecisionConsensusEngine:
                                     float(threshold)
                                 )
                             )
-                            decision, confidence, log = future.result(timeout=60)  # 60s timeout per detector
+                            decision, confidence, log = future.result(timeout=90)  # 90s timeout per detector for batch API call
                     except RuntimeError:
                         # No loop running, safe to create new one
                         decision, confidence, log = asyncio.run(

@@ -268,29 +268,19 @@ class MultiAgentDecisionSystem:
             'market_data': market_data
         }
         
-        # Uruchom agentów równolegle
-        agents = [
-            AgentRole.ANALYZER,
-            AgentRole.REASONER,
-            AgentRole.VOTER,
-            AgentRole.DEBATER,
-            AgentRole.DECIDER
+        # BATCH EVALUATION: Wszystkich 5 agentów w jednym zapytaniu
+        all_contexts = [
+            (AgentRole.ANALYZER, context),
+            (AgentRole.REASONER, context), 
+            (AgentRole.VOTER, context),
+            (AgentRole.DEBATER, context),
+            (AgentRole.DECIDER, context)
         ]
         
-        # Pierwsze 4 agentów mogą działać równolegle
-        parallel_tasks = [
-            self.agent_task(role, context) 
-            for role in agents[:4]
-        ]
+        print(f"[MULTI-AGENT BATCH] Running batch evaluation for {detector_name} with all 5 agents in 1 API call...")
         
-        # Czekaj na wyniki pierwszych 4 agentów
-        parallel_results = await asyncio.gather(*parallel_tasks)
-        
-        # Decider potrzebuje wyników pozostałych, więc uruchom go osobno
-        decider_response = await self.agent_task(AgentRole.DECIDER, context)
-        
-        # Zbierz wszystkie odpowiedzi
-        all_responses = parallel_results + [decider_response]
+        # Uruchom batch evaluation dla wszystkich 5 agentów naraz
+        all_responses = await self.batch_agent_evaluation(all_contexts)
         
         # Wyświetl głosy każdego agenta
         print(f"\n[MULTI-AGENT VOTES] Individual agent decisions:")
@@ -298,6 +288,15 @@ class MultiAgentDecisionSystem:
             vote_symbol = "✅" if response.decision == "YES" else "❌"
             print(f"  {vote_symbol} {response.role.value}: {response.decision} (confidence: {response.confidence:.3f})")
             print(f"     Reasoning: {response.reasoning[:100]}...")
+            
+            # Zapisz do historii debaty
+            self.debate_history.append({
+                'role': response.role.value,
+                'decision': response.decision,
+                'reasoning': response.reasoning,
+                'confidence': response.confidence,
+                'timestamp': datetime.now().isoformat()
+            })
         
         # Policz głosy
         yes_votes = sum(1 for r in all_responses if r.decision == "YES")

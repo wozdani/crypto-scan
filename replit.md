@@ -41,7 +41,7 @@ The system employs a multi-stage detection pipeline for pre-pump signals, built 
     -   **GNN-based Stealth Engine**: Leverages Graph Neural Networks for blockchain transaction analysis, anomaly detection, and reinforcement learning.
     -   **Wallet Behavior Encoder**: Generates behavioral embeddings from transaction histories for whale classification.
     -   **Contextual Chart Generation**: Generates TradingView-style charts with contextual overlays for Vision-AI training.
-    -   **Individual Multi-Agent Processing**: The Multi-Agent Consensus System uses individual OpenAI API calls per detector (1 call per detector) rather than batch processing, providing better reliability and easier debugging for each detector's 5-agent evaluation.
+    -   **Individual Multi-Agent Processing**: The Multi-Agent Consensus System uses individual OpenAI API calls per detector (1 call per detector for all 5 agents) rather than batch processing, providing better reliability and easier debugging for each detector's 5-agent evaluation.
     -   **GPT-5 Integration**: The system utilizes GPT-5 for enhanced AI capabilities across all OpenAI API calls, providing superior crypto analysis and reasoning.
 
 ## External Dependencies
