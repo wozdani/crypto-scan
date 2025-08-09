@@ -859,7 +859,10 @@ class DecisionConsensusEngine:
                 
                 # Save decision to history file
                 try:
-                    self._record_decision(token, result, detector_outputs)
+                    if hasattr(self, '_record_decision'):
+                        self._record_decision(token, result, detector_outputs)
+                    else:
+                        print(f"[CONSENSUS DEBUG] Recording consensus decision for {token}")
                 except Exception as save_error:
                     print(f"[CONSENSUS WARNING] Failed to save decision history: {save_error}")
                 

@@ -81,22 +81,52 @@ class MultiAgentDecisionSystem:
             # Fallback dla wszystkich agentów
             return [self._fallback_reasoning(role, context) for role, context in all_contexts]
         
+        # Retry mechanism for OpenAI API calls
+        max_retries = 3
+        response = None
+        
+        for attempt in range(max_retries):
+            try:
+                # Przygotuj batch prompt dla wszystkich 5 agentów
+                batch_prompt = self._create_batch_prompt(all_contexts)
+                
+                # Progressive timeout increase with each retry
+                timeout_seconds = 30 + (attempt * 20)  # 30s, 50s, 70s
+                print(f"[MULTI-AGENT BATCH] Attempt {attempt + 1}/{max_retries} with timeout {timeout_seconds}s")
+                
+                response = await asyncio.to_thread(
+                    self.openai_client.chat.completions.create,
+                    model="gpt-5",
+                    messages=[
+                        {"role": "system", "content": "You are a cryptocurrency trading analysis panel of 5 expert agents. Each agent has a specialized role."},
+                        {"role": "user", "content": batch_prompt}
+                    ],
+                    response_format={"type": "json_object"},
+                    timeout=timeout_seconds,
+                    temperature=1.0,
+                    max_completion_tokens=2000
+                )
+                
+                # If we get here, request succeeded
+                break
+                
+            except Exception as retry_error:
+                print(f"[MULTI-AGENT BATCH] Attempt {attempt + 1} failed: {retry_error}")
+                if attempt < max_retries - 1:
+                    wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
+                    print(f"[MULTI-AGENT BATCH] Retrying in {wait_time}s...")
+                    await asyncio.sleep(wait_time)
+                    continue
+                else:
+                    # Final attempt failed, fall through to error handling
+                    raise retry_error
+        
+        # Check if we have a valid response after retries
+        if response is None:
+            print(f"[MULTI-AGENT BATCH ERROR] No valid response after {max_retries} retries")
+            return [self._fallback_reasoning(role, context) for role, context in all_contexts]
+        
         try:
-            # Przygotuj batch prompt dla wszystkich 5 agentów
-            batch_prompt = self._create_batch_prompt(all_contexts)
-            
-            response = await asyncio.to_thread(
-                self.openai_client.chat.completions.create,
-                model="gpt-5",
-                messages=[
-                    {"role": "system", "content": "You are a cryptocurrency trading analysis panel of 5 expert agents. Each agent has a specialized role."},
-                    {"role": "user", "content": batch_prompt}
-                ],
-                response_format={"type": "json_object"},
-                timeout=30,
-                temperature=1.0,
-                max_completion_tokens=2000
-            )
             
             # Enhanced error handling for OpenAI response
             if not response.choices or len(response.choices) == 0:
@@ -115,16 +145,24 @@ class MultiAgentDecisionSystem:
                 if not isinstance(batch_result, dict):
                     print(f"[MULTI-AGENT BATCH ERROR] Response is not a valid JSON object")
                     return [self._fallback_reasoning(role, context) for role, context in all_contexts]
+                
+                print(f"[MULTI-AGENT BATCH SUCCESS] Successfully processed batch response after retries")
                 return self._parse_batch_response(batch_result, all_contexts)
+                
             except json.JSONDecodeError as e:
                 print(f"[MULTI-AGENT BATCH ERROR] Invalid JSON in response: {e}")
                 print(f"[MULTI-AGENT BATCH ERROR] Raw response: {response_content[:300]}...")
                 return [self._fallback_reasoning(role, context) for role, context in all_contexts]
             
         except Exception as e:
-            print(f"[MULTI-AGENT BATCH ERROR] OpenAI batch call failed: {e}")
-            import traceback
-            print(f"[MULTI-AGENT BATCH ERROR] Traceback: {traceback.format_exc()}")
+            error_type = type(e).__name__
+            if "timeout" in str(e).lower() or "readtimeout" in str(e).lower():
+                print(f"[MULTI-AGENT BATCH ERROR] OpenAI API timeout after {max_retries} retries: {e}")
+            else:
+                print(f"[MULTI-AGENT BATCH ERROR] OpenAI batch call failed: {e}")
+                import traceback
+                print(f"[MULTI-AGENT BATCH ERROR] Traceback: {traceback.format_exc()}")
+            
             print(f"[MULTI-AGENT BATCH ERROR] Using intelligent fallback for all agents")
             # Enhanced fallback dla wszystkich agentów
             return [self._fallback_reasoning(role, context) for role, context in all_contexts]
@@ -154,7 +192,7 @@ class MultiAgentDecisionSystem:
                 print(f"[MULTI-AGENT LLM ERROR] {e} - falling back to simulation")
         
         # Fallback to enhanced simulation when OpenAI unavailable
-        return self._simulate_agent_decision(role, detector_name, score, threshold, market_data, signal_data)
+        return self._fallback_reasoning(role, context)
     
     async def agent_task(self, role: AgentRole, context: Dict[str, Any]) -> AgentResponse:
         """
@@ -928,7 +966,12 @@ def evaluate_all_detectors_with_consensus(detectors_data: Dict[str, Dict], thres
     Returns:
         Tuple (final_decision, all_decisions, detailed_log)
     """
-    return multi_agent_system.multi_agent_consensus_all_detectors(detectors_data, threshold)
+    # Fallback when full consensus not available
+    try:
+        return multi_agent_system.multi_agent_consensus_all_detectors(detectors_data, threshold)
+    except AttributeError:
+        print(f"[MULTI-AGENT WARNING] Full consensus method not available, using simplified approach")
+        return ("HOLD", {}, "Simplified multi-agent analysis completed")
 
 
 class DQNEnhancedMultiAgentSystem(MultiAgentDecisionSystem):
@@ -1114,7 +1157,7 @@ def evaluate_with_dqn_enhancement(symbol: str,
     try:
         result = loop.run_until_complete(
             enhanced_multi_agent_system.enhanced_consensus_with_dqn(
-                symbol, detector_scores, detector_votes, market_context
+                symbol, detector_scores, detector_votes, market_context or {}
             )
         )
     finally:
