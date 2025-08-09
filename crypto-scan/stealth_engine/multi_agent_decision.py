@@ -638,40 +638,98 @@ Each agent should decide BUY (strong signal), HOLD (wait for more data), or AVOI
         score = context.get('score', 0.0)
         threshold = context.get('threshold', 0.7)
         
-        # Enhanced thresholds for better decision making - lowered for score >0.6
+        # Enhanced thresholds for better decision making using BUY/HOLD/AVOID
         if role == AgentRole.ANALYZER:
-            decision = "YES" if score > 0.6 else "NO"
-            confidence = 0.9 if score > 0.8 else 0.75
-            reasoning = f"Analysis: Score {score:.3f} {'above' if decision == 'YES' else 'below'} reliability threshold (0.6)"
+            if score >= 0.75:
+                decision = "BUY"
+                confidence = 0.9
+                reasoning = f"Analysis: Score {score:.3f} above strong threshold (0.75) - reliable signal"
+            elif score >= 0.55:
+                decision = "HOLD"
+                confidence = 0.7
+                reasoning = f"Analysis: Score {score:.3f} moderate - need more data"
+            else:
+                decision = "AVOID"
+                confidence = 0.75
+                reasoning = f"Analysis: Score {score:.3f} below reliability threshold (0.55)"
             
         elif role == AgentRole.REASONER:
             volume = context.get('market_data', {}).get('volume_24h', 0)
-            decision = "YES" if volume > 300000 and score > 0.6 else "NO"
-            confidence = 0.8
-            reasoning = f"Market reasoning: Volume ${volume:,.0f}, score context acceptable"
+            if volume > 1000000 and score >= 0.7:
+                decision = "BUY"
+                confidence = 0.8
+                reasoning = f"Market reasoning: High volume ${volume:,.0f}, strong score context"
+            elif volume > 300000 and score >= 0.6:
+                decision = "HOLD"
+                confidence = 0.7
+                reasoning = f"Market reasoning: Volume ${volume:,.0f}, moderate score context"
+            else:
+                decision = "AVOID"
+                confidence = 0.8
+                reasoning = f"Market reasoning: Volume ${volume:,.0f}, insufficient for trading"
             
         elif role == AgentRole.VOTER:
-            decision = "YES" if score > 0.6 else "NO"
-            confidence = 0.9
-            reasoning = f"Vote: Score {score:.3f} {'meets' if decision == 'YES' else 'fails'} voting criteria (threshold: 0.6)"
+            if score >= 0.7:
+                decision = "BUY"
+                confidence = 0.9
+                reasoning = f"Vote: Score {score:.3f} meets strong voting criteria (≥0.7)"
+            elif score >= 0.55:
+                decision = "HOLD"
+                confidence = 0.7
+                reasoning = f"Vote: Score {score:.3f} meets moderate criteria - watchlist"
+            else:
+                decision = "AVOID"
+                confidence = 0.85
+                reasoning = f"Vote: Score {score:.3f} fails voting criteria (<0.55)"
             
         elif role == AgentRole.DEBATER:
-            yes_count = sum(1 for h in self.debate_history if h.get('decision') == 'YES')
-            decision = "YES" if (yes_count >= 1 and score > 0.6) or score > 0.8 else "NO"
-            confidence = 0.75
-            reasoning = f"Debate: {'Supporting' if decision == 'YES' else 'Opposing'} based on evidence (threshold: 0.6)"
+            buy_count = sum(1 for h in self.debate_history if h.get('decision') == 'BUY')
+            hold_count = sum(1 for h in self.debate_history if h.get('decision') == 'HOLD')
+            if (buy_count >= 1 and score > 0.65) or score > 0.8:
+                decision = "BUY"
+                confidence = 0.75
+                reasoning = f"Debate: Supporting based on evidence (score: {score:.3f}, buy_votes: {buy_count})"
+            elif buy_count == 0 and hold_count >= 1 and score > 0.55:
+                decision = "HOLD"
+                confidence = 0.7
+                reasoning = f"Debate: Neutral position - need more evidence"
+            else:
+                decision = "AVOID"
+                confidence = 0.75
+                reasoning = f"Debate: Opposing based on evidence (score: {score:.3f})"
             
         elif role == AgentRole.DECIDER:
-            yes_votes = sum(1 for h in self.debate_history if h.get('decision') == 'YES')
-            decision = "YES" if yes_votes >= 2 and score > 0.6 else "NO"
-            confidence = 0.9
-            reasoning = f"Final decision: {yes_votes}/{len(self.debate_history)} agents support (score threshold: 0.6)"
+            buy_votes = sum(1 for h in self.debate_history if h.get('decision') == 'BUY')
+            hold_votes = sum(1 for h in self.debate_history if h.get('decision') == 'HOLD')
+            avoid_votes = sum(1 for h in self.debate_history if h.get('decision') == 'AVOID')
+            
+            if buy_votes >= 2 and score > 0.6:
+                decision = "BUY"
+                confidence = 0.9
+                reasoning = f"Final decision: {buy_votes} BUY votes support signal (score: {score:.3f})"
+            elif buy_votes + hold_votes >= 2 and score > 0.5:
+                decision = "HOLD"
+                confidence = 0.7
+                reasoning = f"Final decision: Mixed signals - {buy_votes}B/{hold_votes}H/{avoid_votes}A"
+            else:
+                decision = "AVOID"
+                confidence = 0.8
+                reasoning = f"Final decision: Insufficient consensus - {buy_votes}B/{hold_votes}H/{avoid_votes}A"
             
         else:
             # Default fallback for any unknown role
-            decision = "YES" if score > 0.6 else "NO"
-            confidence = 0.7
-            reasoning = f"Default fallback: Score {score:.3f} evaluated with 0.6 threshold"
+            if score >= 0.7:
+                decision = "BUY"
+                confidence = 0.7
+                reasoning = f"Default fallback: Score {score:.3f} above BUY threshold (0.7)"
+            elif score >= 0.55:
+                decision = "HOLD"
+                confidence = 0.6
+                reasoning = f"Default fallback: Score {score:.3f} moderate - HOLD"
+            else:
+                decision = "AVOID"
+                confidence = 0.7
+                reasoning = f"Default fallback: Score {score:.3f} below trading threshold"
             
         return AgentResponse(role=role, decision=decision, reasoning=reasoning, confidence=confidence)
     
@@ -703,7 +761,7 @@ Active Signals: {len([s for s in signal_data.values() if s])}
 Your role: Analyze if the score and data are reliable for trading decisions.
 
 Respond with JSON format:
-{{"decision": "YES" or "NO", "reasoning": "detailed analysis", "confidence": 0.0-1.0}}""",
+{{"decision": "BUY" or "HOLD" or "AVOID", "reasoning": "detailed analysis", "confidence": 0.0-1.0}}""",
 
             AgentRole.REASONER: f"""You are an AI trading REASONER. Evaluate market context for this signal:
             
@@ -715,7 +773,7 @@ Price Change: {market_data.get('price_change_24h', 0):.2f}%
 Your role: Reason about market conditions and whether they support this trading signal.
 
 Respond with JSON format:
-{{"decision": "YES" or "NO", "reasoning": "market context analysis", "confidence": 0.0-1.0}}""",
+{{"decision": "BUY" or "HOLD" or "AVOID", "reasoning": "market context analysis", "confidence": 0.0-1.0}}""",
 
             AgentRole.VOTER: f"""You are an AI trading VOTER. Make a clear vote on this signal:
             
@@ -723,10 +781,10 @@ Detector: {detector_name}
 Score: {score:.3f} (threshold: {threshold:.2f})
 Signal Strength: {"Strong" if score > threshold else "Weak"}
 
-Your role: Vote YES or NO based on overall signal assessment.
+Your role: Vote BUY (strong signal), HOLD (wait for more data), or AVOID (weak signal).
 
 Respond with JSON format:
-{{"decision": "YES" or "NO", "reasoning": "voting rationale", "confidence": 0.0-1.0}}""",
+{{"decision": "BUY" or "HOLD" or "AVOID", "reasoning": "voting rationale", "confidence": 0.0-1.0}}""",
 
             AgentRole.DEBATER: f"""You are an AI trading DEBATER. Challenge or support this signal:
             
@@ -737,19 +795,21 @@ Previous decisions: {[h.get('decision') for h in self.debate_history[-3:]]}
 Your role: Provide critical analysis - find weaknesses or strengths in the signal.
 
 Respond with JSON format:
-{{"decision": "YES" or "NO", "reasoning": "debate analysis", "confidence": 0.0-1.0}}""",
+{{"decision": "BUY" or "HOLD" or "AVOID", "reasoning": "debate analysis", "confidence": 0.0-1.0}}""",
 
             AgentRole.DECIDER: f"""You are an AI trading DECIDER. Make the final decision:
             
 Detector: {detector_name}
 Score: {score:.3f}
 Previous votes: {[h.get('decision') for h in self.debate_history]}
-Vote count: {sum(1 for h in self.debate_history if h.get('decision') == 'YES')} YES votes
+BUY votes: {sum(1 for h in self.debate_history if h.get('decision') == 'BUY')}
+HOLD votes: {sum(1 for h in self.debate_history if h.get('decision') == 'HOLD')}
+AVOID votes: {sum(1 for h in self.debate_history if h.get('decision') == 'AVOID')}
 
 Your role: Make final decision based on agent consensus.
 
 Respond with JSON format:
-{{"decision": "YES" or "NO", "reasoning": "final decision logic", "confidence": 0.0-1.0}}"""
+{{"decision": "BUY" or "HOLD" or "AVOID", "reasoning": "final decision logic", "confidence": 0.0-1.0}}"""
         }
         
         try:
