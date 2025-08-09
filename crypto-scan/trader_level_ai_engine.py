@@ -297,8 +297,8 @@ class TraderLevelAIEngine:
             response = self.openai_client.chat.completions.create(
                 model="gpt-5",
                 messages=[{"role": "user", "content": prompt}],
-                max_completion_tokens=150,
-
+                temperature=1.0,
+                max_completion_tokens=150
             )
             
             commentary = response.choices[0].message.content.strip()

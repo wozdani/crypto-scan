@@ -927,6 +927,7 @@ Focus on: trend quality, pullback depth, support levels, volume confirmation, en
                     {"role": "system", "content": "You are an expert cryptocurrency trader specializing in trend-following strategies. Respond only with valid JSON."},
                     {"role": "user", "content": prompt}
                 ],
+                temperature=1.0,
                 max_tokens=200
             )
             

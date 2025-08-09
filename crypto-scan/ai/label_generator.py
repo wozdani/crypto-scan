@@ -105,8 +105,8 @@ Bez wyjaśnień."""
                         ]
                     }
                 ],
+                temperature=1.0,
                 max_completion_tokens=150,
-
                 response_format={"type": "json_object"}
             )
             

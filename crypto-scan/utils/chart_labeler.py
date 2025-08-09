@@ -132,6 +132,7 @@ Odpowiedz tylko jedną etykietą, która najlepiej opisuje sytuację na wykresie
                         ]
                     }
                 ],
+                temperature=1.0,
                 max_completion_tokens=20  # Short response expected
             )
             
