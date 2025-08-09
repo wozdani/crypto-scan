@@ -754,7 +754,7 @@ class DecisionConsensusEngine:
                                 float(threshold)
                             )
                         )
-                        batch_results = future.result(timeout=60)  # Increased timeout for batch
+                        batch_results = future.result(timeout=120)  # Further increased timeout for batch processing
                 except RuntimeError:
                     # No loop running, safe to create new one
                     batch_results = asyncio.run(
@@ -776,8 +776,29 @@ class DecisionConsensusEngine:
                 print(f"[MULTI-AGENT BATCH ERROR] Failed batch evaluation: {e}")
                 import traceback
                 traceback.print_exc()
-                # Fallback to individual evaluations if batch fails
-                return None
+                print(f"[MULTI-AGENT FALLBACK] Using individual detector fallback due to batch failure")
+                
+                # Enhanced fallback: use individual detector scores with intelligent thresholds
+                agent_decisions = {}
+                agent_confidences = {}
+                
+                for detector_name, detector_data in active_detectors.items():
+                    score = detector_data.get("score", 0.0)
+                    # Smart threshold-based decision for each detector
+                    if score >= 0.65:  # High confidence BUY
+                        agent_decisions[detector_name] = "YES"
+                        agent_confidences[detector_name] = min(0.9, score + 0.1)
+                        print(f"[FALLBACK BUY] {detector_name}: Score {score:.3f} ≥ 0.65 → BUY")
+                    elif score >= 0.45:  # Medium confidence HOLD
+                        agent_decisions[detector_name] = "NO"  # Conservative approach
+                        agent_confidences[detector_name] = 0.6
+                        print(f"[FALLBACK HOLD] {detector_name}: Score {score:.3f} ≥ 0.45 → HOLD")
+                    else:  # Low confidence AVOID
+                        agent_decisions[detector_name] = "NO"
+                        agent_confidences[detector_name] = 0.7
+                        print(f"[FALLBACK AVOID] {detector_name}: Score {score:.3f} < 0.45 → AVOID")
+                
+                print(f"[FALLBACK COMPLETE] Processed {len(agent_decisions)} detectors with intelligent fallback")
             
             # Aggregate multi-agent decisions into final consensus
             if agent_decisions:
@@ -836,8 +857,11 @@ class DecisionConsensusEngine:
                     votes=votes_list  # Now contains actual detector votes like ["StealthEngine: BUY", "DiamondWhale: AVOID"]
                 )
                 
-                # Save decision
-                self._save_decision_history()
+                # Save decision to history file
+                try:
+                    self._record_decision(token, result, detector_outputs)
+                except Exception as save_error:
+                    print(f"[CONSENSUS WARNING] Failed to save decision history: {save_error}")
                 
                 # Log decision
                 print(f"\n{'#'*80}")
