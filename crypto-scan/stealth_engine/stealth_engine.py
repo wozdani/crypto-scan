@@ -2056,165 +2056,44 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         # Use explore mode results from earlier analysis
                         explore_mode = explore_mode_triggered
                         
-                        # EXPLORE MODE: Zapisuj wysokie score dla future agent learning
+                        # EXPLORE MODE: Mark for potential saving (will validate conditions later)
                         if explore_mode_triggered:
-                            print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Wysokie score {score:.3f} zapisane dla agent learning")
+                            print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: High score {score:.3f} detected - validating explore conditions")
                             
-                            # 🚧 SAVE EXPLORE MODE FILE - Always save explore data for learning
-                            try:
-                                import json
-                                import os
-                                from datetime import datetime
-                                
-                                # Create explore mode data structure
-                                explore_data = {
-                                    "symbol": token_data.get('symbol', 'UNKNOWN'),
-                                    "timestamp": datetime.now().isoformat(),
-                                    "explore_confidence": round(score, 3),
-                                    "explore_reason": f"EXPLORE MODE: stealth signals detected | Score: {score:.3f} | Active signals: {', '.join(list(used_signals)[:5])}",
-                                    "whale_ping_strength": whale_ping_value if 'whale_ping_value' in locals() and whale_ping_value > 0 else 0.0,
-                                    "dex_inflow_usd": 0.0,  # TODO: Extract real DEX inflow USD value
-                                    "stealth_score": score,
-                                    "active_signals": list(used_signals) if 'used_signals' in locals() else [],
-                                    "skip_reason": None,
-                                    "consensus_decision": "UNKNOWN",
-                                    "agent_votes": [],
-                                    "confidence_sources": {
-                                        "diamondwhale_ai": diamond_score if diamond_enabled else 0.0,
-                                        "californiumwhale_ai": californium_score if californium_enabled else 0.0,
-                                        "whale_clip": 0.0,  # WhaleCLIP not available here
-                                        "mastermind_tracing": 0.0  # TODO: Add mastermind score
-                                    },
-                                    "detector_scores": {
-                                        "stealth_engine": score,
-                                        "diamond_whale": diamond_score if diamond_enabled else 0.0,
-                                        "californium_whale": californium_score if californium_enabled else 0.0,
-                                        "whale_clip": 0.0
-                                    },
-                                    "mastermind_tracing": {
-                                        "sequence_detected": False,
-                                        "sequence_length": 0,
-                                        "confidence": 0.0,
-                                        "actors": []
-                                    },
-                                    "graph_features": {
-                                        "accumulation_subgraph_score": 0.0,
-                                        "temporal_pattern_shift": 0.0,
-                                        "whale_loop_probability": 0.0,
-                                        "unique_addresses": 0,
-                                        "avg_tx_interval_seconds": 0.0
-                                    }
-                                }
-                                
-                                # Save explore mode file
-                                os.makedirs("cache/explore_mode", exist_ok=True)
-                                explore_file = f"cache/explore_mode/{token_data.get('symbol', 'UNKNOWN')}_explore.json"
-                                
-                                with open(explore_file, 'w') as f:
-                                    json.dump(explore_data, f, indent=2)
-                                
-                                print(f"[EXPLORE MODE SAVED] {token_data.get('symbol', 'UNKNOWN')}: Explore data saved to {explore_file}")
-                                
-                            except Exception as e:
-                                print(f"[EXPLORE MODE ERROR] {token_data.get('symbol', 'UNKNOWN')}: Failed to save explore data: {e}")
+                            # Note: Explore mode validation and saving will happen later in proper validation logic
                             print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Trigger reason: {explore_trigger_reason}")
                             print(f"[EXPLORE MODE] {token_data.get('symbol', 'UNKNOWN')}: Agenci będą sprawdzać czy był pump w przeszłości")
                             
-                            # Zapisz explore mode data dla agent feedback learning
+                            # Enhanced learning data recording for detector training (without file saving)
                             try:
-                                from datetime import datetime
-                                import json
-                                
-                                # Enhanced explore mode data z detector learning information
-                                explore_data = {
-                                    "symbol": token_data.get('symbol', 'UNKNOWN'),
-                                    "score": score,
-                                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                    "trigger_reason": explore_trigger_reason,
-                                    "agents_decision": stored_consensus_data.get("decision", "NONE") if 'stored_consensus_data' in locals() else "NO_CONSENSUS",
-                                    "agents_votes": stored_consensus_data.get('votes', []) if 'stored_consensus_data' in locals() else [],
-                                    "detectors": stored_consensus_data.get('contributing_detectors', []) if 'stored_consensus_data' in locals() else [],
-                                    "awaiting_pump_verification": True,  # Agenci sprawdzą czy był pump
-                                    # Enhanced detector learning integration
-                                    "confidence_sources": {
-                                        "stealth_engine": {"score": score, "confidence": min(data_coverage, 1.0)},
-                                        "diamond_whale": {"score": diamond_score if diamond_enabled else 0.0, "enabled": diamond_enabled},
-                                        "californium_whale": {"score": californium_score if californium_enabled else 0.0, "enabled": californium_enabled},
-                                        "whaleclip": {"score": whaleclip_final_score if 'whaleclip_final_score' in locals() else 0.0, "enabled": whaleclip_status_corrected}
-                                    },
-                                    "detector_scores": {
-                                        "stealth": score,
-                                        "diamond": diamond_score if diamond_enabled else 0.0,
-                                        "californium": californium_score if californium_enabled else 0.0,
-                                        "whaleclip": whaleclip_final_score if 'whaleclip_final_score' in locals() else 0.0
-                                    },
-                                    "mastermind_tracing": mastermind_data if 'mastermind_data' in locals() else None,
-                                    "graph_features": {"gnn_active": gnn_active, "gnn_score": gnn_subgraph_score if 'gnn_subgraph_score' in locals() else 0.0}
-                                }
-                                
-                                # Save explore mode learning data
-                                explore_file = "crypto-scan/cache/explore_learning_data.json"
-                                try:
-                                    with open(explore_file, 'r') as f:
-                                        explore_history = json.load(f)
-                                except:
-                                    explore_history = []
-                                
-                                explore_history.append(explore_data)
-                                
-                                # Keep only last 1000 explore entries
-                                if len(explore_history) > 1000:
-                                    explore_history = explore_history[-1000:]
-                                
-                                with open(explore_file, 'w') as f:
-                                    json.dump(explore_history, f, indent=2)
-                                
-                                print(f"[EXPLORE SAVE] {token_data.get('symbol', 'UNKNOWN')}: Enhanced learning data saved dla detector training")
-                                
                                 # Record explore mode decisions for individual detector learning
-                                try:
-                                    # Record explore mode decision for each active detector
-                                    if score > 0.0:
-                                        record_detector_decision(
-                                            "StealthEngine", token_data.get('symbol', 'UNKNOWN'), 
-                                            score, score, "EXPLORE", explore_mode=True, 
-                                            market_context=token_data
-                                        )
-                                        
-                                    if diamond_enabled and diamond_score > 0.0:
-                                        record_detector_decision(
-                                            "DiamondWhale", token_data.get('symbol', 'UNKNOWN'), 
-                                            diamond_score, diamond_score, "EXPLORE", explore_mode=True, 
-                                            market_context=token_data
-                                        )
-                                        
-                                    if californium_enabled and californium_score > 0.0:
-                                        record_detector_decision(
-                                            "CaliforniumWhale", token_data.get('symbol', 'UNKNOWN'), 
-                                            californium_score, californium_score, "EXPLORE", explore_mode=True, 
-                                            market_context=token_data
-                                        )
-                                        
-                                    if 'whaleclip_final_score' in locals() and whaleclip_final_score > 0.0:
-                                        record_detector_decision(
-                                            "WhaleCLIP", token_data.get('symbol', 'UNKNOWN'), 
-                                            whaleclip_final_score, whaleclip_final_score, "EXPLORE", explore_mode=True, 
-                                            market_context=token_data
-                                        )
-                                        
-                                    symbol = token_data.get('symbol', 'UNKNOWN') if token_data else 'UNKNOWN'
-                                    print(f"[DETECTOR LEARNING] {symbol}: Explore mode decisions recorded dla wszystkich active detectors")
+                                if score > 0.0:
+                                    record_detector_decision(
+                                        "StealthEngine", token_data.get('symbol', 'UNKNOWN'), 
+                                        score, score, "EXPLORE", explore_mode=True, 
+                                        market_context=token_data
+                                    )
                                     
-                                except Exception as learning_error:
-                                    symbol = token_data.get('symbol', 'UNKNOWN') if token_data else 'UNKNOWN'
-                                    print(f"[DETECTOR LEARNING ERROR] {symbol}: Failed to record explore decisions: {learning_error}")
+                                if diamond_enabled and diamond_score > 0.0:
+                                    record_detector_decision(
+                                        "DiamondWhale", token_data.get('symbol', 'UNKNOWN'), 
+                                        diamond_score, diamond_score, "EXPLORE", explore_mode=True, 
+                                        market_context=token_data
+                                    )
+                                    
+                                if californium_enabled and californium_score > 0.0:
+                                    record_detector_decision(
+                                        "CaliforniumWhale", token_data.get('symbol', 'UNKNOWN'), 
+                                        californium_score, californium_score, "EXPLORE", explore_mode=True, 
+                                        market_context=token_data
+                                    )
                                     
                                 symbol = token_data.get('symbol', 'UNKNOWN') if token_data else 'UNKNOWN'
-                                print(f"[EXPLORE SAVE] {symbol}: Enhanced learning data saved dla detector training")
+                                print(f"[DETECTOR LEARNING] {symbol}: Explore mode decisions recorded for active detectors")
                                 
-                            except Exception as e:
+                            except Exception as learning_error:
                                 symbol = token_data.get('symbol', 'UNKNOWN') if token_data else 'UNKNOWN'
-                                print(f"[EXPLORE ERROR] {symbol}: Failed to save learning data: {e}")
+                                print(f"[DETECTOR LEARNING ERROR] {symbol}: Failed to record explore decisions: {learning_error}")
                             
                             # W explore mode nie wysyłamy alertów - tylko zbieramy dane do nauki
                             should_alert = False
