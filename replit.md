@@ -17,6 +17,7 @@ This project is a cryptocurrency market scanner designed to detect pre-pump sign
   - DQNIntegrationManager in stealth_engine with MultiAgent DQNAgent singleton
   - All direct instantiations replaced with .instance() calls across codebase
   - Eliminated state drift and memory conflicts in reinforcement learning components
+- **Pre-Confirmatory Poke System**: Implemented "pre-confirmatory poke" feature that detects when 2/3 AI agents score 0.60-0.68 (just under 0.7 threshold) and forces additional data loading (orderbook, chain inflow) before finalizing HOLD decisions. This ensures comprehensive analysis for edge cases where detectors are marginally below the threshold but potentially valid signals.
 
 ## User Preferences
 

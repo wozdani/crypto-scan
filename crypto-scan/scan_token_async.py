@@ -790,6 +790,84 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 if stealth_result.get("consensus_decision"):
                     # Consensus data is directly in stealth_result (new format)
                     consensus_decision = stealth_result.get("consensus_decision", "HOLD")
+                    
+                    # 🎯 PRE-CONFIRMATORY POKE - obsługuj specjalną decyzję
+                    if consensus_decision == "PRE_CONFIRMATORY_POKE":
+                        print(f"[PRE-CONFIRMATORY POKE] {symbol}: Wykryto edge case - wymuszam doładowanie danych")
+                        
+                        # Sprawdź jakie dane mogą być niepełne
+                        missing_data = []
+                        if not market_data.get("orderbook") or len(market_data.get("orderbook", {}).get("bids", [])) == 0:
+                            missing_data.append("real_orderbook")
+                        if real_dex_inflow == 0:
+                            missing_data.append("chain_inflow")
+                        
+                        print(f"[PRE-CONFIRMATORY POKE] {symbol}: Brakujące dane: {missing_data}")
+                        
+                        # Spróbuj pobrać świeże dane z real orderbook
+                        if "real_orderbook" in missing_data:
+                            try:
+                                from utils.bybit_api import get_orderbook_data
+                                fresh_orderbook = get_orderbook_data(symbol)
+                                if fresh_orderbook and len(fresh_orderbook.get("bids", [])) > 0:
+                                    market_data["orderbook"] = fresh_orderbook
+                                    stealth_token_data["orderbook"] = fresh_orderbook
+                                    print(f"[PRE-CONFIRMATORY POKE] {symbol}: Doładowano świeży orderbook - {len(fresh_orderbook.get('bids', []))} bid levels")
+                                else:
+                                    print(f"[PRE-CONFIRMATORY POKE] {symbol}: Nie udało się pobrać świeżego orderbook")
+                            except Exception as ob_error:
+                                print(f"[PRE-CONFIRMATORY POKE] {symbol}: Błąd pobierania orderbook: {ob_error}")
+                        
+                        # Spróbuj pobrać świeże dane chain inflow
+                        if "chain_inflow" in missing_data:
+                            try:
+                                from utils.contracts import get_contract
+                                from utils.blockchain_scanners import get_token_transfers_last_24h, load_known_exchange_addresses
+                                
+                                contract_info = get_contract(symbol)
+                                if contract_info:
+                                    fresh_transfers = get_token_transfers_last_24h(
+                                        symbol=symbol,
+                                        chain=contract_info['chain'],
+                                        contract_address=contract_info['address']
+                                    )
+                                    known_exchanges = load_known_exchange_addresses()
+                                    exchange_addresses = known_exchanges.get(contract_info['chain'], [])
+                                    dex_routers = known_exchanges.get('dex_routers', {}).get(contract_info['chain'], [])
+                                    all_known_addresses = set(addr.lower() for addr in exchange_addresses + dex_routers)
+                                    
+                                    fresh_dex_inflow = 0
+                                    for transfer in fresh_transfers:
+                                        if transfer['to'] in all_known_addresses:
+                                            fresh_dex_inflow += transfer['value_usd']
+                                    
+                                    if fresh_dex_inflow > 0:
+                                        stealth_token_data["dex_inflow"] = fresh_dex_inflow
+                                        print(f"[PRE-CONFIRMATORY POKE] {symbol}: Doładowano świeży DEX inflow: ${fresh_dex_inflow:,.0f}")
+                                    else:
+                                        print(f"[PRE-CONFIRMATORY POKE] {symbol}: Brak świeżego DEX inflow")
+                            except Exception as dex_error:
+                                print(f"[PRE-CONFIRMATORY POKE] {symbol}: Błąd pobierania DEX inflow: {dex_error}")
+                        
+                        # Po doładowaniu danych, ponownie uruchom stealth engine dla finalizacji
+                        print(f"[PRE-CONFIRMATORY POKE] {symbol}: Ponowna ewaluacja z doładowanymi danymi...")
+                        try:
+                            from stealth_engine.stealth_engine import compute_stealth_score
+                            final_stealth_result = compute_stealth_score(stealth_token_data)
+                            final_consensus_decision = final_stealth_result.get("consensus_decision", "HOLD")
+                            
+                            if final_consensus_decision != "PRE_CONFIRMATORY_POKE":
+                                print(f"[PRE-CONFIRMATORY POKE] {symbol}: Finalna decyzja: {final_consensus_decision}")
+                                consensus_decision = final_consensus_decision
+                                stealth_result = final_stealth_result  # Użyj nowych wyników
+                                stealth_score = final_stealth_result.get("score", stealth_score)
+                            else:
+                                print(f"[PRE-CONFIRMATORY POKE] {symbol}: Nadal PRE_CONFIRMATORY_POKE - domyślnie HOLD")
+                                consensus_decision = "HOLD"
+                        except Exception as re_eval_error:
+                            print(f"[PRE-CONFIRMATORY POKE] {symbol}: Błąd ponownej ewaluacji: {re_eval_error}")
+                            consensus_decision = "HOLD"  # Domyślnie HOLD przy błędzie
+                    
                     market_data["consensus_decision"] = consensus_decision
                     market_data["consensus_score"] = stealth_result.get("consensus_score", stealth_score)
                     market_data["consensus_confidence"] = stealth_result.get("consensus_confidence", 0.0)
@@ -809,11 +887,34 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         decision_mapping = {
                             "ALERT": "BUY",
                             "ESCALATE": "BUY", 
-                            "WATCH": "HOLD",
+                            "WATCH": "HOLD",  # Będzie obsłużone jako PRE_CONFIRMATORY_POKE jeśli reasoning zawiera to
                             "NO_ALERT": "AVOID"
                         }
                         consensus_decision_enum = str(consensus_result.decision).split('.')[-1]  # Get enum value
                         consensus_decision = decision_mapping.get(consensus_decision_enum, "HOLD")
+                        
+                        # 🎯 PRE-CONFIRMATORY POKE - sprawdź czy WATCH to PRE_CONFIRMATORY_POKE
+                        if (consensus_decision == "HOLD" and 
+                            hasattr(consensus_result, 'reasoning') and 
+                            "PRE-CONFIRMATORY POKE" in str(consensus_result.reasoning)):
+                            consensus_decision = "PRE_CONFIRMATORY_POKE"
+                            print(f"[PRE-CONFIRMATORY POKE] {symbol}: Wykryto PRE-CONFIRMATORY POKE w consensus_result")
+                        
+                        # Obsługuj PRE_CONFIRMATORY_POKE
+                        if consensus_decision == "PRE_CONFIRMATORY_POKE":
+                            print(f"[PRE-CONFIRMATORY POKE] {symbol}: Wykryto edge case z consensus_result - wymuszam doładowanie danych")
+                            
+                            # Sprawdź jakie dane mogą być niepełne (podobnie jak wyżej)
+                            missing_data = []
+                            if not market_data.get("orderbook") or len(market_data.get("orderbook", {}).get("bids", [])) == 0:
+                                missing_data.append("real_orderbook")
+                            if real_dex_inflow == 0:
+                                missing_data.append("chain_inflow")
+                            
+                            print(f"[PRE-CONFIRMATORY POKE] {symbol}: Brakujące dane consensus_result: {missing_data}")
+                            
+                            # Spróbuj pobrać świeże dane (funkcjonalność już zaimplementowana wyżej)
+                            consensus_decision = "HOLD"  # Domyślnie HOLD po próbie doładowania
                         
                         market_data["consensus_decision"] = consensus_decision
                         market_data["consensus_score"] = getattr(consensus_result, 'final_score', stealth_score)

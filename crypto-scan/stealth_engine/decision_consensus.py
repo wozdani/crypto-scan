@@ -788,6 +788,22 @@ class DecisionConsensusEngine:
                             )
                         )
                     
+                    # 🎯 PRE-CONFIRMATORY POKE - obsługa specjalnej decyzji
+                    if decision == "PRE_CONFIRMATORY_POKE":
+                        print(f"[PRE-CONFIRMATORY POKE] {detector_name}: Wykryto edge case - zwracam specjalną decyzję")
+                        # Zwróć natychmiast ConsensusResult z PRE_CONFIRMATORY_POKE
+                        return ConsensusResult(
+                            decision=AlertDecision.WATCH,  # WATCH będzie interpretowane jako PRE_CONFIRMATORY_POKE
+                            final_score=detector_data.get("score", 0.0),
+                            confidence=confidence,
+                            strategy_used=ConsensusStrategy.MAJORITY_VOTE,
+                            contributing_detectors=[detector_name],
+                            reasoning=f"PRE-CONFIRMATORY POKE triggered for {detector_name}: score={detector_data.get('score', 0.0):.3f}",
+                            consensus_strength=0.5,
+                            votes=[AlertDecision.WATCH],
+                            timestamp=datetime.now().isoformat()
+                        )
+                    
                     # Store results
                     agent_decisions[detector_name] = decision
                     agent_confidences[detector_name] = confidence

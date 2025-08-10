@@ -314,6 +314,16 @@ class MultiAgentDecisionSystem:
         # Oblicz średnią confidence
         avg_confidence = sum(r.confidence for r in all_responses) / total_votes
         
+        # 🎯 PRE-CONFIRMATORY POKE - gdy 2/3 detektorów jest tuż pod 0.7 (0.60-0.68)
+        pre_confirmatory_trigger = False
+        if 2 <= buy_votes <= 3 and 0.60 <= score <= 0.68:
+            pre_confirmatory_trigger = True
+            print(f"[PRE-CONFIRMATORY POKE] {detector_name}: Score {score:.3f} w przedziale 0.60-0.68, {buy_votes}/5 agentów za BUY")
+            print(f"[PRE-CONFIRMATORY POKE] Wymuszam doładowanie dodatkowych danych przed finalizacją HOLD...")
+            
+            # Zwróć specjalną decyzję wymagającą doładowania danych
+            return "PRE_CONFIRMATORY_POKE", avg_confidence, f"PRE-CONFIRMATORY POKE triggered for {detector_name}: score={score:.3f}, buy_votes={buy_votes}"
+        
         # Logika decyzyjna: BUY wymaga przewagi nad HOLD+AVOID
         if buy_votes > hold_votes + avoid_votes and buy_votes >= 3:
             final_decision = "BUY"
@@ -650,10 +660,15 @@ Each agent should decide BUY (strong signal), HOLD (wait for more data), or AVOI
             canonical_price = market_data.get('canonical_price', 0)
             price_source = market_data.get('canonical_price_source', 'unknown')
             
+            # 🎯 PRE-CONFIRMATORY POKE: Be more aggressive for edge scores 0.60-0.68
             if score >= 0.75:
                 decision = "BUY"
                 confidence = 0.9
                 reasoning = f"Analysis: Score {score:.3f} above strong threshold (0.75) - reliable signal. Price: ${canonical_price:.6f} ({price_source})"
+            elif 0.60 <= score <= 0.68:  # Edge case range - lean towards BUY
+                decision = "BUY"
+                confidence = 0.6
+                reasoning = f"Analysis: Score {score:.3f} in edge range (0.60-0.68) - potential signal. Price: ${canonical_price:.6f} ({price_source})"
             elif score >= 0.55:
                 decision = "HOLD"
                 confidence = 0.7
@@ -669,10 +684,15 @@ Each agent should decide BUY (strong signal), HOLD (wait for more data), or AVOI
             canonical_price = market_data.get('canonical_price', 0)
             price_source = market_data.get('canonical_price_source', 'unknown')
             
+            # 🎯 PRE-CONFIRMATORY POKE: Be more aggressive for edge scores 0.60-0.68
             if volume > 1000000 and score >= 0.7:
                 decision = "BUY"
                 confidence = 0.8
                 reasoning = f"Market reasoning: High volume ${volume:,.0f}, price ${canonical_price:.6f} ({price_source}), strong score context"
+            elif volume > 1000000 and 0.60 <= score <= 0.68:  # Edge case with high volume
+                decision = "BUY"
+                confidence = 0.65
+                reasoning = f"Market reasoning: High volume ${volume:,.0f}, price ${canonical_price:.6f} ({price_source}), edge score needs confirmation"
             elif volume > 300000 and score >= 0.6:
                 decision = "HOLD"
                 confidence = 0.7
@@ -687,10 +707,15 @@ Each agent should decide BUY (strong signal), HOLD (wait for more data), or AVOI
             canonical_price = market_data.get('canonical_price', 0)
             price_source = market_data.get('canonical_price_source', 'unknown')
             
+            # 🎯 PRE-CONFIRMATORY POKE: Be more aggressive for edge scores 0.60-0.68
             if score >= 0.7:
                 decision = "BUY"
                 confidence = 0.9
                 reasoning = f"Vote: Score {score:.3f} meets strong voting criteria (≥0.7). Price: ${canonical_price:.6f} ({price_source})"
+            elif 0.62 <= score <= 0.68:  # Narrow edge case range for voting
+                decision = "BUY"
+                confidence = 0.55
+                reasoning = f"Vote: Score {score:.3f} edge case - tentative BUY for confirmation. Price: ${canonical_price:.6f} ({price_source})"
             elif score >= 0.55:
                 decision = "HOLD"
                 confidence = 0.7
