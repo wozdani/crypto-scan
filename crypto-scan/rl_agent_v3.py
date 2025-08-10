@@ -24,11 +24,46 @@ class RLAgentV3:
     - Dodatkowe sygnały scoringowe
     
     System automatycznie dostosowuje wagi w oparciu o skuteczność alertów
+    
+    🎯 SINGLETON PATTERN: Prevents double initialization and state drift
     """
+    
+    _instance = None
+    _initialized_round_id = None
+    
+    @classmethod
+    def instance(cls, *args, **kwargs):
+        """
+        🎯 SINGLETON INSTANCE: Get or create single instance to prevent double initialization
+        """
+        if cls._instance is None:
+            cls._instance = cls(*args, **kwargs)
+            print(f"[SINGLETON] RLAgentV3: Created new instance")
+        else:
+            print(f"[SINGLETON] RLAgentV3: Reusing existing instance")
+        return cls._instance
+    
+    @classmethod
+    def reset_singleton(cls):
+        """Reset singleton for testing or restart scenarios"""
+        cls._instance = None
+        cls._initialized_round_id = None
+        print(f"[SINGLETON] RLAgentV3: Singleton reset")
+    
+    @classmethod
+    def mark_round_initialized(cls, round_id: str):
+        """Mark current round as initialized to prevent double loading"""
+        cls._initialized_round_id = round_id
+        print(f"[SINGLETON] RLAgentV3: Round {round_id} marked as initialized")
+    
+    @classmethod
+    def is_round_initialized(cls, round_id: str) -> bool:
+        """Check if current round is already initialized"""
+        return cls._initialized_round_id == round_id
     
     def __init__(self, booster_names: Tuple[str, ...] = ("gnn", "whaleClip", "dexInflow"), 
                  learning_rate: float = 0.05, decay: float = 0.995, 
-                 weight_path: str = None, min_weight: float = 0.1, 
+                 weight_path: str | None = None, min_weight: float = 0.1, 
                  max_weight: float = 5.0, normalize_weights: bool = True):
         """
         Initialize RLAgentV3 with adaptive booster weighting
@@ -50,7 +85,7 @@ class RLAgentV3:
         
         # Initialize equal weights for all boosters
         self.weights = {name: 1.0 for name in booster_names}
-        self.weight_path = weight_path or "cache/rl_agent_v3_weights.json"
+        self.weight_path = weight_path if weight_path is not None else "cache/rl_agent_v3_weights.json"
         
         # Statistics tracking
         self.update_count = 0

@@ -39,8 +39,8 @@ def train_rl_v3_from_feedback(
     logger.info("[DAILY RL TRAIN] Starting automated training from feedback data")
     
     try:
-        # Initialize RLAgentV3
-        agent = RLAgentV3(weight_path=weight_path)
+        # Initialize RLAgentV3 using SINGLETON PATTERN
+        agent = RLAgentV3.instance(weight_path=weight_path)
         logger.info(f"[DAILY RL TRAIN] Initialized RLAgentV3 with weights: {agent.weights}")
         
         total_updates = 0

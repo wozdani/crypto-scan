@@ -37,15 +37,15 @@ class EnhancedRLIntegration:
     def __init__(self):
         print("[ENHANCED RL] Initializing unified RL system...")
         
-        # Initialize istniejące systemy
-        self.rl_agent_v3 = RLAgentV3(
+        # Initialize istniejące systemy using SINGLETON PATTERN
+        self.rl_agent_v3 = RLAgentV3.instance(
             booster_names=("gnn", "whaleClip", "dexInflow", "whale_ping", "volume_spike"),
             learning_rate=0.05,
             weight_path="crypto-scan/cache/rl_agent_v3_stealth_weights.json"
         )
         
-        # Initialize DQN system
-        self.dqn_integration = DQNCryptoIntegration()
+        # Initialize DQN system using SINGLETON PATTERN
+        self.dqn_integration = DQNCryptoIntegration.instance()
         
         # Initialize traditional feedback loop if available
         if FEEDBACK_LOOP_AVAILABLE:

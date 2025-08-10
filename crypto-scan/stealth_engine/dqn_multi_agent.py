@@ -66,8 +66,41 @@ class DQN(nn.Module):
 class DQNAgent:
     """
     Advanced DQN Agent for Multi-Agent Crypto Intelligence
-    Learns to adjust detector weights and thresholds based on market feedback
+    🎯 SINGLETON PATTERN: Prevents double initialization and state drift issues
     """
+    
+    _instance = None
+    _initialized_round_id = None
+    
+    @classmethod
+    def instance(cls, *args, **kwargs):
+        """
+        🎯 SINGLETON INSTANCE: Get or create single instance to prevent double initialization
+        """
+        if cls._instance is None:
+            cls._instance = cls(*args, **kwargs)
+            print(f"[SINGLETON] MultiAgent DQNAgent: Created new instance")
+        else:
+            print(f"[SINGLETON] MultiAgent DQNAgent: Reusing existing instance")
+        return cls._instance
+    
+    @classmethod
+    def reset_singleton(cls):
+        """Reset singleton for testing or restart scenarios"""
+        cls._instance = None
+        cls._initialized_round_id = None
+        print(f"[SINGLETON] MultiAgent DQNAgent: Singleton reset")
+    
+    @classmethod
+    def mark_round_initialized(cls, round_id: str):
+        """Mark current round as initialized to prevent double loading"""
+        cls._initialized_round_id = round_id
+        print(f"[SINGLETON] MultiAgent DQNAgent: Round {round_id} marked as initialized")
+    
+    @classmethod
+    def is_round_initialized(cls, round_id: str) -> bool:
+        """Check if current round is already initialized"""
+        return cls._initialized_round_id == round_id
     
     def __init__(self, 
                  state_size: int = DQN_STATE_SIZE,
@@ -438,7 +471,7 @@ class DQNIntegrationManager:
     """
     
     def __init__(self):
-        self.dqn_agent = DQNAgent()
+        self.dqn_agent = DQNAgent.instance()  # SINGLETON PATTERN: Use singleton instance
         self.environment = MultiAgentDQNEnvironment()
         self.active = True
         self.last_state = None
@@ -474,7 +507,7 @@ class DQNIntegrationManager:
         buy_votes = sum(1 for vote in detector_votes.values() if vote == 'BUY')
         buy_votes_ratio = buy_votes / max(len(detector_votes), 1)
         
-        detector_confidence = np.mean(list(detector_scores.values())) if detector_scores else 0.0
+        detector_confidence = float(np.mean(list(detector_scores.values()))) if detector_scores else 0.0
         market_volatility = market_context.get('volatility', 0.5)
         past_reward = getattr(self, 'last_reward', 0.0)
         

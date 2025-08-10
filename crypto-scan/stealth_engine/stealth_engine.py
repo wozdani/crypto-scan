@@ -2668,8 +2668,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             
             # Initialize Enhanced RL components
             enhanced_rl = EnhancedRLIntegration()
-            dqn_agent = DQNAgent(state_size=10, action_size=3)
-            rl_agent_v3 = RLAgentV3()
+            dqn_agent = DQNAgent.instance(state_size=10, action_size=3)  # SINGLETON PATTERN: Prevent double initialization
+            rl_agent_v3 = RLAgentV3.instance()  # SINGLETON PATTERN: Prevent double initialization
             
             # Prepare enhanced state features
             enhanced_state = {

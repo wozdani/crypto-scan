@@ -126,7 +126,8 @@ def create_rl_agent_for_stealth_engine(weight_path: str = "cache/rl_agent_v3_wei
     Returns:
         Initialized RLAgentV3 instance
     """
-    agent = RLAgentV3(
+    # 🎯 SINGLETON PATTERN: Prevent double initialization
+    agent = RLAgentV3.instance(
         booster_names=booster_names,
         learning_rate=0.05,  # Production learning rate
         decay=0.995,
@@ -273,8 +274,8 @@ def test_dynamic_decision_system():
     """Test the dynamic decision system"""
     print("🧪 Testing Dynamic Trader Decision System")
     
-    # Create test RL agent
-    agent = RLAgentV3(
+    # Create test RL agent using SINGLETON PATTERN
+    agent = RLAgentV3.instance(
         booster_names=("gnn", "whaleClip", "dexInflow"),
         learning_rate=0.1,
         weight_path=None  # Don't save during test

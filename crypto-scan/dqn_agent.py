@@ -34,6 +34,43 @@ class DQN(nn.Module):
 
 # 🎯 DQN Agent - Główny agent uczący się
 class DQNAgent:
+    """
+    🎯 SINGLETON PATTERN: Prevents double initialization and time drift issues
+    """
+    
+    _instance = None
+    _initialized_round_id = None
+    
+    @classmethod
+    def instance(cls, *args, **kwargs):
+        """
+        🎯 SINGLETON INSTANCE: Get or create single instance to prevent double initialization
+        """
+        if cls._instance is None:
+            cls._instance = cls(*args, **kwargs)
+            print(f"[SINGLETON] DQNAgent: Created new instance")
+        else:
+            print(f"[SINGLETON] DQNAgent: Reusing existing instance")
+        return cls._instance
+    
+    @classmethod
+    def reset_singleton(cls):
+        """Reset singleton for testing or restart scenarios"""
+        cls._instance = None
+        cls._initialized_round_id = None
+        print(f"[SINGLETON] DQNAgent: Singleton reset")
+    
+    @classmethod
+    def mark_round_initialized(cls, round_id: str):
+        """Mark current round as initialized to prevent double loading"""
+        cls._initialized_round_id = round_id
+        print(f"[SINGLETON] DQNAgent: Round {round_id} marked as initialized")
+    
+    @classmethod
+    def is_round_initialized(cls, round_id: str) -> bool:
+        """Check if current round is already initialized"""
+        return cls._initialized_round_id == round_id
+    
     def __init__(self, 
                  state_size: int = 5, 
                  action_size: int = 7,  # threshold actions + weight adjustments
@@ -353,8 +390,45 @@ class CryptoThresholdEnv:
 
 # 🎯 DQN Integration Class dla głównego systemu
 class DQNCryptoIntegration:
+    """
+    🎯 SINGLETON PATTERN: Prevents double initialization and state drift issues
+    """
+    
+    _instance = None
+    _initialized_round_id = None
+    
+    @classmethod
+    def instance(cls, *args, **kwargs):
+        """
+        🎯 SINGLETON INSTANCE: Get or create single instance to prevent double initialization
+        """
+        if cls._instance is None:
+            cls._instance = cls(*args, **kwargs)
+            print(f"[SINGLETON] DQNCryptoIntegration: Created new instance")
+        else:
+            print(f"[SINGLETON] DQNCryptoIntegration: Reusing existing instance")
+        return cls._instance
+    
+    @classmethod
+    def reset_singleton(cls):
+        """Reset singleton for testing or restart scenarios"""
+        cls._instance = None
+        cls._initialized_round_id = None
+        print(f"[SINGLETON] DQNCryptoIntegration: Singleton reset")
+    
+    @classmethod
+    def mark_round_initialized(cls, round_id: str):
+        """Mark current round as initialized to prevent double loading"""
+        cls._initialized_round_id = round_id
+        print(f"[SINGLETON] DQNCryptoIntegration: Round {round_id} marked as initialized")
+    
+    @classmethod
+    def is_round_initialized(cls, round_id: str) -> bool:
+        """Check if current round is already initialized"""
+        return cls._initialized_round_id == round_id
+    
     def __init__(self):
-        self.agent = DQNAgent()
+        self.agent = DQNAgent.instance()  # Use singleton DQNAgent
         self.env = CryptoThresholdEnv()
         self.training_active = True
         
@@ -426,7 +500,7 @@ if __name__ == "__main__":
     # Standalone test
     print("🧠 DQN Agent Standalone Test")
     
-    integration = DQNCryptoIntegration()
+    integration = DQNCryptoIntegration.instance()  # SINGLETON PATTERN: Use singleton instance
     
     # Symuluj kilka alertów
     for i in range(10):
