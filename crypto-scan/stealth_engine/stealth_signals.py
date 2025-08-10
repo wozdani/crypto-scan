@@ -902,17 +902,59 @@ class StealthSignalDetector:
             dex_routers = known_exchanges.get('dex_routers', {}).get(chain, [])
             all_known_addresses = set(addr.lower() for addr in exchange_addresses + dex_routers)
             
-            # Calculate real DEX inflow from blockchain data
+            # Calculate real DEX inflow from blockchain data with enhanced filtering
             total_inflow_usd = 0
-            inflow_usd = 0  # CRITICAL FIX: Initialize inflow_usd variable
+            inflow_usd = 0  # CRITICAL FIX: Initialize inflow_usd variable  
             real_addresses = []
+            filtered_transfers = []
+            rejected_transfers = []
             
+            # Get current price for USD conversion
+            current_price = canonical_price.get_frozen_price(symbol)
+            
+            # Process each transfer with detailed filtering logic
             for transfer in real_transfers:
-                # Check if transfer is TO a known exchange/DEX address
-                if transfer['to'] in all_known_addresses:
+                # 🎯 SEMANTIC INFLOW FIX: Only count transfers TO known CEX/DEX/LP addresses
+                to_address = transfer.get('to', '').lower()
+                from_address = transfer.get('from', '').lower()
+                raw_value = transfer.get('value', 0)
+                
+                # Convert to USD using canonical price if value_usd not available
+                if 'value_usd' not in transfer or transfer['value_usd'] == 0:
+                    if current_price and raw_value:
+                        transfer['value_usd'] = float(raw_value) * current_price
+                
+                # Check if transfer is TO a known exchange/DEX address (INFLOW semantics)
+                if to_address in all_known_addresses:
                     total_inflow_usd += transfer['value_usd']
-                    if transfer['from'] not in real_addresses:
-                        real_addresses.append(transfer['from'])
+                    if from_address not in real_addresses:
+                        real_addresses.append(from_address)
+                    filtered_transfers.append(transfer)
+                else:
+                    rejected_transfers.append({
+                        'from': from_address[:10] + '...',
+                        'to': to_address[:10] + '...',
+                        'value_usd': transfer.get('value_usd', 0),
+                        'reason': 'not_known_exchange'
+                    })
+            
+            # Enhanced logging for transfer filtering results
+            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] TRANSFER_FILTER → total_raw={len(real_transfers)}, valid_inflows={len(filtered_transfers)}, rejected={len(rejected_transfers)}, known_addresses={len(all_known_addresses)}")
+            
+            if len(filtered_transfers) == 0 and len(real_transfers) > 0:
+                print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] FILTER_REASON → Found {len(real_transfers)} transfers but 0 inflows to known exchanges")
+                if len(rejected_transfers) > 0:
+                    sample_rejected = rejected_transfers[:3]  # Show first 3 rejected
+                    for i, rej in enumerate(sample_rejected):
+                        print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] REJECTED_{i+1} → {rej['from']} → {rej['to']} (${rej['value_usd']:.2f}) reason={rej['reason']}")
+                
+                # Show sample of known addresses for debugging
+                sample_known = list(all_known_addresses)[:5] if all_known_addresses else []
+                print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] KNOWN_SAMPLE → {sample_known}")
+                
+                # Return with clear reason
+                print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] RESULT → active=False, strength=0.000 (no_valid_inflows)")
+                return StealthSignal("dex_inflow", False, 0.0)
             
             # Calculate historical average (use recent data as baseline)
             historical_baseline = token_data.get("dex_inflow_history", [])[-8:]
@@ -927,8 +969,8 @@ class StealthSignalDetector:
                     tracker.begin_round(symbol, chain, contract_address, round_id)
                     
                     for addr in real_addresses[:10]:  # Top 10 real DEX addresses
-                        # Find transfer amount for this address
-                        transfer_amount = next((t['value_usd'] for t in real_transfers if t['from'] == addr), 0)
+                        # Find transfer amount for this address from filtered transfers
+                        transfer_amount = next((t['value_usd'] for t in filtered_transfers if t['from'] == addr), 0)
                         tracker.record_address_activity(
                             token=symbol,
                             address=addr,
@@ -941,8 +983,8 @@ class StealthSignalDetector:
                 except Exception as tracker_e:
                     print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] TRACKER_ERROR → {tracker_e}")
             
-            # INPUT LOG - real blockchain data with chain router info
-            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] INPUT → chain={chain}, real_transfers={len(real_transfers)}, total_inflow_usd=${total_inflow_usd:.2f}, unique_addresses={len(real_addresses)}, avg_baseline=${avg_recent:.2f}")
+            # INPUT LOG - real blockchain data with semantic inflow filtering
+            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] INPUT → chain={chain}, raw_transfers={len(real_transfers)}, valid_inflows={len(filtered_transfers)}, total_inflow_usd=${total_inflow_usd:.2f}, unique_senders={len(real_addresses)}, avg_baseline=${avg_recent:.2f}")
             
             # CRITICAL FIX: Set inflow_usd for metadata consistency
             inflow_usd = total_inflow_usd
