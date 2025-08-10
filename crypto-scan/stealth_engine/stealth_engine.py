@@ -352,6 +352,7 @@ class StealthEngine:
         """
         Oblicz stealth_score na podstawie aktywnych sygnałów i wag
         🚀 ENHANCED: Dynamic spoofing weight based on signal context (HIGHUSDT fix)
+        🎯 UNMEASURED STATUS: Handle microstructure signals with UNMEASURED status for coverage_ratio
         
         Args:
             signals: Lista wykrytych sygnałów
@@ -363,6 +364,24 @@ class StealthEngine:
         signal_breakdown = {}
         active_weight_sum = 0.0
         
+        # 🎯 COVERAGE RATIO CALCULATION: Count measured vs unmeasured signals
+        measured_signals = 0
+        unmeasured_signals = 0
+        total_signals = len(signals)
+        
+        # Count signals by status for coverage calculation
+        for signal in signals:
+            signal_status = signal.get('status', 'MEASURED')  # Default to MEASURED for compatibility
+            if signal_status == 'UNMEASURED':
+                unmeasured_signals += 1
+                print(f"[UNMEASURED SIGNAL] {signal.get('signal_name', 'unknown')}: status=UNMEASURED (no orderbook data)")
+            else:
+                measured_signals += 1
+        
+        # Calculate coverage ratio (percentage of measurable signals)
+        coverage_ratio = measured_signals / total_signals if total_signals > 0 else 1.0
+        print(f"[COVERAGE RATIO] {measured_signals}/{total_signals} signals measured, coverage={coverage_ratio:.3f}")
+        
         # 🚀 ADAPTIVE SPOOFING WEIGHT: Check if spoofing is the only active signal
         active_signals = [s for s in signals if s['active']]
         spoofing_signals = [s for s in active_signals if 'spoofing' in s['signal_name'].lower()]
@@ -372,6 +391,12 @@ class StealthEngine:
             signal_name = signal['signal_name']
             strength = signal['strength']
             active = signal['active']
+            signal_status = signal.get('status', 'MEASURED')
+            
+            # 🎯 UNMEASURED HANDLING: Skip UNMEASURED signals neutrally (no penalty)
+            if signal_status == 'UNMEASURED':
+                signal_breakdown[signal_name] = 0.0  # Neutral impact - no penalty for missing data
+                continue
             
             if active and signal_name in self.weights:
                 weight = self.weights[signal_name]
@@ -390,9 +415,14 @@ class StealthEngine:
                 
                 signal_breakdown[signal_name] = contribution
                 
-        # Normalizacja przez sumę aktywnych wag
+        # 🎯 COVERAGE-ADJUSTED NORMALIZATION: Apply coverage ratio to prevent unfair penalization
+        # When orderbook=synthetic, microstructure signals are UNMEASURED - adjust score accordingly
         if active_weight_sum > 0:
-            stealth_score = min(1.0, total_score / active_weight_sum)
+            # Apply coverage ratio to compensate for unmeasured signals
+            raw_score = total_score / active_weight_sum
+            coverage_adjusted_score = raw_score * (1.0 + (1.0 - coverage_ratio) * 0.1)  # Small boost for missing data
+            stealth_score = min(1.0, coverage_adjusted_score)
+            print(f"[COVERAGE ADJUSTED] raw_score={raw_score:.3f} → adjusted={stealth_score:.3f} (coverage={coverage_ratio:.3f})")
         else:
             stealth_score = 0.0
             
@@ -545,6 +575,7 @@ class StealthEngine:
                         'signal_name': sig.name,
                         'active': sig.active,
                         'strength': sig.strength,
+                        'status': getattr(sig, 'status', 'MEASURED'),  # Include status for UNMEASURED handling
                         'details': f'Stealth signal strength: {sig.strength:.3f}'
                     })
             
@@ -1026,12 +1057,12 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     
                     for signal in signals:
                         signal_status[signal.name] = getattr(signal, 'active', False)
-                        # Store signal details with strength values
-                        if hasattr(signal, 'active') and signal.active:
-                            signal_details[signal.name] = {
-                                "active": signal.active,
-                                "strength": getattr(signal, 'strength', 0.0)
-                            }
+                        # 🎯 Store ALL signal details (both active and inactive) with status for UNMEASURED handling
+                        signal_details[signal.name] = {
+                            "active": getattr(signal, 'active', False),
+                            "strength": getattr(signal, 'strength', 0.0),
+                            "status": getattr(signal, 'status', 'MEASURED')  # Include status for coverage_ratio calculation
+                        }
                     
                     # Wyloguj kluczowe sygnały
                     whale_ping = signal_status.get('whale_ping', False)
@@ -1073,10 +1104,11 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         if has_data:
                             available_signals += 1
                         
-                        # Add signal to aggregator format
+                        # Add signal to aggregator format with UNMEASURED status handling
                         aggregator_signals[signal.name] = {
                             "active": hasattr(signal, 'active') and signal.active,
-                            "strength": getattr(signal, 'strength', 0.0)
+                            "strength": getattr(signal, 'strength', 0.0),
+                            "status": getattr(signal, 'status', 'MEASURED')  # Pass status for coverage ratio
                         }
                         
                         if hasattr(signal, 'active') and signal.active:

@@ -21,10 +21,11 @@ class StealthSignal:
     Klasa reprezentująca pojedynczy sygnał stealth
     Zgodnie ze specyfikacją użytkownika
     """
-    def __init__(self, name: str, active: bool, strength: float = 1.0):
+    def __init__(self, name: str, active: bool, strength: float = 1.0, status: str = "MEASURED"):
         self.name = name
         self.active = active
         self.strength = strength if active else 0.0
+        self.status = status  # MEASURED, UNMEASURED (no data available), DISABLED
 
 
 class StealthSignalDetector:
@@ -705,12 +706,12 @@ class StealthSignalDetector:
             print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] INPUT → orderbook=None, insufficient_data=True")
             return StealthSignal("spoofing_layers", False, 0.0)
             
-        # OB_ENABLED check: disable on synthetic or shallow L2
+        # OB_ENABLED check: unmeasured on synthetic or shallow L2 (neutral impact)
         ob_source = orderbook.get("source", "synthetic")
         ob_depth = orderbook.get("top10_depth_usd", 0.0)
         if ob_source != "real" or ob_depth < 200_000:
-            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] DISABLED → source={ob_source}, depth=${ob_depth:,.0f} (need real + ≥$200k)")
-            return StealthSignal("spoofing_layers", False, 0.0)
+            print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] UNMEASURED → source={ob_source}, depth=${ob_depth:,.0f} (need real data)")
+            return StealthSignal("spoofing_layers", False, 0.0, status="UNMEASURED")
         
         bids = orderbook.get("bids", [])
         asks = orderbook.get("asks", [])
@@ -1317,12 +1318,12 @@ class StealthSignalDetector:
         symbol = token_data.get("symbol", "UNKNOWN")
         orderbook = token_data.get('orderbook', {})
         
-        # OB_ENABLED check: disable on synthetic or shallow L2
+        # OB_ENABLED check: unmeasured on synthetic or shallow L2 (neutral impact)
         ob_source = orderbook.get("source", "synthetic")
         ob_depth = orderbook.get("top10_depth_usd", 0.0)
         if ob_source != "real" or ob_depth < 200_000:
-            print(f"[STEALTH DEBUG] orderbook_imbalance_stealth for {symbol}: DISABLED → source={ob_source}, depth=${ob_depth:,.0f} (need real + ≥$200k)")
-            return StealthSignal("orderbook_imbalance", False, 0.0)
+            print(f"[STEALTH DEBUG] orderbook_imbalance_stealth for {symbol}: UNMEASURED → source={ob_source}, depth=${ob_depth:,.0f} (need real data)")
+            return StealthSignal("orderbook_imbalance", False, 0.0, status="UNMEASURED")
             
         bids = orderbook.get('bids', [])
         asks = orderbook.get('asks', [])
@@ -1451,12 +1452,12 @@ class StealthSignalDetector:
         orderbook = token_data.get('orderbook', {})
         bids = orderbook.get('bids', [])
         
-        # OB_ENABLED check: disable on synthetic or shallow L2
+        # OB_ENABLED check: unmeasured on synthetic or shallow L2 (neutral impact)
         ob_source = orderbook.get("source", "synthetic")
         ob_depth = orderbook.get("top10_depth_usd", 0.0)
         if ob_source != "real" or ob_depth < 200_000:
-            print(f"[STEALTH DEBUG] large_bid_walls for {symbol}: DISABLED → source={ob_source}, depth=${ob_depth:,.0f} (need real + ≥$200k)")
-            return StealthSignal("large_bid_walls", False, 0.0)
+            print(f"[STEALTH DEBUG] large_bid_walls for {symbol}: UNMEASURED → source={ob_source}, depth=${ob_depth:,.0f} (need real data)")
+            return StealthSignal("large_bid_walls", False, 0.0, status="UNMEASURED")
         
         print(f"[STEALTH DEBUG] large_bid_walls: checking bid wall sizes...")
         
@@ -1527,13 +1528,13 @@ class StealthSignalDetector:
         """
         FUNC_NAME = "ask_wall_removal"
         symbol = token_data.get("symbol", "UNKNOWN")
-        # OB_ENABLED check: disable on synthetic or shallow L2
+        # OB_ENABLED check: unmeasured on synthetic or shallow L2 (neutral impact)
         orderbook = token_data.get('orderbook', {})
         ob_source = orderbook.get("source", "synthetic")
         ob_depth = orderbook.get("top10_depth_usd", 0.0)
         if ob_source != "real" or ob_depth < 200_000:
-            print(f"[STEALTH DEBUG] ask_wall_removal for {symbol}: DISABLED → source={ob_source}, depth=${ob_depth:,.0f} (need real + ≥$200k)")
-            return StealthSignal("ask_wall_removal", False, 0.0)
+            print(f"[STEALTH DEBUG] ask_wall_removal for {symbol}: UNMEASURED → source={ob_source}, depth=${ob_depth:,.0f} (need real data)")
+            return StealthSignal("ask_wall_removal", False, 0.0, status="UNMEASURED")
         
         # Placeholder - w rzeczywistości potrzebne są dane historyczne orderbook
         active = token_data.get("ask_walls_removed", False)
@@ -1617,12 +1618,12 @@ class StealthSignalDetector:
         bids = orderbook.get('bids', [])
         asks = orderbook.get('asks', [])
         
-        # OB_ENABLED check: disable on synthetic or shallow L2
+        # OB_ENABLED check: unmeasured on synthetic or shallow L2 (neutral impact)
         ob_source = orderbook.get("source", "synthetic")
         ob_depth = orderbook.get("top10_depth_usd", 0.0)
         if ob_source != "real" or ob_depth < 200_000:
-            print(f"[STEALTH DEBUG] bid_ask_spread_tightening for {symbol}: DISABLED → source={ob_source}, depth=${ob_depth:,.0f} (need real + ≥$200k)")
-            return StealthSignal("bid_ask_spread_tightening", False, 0.0)
+            print(f"[STEALTH DEBUG] bid_ask_spread_tightening for {symbol}: UNMEASURED → source={ob_source}, depth=${ob_depth:,.0f} (need real data)")
+            return StealthSignal("bid_ask_spread_tightening", False, 0.0, status="UNMEASURED")
         
         print(f"[STEALTH DEBUG] spread_tightening for {symbol}: checking bid-ask spread compression...")
         
@@ -1753,12 +1754,12 @@ class StealthSignalDetector:
         symbol = token_data.get("symbol", "UNKNOWN")
         orderbook = token_data.get("orderbook", {})
         
-        # OB_ENABLED check: disable on synthetic or shallow L2
+        # OB_ENABLED check: unmeasured on synthetic or shallow L2 (neutral impact)
         ob_source = orderbook.get("source", "synthetic")
         ob_depth = orderbook.get("top10_depth_usd", 0.0)
         if ob_source != "real" or ob_depth < 200_000:
-            print(f"[STEALTH DEBUG] orderbook_anomaly for {symbol}: DISABLED → source={ob_source}, depth=${ob_depth:,.0f} (need real + ≥$200k)")
-            return StealthSignal("orderbook_anomaly", False, 0.0)
+            print(f"[STEALTH DEBUG] orderbook_anomaly for {symbol}: UNMEASURED → source={ob_source}, depth=${ob_depth:,.0f} (need real data)")
+            return StealthSignal("orderbook_anomaly", False, 0.0, status="UNMEASURED")
         
         print(f"[STEALTH DEBUG] orderbook_anomaly for {symbol}: checking spread and imbalance...")
         

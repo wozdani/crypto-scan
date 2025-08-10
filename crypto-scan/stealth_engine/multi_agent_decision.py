@@ -1001,10 +1001,26 @@ Respond with JSON format:
 
         print(f"[MULTI-AGENT CONSENSUS] Analyzing {len(detectors_data)} detectors...")
 
+        # Count measured vs unmeasured detectors
+        total_detectors = len(detectors_data)
+        measured_detectors = 0
+        unmeasured_detectors = 0
+        
         # Analizuj każdy detektor osobno
         for detector, data in detectors_data.items():
             score = data.get('score', 0.0)
             context = data.get('context', "No context provided")
+            status = data.get('status', 'MEASURED')  # Check if detector is UNMEASURED
+            
+            # Skip UNMEASURED detectors neutrally (no penalty for missing microstructure data)
+            if status == 'UNMEASURED':
+                print(f"[MULTI-AGENT UNMEASURED] {detector} status=UNMEASURED - neutral impact (no orderbook data)")
+                decisions[detector] = {'decision': 'UNMEASURED', 'confidence': 0.0, 'status': 'UNMEASURED'}
+                logs.append(f"{detector}: UNMEASURED (synthetic orderbook) - neutral impact")
+                unmeasured_detectors += 1
+                continue
+                
+            measured_detectors += 1
             
             # WARUNEK WSTĘPNY: Blokuj głosowanie dla score < 0.6
             if score < 0.6:
@@ -1022,10 +1038,14 @@ Respond with JSON format:
                 print(f"[PARTIAL ALERT] {detector} triggered! Confidence: {confidence:.2f}")
                 total_yes += 1
 
-        # Agregacja wyników - final decision
-        num_detectors = len(detectors_data)
-        avg_confidence = sum(d['confidence'] for d in decisions.values()) / num_detectors if num_detectors > 0 else 0.0
+        # Agregacja wyników with coverage ratio adjustment
+        coverage_ratio = measured_detectors / total_detectors if total_detectors > 0 else 1.0
+        avg_confidence_raw = sum(d['confidence'] for d in decisions.values() if d.get('status') != 'UNMEASURED') / measured_detectors if measured_detectors > 0 else 0.0
+        avg_confidence = min(avg_confidence_raw, coverage_ratio)  # Cap confidence by coverage ratio
         final_decision = "YES" if total_yes >= min_yes_detectors or avg_confidence > alert_threshold else "NO"
+        
+        print(f"[COVERAGE RATIO] Total: {total_detectors}, Measured: {measured_detectors}, Unmeasured: {unmeasured_detectors}, Coverage: {coverage_ratio:.2f}")
+        print(f"[CONFIDENCE CAP] Raw confidence: {avg_confidence_raw:.3f}, Coverage-capped: {avg_confidence:.3f}")
 
         # Full trigger: Jeśli final YES
         if final_decision == "YES":
