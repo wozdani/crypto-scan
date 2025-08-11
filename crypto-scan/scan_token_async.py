@@ -10,6 +10,7 @@ import json
 import os
 import sys
 import time
+import traceback
 from datetime import datetime
 from typing import Optional, Dict, Any
 
@@ -466,8 +467,30 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 
                 # Wywołaj główny silnik scoringu
                 print(f"[FLOW DEBUG] {symbol}: About to call compute_stealth_score()")
-                stealth_result = compute_stealth_score(stealth_token_data)
-                print(f"[FLOW DEBUG] {symbol}: compute_stealth_score() completed successfully")
+                
+                # Safe import and execution of compute_stealth_score
+                try:
+                    if not STEALTH_ENGINE_AVAILABLE:
+                        # Import locally if global import failed
+                        from stealth_engine.stealth_engine import compute_stealth_score
+                    
+                    stealth_result = compute_stealth_score(stealth_token_data)
+                    print(f"[FLOW DEBUG] {symbol}: compute_stealth_score() completed successfully")
+                    
+                except Exception as e:
+                    print(f"[STEALTH ENGINE ERROR] {symbol} → Stealth analysis failed: {type(e).__name__}: {e}")
+                    print(f"[STEALTH ENGINE ERROR] {symbol} → Traceback: {traceback.format_exc()}")
+                    
+                    # Fallback stealth_result
+                    stealth_result = {
+                        "score": 0.0,
+                        "stealth_score": 0.0,
+                        "active_signals": [],
+                        "signal_details": {},
+                        "used_signals": [],
+                        "error": f"Stealth engine failed: {e}"
+                    }
+                    print(f"[STEALTH ENGINE FALLBACK] {symbol} → Using fallback result")
                 
                 # Debug stealth_result structure to find whale_ping strength - ALWAYS log for debugging
                 print(f"[WHALE PING DEBUG] {symbol}: stealth_result keys: {list(stealth_result.keys())}")
@@ -852,7 +875,10 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         # Po doładowaniu danych, ponownie uruchom stealth engine dla finalizacji
                         print(f"[PRE-CONFIRMATORY POKE] {symbol}: Ponowna ewaluacja z doładowanymi danymi...")
                         try:
-                            from stealth_engine.stealth_engine import compute_stealth_score
+                            # Safe import and execution of compute_stealth_score  
+                            if not STEALTH_ENGINE_AVAILABLE:
+                                from stealth_engine.stealth_engine import compute_stealth_score
+                            
                             final_stealth_result = compute_stealth_score(stealth_token_data)
                             final_consensus_decision = final_stealth_result.get("consensus_decision", "HOLD")
                             
@@ -866,6 +892,7 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                                 consensus_decision = "HOLD"
                         except Exception as re_eval_error:
                             print(f"[PRE-CONFIRMATORY POKE] {symbol}: Błąd ponownej ewaluacji: {re_eval_error}")
+                            print(f"[PRE-CONFIRMATORY POKE] {symbol}: Traceback: {traceback.format_exc()}")
                             consensus_decision = "HOLD"  # Domyślnie HOLD przy błędzie
                     
                     market_data["consensus_decision"] = consensus_decision
