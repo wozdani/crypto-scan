@@ -548,10 +548,7 @@ class AsyncCryptoScanner:
                 elapsed = time.time() - scan_start
                 rate = total_processed / elapsed if elapsed > 0 else 0
                 
-                if self.fast_mode:
-                    print(f"[{batch_num}/{total_batches}] {len(valid_results)}/{len(batch)} | Rate: {rate:.1f} tokens/s")
-                else:
-                    print(f"✅ Batch {batch_num}: {len(valid_results)}/{len(batch)} successful | Rate: {rate:.1f} tokens/s")
+                # Silent performance tracking - no rate logs during scanning
                 
                 # Early termination check for performance (disabled to allow full 752 token processing)
                 # if elapsed > 12 and self.fast_mode:  # Stop at 12s in fast mode
@@ -587,18 +584,11 @@ class AsyncCryptoScanner:
                 if process_dual_engine_alert(result):
                     dual_alerts_sent += 1
             
-            print(f"🎯 [DUAL ENGINE SUMMARY]")
-            print(f"   Hybrid: {hybrid_alerts} | Trend: {trend_alerts} | Stealth: {stealth_alerts} | Watch: {watch_alerts}")
-            print(f"   Dual alerts sent: {dual_alerts_sent}")
+            # Silent dual engine processing
+            pass
             
         except Exception as e:
             print(f"[DUAL ENGINE ERROR] Alert processing failed: {e}")
-
-        print(f"🎯 ASYNC SCAN RESULTS:")
-        print(f"- Processed: {total_processed}/{len(symbols)} tokens")
-        print(f"- Total time: {total_time:.1f}s (TARGET: <15s)")
-        print(f"- Performance: {final_rate:.1f} tokens/second")
-        print(f"- API calls: {total_processed * 4} ({4.0:.1f} per token)")
         
         return self.results
 

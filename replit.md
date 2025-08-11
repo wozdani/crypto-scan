@@ -13,7 +13,7 @@ This project is a cryptocurrency market scanner designed to detect pre-pump sign
 - Code Style: Sequential execution preferred over parallel processing that adds overhead without benefit
 - Architecture Preference: Simple, maintainable code over sophisticated but slow optimizations
 - Scanning Logic: "przywróć dawną logike skanu" - user explicitly requested return to simple scanning approach
-- Debugging: Basic logging without performance monitoring overhead that slows system
+- Debugging: Clean, essential logging without repetitive performance metrics that clutter output
 - Alert Style: Detailed technical analysis with specific condition breakdowns
 - System Monitoring: Real-time visibility into detection logic and failure reasons
 - Error Handling: Graceful degradation when modules unavailable, avoid breaking system with complex dependencies

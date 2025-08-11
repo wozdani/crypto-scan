@@ -212,10 +212,8 @@ class TJDEv3Pipeline:
         
         async with scanner:
             # Batch fetch all market data using async scanner
-            print(f"[PHASE 1 ASYNC] Starting parallel data fetch for {len(symbols)} tokens")
+            # Silent async data fetch
             scan_results = await scanner.scan_all_tokens(symbols, priority_info)
-            
-            print(f"[PHASE 1 ASYNC] Fetched data for {len(scan_results)} tokens")
             
             # Process results with basic scoring
             for result in scan_results:
