@@ -218,7 +218,7 @@ def scan_cycle():
     # Get symbols with error tracking
     try:
         symbols = get_bybit_symbols_cached()
-        print(f"Scanning {len(symbols)} symbols...")
+        print(f"Retrieved {len(symbols)} symbols from Bybit...")
     except Exception as e:
         log_warning("SYMBOL FETCH ERROR", e)
         symbols = []
@@ -228,6 +228,25 @@ def scan_cycle():
         build_coingecko_cache()
     except Exception as e:
         log_warning("COINGECKO CACHE BUILD ERROR", e)
+    
+    # Filter symbols by CoinGecko cache
+    if symbols:
+        try:
+            from utils.coingecko import filter_tokens_by_coingecko_cache
+            filtered_symbols, invalid_symbols = filter_tokens_by_coingecko_cache(symbols)
+            
+            print(f"[COINGECKO FILTER] Filtered {len(symbols)} symbols:")
+            print(f"[COINGECKO FILTER] ✅ Valid: {len(filtered_symbols)}")
+            print(f"[COINGECKO FILTER] ⛔ Invalid (pomijane): {len(invalid_symbols)}")
+            
+            # Use only valid symbols for scanning
+            symbols = filtered_symbols
+            
+        except Exception as e:
+            log_warning("COINGECKO FILTER ERROR", e)
+            # Continue with original symbols if filtering fails
+    
+    print(f"Scanning {len(symbols)} valid symbols...")
     
     # Use enhanced async scan with TJDE and chart generation
     try:

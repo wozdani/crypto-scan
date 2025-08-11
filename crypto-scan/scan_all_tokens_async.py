@@ -213,6 +213,26 @@ async def async_scan_cycle():
     except Exception as e:
         log_global_error("CoinGecko Cache", f"Cache building failed: {e}")
     
+    # Filter symbols by CoinGecko cache to avoid non-existent tokens
+    if symbols:
+        try:
+            from utils.coingecko import filter_tokens_by_coingecko_cache
+            filtered_symbols, invalid_symbols = filter_tokens_by_coingecko_cache(symbols)
+            
+            print(f"[COINGECKO FILTER] Async scan filtering:")
+            print(f"[COINGECKO FILTER] ✅ Valid tokens: {len(filtered_symbols)}")
+            print(f"[COINGECKO FILTER] ⛔ Pominięte (nie w cache): {len(invalid_symbols)}")
+            
+            # Show some examples of filtered tokens
+            if invalid_symbols:
+                print(f"[COINGECKO FILTER] Przykłady pominiętych: {invalid_symbols[:5]}")
+            
+            # Use only valid symbols
+            symbols = filtered_symbols
+            
+        except Exception as e:
+            log_global_error("CoinGecko Filter", f"Token filtering failed: {e}")
+    
     # 🛡 INTELLIGENT TOKEN VALIDATION: Smart processing for geographical restrictions
     try:
         from utils.token_validator import filter_tokens_by_completeness

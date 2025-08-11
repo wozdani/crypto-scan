@@ -188,6 +188,63 @@ def normalize_token_symbol(symbol: str) -> str:
     
     return normalized.strip()
 
+def is_token_in_coingecko_cache(symbol: str) -> bool:
+    """
+    Sprawdza czy token istnieje w cache CoinGecko
+    
+    Args:
+        symbol: Symbol tokenu do sprawdzenia
+        
+    Returns:
+        True jeśli token istnieje w cache, False w przeciwnym przypadku
+    """
+    cache = load_coingecko_cache()
+    
+    # Try direct lookup first
+    if symbol in cache:
+        return True
+    
+    # Try normalized lookup
+    normalized = normalize_token_symbol(symbol)
+    if normalized in cache:
+        return True
+    
+    # Try case-insensitive search
+    for cache_key in cache.keys():
+        if cache_key.lower() == normalized.lower() or cache_key.lower() == symbol.lower():
+            return True
+    
+    return False
+
+def filter_tokens_by_coingecko_cache(symbols: list) -> tuple:
+    """
+    Filtruje tokeny - zwraca tylko te które istnieją w cache CoinGecko
+    
+    Args:
+        symbols: Lista symboli do sprawdzenia
+        
+    Returns:
+        tuple: (valid_symbols, invalid_symbols)
+    """
+    valid_symbols = []
+    invalid_symbols = []
+    
+    print(f"[COINGECKO FILTER] Sprawdzam {len(symbols)} tokenów w cache CoinGecko...")
+    
+    for symbol in symbols:
+        if is_token_in_coingecko_cache(symbol):
+            valid_symbols.append(symbol)
+        else:
+            invalid_symbols.append(symbol)
+            print(f"⛔ Token {symbol} (normalized: {normalize_token_symbol(symbol)}) nie istnieje w cache CoinGecko - pomijam skanowanie")
+    
+    print(f"[COINGECKO FILTER] Wyniki: {len(valid_symbols)} valid, {len(invalid_symbols)} invalid")
+    
+    if invalid_symbols:
+        print(f"[COINGECKO FILTER] Pominięte tokeny (pierwszych 10): {invalid_symbols[:10]}")
+    
+    return valid_symbols, invalid_symbols
+
 def get_contract_from_coingecko(symbol):
     cache = load_coingecko_cache()
     
