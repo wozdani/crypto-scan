@@ -1,6 +1,7 @@
 """
-Blockchain Scanners - Real API Integration
+Blockchain Scanners - Real API Integration with Etherscan V2 Support
 Replaces mock data with authentic blockchain transfer data
+Supports Etherscan V2 API with automatic fallback to legacy APIs
 """
 
 import os
@@ -9,13 +10,18 @@ import time
 from typing import Dict, List, Optional, Tuple
 import json
 from datetime import datetime, timedelta
+from .etherscan_client import get_etherscan_client
 
 class BlockchainScanner:
     """
-    Real blockchain data scanner using multiple chain APIs
+    Real blockchain data scanner using Etherscan V2 API with legacy fallback
     """
     
     def __init__(self):
+        # Initialize Etherscan V2 client with fallback support
+        self.etherscan_client = get_etherscan_client()
+        
+        # Legacy configuration for backward compatibility
         self.api_keys = {
             'ethereum': os.getenv('ETHERSCAN_API_KEY'),
             'bsc': os.getenv('BSCSCAN_API_KEY'),
@@ -71,42 +77,68 @@ class BlockchainScanner:
             # Calculate 24h ago timestamp
             yesterday = int((datetime.now() - timedelta(days=1)).timestamp())
             
-            # CRITICAL FIX: Emergency timeout protection for API calls
-            import signal
-            
-            def timeout_handler(signum, frame):
-                raise TimeoutError("blockchain_scanner API call timeout")
-            
-            signal.signal(signal.SIGALRM, timeout_handler)
-            signal.alarm(3)  # 3-second timeout for API calls
-            
-            params = {
-                'module': 'account',
-                'action': 'tokentx',
-                'contractaddress': contract_address,
-                'page': 1,
-                'offset': limit,
-                'startblock': 0,
-                'endblock': 999999999,
-                'sort': 'desc',
-                'apikey': self.api_keys[chain]
-            }
-            
-            response = requests.get(self.api_endpoints[chain], params=params, timeout=15)
-            signal.alarm(0)  # Cancel timeout on success
-            
-            if response.status_code != 200:
-                print(f"[BLOCKCHAIN] HTTP {response.status_code} for {chain}")
-                return []
-            
-            data = response.json()
-            
-            if data.get('status') != '1':
-                print(f"[BLOCKCHAIN] API error for {chain}: {data.get('message', 'unknown')}")
-                return []
+            # MIGRATED TO ETHERSCAN V2: Use new unified client with V2-first approach
+            try:
+                print(f"[BLOCKCHAIN V2] {chain}: Using Etherscan V2 API for token transfers")
+                
+                # Use new Etherscan V2 client with automatic fallback
+                data = self.etherscan_client.tokentx(
+                    chain=chain,
+                    contract_address=contract_address,
+                    start=0,
+                    end=999999999,
+                    sort="desc",
+                    page=1,
+                    offset=limit
+                )
+                
+                print(f"[BLOCKCHAIN V2] {chain}: Successfully got {len(data) if isinstance(data, list) else 'data'} from V2 API")
+                
+            except Exception as v2_error:
+                print(f"[BLOCKCHAIN V2] {chain}: V2 API failed: {v2_error}")
+                print(f"[BLOCKCHAIN LEGACY] {chain}: Falling back to direct legacy API")
+                
+                # Emergency fallback to legacy direct API
+                import signal
+                
+                def timeout_handler(signum, frame):
+                    raise TimeoutError("blockchain_scanner API call timeout")
+                
+                signal.signal(signal.SIGALRM, timeout_handler)
+                signal.alarm(3)  # 3-second timeout for API calls
+                
+                params = {
+                    'module': 'account',
+                    'action': 'tokentx',
+                    'contractaddress': contract_address,
+                    'page': 1,
+                    'offset': limit,
+                    'startblock': 0,
+                    'endblock': 999999999,
+                    'sort': 'desc',
+                    'apikey': self.api_keys[chain]
+                }
+                
+                response = requests.get(self.api_endpoints[chain], params=params, timeout=15)
+                signal.alarm(0)  # Cancel timeout on success
+                
+                if response.status_code != 200:
+                    print(f"[BLOCKCHAIN] HTTP {response.status_code} for {chain}")
+                    return []
+                
+                response_data = response.json()
+                
+                if response_data.get('status') != '1':
+                    print(f"[BLOCKCHAIN] API error for {chain}: {response_data.get('message', 'unknown')}")
+                    return []
+                
+                data = response_data.get('result', [])
             
             transfers = []
-            for tx in data.get('result', []):
+            # Handle both V2 API response and legacy fallback
+            tx_list = data if isinstance(data, list) else data.get('result', [])
+            
+            for tx in tx_list:
                 try:
                     # Filter to last 24h
                     tx_timestamp = int(tx.get('timeStamp', 0))

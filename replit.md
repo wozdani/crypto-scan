@@ -18,11 +18,19 @@ This project is a cryptocurrency market scanner designed to detect pre-pump sign
   - All direct instantiations replaced with .instance() calls across codebase
   - Eliminated state drift and memory conflicts in reinforcement learning components
 - **Pre-Confirmatory Poke System**: Implemented "pre-confirmatory poke" feature that detects when 2/3 AI agents score 0.60-0.68 (just under 0.7 threshold) and forces additional data loading (orderbook, chain inflow) before finalizing HOLD decisions. This ensures comprehensive analysis for edge cases where detectors are marginally below the threshold but potentially valid signals.
+- **Etherscan V2 Migration**: Successfully migrated to Etherscan API V2 with intelligent fallback system (August 11, 2025):
+  - Unified V2 client supporting all chains with single API key
+  - Automatic fallback to legacy chain-specific APIs when V2 unavailable
+  - Zero-downtime migration with full backward compatibility
+  - Enhanced error handling and comprehensive logging
+  - Ready for V2 key activation (currently using legacy fallback)
+  - Files: `utils/etherscan_client.py` (NEW), enhanced `utils/blockchain_scanners.py`
 
 ## User Preferences
 
 - Language: Polish for user-facing messages and alerts
 - API Access: Bybit API working in production environment (development environment shows 403 errors)
+- Blockchain APIs: Etherscan V2 integration ready (add ETHERSCAN_V2_API_KEY to enable), current legacy fallback working
 - Performance Priority: Speed through simplicity - complex optimizations often counterproductive
 - Code Style: Sequential execution preferred over parallel processing that adds overhead without benefit
 - Architecture Preference: Simple, maintainable code over sophisticated but slow optimizations
@@ -67,7 +75,7 @@ The system employs a multi-stage detection pipeline for pre-pump signals, built 
 -   **Telegram Bot API**: For sending real-time alert notifications.
 -   **Bybit API**: Primary source for market data, orderbook information, and trading pair details.
 -   **CoinGecko API**: For token contract addresses and metadata.
--   **Blockchain Scanner APIs**: Including Etherscan, BSCScan, and PolygonScan for on-chain data analysis.
+-   **Blockchain Scanner APIs**: Etherscan V2 API with fallback to legacy chain-specific APIs (Etherscan, BSCScan, PolygonScan, ArbScan, OptimismScan) for comprehensive on-chain data analysis.
 -   **Python Libraries**:
     -   `Flask`: Web framework.
     -   `OpenAI`: Python client for OpenAI API.
