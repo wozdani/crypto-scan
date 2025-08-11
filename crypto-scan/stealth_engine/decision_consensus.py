@@ -10,6 +10,39 @@ from datetime import datetime
 from typing import Dict, Any, Tuple, List, Optional
 from dataclasses import dataclass, asdict
 
+# Import AlertDecision and related classes for pre-confirmatory poke system
+try:
+    from .consensus_decision_engine import AlertDecision, ConsensusResult as ImportedConsensusResult, ConsensusStrategy
+    CONSENSUS_CLASSES_AVAILABLE = True
+    print("[DECISION CONSENSUS] AlertDecision and ConsensusResult imported successfully")
+except ImportError as e:
+    CONSENSUS_CLASSES_AVAILABLE = False
+    print(f"[DECISION CONSENSUS] Import failed: {e}")
+    
+    # Fallback definitions if import fails
+    from enum import Enum
+    
+    class AlertDecision(Enum):
+        ALERT = "ALERT"
+        NO_ALERT = "NO_ALERT"  
+        WATCH = "WATCH"
+        ESCALATE = "ESCALATE"
+    
+    class ConsensusStrategy(Enum):
+        MAJORITY_VOTE = "majority_vote"
+    
+    # Fallback ConsensusResult
+    @dataclass
+    class ImportedConsensusResult:
+        decision: AlertDecision
+        final_score: float
+        confidence: float
+        strategy_used: ConsensusStrategy
+        contributing_detectors: List[str] 
+        reasoning: str
+        consensus_strength: float
+        timestamp: str
+
 @dataclass
 class DetectorResult:
     """Struktura wyniku pojedynczego detektora"""
@@ -19,9 +52,11 @@ class DetectorResult:
     confidence: float = 0.0  # poziom pewności
     metadata: Dict[str, Any] = None  # type: ignore
 
+# ConsensusResult is now imported from consensus_decision_engine.py
+# Legacy ConsensusResult for backward compatibility if needed
 @dataclass
-class ConsensusResult:
-    """Wynik finalnej decyzji konsensusu"""
+class LegacyConsensusResult:
+    """Legacy wynik finalnej decyzji konsensusu for backward compatibility"""
     decision: str  # "BUY", "HOLD", "AVOID"
     final_score: float
     confidence: float
@@ -791,8 +826,8 @@ class DecisionConsensusEngine:
                     # 🎯 PRE-CONFIRMATORY POKE - obsługa specjalnej decyzji
                     if decision == "PRE_CONFIRMATORY_POKE":
                         print(f"[PRE-CONFIRMATORY POKE] {detector_name}: Wykryto edge case - zwracam specjalną decyzję")
-                        # Zwróć natychmiast ConsensusResult z PRE_CONFIRMATORY_POKE
-                        return ConsensusResult(
+                        # Zwróć natychmiast ImportedConsensusResult z PRE_CONFIRMATORY_POKE
+                        return ImportedConsensusResult(
                             decision=AlertDecision.WATCH,  # WATCH będzie interpretowane jako PRE_CONFIRMATORY_POKE
                             final_score=detector_data.get("score", 0.0),
                             confidence=confidence,

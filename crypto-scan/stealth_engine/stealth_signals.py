@@ -38,7 +38,7 @@ except ImportError as e:
         """Fallback function when canonical_price unavailable"""
         return 0.0
 
-# Import AlertDecision for pre-confirmatory poke from same directory
+# Import AlertDecision enum for pre-confirmatory poke from same directory
 try:
     from .consensus_decision_engine import AlertDecision
     ALERT_DECISION_AVAILABLE = True
@@ -47,7 +47,10 @@ except ImportError as e:
     ALERT_DECISION_AVAILABLE = False
     print(f"[STEALTH SIGNALS] AlertDecision import failed: {e}")
     
-    class AlertDecision:
+    # Fallback enum-like class if import fails
+    from enum import Enum
+    
+    class AlertDecision(Enum):
         ALERT = "ALERT"
         WATCH = "WATCH"
         NO_ALERT = "NO_ALERT"
