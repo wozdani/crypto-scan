@@ -11,6 +11,32 @@ from typing import Dict, List, Optional, Tuple
 import json
 from datetime import datetime, timedelta
 from .etherscan_client import get_etherscan_client
+import sys
+from pathlib import Path
+
+# Initialize new Etherscan V2 client
+try:
+    # Add clients directory to path
+    current_dir = Path(__file__).parent.parent
+    clients_dir = current_dir / "clients"
+    if str(clients_dir) not in sys.path:
+        sys.path.insert(0, str(clients_dir))
+    
+    from etherscan_v2 import EtherscanV2
+    etherscan_v2_client = EtherscanV2(rate_per_sec=4.0, timeout=20)
+    V2_AVAILABLE = True
+    print("[BLOCKCHAIN V2] Etherscan V2 unified client initialized successfully")
+except Exception as e:
+    V2_AVAILABLE = False
+    etherscan_v2_client = None
+    print(f"[BLOCKCHAIN V2] V2 client initialization failed: {e} - falling back to legacy")
+
+# Global V2 client instance for use across the module
+def get_v2_client():
+    """Get the V2 client instance if available"""
+    if V2_AVAILABLE and etherscan_v2_client:
+        return etherscan_v2_client
+    return None
 
 class BlockchainScanner:
     """
