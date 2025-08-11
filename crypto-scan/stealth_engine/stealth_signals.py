@@ -14,6 +14,36 @@ import asyncio
 from typing import Dict, List, Optional
 import statistics
 import time
+import sys
+import os
+
+# Import canonical price system
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'engine'))
+try:
+    from canonical_price import get_frozen_price
+    CANONICAL_PRICE_AVAILABLE = True
+    print("[STEALTH SIGNALS] Canonical price system imported successfully")
+except ImportError as e:
+    CANONICAL_PRICE_AVAILABLE = False
+    print(f"[STEALTH SIGNALS] Canonical price import failed: {e}")
+    
+    def get_frozen_price(symbol):
+        """Fallback function when canonical_price unavailable"""
+        return 0.0
+
+# Import AlertDecision for pre-confirmatory poke
+try:
+    from consensus_decision_engine import AlertDecision
+    ALERT_DECISION_AVAILABLE = True
+    print("[STEALTH SIGNALS] AlertDecision imported successfully")
+except ImportError as e:
+    ALERT_DECISION_AVAILABLE = False
+    print(f"[STEALTH SIGNALS] AlertDecision import failed: {e}")
+    
+    class AlertDecision:
+        ALERT = "ALERT"
+        WATCH = "WATCH"
+        NO_ALERT = "NO_ALERT"
 
 
 class StealthSignal:
@@ -945,7 +975,7 @@ class StealthSignalDetector:
             rejected_transfers = []
             
             # Get current price for USD conversion
-            current_price = canonical_price.get_frozen_price(symbol)
+            current_price = get_frozen_price(symbol)
             
             # Process each transfer with detailed filtering logic
             for transfer in real_transfers:
