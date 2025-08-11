@@ -470,16 +470,25 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 
                 # Safe import and execution of compute_stealth_score
                 try:
-                    if not STEALTH_ENGINE_AVAILABLE:
-                        # Import locally if global import failed
-                        from stealth_engine.stealth_engine import compute_stealth_score
+                    # Ensure compute_stealth_score is available
+                    if STEALTH_ENGINE_AVAILABLE:
+                        # Use global import
+                        stealth_result = compute_stealth_score(stealth_token_data)
+                    else:
+                        # Try local import
+                        from stealth_engine.stealth_engine import compute_stealth_score as local_compute_stealth_score
+                        stealth_result = local_compute_stealth_score(stealth_token_data)
                     
-                    stealth_result = compute_stealth_score(stealth_token_data)
                     print(f"[FLOW DEBUG] {symbol}: compute_stealth_score() completed successfully")
                     
                 except Exception as e:
                     print(f"[STEALTH ENGINE ERROR] {symbol} → Stealth analysis failed: {type(e).__name__}: {e}")
-                    print(f"[STEALTH ENGINE ERROR] {symbol} → Traceback: {traceback.format_exc()}")
+                    
+                    # Safe traceback handling
+                    try:
+                        print(f"[STEALTH ENGINE ERROR] {symbol} → Traceback: {traceback.format_exc()}")
+                    except:
+                        print(f"[STEALTH ENGINE ERROR] {symbol} → No traceback available")
                     
                     # Fallback stealth_result
                     stealth_result = {
@@ -876,10 +885,14 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         print(f"[PRE-CONFIRMATORY POKE] {symbol}: Ponowna ewaluacja z doładowanymi danymi...")
                         try:
                             # Safe import and execution of compute_stealth_score  
-                            if not STEALTH_ENGINE_AVAILABLE:
-                                from stealth_engine.stealth_engine import compute_stealth_score
+                            if STEALTH_ENGINE_AVAILABLE:
+                                # Use global import
+                                final_stealth_result = compute_stealth_score(stealth_token_data)
+                            else:
+                                # Try local import
+                                from stealth_engine.stealth_engine import compute_stealth_score as local_compute_stealth_score
+                                final_stealth_result = local_compute_stealth_score(stealth_token_data)
                             
-                            final_stealth_result = compute_stealth_score(stealth_token_data)
                             final_consensus_decision = final_stealth_result.get("consensus_decision", "HOLD")
                             
                             if final_consensus_decision != "PRE_CONFIRMATORY_POKE":
@@ -892,7 +905,13 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                                 consensus_decision = "HOLD"
                         except Exception as re_eval_error:
                             print(f"[PRE-CONFIRMATORY POKE] {symbol}: Błąd ponownej ewaluacji: {re_eval_error}")
-                            print(f"[PRE-CONFIRMATORY POKE] {symbol}: Traceback: {traceback.format_exc()}")
+                            
+                            # Safe traceback handling
+                            try:
+                                print(f"[PRE-CONFIRMATORY POKE] {symbol}: Traceback: {traceback.format_exc()}")
+                            except:
+                                print(f"[PRE-CONFIRMATORY POKE] {symbol}: No traceback available")
+                            
                             consensus_decision = "HOLD"  # Domyślnie HOLD przy błędzie
                     
                     market_data["consensus_decision"] = consensus_decision
