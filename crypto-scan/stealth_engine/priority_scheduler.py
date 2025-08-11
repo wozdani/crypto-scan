@@ -112,7 +112,7 @@ class AlertQueueManager:
             # Sortuj malejąco według early_score
             scores.sort(key=lambda x: x[1], reverse=True)
             
-            print(f"[PRIORITY SCHEDULER] Sorted {len(scores)} tokens by early_score")
+            # Silent priority sorting
             return scores
             
         except Exception as e:

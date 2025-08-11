@@ -694,11 +694,10 @@ class TJDEv3Pipeline:
             Final TJDE results
         """
         pipeline_start = time.time()
-        print(f"[TJDE v3 PIPELINE] Starting full analysis for {len(symbols)} symbols")
-        print(f"[PHASE FLOW] Phase 1: Basic scoring → Phase 2: TOP 20 selection → Phase 3: Charts → Phase 4: CLIP → Phase 5: Advanced")
+        # Silent pipeline initialization
         
         # Phase 1: Basic scoring for all tokens
-        print(f"[PHASE 1] Running basic scoring for ALL {len(symbols)} symbols...")
+        # Silent phase 1 processing
         basic_results = await self.phase1_basic_scoring(symbols, priority_info)
         
         if not basic_results:
@@ -758,7 +757,7 @@ class TJDEv3Pipeline:
         """
         pipeline_start = time.time()
         print(f"[TJDE v3 FROM DATA] 🎯 PROPER 5-STEP LOGIC: {len(scan_results)} input tokens")
-        print(f"[PHASE FLOW] Phase 1: Basic scoring ALL → TOP 20 selection → Chart/AI generation → Data validation → Phase 2: Advanced ONLY TOP 20")
+        # Silent phase flow processing
         
         # ===== STEP 1: PHASE 1 BASIC SCORING FOR ALL TOKENS =====
         print(f"[STEP 1] Running basic scoring for ALL {len(scan_results)} tokens...")

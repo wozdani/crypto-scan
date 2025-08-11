@@ -489,28 +489,22 @@ class AsyncCryptoScanner:
     async def scan_all_tokens(self, symbols: List[str], priority_info: Dict = None) -> List[Dict]:
         """High-performance scan targeting 752 tokens in <15s"""
         
-        # 🎯 STAGE 15 - ALERT PRIORITIZATION: Sort tokens by early_score first
+        # Silent priority processing 
         if ALERT_PRIORITIZATION_AVAILABLE:
             try:
                 priority_symbols = get_priority_scanning_queue(symbols)
-                print(f"[STAGE 15 ALERT PRIORITIZATION] Sorted {len(symbols)} tokens by early_score")
-                print(f"[PRIORITY QUEUE] Top 5 priority tokens: {priority_symbols[:5]}")
                 symbols = priority_symbols
             except Exception as e:
                 print(f"[STAGE 15 ERROR] Alert prioritization failed: {e}")
         
-        # 🧠 ETAP 11 - PRIORITY LEARNING INTEGRATION: Additional learning bias
         if PRIORITY_LEARNING_AVAILABLE:
             try:
-                # Apply learning bias to already prioritized tokens
                 priority_symbols = get_priority_scan_queue(symbols, limit=len(symbols))
-                print(f"[PRIORITY LEARNING] Applied learning bias to priority-sorted tokens")
                 symbols = priority_symbols
             except Exception as e:
                 print(f"[PRIORITY LEARNING ERROR] Failed to apply learning bias: {e}")
-                # Continue with Stage 15 priority order if learning fails
         
-        print(f"🚀 Starting HIGH-SPEED async scan of {len(symbols)} tokens (max {self.max_concurrent} concurrent)")
+        # Silent scan start
         
         # Performance optimization: larger batches, shorter timeouts
         batch_size = min(100, self.max_concurrent * 2)  # Aggressive batching
@@ -524,7 +518,7 @@ class AsyncCryptoScanner:
             batch_num = i//batch_size + 1
             total_batches = (len(symbols) + batch_size - 1)//batch_size
             
-            print(f"Processing chunk {batch_num}/{total_batches}")
+            # Silent chunk processing
             
             # Create tasks with aggressive concurrency
             tasks = [self.scan_token_async(symbol, priority_info) for symbol in batch]
