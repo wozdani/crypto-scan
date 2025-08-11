@@ -17,9 +17,9 @@ import time
 import sys
 import os
 
-# Import canonical price system
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'engine'))
+# Import canonical price system from utils
 try:
+    sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'utils'))
     from canonical_price import get_frozen_price
     CANONICAL_PRICE_AVAILABLE = True
     print("[STEALTH SIGNALS] Canonical price system imported successfully")
@@ -31,9 +31,9 @@ except ImportError as e:
         """Fallback function when canonical_price unavailable"""
         return 0.0
 
-# Import AlertDecision for pre-confirmatory poke
+# Import AlertDecision for pre-confirmatory poke from same directory
 try:
-    from consensus_decision_engine import AlertDecision
+    from .consensus_decision_engine import AlertDecision
     ALERT_DECISION_AVAILABLE = True
     print("[STEALTH SIGNALS] AlertDecision imported successfully")
 except ImportError as e:
