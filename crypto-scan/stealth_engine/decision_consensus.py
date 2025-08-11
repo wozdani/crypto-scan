@@ -13,6 +13,7 @@ from dataclasses import dataclass, asdict
 # Import AlertDecision and related classes for pre-confirmatory poke system
 try:
     from .consensus_decision_engine import AlertDecision, ConsensusResult as ImportedConsensusResult, ConsensusStrategy
+    ConsensusResult = ImportedConsensusResult  # Create alias for backward compatibility
     CONSENSUS_CLASSES_AVAILABLE = True
     print("[DECISION CONSENSUS] AlertDecision and ConsensusResult imported successfully")
 except ImportError as e:
@@ -42,6 +43,9 @@ except ImportError as e:
         reasoning: str
         consensus_strength: float
         timestamp: str
+    
+    # Create alias for backward compatibility
+    ConsensusResult = ImportedConsensusResult
 
 @dataclass
 class DetectorResult:
