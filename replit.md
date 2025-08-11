@@ -46,6 +46,13 @@ This project is a cryptocurrency market scanner designed to detect pre-pump sign
   - Non-L2 detectors (volume_spike, dex_inflow, etc.) continue normal analysis with available market data
   - Result: Tokens with empty orderbook but real market data are analyzed properly without false penalties
   - Files updated: `crypto-scan/stealth_engine/stealth_engine.py` lines 1007-1013, 1052-1056
+- **Contract Address Propagation Fix**: Fixed contract address not propagating from detection to Explore Mode (August 11, 2025):
+  - Issue: Contract `0xbc39...3447` detected by Chain Router but Explore Mode showed "contract: unknown"
+  - Root cause: `contract_address` from `chain_router()` was not propagated to `token_data` for Explore Mode context
+  - Solution: Added contract propagation in both `whale_ping` and `dex_inflow` signal detectors
+  - Enhanced Explore Mode display to show actual contract address instead of boolean `contract_found`
+  - Result: Explore Mode now displays "Contract address: 0xbc39...3447 (chain: ethereum)" with proper context
+  - Files updated: `crypto-scan/stealth_engine/stealth_signals.py` lines 420-423, 887-890, `crypto-scan/utils/stealth_utils.py` lines 67-70
 
 ## User Preferences
 

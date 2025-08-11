@@ -413,6 +413,12 @@ class StealthSignalDetector:
                 chain, contract_address, routing_status = chain_router(symbol)
                 print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] CHAIN_ROUTER → chain={chain}, contract={contract_address[:10] if contract_address else None}..., status={routing_status}")
                 
+                # 🔧 KONTRAKTU PROPAGACJA FIX: Dodaj contract_address do token_data dla Explore Mode
+                if contract_address and 'contract_address' not in token_data:
+                    token_data['contract_address'] = contract_address
+                    token_data['contract_chain'] = chain
+                    print(f"[CONTRACT PROPAGATION] {symbol}: Added contract {contract_address[:10]}... to token_data for Explore Mode")
+                
                 # ALWAYS try blockchain detection using routed chain/contract
                 try:
                     # Get real whale transfers using chain_router data for consistency
@@ -873,6 +879,12 @@ class StealthSignalDetector:
             
             print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] CHAIN_ROUTER → chain={chain}, contract={contract_address[:10] if contract_address else None}..., status={routing_status}")
             print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] DEX_STATUS → enabled={dex_enabled}, reason={dex_reason}")
+            
+            # 🔧 KONTRAKTU PROPAGACJA FIX: Dodaj contract_address do token_data dla Explore Mode
+            if contract_address and 'contract_address' not in token_data:
+                token_data['contract_address'] = contract_address
+                token_data['contract_chain'] = chain
+                print(f"[CONTRACT PROPAGATION] {symbol}: Added contract {contract_address[:10]}... to token_data for Explore Mode")
             
             # Handle chain mismatches and unavailable contracts
             if not dex_enabled:

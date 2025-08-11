@@ -60,7 +60,11 @@ def should_explore_mode_trigger(token_data: Dict[str, Any]) -> bool:
     print(f"[EXPLORE MODE DEBUG] Core signal intersection: {active_signals.intersection(core_signals)}")
     print(f"[EXPLORE MODE DEBUG] Whale ping strength: {whale_ping_strength:.3f}")
     print(f"[EXPLORE MODE DEBUG] DEX inflow value: ${dex_inflow_value:.2f}")
-    print(f"[EXPLORE MODE DEBUG] Contract found: {token_data.get('contract_found', 'unknown')}")
+    # 🔧 KONTRAKTU DISPLAY FIX: Show actual contract address instead of contract_found
+    contract_display = token_data.get('contract_address', 'unknown')
+    if contract_display != 'unknown' and len(contract_display) > 10:
+        contract_display = contract_display[:10] + '...'
+    print(f"[EXPLORE MODE DEBUG] Contract address: {contract_display} (chain: {token_data.get('contract_chain', 'unknown')})")
     
     # Relaxed scoring requirement - either cold start OR decent signals
     score_sufficient = final_score >= explore_score_threshold
