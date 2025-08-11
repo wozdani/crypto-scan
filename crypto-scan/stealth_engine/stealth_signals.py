@@ -447,6 +447,28 @@ class StealthSignalDetector:
                             )
                         print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MID → tracked {len(real_whale_addresses)} real whale addresses from {chain}:{contract_address[:10]}...")
                         
+                        # 🔧 SIGNAL_DETAILS FIX: Add detailed whale_ping information for UI
+                        whale_details = []
+                        for i, transfer in enumerate(whale_transfers[:5]):  # Top 5 whale transfers
+                            whale_details.append({
+                                "address": transfer['from'][:10] + '...' if len(transfer['from']) > 10 else transfer['from'],
+                                "value_usd": transfer['value_usd'],
+                                "timestamp": transfer.get('timestamp', 'unknown'),
+                                "tx_hash": transfer.get('hash', 'unknown')[:10] + '...' if transfer.get('hash') else 'unknown'
+                            })
+                        
+                        # Add whale_details to token_data for signal_details propagation
+                        token_data['whale_ping_details'] = {
+                            "total_whales": len(real_whale_addresses),
+                            "total_volume_usd": sum(t['value_usd'] for t in whale_transfers),
+                            "threshold_usd": threshold,
+                            "chain": chain,
+                            "contract": contract_address[:10] + '...' if contract_address else 'unknown',
+                            "top_transfers": whale_details,
+                            "detection_method": "real_blockchain_data"
+                        }
+                        print(f"[WHALE_PING_DETAILS] {symbol}: Added {len(whale_details)} transfer details to token_data for UI")
+                        
                 except Exception as inner_e:
                     print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] blockchain API error: {inner_e}")
                     has_real_whales = False

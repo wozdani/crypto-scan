@@ -53,6 +53,13 @@ This project is a cryptocurrency market scanner designed to detect pre-pump sign
   - Enhanced Explore Mode display to show actual contract address instead of boolean `contract_found`
   - Result: Explore Mode now displays "Contract address: 0xbc39...3447 (chain: ethereum)" with proper context
   - Files updated: `crypto-scan/stealth_engine/stealth_signals.py` lines 420-423, 887-890, `crypto-scan/utils/stealth_utils.py` lines 67-70
+- **Signal Details Structure Fix**: Resolved UI signal_details extraction for whale_ping signals (August 11, 2025):
+  - Issue: UI expected detailed `signal_details` structure but whale_ping returned only aggregated data
+  - Root cause: `signal_details` contained only basic `{active, strength, status}` without detailed whale information
+  - Solution: Added comprehensive whale_ping details to `token_data` and propagated to `signal_details`
+  - Enhanced whale_ping to include: total_whales, total_volume_usd, threshold_usd, chain, contract, top_transfers (with addresses, amounts, timestamps)
+  - Result: UI now receives complete whale_ping signal structure with detailed blockchain transaction data
+  - Files updated: `crypto-scan/stealth_engine/stealth_signals.py` lines 453-473, `crypto-scan/stealth_engine/stealth_engine.py` lines 1074-1076
 
 ## User Preferences
 

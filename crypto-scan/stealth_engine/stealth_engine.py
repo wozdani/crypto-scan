@@ -1066,6 +1066,15 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             "strength": getattr(signal, 'strength', 0.0),
                             "status": getattr(signal, 'status', 'MEASURED')  # Include status for coverage_ratio calculation
                         }
+                        
+                        # 🔧 SIGNAL_DETAILS FIX: Add detailed information for whale_ping from token_data
+                        if signal.name == "whale_ping" and 'whale_ping_details' in token_data:
+                            signal_details[signal.name].update(token_data['whale_ping_details'])
+                            print(f"[SIGNAL_DETAILS] {symbol}: Added whale_ping details with {token_data['whale_ping_details']['total_whales']} whales to signal_details")
+                        
+                        # Add similar details for other signals if needed
+                        elif signal.name == "dex_inflow" and 'dex_inflow_details' in token_data:
+                            signal_details[signal.name].update(token_data['dex_inflow_details'])
                     
                     # Wyloguj kluczowe sygnały
                     whale_ping = signal_status.get('whale_ping', False)
