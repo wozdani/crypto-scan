@@ -21,7 +21,7 @@ load_dotenv()
 from utils.bybit_cache_manager import get_bybit_symbols_cached
 from stages.stage_minus2_1 import detect_stage_minus2_1
 # PPWCS SYSTEM REMOVED - Using TJDE v2 only
-from utils.scoring import compute_checklist_score, get_alert_level, save_score
+from utils.scoring import load_tjde_weights, save_tjde_weights
 from utils.alert_system import process_alert
 from utils.coingecko import build_coingecko_cache
 from utils.whale_priority import prioritize_whale_tokens
@@ -358,15 +358,9 @@ class AsyncCryptoScanner:
                 })
                 
                 # Enhanced fast scoring with TJDE integration
-                final_score = compute_ppwcs(signals, symbol)
-                if isinstance(final_score, tuple):
-                    final_score = final_score[0]
-                final_score = float(final_score) if final_score else 0.0
-                
-                checklist_score = compute_checklist_score(signals)
-                if isinstance(checklist_score, tuple):
-                    checklist_score = checklist_score[0]
-                checklist_score = float(checklist_score) if checklist_score else 0.0
+                # PPWCS removed - using simplified scoring
+                final_score = min(100.0, (volume_24h / 1_000_000) * 50)  # Basic volume-based score
+                checklist_score = final_score * 0.8  # Simplified checklist
                 
                 # TJDE analysis for promising tokens only
                 tjde_score = 0.0
@@ -397,13 +391,13 @@ class AsyncCryptoScanner:
                         if not self.fast_mode:
                             print(f"[TJDE ERROR] {symbol}: {e}")
                 
-                # Save and alert (async-safe)
-                save_score(symbol, final_score, signals)
-                log_ppwcs_score(symbol, final_score, signals)
-                
-                alert_level = get_alert_level(final_score, checklist_score)
+                # Save and alert (async-safe) - simplified
+                alert_level = 2 if final_score >= 70 else 1 if final_score >= 50 else 0
                 if alert_level >= 2:
-                    process_alert(symbol, final_score, signals, None)
+                    try:
+                        process_alert(symbol, final_score, signals, None)
+                    except Exception as e:
+                        print(f"[ALERT ERROR] {symbol}: {e}")
                     
                     # 🎯 ETAP 10 - INTEGRACJA Z PRIORITY ALERT QUEUE DLA PPWCS
                     try:
