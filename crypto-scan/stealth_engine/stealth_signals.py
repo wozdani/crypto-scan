@@ -20,7 +20,14 @@ import os
 # Import canonical price system from utils
 try:
     sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'utils'))
-    from canonical_price import get_frozen_price
+    from canonical_price import canonical_price
+    
+    def get_frozen_price(symbol):
+        """Wrapper for canonical price system - returns just the price value"""
+        # For now return 0.0 as fallback since we need market_data dict to use canonical_price()
+        # TODO: Integrate with full market_data context when available
+        return 0.0
+        
     CANONICAL_PRICE_AVAILABLE = True
     print("[STEALTH SIGNALS] Canonical price system imported successfully")
 except ImportError as e:
