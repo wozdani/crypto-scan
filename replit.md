@@ -32,6 +32,12 @@ This project is a cryptocurrency market scanner designed to detect pre-pump sign
   - Blockchain data limitations in development environment cause detector scores of 0 (expected behavior)
   - In production environment, detectors will have full blockchain API access for complete functionality
   - "TICKER INVALID" messages indicate proper fallback operation, not system malfunction
+- **Consensus Engine UnboundLocalError Fix**: Resolved Python scope issue in multi-agent consensus system (August 11, 2025):
+  - Fixed `UnboundLocalError: cannot access local variable 'create_decision_consensus_engine'` in stealth_engine.py
+  - Root cause: Local variable `create_decision_consensus_engine = None` shadowed imported function name
+  - Solution: Renamed local variable to `consensus_engine_factory` and used alias import pattern
+  - Result: Multi-agent consensus system now functions properly with correct confidence scores
+  - Files updated: `crypto-scan/stealth_engine/stealth_engine.py` lines 1498-1503, 1619-1624, 2433-2438
 
 ## User Preferences
 
