@@ -220,6 +220,9 @@ def process_async_data_enhanced_with_5m(symbol: str, ticker_data: Optional[Dict]
         print(f"[AI LABEL] {symbol}: No existing AI label found")
     print(f"[HTF GEN] Generated {len(htf_candles)} HTF candles from {len(candles_15m)} 15M candles")
     
+    # Apply canonical price as single source of truth
+    from market_data.canonical_price import apply_canonical_price_to_market_data
+    
     # Return enhanced market data with both timeframes
     market_data = {
         "symbol": symbol,
@@ -247,8 +250,20 @@ def process_async_data_enhanced_with_5m(symbol: str, ticker_data: Optional[Dict]
         "price_change_24h": ((candles_15m[-1]["close"] - candles_15m[-96]["close"]) / candles_15m[-96]["close"] * 100) if len(candles_15m) >= 96 else 0.0
     }
     
-    print(f"[ENHANCED SUCCESS] {symbol}: 15M={len(candles_15m)}, 5M={len(candles_5m)}, Price=${price_usd:.6f}")
-    return market_data
+    # Apply canonical price and update market_data
+    orderbook_dict = {"bids": [[b["price"], b["size"]] for b in bids], "asks": [[a["price"], a["size"]] for a in asks]}
+    ticker_dict = {"price": price_usd, "last": price_usd} if ticker_data else {}
+    
+    if apply_canonical_price_to_market_data(market_data, ticker_dict, orderbook_dict, candles_15m, candles_5m, symbol):
+        # Log with canonical price
+        canon_price = market_data.get("price", price_usd)
+        canon_source = market_data.get("price_source", "ticker")
+        print(f"[ENHANCED SUCCESS] {symbol}: 15M={len(candles_15m)}, 5M={len(candles_5m)}, Price=${canon_price:.6f} (src={canon_source})")
+        return market_data
+    else:
+        # Hard skip if no canonical price available
+        print(f"[ENHANCED SKIP] {symbol}: No canonical price available - token rejected")
+        return None
 
 
 def process_async_data_enhanced(symbol: str, ticker_data: Optional[Dict], candles_data: Optional[Dict], orderbook_data: Optional[Dict]) -> Optional[Dict]:
