@@ -1004,12 +1004,14 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 score = 0.25
                 active_signals = ["quiet_microcap"]
             else:
-                skip_reason = "illiquid_orderbook_skipped"
-                score = 0.0
-                active_signals = []
-        else:
-
-                # Pobierz aktywne sygnały z detektorów (zgodnie z user specification)
+                skip_reason = "empty_orderbook_l2_unavailable"
+                # Don't punish with 0.0 - continue analysis without L2-dependent modules
+                print(f"[ORDERBOOK L2 UNAVAILABLE] {symbol}: Empty orderbook (bids={len(orderbook.get('bids', []))}, asks={len(orderbook.get('asks', []))}) - L2 modules UNKNOWN, continuing analysis")
+                # Fall through to signal detection - don't skip token analysis
+        
+        # SIGNAL DETECTION - Always execute regardless of orderbook status
+        if skip_reason not in ["low_volume"]:  # Only skip for real volume issues
+            # Pobierz aktywne sygnały z detektorów (zgodnie z user specification)
                 print(f"[DEBUG FLOW] {symbol} - Starting get_active_stealth_signals() call...")
                 try:
                     signals = detector.get_active_stealth_signals(token_data)
@@ -1047,7 +1049,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                 used_signals = []
                 data_coverage = 1.0
                 
-                if not skip_reason:
+                # Continue analysis even with empty_orderbook_l2_unavailable - L2 modules will return UNMEASURED
+                if skip_reason not in ["low_volume", "signal_detection_failed"]:
                     # Załaduj aktualne wagi (mogą być dostrojone przez feedback loop)
                     weights = load_weights()
                     

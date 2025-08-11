@@ -38,6 +38,14 @@ This project is a cryptocurrency market scanner designed to detect pre-pump sign
   - Solution: Renamed local variable to `consensus_engine_factory` and used alias import pattern
   - Result: Multi-agent consensus system now functions properly with correct confidence scores
   - Files updated: `crypto-scan/stealth_engine/stealth_engine.py` lines 1498-1503, 1619-1624, 2433-2438
+- **Empty Orderbook Logic Fix**: Corrected misinterpretation of empty L2 data as illiquid market (August 11, 2025):
+  - Issue: Tokens with real volume ($929k) but empty orderbook (bids=0, asks=0) were incorrectly penalized with score 0.0
+  - Root cause: `illiquid_orderbook_skipped` logic treated missing L2 data as lack of liquidity instead of data unavailability
+  - Solution: Changed `empty_orderbook_l2_unavailable` to continue analysis with L2-dependent modules returning UNKNOWN status
+  - L2-dependent detectors already properly return `status="UNMEASURED"` instead of penalty scores
+  - Non-L2 detectors (volume_spike, dex_inflow, etc.) continue normal analysis with available market data
+  - Result: Tokens with empty orderbook but real market data are analyzed properly without false penalties
+  - Files updated: `crypto-scan/stealth_engine/stealth_engine.py` lines 1007-1013, 1052-1056
 
 ## User Preferences
 
