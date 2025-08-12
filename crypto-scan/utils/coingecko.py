@@ -218,32 +218,18 @@ def is_token_in_coingecko_cache(symbol: str) -> bool:
 
 def filter_tokens_by_coingecko_cache(symbols: list) -> tuple:
     """
-    Filtruje tokeny - zwraca tylko te które istnieją w cache CoinGecko
+    DISABLED: Zwraca wszystkie tokeny bez filtrowania
     
     Args:
         symbols: Lista symboli do sprawdzenia
         
     Returns:
-        tuple: (valid_symbols, invalid_symbols)
+        tuple: (all_symbols_as_valid, empty_invalid_list)
     """
-    valid_symbols = []
-    invalid_symbols = []
+    print(f"[COINGECKO FILTER] DISABLED - zwracam wszystkie {len(symbols)} tokenów do skanowania")
     
-    print(f"[COINGECKO FILTER] Sprawdzam {len(symbols)} tokenów w cache CoinGecko...")
-    
-    for symbol in symbols:
-        if is_token_in_coingecko_cache(symbol):
-            valid_symbols.append(symbol)
-        else:
-            invalid_symbols.append(symbol)
-            print(f"⛔ Token {symbol} (normalized: {normalize_token_symbol(symbol)}) nie istnieje w cache CoinGecko - pomijam skanowanie")
-    
-    print(f"[COINGECKO FILTER] Wyniki: {len(valid_symbols)} valid, {len(invalid_symbols)} invalid")
-    
-    if invalid_symbols:
-        print(f"[COINGECKO FILTER] Pominięte tokeny (pierwszych 10): {invalid_symbols[:10]}")
-    
-    return valid_symbols, invalid_symbols
+    # Zwróć wszystkie tokeny jako valid, puste invalid
+    return symbols, []
 
 def get_contract_from_coingecko(symbol):
     cache = load_coingecko_cache()
@@ -272,7 +258,7 @@ def get_contract_from_coingecko(symbol):
                     break
     
     if not found_symbol:
-        print(f"⛔ Token {symbol} (normalized: {normalize_token_symbol(symbol)}) nie istnieje w cache CoinGecko")
+        print(f"ℹ️ Token {symbol} (normalized: {normalize_token_symbol(symbol)}) nie istnieje w cache CoinGecko")
         return None
     
     print(f"✅ [CACHE CHECK] {symbol} → {found_symbol} → FOUND")

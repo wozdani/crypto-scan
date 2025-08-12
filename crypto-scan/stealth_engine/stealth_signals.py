@@ -462,7 +462,10 @@ class StealthSignalDetector:
                 # ALWAYS try blockchain detection using routed chain/contract
                 try:
                     # Get real whale transfers using chain_router data for consistency
-                    whale_transfers = get_whale_transfers(symbol, min_usd=threshold, chain=chain, contract_address=contract_address)
+                    if chain and contract_address:
+                        whale_transfers = get_whale_transfers(symbol, min_usd=threshold, chain=chain, contract_address=contract_address)
+                    else:
+                        whale_transfers = []
                     real_whale_addresses = [t['from'] for t in whale_transfers if t['value_usd'] >= threshold][:10]
                     has_real_whales = len(real_whale_addresses) > 0
                     
@@ -473,18 +476,20 @@ class StealthSignalDetector:
                         tracker = AddressTracker()
                         # 🎯 BEGIN ROUND with composite key
                         round_id = f"scan_{int(time.time())}"
-                        tracker.begin_round(symbol, chain, contract_address, round_id)
+                        if chain and contract_address:
+                            tracker.begin_round(symbol, chain, contract_address, round_id)
                         
                         for real_address in real_whale_addresses:
                             value_usd = next((t['value_usd'] for t in whale_transfers if t['from'] == real_address), max_order_usd)
-                            tracker.record_address_activity(
-                                token=symbol,
-                                address=real_address,
-                                usd_value=value_usd,
-                                source="whale_ping_real",
-                                chain=chain,
-                                contract=contract_address
-                            )
+                            if chain and contract_address:
+                                tracker.record_address_activity(
+                                    token=symbol,
+                                    address=real_address,
+                                    usd_value=value_usd,
+                                    source="whale_ping_real",
+                                    chain=chain,
+                                    contract=contract_address
+                                )
                         print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] MID → tracked {len(real_whale_addresses)} real whale addresses from {chain}:{contract_address[:10]}...")
                         
                         # 🔧 SIGNAL_DETAILS FIX: Add detailed whale_ping information for UI
@@ -965,11 +970,14 @@ class StealthSignalDetector:
                     return StealthSignal("dex_inflow", False, 0.0)
             
             # Get real blockchain transfers using chain_router data
-            real_transfers = get_token_transfers_last_24h(
-                symbol=symbol,
-                chain=chain,
-                contract_address=contract_address
-            )
+            if chain and contract_address:
+                real_transfers = get_token_transfers_last_24h(
+                    symbol=symbol,
+                    chain=chain,
+                    contract_address=contract_address
+                )
+            else:
+                real_transfers = []
             
             # Load known exchange addresses for the routed chain
             known_exchanges = load_known_exchange_addresses()
@@ -1041,19 +1049,21 @@ class StealthSignalDetector:
                     from .address_tracker import AddressTracker
                     tracker = AddressTracker()
                     round_id = f"dex_scan_{int(time.time())}"
-                    tracker.begin_round(symbol, chain, contract_address, round_id)
+                    if chain and contract_address:
+                        tracker.begin_round(symbol, chain, contract_address, round_id)
                     
                     for addr in real_addresses[:10]:  # Top 10 real DEX addresses
                         # Find transfer amount for this address from filtered transfers
                         transfer_amount = next((t['value_usd'] for t in filtered_transfers if t['from'] == addr), 0)
-                        tracker.record_address_activity(
-                            token=symbol,
-                            address=addr,
-                            usd_value=transfer_amount,
-                            source="dex_inflow_real",
-                            chain=chain,
-                            contract=contract_address
-                        )
+                        if chain and contract_address:
+                            tracker.record_address_activity(
+                                token=symbol,
+                                address=addr,
+                                usd_value=transfer_amount,
+                                source="dex_inflow_real",
+                                chain=chain,
+                                contract=contract_address
+                            )
                     print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] TRACKER → {len(real_addresses)} DEX addresses tracked with composite key {chain}:{contract_address[:10]}...")
                 except Exception as tracker_e:
                     print(f"[STEALTH DEBUG] [{symbol}] [{FUNC_NAME}] TRACKER_ERROR → {tracker_e}")
@@ -2584,13 +2594,17 @@ class StealthSignalDetector:
             chain = getattr(self, 'current_chain', None) or token_data.get('chain')
             contract = getattr(self, 'current_contract', None) or token_data.get('contract')
             
-            boost_score, details = self.address_tracker.get_repeated_addresses_boost(
-                token=symbol,
-                current_addresses=current_addresses,
-                history_days=7,
-                chain=chain,
-                contract=contract
-            )
+            if chain and contract:
+                boost_score, details = self.address_tracker.get_repeated_addresses_boost(
+                    token=symbol,
+                    current_addresses=current_addresses,
+                    history_days=7,
+                    chain=chain,
+                    contract=contract
+                )
+            else:
+                boost_score = 0.0
+                details = {"repeated_addresses": []}
             
             # PUNKT 6 FIX: Usunięto minimum boost - jeśli repeats == 0, zwróć 0
             # if len(current_addresses) >= 1 and boost_score == 0:

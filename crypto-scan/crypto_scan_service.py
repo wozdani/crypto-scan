@@ -235,9 +235,9 @@ def scan_cycle():
             from utils.coingecko import filter_tokens_by_coingecko_cache
             filtered_symbols, invalid_symbols = filter_tokens_by_coingecko_cache(symbols)
             
-            print(f"[COINGECKO FILTER] Filtered {len(symbols)} symbols:")
+            print(f"[COINGECKO FILTER] DISABLED - skanowanie wszystkich {len(symbols)} tokenów:")
             print(f"[COINGECKO FILTER] ✅ Valid: {len(filtered_symbols)}")
-            print(f"[COINGECKO FILTER] ⛔ Invalid (pomijane): {len(invalid_symbols)}")
+            print(f"[COINGECKO FILTER] ℹ️ Invalid (skanowane): {len(invalid_symbols)}")
             
             # Use only valid symbols for scanning
             symbols = filtered_symbols

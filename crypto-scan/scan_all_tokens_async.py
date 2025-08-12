@@ -214,13 +214,13 @@ async def async_scan_cycle():
             from utils.coingecko import filter_tokens_by_coingecko_cache
             filtered_symbols, invalid_symbols = filter_tokens_by_coingecko_cache(symbols)
             
-            print(f"[COINGECKO FILTER] Async scan filtering:")
+            print(f"[COINGECKO FILTER] DISABLED - skanowanie wszystkich tokenów:")
             print(f"[COINGECKO FILTER] ✅ Valid tokens: {len(filtered_symbols)}")
-            print(f"[COINGECKO FILTER] ⛔ Pominięte (nie w cache): {len(invalid_symbols)}")
+            print(f"[COINGECKO FILTER] ℹ️ Invalid (skanowane): {len(invalid_symbols)}")
             
-            # Show some examples of filtered tokens
+            # Show some examples of tokens that would be filtered
             if invalid_symbols:
-                print(f"[COINGECKO FILTER] Przykłady pominiętych: {invalid_symbols[:5]}")
+                print(f"[COINGECKO FILTER] Przykłady tokenów bez cache: {invalid_symbols[:5]}")
             
             # Use only valid symbols
             symbols = filtered_symbols
