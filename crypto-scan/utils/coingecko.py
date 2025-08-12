@@ -258,7 +258,7 @@ def get_contract_from_coingecko(symbol):
                     break
     
     if not found_symbol:
-        print(f"ℹ️ Token {symbol} (normalized: {normalize_token_symbol(symbol)}) nie istnieje w cache CoinGecko")
+        # Token nie istnieje w cache CoinGecko
         return None
     
     print(f"✅ [CACHE CHECK] {symbol} → {found_symbol} → FOUND")

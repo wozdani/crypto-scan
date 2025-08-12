@@ -64,7 +64,7 @@ def get_contract(symbol):
                 return {"address": address, "chain": chain}
 
     if token_data is None:
-        print(f"ℹ️ Token {symbol} nie istnieje w cache CoinGecko - kontynuuję bez kontraktu")
+        # Token nie istnieje w cache CoinGecko - kontynuuję bez kontraktu
         return None
 
     print(f"⚠️ Brak kontraktu dla {symbol}")

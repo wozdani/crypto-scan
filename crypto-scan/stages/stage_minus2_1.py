@@ -128,7 +128,7 @@ def get_dex_inflow(symbol, data):
         print(f"✅ Kontrakt dla {symbol}: {token_info}")
 
         if not token_info:
-            print(f"ℹ️ Token {symbol} nie istnieje w cache CoinGecko - kontynuuję")
+            # Token nie istnieje w cache CoinGecko - kontynuuję
             return 0.0
         if "chain" not in token_info:
             print(f"⚠️ Brak danych chain w token_info dla {symbol}")
