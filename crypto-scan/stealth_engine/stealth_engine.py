@@ -786,8 +786,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         from detectors.orderbook_features import compute_ob_signals
         
         # FEATURES: Use consistent price from market data processing - beginning of FEATURES
-        # 🎯 PRICE CONSISTENCY: Use already processed price_usd from market data instead of recalculating
-        price_ref = token_data.get("price_usd", 0.0)
+        # 🎯 PRICE CONSISTENCY: Use canonical price from market data instead of recalculating
+        price_ref = token_data.get("price", 0.0)  # Fixed: canonical price system uses 'price' key
         
         # Fallback only if price_usd not available (shouldn't happen in normal flow)
         if price_ref <= 0:
@@ -1635,6 +1635,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                 consensus_market_data = {
                                     "symbol": symbol,
                                     "price": price_ref,  # Use actual price from stealth analysis
+                                    "price_source": token_data.get('price_source', 'unknown'),  # Fixed: Add price_source for multi-agent
                                     "volume_24h": volume_24h,  # Use actual volume from stealth analysis 
                                     "price_change_24h": token_data.get('price_change_24h', 0.0),  # Correct key
                                     "market_cap": token_data.get('market_cap', 0.0),

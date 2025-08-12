@@ -255,8 +255,8 @@ class MultiAgentDecisionSystem:
         # 🎯 CANONICAL PRICE INTEGRATION - Use consistent price for all agents
         volume_24h = market_data.get('volume_24h', 0) if market_data else 0
         price_change_24h = market_data.get('price_change_24h', 0) if market_data else 0
-        canonical_price = market_data.get('canonical_price', 0) if market_data else 0
-        price_source = market_data.get('canonical_price_source', 'unknown') if market_data else 'unknown'
+        canonical_price = market_data.get('price', 0) if market_data else 0  # Fixed key name
+        price_source = market_data.get('price_source', 'unknown') if market_data else 'unknown'  # Fixed key name
         
         print(f"[MULTI-AGENT VOTING] Market data: Volume ${volume_24h:,.0f}, Price change {price_change_24h:.2f}%")
         print(f"[MULTI-AGENT VOTING] Canonical price: ${canonical_price:.6f} (source: {price_source})")
@@ -657,8 +657,8 @@ Each agent should decide BUY (strong signal), HOLD (wait for more data), or AVOI
         # Enhanced thresholds for better decision making using BUY/HOLD/AVOID
         if role == AgentRole.ANALYZER:
             market_data = context.get('market_data', {})
-            canonical_price = market_data.get('canonical_price', 0)
-            price_source = market_data.get('canonical_price_source', 'unknown')
+            canonical_price = market_data.get('price', 0)
+            price_source = market_data.get('price_source', 'unknown')
             
             # 🎯 PRE-CONFIRMATORY POKE: Be more aggressive for edge scores 0.60-0.68
             if score >= 0.75:
@@ -681,8 +681,8 @@ Each agent should decide BUY (strong signal), HOLD (wait for more data), or AVOI
         elif role == AgentRole.REASONER:
             market_data = context.get('market_data', {})
             volume = market_data.get('volume_24h', 0)
-            canonical_price = market_data.get('canonical_price', 0)
-            price_source = market_data.get('canonical_price_source', 'unknown')
+            canonical_price = market_data.get('price', 0)
+            price_source = market_data.get('price_source', 'unknown')
             
             # 🎯 PRE-CONFIRMATORY POKE: Be more aggressive for edge scores 0.60-0.68
             if volume > 1000000 and score >= 0.7:
@@ -704,8 +704,8 @@ Each agent should decide BUY (strong signal), HOLD (wait for more data), or AVOI
             
         elif role == AgentRole.VOTER:
             market_data = context.get('market_data', {})
-            canonical_price = market_data.get('canonical_price', 0)
-            price_source = market_data.get('canonical_price_source', 'unknown')
+            canonical_price = market_data.get('price', 0)
+            price_source = market_data.get('price_source', 'unknown')
             
             # 🎯 PRE-CONFIRMATORY POKE: Be more aggressive for edge scores 0.60-0.68
             if score >= 0.7:

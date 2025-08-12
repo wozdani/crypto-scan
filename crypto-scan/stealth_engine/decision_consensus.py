@@ -276,18 +276,35 @@ class DecisionConsensusEngine:
                 formatted_vote = f"{detector_name}: {vote}"
                 detector_votes.append(formatted_vote)
         
-        # Utwórz wynik
-        result = ConsensusResult(
-            decision=decision,
-            final_score=final_score,
-            confidence=confidence,
-            contributing_detectors=contributing_detectors,
-            weighted_scores=normalized_scores,
-            reasoning=reasoning,
-            timestamp=datetime.now().isoformat(),
-            threshold_met=threshold_met,
-            votes=detector_votes  # Dodaj listę głosów
-        )
+        # Utwórz wynik - używamy ImportedConsensusResult z consensus_decision_engine
+        if CONSENSUS_CLASSES_AVAILABLE:
+            # Use modern ConsensusResult from consensus_decision_engine.py
+            from .consensus_decision_engine import AlertDecision
+            alert_decision = AlertDecision.ALERT if decision == "BUY" else AlertDecision.NO_ALERT
+            
+            result = ConsensusResult(
+                decision=alert_decision,
+                final_score=final_score,
+                confidence=confidence,
+                strategy_used=ConsensusStrategy.MAJORITY_VOTE,
+                contributing_detectors=contributing_detectors,
+                reasoning=reasoning,
+                consensus_strength=confidence,
+                timestamp=datetime.now().isoformat()
+            )
+        else:
+            # Fallback to LegacyConsensusResult
+            result = LegacyConsensusResult(
+                decision=decision,
+                final_score=final_score,
+                confidence=confidence,
+                contributing_detectors=contributing_detectors,
+                weighted_scores=normalized_scores,
+                reasoning=reasoning,
+                timestamp=datetime.now().isoformat(),
+                threshold_met=threshold_met,
+                votes=detector_votes
+            )
         
         # Zapisz decyzję do historii
         self._record_decision(token, result, updated_outputs)
@@ -379,18 +396,28 @@ class DecisionConsensusEngine:
             result: ConsensusResult
             detector_outputs: Raw detector outputs
         """
+        # Handle both ImportedConsensusResult and LegacyConsensusResult
         decision_record = {
             "token": token,
             "timestamp": result.timestamp,
-            "decision": result.decision,
+            "decision": str(result.decision),  # Convert enum to string if needed
             "final_score": result.final_score,
             "confidence": result.confidence,
-            "threshold_met": result.threshold_met,
             "contributing_detectors": result.contributing_detectors,
-            "weighted_scores": result.weighted_scores,
             "reasoning": result.reasoning,
             "detector_outputs": detector_outputs
         }
+        
+        # Add optional attributes if they exist
+        if hasattr(result, 'threshold_met'):
+            decision_record["threshold_met"] = result.threshold_met
+        else:
+            decision_record["threshold_met"] = result.final_score >= 0.7  # Default threshold
+            
+        if hasattr(result, 'weighted_scores'):
+            decision_record["weighted_scores"] = result.weighted_scores
+        else:
+            decision_record["weighted_scores"] = {}  # Empty dict fallback
         
         self.decision_history.append(decision_record)
         
@@ -913,18 +940,35 @@ class DecisionConsensusEngine:
                     vote_text = f"{detector_name}: {agent_decision}"
                     votes_list.append(vote_text)
                 
-                # Create ConsensusResult
-                result = ConsensusResult(
-                    decision=final_decision,
-                    final_score=decision_strength,
-                    confidence=avg_confidence,
-                    contributing_detectors=list(agent_decisions.keys()),
-                    weighted_scores={k: v.get('score', 0.0) for k, v in detector_outputs.items()},
-                    reasoning=reasoning,
-                    timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    threshold_met=decision_strength >= threshold,
-                    votes=votes_list  # Now contains actual detector votes like ["StealthEngine: BUY", "DiamondWhale: AVOID"]
-                )
+                # Create ConsensusResult using proper constructor
+                if CONSENSUS_CLASSES_AVAILABLE:
+                    # Use modern ConsensusResult from consensus_decision_engine.py
+                    from .consensus_decision_engine import AlertDecision
+                    alert_decision = AlertDecision.ALERT if final_decision == "BUY" else AlertDecision.NO_ALERT
+                    
+                    result = ConsensusResult(
+                        decision=alert_decision,
+                        final_score=decision_strength,
+                        confidence=avg_confidence,
+                        strategy_used=ConsensusStrategy.MAJORITY_VOTE,
+                        contributing_detectors=list(agent_decisions.keys()),
+                        reasoning=reasoning,
+                        consensus_strength=decision_strength,
+                        timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    )
+                else:
+                    # Fallback to LegacyConsensusResult 
+                    result = LegacyConsensusResult(
+                        decision=final_decision,
+                        final_score=decision_strength,
+                        confidence=avg_confidence,
+                        contributing_detectors=list(agent_decisions.keys()),
+                        weighted_scores={k: v.get('score', 0.0) for k, v in detector_outputs.items()},
+                        reasoning=reasoning,
+                        timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        threshold_met=decision_strength >= threshold,
+                        votes=votes_list
+                    )
                 
                 # Save decision to history file
                 try:
