@@ -53,6 +53,7 @@ class ConsensusResult:
     contributing_detectors: List[str]
     reasoning: str
     consensus_strength: float
+    threshold_met: bool = False  # Added missing attribute
     votes: List[AlertDecision] = None
     alert_sent: bool = False
     timestamp: str = None
@@ -262,6 +263,7 @@ class ConsensusDecisionEngine:
                 contributing_detectors=[d['detector'] for d in override_detectors],
                 reasoning=override_reasoning,
                 consensus_strength=avg_confidence,
+                threshold_met=True,  # Override always meets threshold
                 votes=[AlertDecision.ALERT] * len(override_detectors),
                 alert_sent=False,
                 timestamp=datetime.now().isoformat()
@@ -539,6 +541,7 @@ class ConsensusDecisionEngine:
             contributing_detectors=contributing_detectors,
             reasoning=reason,
             consensus_strength=consensus_strength,
+            threshold_met=(global_score > global_score_threshold),  # Set based on score vs threshold
             alert_sent=alert_sent,
             timestamp=datetime.now().isoformat()
         )
@@ -647,6 +650,7 @@ class ConsensusDecisionEngine:
             contributing_detectors=[trigger_detector],
             reasoning=reason,
             consensus_strength=1.0,  # Single strong detector = high strength
+            threshold_met=True,  # Fallback alert always meets threshold
             alert_sent=alert_sent,
             timestamp=datetime.now().isoformat()
         )
@@ -1186,6 +1190,7 @@ class ConsensusDecisionEngine:
             contributing_detectors=contributing_detectors,
             reasoning=reason,
             consensus_strength=consensus_strength,
+            threshold_met=(global_score >= threshold),  # Set based on score vs threshold
             votes=detector_votes,
             alert_sent=alert_sent,
             timestamp=datetime.now().isoformat()
@@ -1394,6 +1399,7 @@ class ConsensusDecisionEngine:
             contributing_detectors=contributing_detectors,
             reasoning=reasoning,
             consensus_strength=consensus_strength,
+            threshold_met=(final_score >= self.consensus_thresholds['alert_threshold']),  # Set based on score vs threshold
             timestamp=datetime.now().isoformat()
         )
     
@@ -1467,6 +1473,7 @@ class ConsensusDecisionEngine:
             contributing_detectors=contributing_detectors,
             reasoning=reasoning,
             consensus_strength=consensus_strength,
+            threshold_met=(decision == AlertDecision.ALERT),  # Set based on decision
             timestamp=datetime.now().isoformat()
         )
     
@@ -1566,6 +1573,7 @@ class ConsensusDecisionEngine:
             contributing_detectors=contributing_detectors,
             reasoning=reasoning,
             consensus_strength=consensus_strength,
+            threshold_met=(decision == AlertDecision.ALERT),  # Set based on decision
             timestamp=datetime.now().isoformat()
         )
     
@@ -1630,6 +1638,7 @@ class ConsensusDecisionEngine:
             contributing_detectors=contributing_detectors,
             reasoning=reasoning,
             consensus_strength=consensus_strength,
+            threshold_met=(decision == AlertDecision.ALERT),  # Set based on decision
             timestamp=datetime.now().isoformat()
         )
     
@@ -1689,6 +1698,7 @@ class ConsensusDecisionEngine:
             contributing_detectors=[],
             reasoning=reason,
             consensus_strength=0.0,
+            threshold_met=False,  # NO_ALERT never meets threshold
             timestamp=datetime.now().isoformat()
         )
     
