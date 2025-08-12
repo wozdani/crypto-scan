@@ -53,6 +53,15 @@ except ImportError as e:
     print(f"[CALIFORNIUM WARNING] CaliforniumWhale AI not available: {e}")
     CALIFORNIUM_AVAILABLE = False
 
+# Enhanced Explore Mode Integration
+try:
+    from .explore_mode_integration import save_explore_mode_data, initialize_explore_system
+    ENHANCED_EXPLORE_AVAILABLE = True
+    print("[ENHANCED EXPLORE] Enhanced explore mode system available")
+except ImportError as e:
+    print(f"[ENHANCED EXPLORE WARNING] Enhanced explore mode not available: {e}")
+    ENHANCED_EXPLORE_AVAILABLE = False
+
 
 def simulate_stealth_decision(score: float, volume_24h: float, tjde_phase: str = "unknown") -> bool:
     """

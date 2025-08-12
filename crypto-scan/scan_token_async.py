@@ -566,23 +566,24 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 print(f"[FLOW DEBUG] {symbol}: Enhanced signals: {enhanced_active_signals}")
                 print(f"[CRITICAL DEBUG] {symbol}: REACHED EXPLORE MODE SECTION - TESTING IF THIS LOG APPEARS")
                 
-                # 🚧 EXPLORE MODE - Experimental Cold Start Alerts - INTEGRATION INTO MAIN PIPELINE
+                # 🚧 ENHANCED EXPLORE MODE - Advanced Agent Learning System with Proper File Management
                 explore_mode = False
                 explore_trigger_reason = None
                 explore_confidence = 0.0
                 
-                print(f"[EXPLORE MODE CHECK] {symbol}: Score={stealth_score:.3f}, Checking cold start conditions...")
-                print(f"[EXPLORE MODE DEBUG] {symbol}: stealth_result type: {type(stealth_result)}, active_signals: {active_signals}")
-                print(f"[CRITICAL DEBUG] {symbol}: INSIDE EXPLORE MODE EVALUATION - TESTING IF THIS LOG APPEARS")
+                print(f"[ENHANCED EXPLORE MODE] {symbol}: Score={stealth_score:.3f}, Checking enhanced conditions...")
+                print(f"[ENHANCED EXPLORE MODE] {symbol}: stealth_result type: {type(stealth_result)}, active_signals: {active_signals}")
+                print(f"[ENHANCED EXPLORE MODE] {symbol}: AI detectors: {ai_detectors_active}")
                 
                 try:
-                    from utils.stealth_utils import is_cold_start, should_explore_mode_trigger, calculate_explore_mode_confidence, format_explore_mode_reason
+                    # Import enhanced explore mode integration
+                    from stealth_engine.explore_mode_integration import save_explore_mode_data
                     
                     # CRITICAL FIX: Extract actual DEX inflow value from stealth engine 
                     # Always use real_dex_inflow first, then apply intelligent fallback when=0 but signal active
                     stealth_dex_inflow = real_dex_inflow
                     
-                    print(f"[EXPLORE DEX FIX] {symbol}: Initial real_dex_inflow=${real_dex_inflow:.2f}, dex_inflow_active={'dex_inflow' in active_signals}")
+                    print(f"[ENHANCED EXPLORE DEX] {symbol}: Initial real_dex_inflow=${real_dex_inflow:.2f}, dex_inflow_active={'dex_inflow' in active_signals}")
                     
                     # If real_dex_inflow is 0 but dex_inflow signal is active, estimate from signal strength  
                     if real_dex_inflow == 0 and "dex_inflow" in active_signals:
@@ -591,104 +592,168 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         if volume_24h > 1_000_000:  # Only for reasonable volume tokens
                             estimated_dex_inflow = min(volume_24h * 0.01, 200_000)  # Conservative estimate: 1% of volume
                             stealth_dex_inflow = estimated_dex_inflow
-                            print(f"[EXPLORE DEX FIX] {symbol}: ESTIMATED DEX inflow ${stealth_dex_inflow:.2f} from volume ${volume_24h:.0f} (dex_inflow signal active)")
+                            print(f"[ENHANCED EXPLORE DEX] {symbol}: ESTIMATED DEX inflow ${stealth_dex_inflow:.2f} from volume ${volume_24h:.0f}")
                         else:
-                            stealth_dex_inflow = 1500  # Minimum threshold for explore mode consideration
-                            print(f"[EXPLORE DEX FIX] {symbol}: MINIMUM DEX inflow estimate ${stealth_dex_inflow:.2f} (dex_inflow signal active)")
-                    else:
-                        print(f"[EXPLORE DEX FIX] {symbol}: REAL DEX inflow used=${stealth_dex_inflow:.2f} (real_dex_inflow > 0 or no dex_inflow signal)")
+                            print(f"[ENHANCED EXPLORE DEX] {symbol}: Volume too low (${volume_24h:.0f}) for estimation")
+                    
+                    print(f"[ENHANCED EXPLORE DEX] {symbol}: Final stealth_dex_inflow=${stealth_dex_inflow:.2f}")
+                    
+                    # Extract whale_ping_strength from stealth result
+                    try:
+                        if "whale_ping" in stealth_result:
+                            if isinstance(stealth_result["whale_ping"], dict):
+                                whale_ping_strength = stealth_result["whale_ping"].get("strength", 0.0)
+                            else:
+                                whale_ping_strength = stealth_result["whale_ping"]
+                        else:
+                            whale_ping_strength = stealth_result.get("whale_ping_score", 0.0)
+                        
+                        print(f"[ENHANCED WHALE EXTRACT] {symbol}: Extracted whale_ping_strength={whale_ping_strength:.3f}")
+                    except Exception as whale_extract_e:
+                        print(f"[ENHANCED WHALE EXTRACT ERROR] {symbol}: Failed to extract whale ping: {whale_extract_e}")
+                        whale_ping_strength = 0.0
+                    
+                    # Force whale_ping_strength if whale signals are active
+                    if whale_ping_strength == 0.0 and any(sig in active_signals for sig in ["whale_ping", "spoofing_layers", "orderbook_anomaly"]):
+                        whale_ping_strength = 1.5  # Moderate strength for active whale signals
+                        print(f"[ENHANCED WHALE FORCE] {symbol}: Forced whale_ping_strength=1.5 due to active whale signals")
+                        if "whale_ping" not in enhanced_active_signals:
+                            enhanced_active_signals.append("whale_ping")
 
-                    # 🔧 CRITICAL FIX: Extract whale_ping strength from stealth result - UNIFIED APPROACH
-                    whale_ping_strength = 0.0
-                    
-                    # Method 1: Try signal_details first (most accurate)
-                    signal_details = stealth_result.get("signal_details", {})
-                    if "whale_ping" in signal_details:
-                        whale_ping_strength = signal_details["whale_ping"].get("strength", 0.0)
-                        print(f"[WHALE_PING_EXTRACTION] {symbol}: Method 1 - signal_details whale_ping_strength={whale_ping_strength}")
-                    
-                    # Method 2: Check if whale_ping is in active_signals list (backup method)
-                    elif "whale_ping" in active_signals:
-                        # For strong whale ping signals detected by stealth engine, use strength 3.0
-                        # This matches the logs where we see "whale_ping: strength=3.000"
-                        whale_ping_strength = 3.0  # Use consistent strength with logs
-                        print(f"[WHALE_PING_EXTRACTION] {symbol}: Method 2 - whale_ping in active_signals, using strength=3.0")
-                    
-                    # Method 2b: Check directly in stealth_result for whale signal strength
-                    elif stealth_result.get("final_score", 0) > 1.0:  # Strong stealth signals suggest whale activity
-                        # Parse the score and look for whale indicators
-                        whale_ping_strength = 2.0  # Conservative estimate for strong stealth signals
-                        # Add whale_ping to enhanced signals since we detected it via score estimation
-                        if "whale_ping" not in enhanced_active_signals:
-                            enhanced_active_signals.append("whale_ping")
-                        print(f"[WHALE_PING_EXTRACTION] {symbol}: Method 2b - Strong stealth score ({stealth_result.get('final_score', 0):.3f}), estimated whale_ping=2.0, added to active_signals")
-                    
-                    # Method 3: Check if whale_ping appears in used_signals (fallback)
-                    elif stealth_result.get("used_signals") and "whale_ping" in str(stealth_result.get("used_signals", [])):
-                        whale_ping_strength = 1.0  # Conservative fallback
-                        # Add whale_ping to enhanced signals since we detected it via used_signals
-                        if "whale_ping" not in enhanced_active_signals:
-                            enhanced_active_signals.append("whale_ping")
-                        print(f"[WHALE_PING_EXTRACTION] {symbol}: Method 3 - whale_ping in used_signals, using strength=1.0, added to active_signals")
-                    
-                    # Method 4: Check for whale signal strength from market_data (if available)
-                    elif market_data.get("whale_ping_strength") and market_data["whale_ping_strength"] > 0:
-                        whale_ping_strength = market_data["whale_ping_strength"]
-                        # Add whale_ping to enhanced signals since we detected it via market_data
-                        if "whale_ping" not in enhanced_active_signals:
-                            enhanced_active_signals.append("whale_ping")
-                        print(f"[WHALE_PING_EXTRACTION] {symbol}: Method 4 - whale_ping_strength from market_data={whale_ping_strength}, added to active_signals")
-                    
-                    else:
-                        print(f"[WHALE_PING_EXTRACTION] {symbol}: No whale_ping signal detected through any method, strength=0.0")
-                    
-                    print(f"[WHALE_PING_FINAL] {symbol}: Final whale_ping_strength={whale_ping_strength} for explore mode evaluation")
-                    
-                    # 🔧 CRITICAL FORCE WHALE STRENGTH: If whale_ping was detected in logs but extraction failed, force minimum strength
-                    if whale_ping_strength == 0.0 and any("whale_ping" in str(sig).lower() for sig in active_signals):
-                        whale_ping_strength = 1.5  # Force minimum qualifying strength
-                        # Ensure whale_ping is in enhanced signals since we're forcing strength
-                        if "whale_ping" not in enhanced_active_signals:
-                            enhanced_active_signals.append("whale_ping")
-                        print(f"[WHALE_PING_FORCE] {symbol}: Forced whale_ping_strength=1.5 due to active whale signals, added to active_signals")
-
-                    # Przygotuj token data dla explore mode z poprawioną wartością DEX inflow
-                    explore_token_data = {
-                        "trust_addresses": 0,  # Simplified - no trust addresses for new tokens
-                        "feedback_history": [],  # No historical feedback for new tokens
-                        "whale_memory_entries": 0,
-                        "historical_alerts": [],
-                        "active_signals": list(enhanced_active_signals),  # Use enhanced signals including AI detectors
-                        "whale_ping_strength": whale_ping_strength,  # Use extracted whale ping strength
-                        "dex_inflow_usd": stealth_dex_inflow,  # Use corrected DEX inflow value
-                        "final_score": stealth_score
+                    # Prepare enhanced token data for explore mode evaluation
+                    enhanced_token_data = {
+                        "symbol": symbol,
+                        "price": price,
+                        "volume_24h": volume_24h,
+                        "candles_15m": market_data.get("candles_15m", []),
+                        "candles_5m": market_data.get("candles_5m", []),
+                        "orderbook": market_data.get("orderbook", {}),
+                        "stealth_score": stealth_score,
+                        "active_signals": list(enhanced_active_signals),
+                        "whale_ping_strength": whale_ping_strength,
+                        "dex_inflow_usd": stealth_dex_inflow,
+                        "ai_detectors": ai_detectors_active,
+                        "consensus_decision": stealth_result.get("consensus_decision", "HOLD"),
+                        "consensus_confidence": stealth_result.get("consensus_confidence", 0.0),
+                        "timestamp": datetime.now().isoformat(),
+                        "market_data": market_data
                     }
                     
-                    # Sprawdź czy token kwalifikuje się do explore mode
-                    should_explore = should_explore_mode_trigger(explore_token_data)
+                    # Prepare detector results for enhanced explore mode
+                    detector_results = {
+                        "stealth_engine": {"score": stealth_score, "active": stealth_score > 0.5},
+                        "whale_ping": {"score": whale_ping_strength, "active": whale_ping_strength > 0.5},
+                        "dex_inflow": {"score": stealth_dex_inflow / 100000.0, "active": stealth_dex_inflow > 50000},  # Normalize to 0-1
+                        "ai_detectors": {detector: True for detector in ai_detectors_active}
+                    }
                     
-                    if should_explore:
+                    # Add AI detector scores if available
+                    if stealth_result.get("diamond_score", 0) > 0:
+                        detector_results["diamond_ai"] = {"score": stealth_result["diamond_score"], "active": stealth_result["diamond_score"] > 0.4}
+                    if stealth_result.get("californium_score", 0) > 0:
+                        detector_results["californium_ai"] = {"score": stealth_result["californium_score"], "active": stealth_result["californium_score"] > 0.5}
+                    if stealth_result.get("whaleclip_score", 0) > 0:
+                        detector_results["whaleclip_ai"] = {"score": stealth_result["whaleclip_score"], "active": stealth_result["whaleclip_score"] > 0.3}
+                    
+                    # Enhanced consensus data
+                    consensus_data = {
+                        "decision": stealth_result.get("consensus_decision", "HOLD"),
+                        "confidence": stealth_result.get("consensus_confidence", 0.0),
+                        "votes": stealth_result.get("consensus_votes", []),
+                        "agent_count": 5,  # Standard 5-agent system
+                        "enabled": True
+                    }
+                    
+                    # Check if token qualifies for enhanced explore mode
+                    # Enhanced criteria: stealth score >= 1.0 OR consensus decision == BUY OR multiple AI detectors active
+                    enhanced_explore_criteria = (
+                        stealth_score >= 1.0 or 
+                        consensus_data["decision"] == "BUY" or
+                        len(ai_detectors_active) >= 2 or
+                        whale_ping_strength >= 1.0 or
+                        stealth_dex_inflow >= 100000
+                    )
+                    
+                    if enhanced_explore_criteria:
                         explore_mode = True
-                        explore_trigger_reason = "explore_triggered"
-                        explore_confidence = calculate_explore_mode_confidence(explore_token_data)
                         
-                        print(f"[EXPLORE MODE] {symbol}: Cold start experimental alert triggered")
-                        print(f"[EXPLORE MODE] {symbol}: Reason: {explore_trigger_reason}")
-                        print(f"[EXPLORE MODE] {symbol}: Synthetic confidence: {explore_confidence:.3f}")
-                        print(f"[EXPLORE MODE] {symbol}: Core signals: {len(set(active_signals).intersection({'whale_ping', 'dex_inflow', 'orderbook_anomaly', 'spoofing_layers'}))}")
+                        # Determine specific trigger reason
+                        if stealth_score >= 1.0:
+                            explore_trigger_reason = f"stealth_score_{stealth_score:.3f}"
+                            explore_confidence = min(stealth_score / 4.0, 1.0)
+                        elif consensus_data["decision"] == "BUY":
+                            explore_trigger_reason = f"consensus_buy_{consensus_data['confidence']:.3f}"
+                            explore_confidence = consensus_data["confidence"]
+                        elif len(ai_detectors_active) >= 2:
+                            explore_trigger_reason = f"multi_ai_detectors_{len(ai_detectors_active)}"
+                            explore_confidence = len(ai_detectors_active) / 5.0
+                        elif whale_ping_strength >= 1.0:
+                            explore_trigger_reason = f"whale_activity_{whale_ping_strength:.3f}"
+                            explore_confidence = min(whale_ping_strength / 3.0, 1.0)
+                        elif stealth_dex_inflow >= 100000:
+                            explore_trigger_reason = f"dex_inflow_{stealth_dex_inflow:.0f}"
+                            explore_confidence = min(stealth_dex_inflow / 500000.0, 1.0)
                         
-                        # Update stealth_result z explore mode data
-                        stealth_result["explore_mode"] = True
-                        stealth_result["explore_trigger_reason"] = explore_trigger_reason
-                        stealth_result["explore_confidence"] = explore_confidence
+                        print(f"[ENHANCED EXPLORE MODE TRIGGERED] {symbol}: {explore_trigger_reason}")
+                        print(f"[ENHANCED EXPLORE MODE] {symbol}: Confidence={explore_confidence:.3f}")
+                        print(f"[ENHANCED EXPLORE MODE] {symbol}: Active detectors: {len(ai_detectors_active + active_signals)}")
+                        
+                        # Save enhanced explore mode data using new system
+                        try:
+                            saved_filename = save_explore_mode_data(
+                                symbol=symbol,
+                                token_data=enhanced_token_data,
+                                detector_results=detector_results,
+                                consensus_data=consensus_data,
+                                confidence=explore_confidence,
+                                trigger_reason=explore_trigger_reason
+                            )
+                            
+                            if saved_filename:
+                                print(f"[ENHANCED EXPLORE SAVE SUCCESS] {symbol}: Saved as {saved_filename}")
+                                # Update stealth_result with explore mode data
+                                stealth_result["explore_mode"] = True
+                                stealth_result["explore_trigger_reason"] = explore_trigger_reason
+                                stealth_result["explore_confidence"] = explore_confidence
+                                stealth_result["explore_filename"] = saved_filename
+                            else:
+                                print(f"[ENHANCED EXPLORE SAVE ERROR] {symbol}: Failed to save explore mode data")
+                                
+                        except Exception as save_error:
+                            print(f"[ENHANCED EXPLORE SAVE ERROR] {symbol}: {save_error}")
+                            # Fallback: still mark explore mode as triggered even if save fails
+                            stealth_result["explore_mode"] = True
+                            stealth_result["explore_trigger_reason"] = explore_trigger_reason
+                            stealth_result["explore_confidence"] = explore_confidence
                         
                     else:
-                        print(f"[EXPLORE MODE] {symbol}: Cold start check failed: {explore_trigger_reason}")
+                        criteria_summary = f"score={stealth_score:.3f}, consensus={consensus_data['decision']}, ai_count={len(ai_detectors_active)}, whale={whale_ping_strength:.3f}, dex=${stealth_dex_inflow:.0f}"
+                        print(f"[ENHANCED EXPLORE MODE SKIP] {symbol}: Criteria not met ({criteria_summary})")
                         
-                except ImportError:
-                    print(f"[EXPLORE MODE] {symbol}: Explore mode utilities not available")
+                except ImportError as import_error:
+                    print(f"[ENHANCED EXPLORE MODE] {symbol}: Enhanced explore mode not available: {import_error}")
+                    # Fallback to legacy explore mode detection
+                    try:
+                        from utils.stealth_utils import should_explore_mode_trigger, calculate_explore_mode_confidence
+                        
+                        legacy_token_data = {
+                            "active_signals": list(enhanced_active_signals),
+                            "whale_ping_strength": whale_ping_strength,
+                            "dex_inflow_usd": stealth_dex_inflow,
+                            "final_score": stealth_score
+                        }
+                        
+                        should_explore = should_explore_mode_trigger(legacy_token_data)
+                        if should_explore:
+                            explore_mode = True
+                            explore_trigger_reason = "legacy_explore_mode"
+                            explore_confidence = calculate_explore_mode_confidence(legacy_token_data)
+                            print(f"[LEGACY EXPLORE MODE] {symbol}: Legacy explore mode triggered")
+                        
+                    except ImportError:
+                        print(f"[EXPLORE MODE] {symbol}: Both enhanced and legacy explore mode unavailable")
                 except Exception as e:
-                    print(f"[EXPLORE MODE ERROR] {symbol}: {e}")
+                    print(f"[ENHANCED EXPLORE MODE ERROR] {symbol}: {e}")
                 
                 # Klasyfikacja alertu
                 alert_type = classify_stealth_alert(stealth_score)
