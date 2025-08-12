@@ -1514,6 +1514,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     print(f"[CONSENSUS VALUES] {symbol}: Diamond={diamond_score:.3f} (enabled={diamond_enabled})")
                     print(f"[CONSENSUS VALUES] {symbol}: Californium={californium_score:.3f} (enabled={californium_enabled})")
                     print(f"[CONSENSUS VALUES] {symbol}: WhaleCLIP={whaleclip_score:.3f} (enabled={whaleclip_status_corrected})")
+                    print(f"[CONSENSUS VALUES] {symbol}: GNN={gnn_subgraph_score:.3f} (enabled={gnn_active})")
                     print(f"[CONSENSUS VALUES] {symbol}: StealthEngine={score:.3f} (core signals)")
                     
                     # Store consensus data for later use
@@ -1630,6 +1631,31 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             record_detector_decision(
                                 "WhaleCLIP", symbol, whaleclip_score, adapted_whaleclip_score, 
                                 whaleclip_vote, explore_mode=False, market_context=token_data
+                            )
+                        
+                        # GNN AI (Golden Key) + SELF-LEARNING ADAPTATION
+                        # ZAWSZE dodaj GNN jeśli jest aktywny (score > 0.0)
+                        if gnn_active and gnn_subgraph_score > 0.0:
+                            # Apply intelligent self-learning score adaptation
+                            adapted_gnn_score, adaptation_reason = adapt_detector_score(
+                                "GNN", gnn_subgraph_score, symbol, token_data
+                            )
+                            
+                            # Skip simple threshold vote - will use 5-agent AI consensus instead
+                            detector_outputs["GNN"] = {
+                                "vote": "PENDING",  # Will be set by 5-agent consensus
+                                "score": adapted_gnn_score,
+                                "confidence": 0.80,
+                                "weight": 0.30
+                            }
+                            
+                            print(f"[GNN LEARNING] {symbol}: {gnn_subgraph_score:.3f} → {adapted_gnn_score:.3f} ({adaptation_reason})")
+                            print(f"[DETECTOR ADDED] {symbol}: GNN added to consensus with vote=PENDING, score={adapted_gnn_score:.3f}")
+                            
+                            # Record decision for future learning
+                            record_detector_decision(
+                                "GNN", symbol, gnn_subgraph_score, adapted_gnn_score, 
+                                "PENDING", explore_mode=False, market_context=token_data
                             )
                         
                         # 🤖 MULTI-AGENT CONSENSUS SYSTEM: Real AI Voting with 5 Agents
