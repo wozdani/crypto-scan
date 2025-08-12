@@ -1411,9 +1411,22 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     gnn_error = None
                     
                     try:
-                        # Sprawdź czy token ma kontrakt blockchain dla analizy GNN
-                        from utils.contracts import get_contract
-                        contract_info = get_contract(symbol)
+                        # FIXED: Use contract info from CHAIN ROUTER (already found earlier in pipeline)
+                        # Contract is stored in token_data as 'contract_address' and 'contract_chain'
+                        contract_info = None
+                        if token_data.get('contract_address') and token_data.get('contract_chain'):
+                            # Use contract from token_data (CHAIN ROUTER data)
+                            contract_info = {
+                                'address': token_data['contract_address'],
+                                'chain': token_data['contract_chain']
+                            }
+                            print(f"[GOLDEN KEY] {symbol}: Using contract from CHAIN ROUTER: {contract_info['address'][:10]}...")
+                        else:
+                            # Fallback: Try CoinGecko cache
+                            from utils.contracts import get_contract
+                            contract_info = get_contract(symbol)
+                            if contract_info:
+                                print(f"[GOLDEN KEY] {symbol}: Using contract from CoinGecko cache: {contract_info.get('address', '')[:10]}...")
                         
                         if contract_info and contract_info.get('address'):
                             print(f"[GOLDEN KEY] {symbol}: Starting GNN analysis for contract {contract_info['address'][:10]}...")
