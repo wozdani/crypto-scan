@@ -48,7 +48,7 @@ The system employs a multi-stage detection pipeline for pre-pump signals, built 
     -   **Chain Router System**: Consistent (chain, contract) mapping across whale_ping and dex_inflow modules prevents chain mismatches.
     -   **Pre-Confirmatory Poke System**: Detects when 2/3 AI agents score just under threshold (0.60-0.68) and forces additional data loading (orderbook, chain inflow) before finalizing HOLD decisions.
     -   **CoinGecko Token Validation**: Automatic filtering of non-existent tokens (e.g., 1000000PEIPEIUSDT) based on CoinGecko cache validation prevents scanning of invalid symbols, improving system efficiency and data quality.
--   **Canonical Price System**: Single source of truth pricing with strict priority (ticker_last → orderbook_mid → candle_15m → candle_5m) eliminates price desynchronization issues and ensures all modules use consistent pricing data.
+-   **Canonical Price System**: Single source of truth pricing with strict priority (ticker_last → orderbook_mid → candle_15m → candle_5m) eliminates price desynchronization issues and ensures all modules use consistent pricing data. Multi-agent consensus fully integrated with canonical pricing, eliminating $0 price displays and "unknown" source references.
 
 ## External Dependencies
 

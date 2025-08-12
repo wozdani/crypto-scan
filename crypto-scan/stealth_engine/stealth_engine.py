@@ -754,6 +754,12 @@ def compute_stealth_score(token_data: Dict) -> Dict:
     stealth_error = None
     symbol = token_data.get("symbol", "UNKNOWN")
     
+    # Initialize data variables to prevent UnboundLocalError
+    candles_15m = token_data.get("candles_15m", [])
+    candles_5m = token_data.get("candles_5m", [])
+    orderbook = token_data.get("orderbook", {})
+    dex_inflow = 0.0  # Initialize dex_inflow
+    
     # 🎯 FUNCTION ENTRY DEBUG - This MUST appear for every token processed
     print(f"[FUNCTION ENTRY DEBUG] {symbol}: compute_stealth_score STARTED - testing function execution path")
     
