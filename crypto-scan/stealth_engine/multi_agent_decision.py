@@ -79,8 +79,20 @@ class MultiAgentDecisionSystem:
         Eliminuje problem 429 rate limiting przez redukcję z 5 zapytań do 1 zapytania
         """
         if not self.use_real_llm or not self.openai_client:
-            # Fallback dla wszystkich agentów
-            return [self._fallback_reasoning(role, context) for role, context in all_contexts]
+            # Fallback dla wszystkich agentów - wykonaj sekwencyjnie żeby history była aktualizowana
+            responses = []
+            for role, context in all_contexts:
+                response = self._fallback_reasoning(role, context)
+                # Dodaj do historii żeby następne agenty (szczególnie Decider) miały dostęp
+                self.debate_history.append({
+                    'role': role.value,
+                    'decision': response.decision,
+                    'reasoning': response.reasoning,
+                    'confidence': response.confidence,
+                    'timestamp': datetime.now().isoformat()
+                })
+                responses.append(response)
+            return responses
         
         # Retry mechanism for OpenAI API calls
         max_retries = 3
