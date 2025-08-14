@@ -890,20 +890,48 @@ class DecisionConsensusEngine:
                     
                 except Exception as detector_error:
                     print(f"[MULTI-AGENT ERROR] Failed evaluation for {detector_name}: {detector_error}")
-                    # Enhanced fallback for this specific detector
-                    score = detector_data.get("score", 0.0)
-                    if score >= 0.65:  # High confidence BUY
-                        agent_decisions[detector_name] = "BUY"
-                        agent_confidences[detector_name] = min(0.9, score + 0.1)
-                        print(f"[FALLBACK BUY] {detector_name}: Score {score:.3f} ≥ 0.65 → BUY")
-                    elif score >= 0.45:  # Medium confidence HOLD
-                        agent_decisions[detector_name] = "HOLD"
-                        agent_confidences[detector_name] = 0.6
-                        print(f"[FALLBACK HOLD] {detector_name}: Score {score:.3f} ≥ 0.45 → HOLD")
-                    else:  # Low confidence AVOID
-                        agent_decisions[detector_name] = "AVOID"
-                        agent_confidences[detector_name] = 0.7
-                        print(f"[FALLBACK AVOID] {detector_name}: Score {score:.3f} < 0.45 → AVOID")
+                    
+                    # Instead of simple score fallback, run proper 5-agent fallback reasoning
+                    print(f"[ENHANCED FALLBACK] {detector_name}: Executing proper 5-agent simulation instead of simple score fallback")
+                    
+                    try:
+                        # Use the existing MultiAgentDecisionSystem for proper fallback
+                        from .multi_agent_decision import MultiAgentDecisionSystem
+                        
+                        fallback_agent_system = MultiAgentDecisionSystem()
+                        # Force fallback mode by setting use_real_llm = False
+                        fallback_agent_system.use_real_llm = False
+                        fallback_agent_system.openai_client = None
+                        
+                        # Run the 5-agent evaluation in fallback mode
+                        result = await fallback_agent_system.evaluate_detector_with_5_agents(
+                            detector_name=detector_name,
+                            score=detector_data.get("score", 0.0),
+                            threshold=detector_data.get("threshold", 0.7),
+                            signal_data=detector_data.get("signal_data", {}),
+                            market_data=consensus_market_data
+                        )
+                        
+                        agent_decisions[detector_name] = result[0]  # decision
+                        agent_confidences[detector_name] = result[1]  # confidence
+                        print(f"[ENHANCED FALLBACK RESULT] {detector_name}: {result[0]} (confidence: {result[1]:.3f})")
+                        
+                    except Exception as fallback_error:
+                        print(f"[ENHANCED FALLBACK ERROR] {detector_name}: {fallback_error} - using simple score fallback")
+                        # Last resort: simple score-based fallback
+                        score = detector_data.get("score", 0.0)
+                        if score >= 0.65:  # High confidence BUY
+                            agent_decisions[detector_name] = "BUY"
+                            agent_confidences[detector_name] = min(0.9, score + 0.1)
+                            print(f"[SIMPLE FALLBACK BUY] {detector_name}: Score {score:.3f} ≥ 0.65 → BUY")
+                        elif score >= 0.45:  # Medium confidence HOLD
+                            agent_decisions[detector_name] = "HOLD"
+                            agent_confidences[detector_name] = 0.6
+                            print(f"[SIMPLE FALLBACK HOLD] {detector_name}: Score {score:.3f} ≥ 0.45 → HOLD")
+                        else:  # Low confidence AVOID
+                            agent_decisions[detector_name] = "AVOID"
+                            agent_confidences[detector_name] = 0.7
+                            print(f"[SIMPLE FALLBACK AVOID] {detector_name}: Score {score:.3f} < 0.45 → AVOID")
             
             print(f"[MULTI-AGENT INDIVIDUAL] Completed evaluation of {len(agent_decisions)} detectors")
             

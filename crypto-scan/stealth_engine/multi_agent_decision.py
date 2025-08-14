@@ -80,10 +80,18 @@ class MultiAgentDecisionSystem:
         """
         if not self.use_real_llm or not self.openai_client:
             # Fallback dla wszystkich agentów - wykonaj sekwencyjnie żeby history była aktualizowana
+            print(f"[FALLBACK MODE] Processing {len(all_contexts)} agents sequentially...")
             responses = []
-            for role, context in all_contexts:
+            
+            # Clear history dla nowej sesji
+            self.debate_history.clear()
+            print(f"[FALLBACK MODE] Cleared debate_history for fresh start")
+            
+            for i, (role, context) in enumerate(all_contexts):
+                print(f"[FALLBACK MODE] Processing agent {i+1}/{len(all_contexts)}: {role.value}")
                 response = self._fallback_reasoning(role, context)
-                # Dodaj do historii żeby następne agenty (szczególnie Decider) miały dostęp
+                
+                # Dodaj do historii NATYCHMIAST po każdym agencie
                 self.debate_history.append({
                     'role': role.value,
                     'decision': response.decision,
@@ -91,7 +99,11 @@ class MultiAgentDecisionSystem:
                     'confidence': response.confidence,
                     'timestamp': datetime.now().isoformat()
                 })
+                print(f"[FALLBACK MODE] Added {role.value} to debate_history (now has {len(self.debate_history)} entries)")
+                
                 responses.append(response)
+            
+            print(f"[FALLBACK MODE] Completed fallback processing with {len(responses)} responses")
             return responses
         
         # Retry mechanism for OpenAI API calls
@@ -308,14 +320,24 @@ class MultiAgentDecisionSystem:
             print(f"  {vote_symbol} {response.role.value}: {response.decision} (confidence: {response.confidence:.3f})")
             print(f"     Reasoning: {response.reasoning[:100]}...")
             
-            # Zapisz do historii debaty
-            self.debate_history.append({
-                'role': response.role.value,
-                'decision': response.decision,
-                'reasoning': response.reasoning,
-                'confidence': response.confidence,
-                'timestamp': datetime.now().isoformat()
-            })
+            # Sprawdź czy agent już istnieje w historii (fallback mode już go dodał)
+            agent_already_in_history = any(
+                h.get('role') == response.role.value 
+                for h in self.debate_history
+            )
+            
+            if not agent_already_in_history:
+                # Zapisz do historii debaty tylko jeśli nie został już dodany
+                self.debate_history.append({
+                    'role': response.role.value,
+                    'decision': response.decision,
+                    'reasoning': response.reasoning,
+                    'confidence': response.confidence,
+                    'timestamp': datetime.now().isoformat()
+                })
+                print(f"[HISTORY DEBUG] Added {response.role.value} to debate_history")
+            else:
+                print(f"[HISTORY DEBUG] {response.role.value} already in debate_history - skipping duplicate")
         
         # Zlicz głosy agentów
         buy_votes = sum(1 for response in all_responses if response.decision == "BUY")
@@ -427,49 +449,7 @@ class MultiAgentDecisionSystem:
         
         return log
     
-    async def batch_llm_reasoning(self, all_contexts: List[Tuple[AgentRole, Dict[str, Any]]]) -> List[AgentResponse]:
-        """
-        Wykonuje batch OpenAI call dla wszystkich 5 agentów w jednym zapytaniu
-        """
-        if not all_contexts:
-            return []
-            
-        # Stwórz batch prompt dla wszystkich 5 agentów
-        batch_prompt = self._create_batch_prompt(all_contexts)
-        
-        try:
-            print(f"[BATCH API] Calling OpenAI with GPT-4o for {len(all_contexts)} agents...")
-            
-            # Single OpenAI API call for all 5 agents
-            # GPT-4o with temperature=0.7 for consistent analysis
-            response = await asyncio.to_thread(
-                self.openai_client.chat.completions.create,
-                model="gpt-4o",
-                temperature=0.7,
-                messages=[{"role": "user", "content": batch_prompt}],
-                response_format={"type": "json_object"},
-                max_completion_tokens=2000,
-                timeout=self.timeout
-            )
-            
-            # Parse JSON response
-            batch_result = json.loads(response.choices[0].message.content)
-            
-            # Convert batch result to individual AgentResponse objects
-            responses = self._parse_batch_response(batch_result, all_contexts)
-            
-            print(f"[BATCH SUCCESS] Got {len(responses)} agent responses from single API call")
-            return responses
-            
-        except asyncio.TimeoutError:
-            print(f"[BATCH TIMEOUT] Batch API call timed out after {self.timeout}s")
-            return [self._fallback_reasoning(role, context) for role, context in all_contexts]
-        except json.JSONDecodeError as e:
-            print(f"[BATCH JSON ERROR] Failed to parse batch response: {e}")
-            return [self._fallback_reasoning(role, context) for role, context in all_contexts]
-        except Exception as e:
-            print(f"[BATCH ERROR] Batch evaluation failed: {e}")
-            return [self._fallback_reasoning(role, context) for role, context in all_contexts]
+
     
     def _create_batch_prompt(self, all_contexts: List[Tuple[AgentRole, Dict[str, Any]]]) -> str:
         """
@@ -758,9 +738,16 @@ Each agent should decide BUY (strong signal), HOLD (wait for more data), or AVOI
                 reasoning = f"Debate: Opposing based on evidence (score: {score:.3f})"
             
         elif role == AgentRole.DECIDER:
+            # DEBUG: Check debate history contents
+            print(f"[DECIDER DEBUG] debate_history has {len(self.debate_history)} entries")
+            for i, h in enumerate(self.debate_history):
+                print(f"[DECIDER DEBUG] History[{i}]: role={h.get('role')}, decision={h.get('decision')}")
+            
             buy_votes = sum(1 for h in self.debate_history if h.get('decision') == 'BUY')
             hold_votes = sum(1 for h in self.debate_history if h.get('decision') == 'HOLD')
             avoid_votes = sum(1 for h in self.debate_history if h.get('decision') == 'AVOID')
+            
+            print(f"[DECIDER DEBUG] Counted votes: BUY={buy_votes}, HOLD={hold_votes}, AVOID={avoid_votes}")
             
             if buy_votes >= 2 and score > 0.6:
                 decision = "BUY"
