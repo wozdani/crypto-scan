@@ -772,6 +772,16 @@ def compute_stealth_score(token_data: Dict) -> Dict:
     # 🎯 FUNCTION ENTRY DEBUG - This MUST appear for every token processed
     print(f"[FUNCTION ENTRY DEBUG] {symbol}: compute_stealth_score STARTED - testing function execution path")
     
+    # Initialize stealth_result dictionary for explore mode communication
+    stealth_result = {
+        "score": 0.0,
+        "active_signals": [],
+        "signal_details": {},
+        "explore_mode_triggered": False,
+        "explore_trigger_reason": None,
+        "explore_confidence": 0.0
+    }
+    
     # Initialize AI detector variables
     diamond_enabled = False
     diamond_score = 0.0
