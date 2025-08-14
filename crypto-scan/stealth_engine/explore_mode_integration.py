@@ -266,14 +266,47 @@ def save_explore_mode_data(symbol: str, token_data: Dict, detector_results: Dict
     Returns:
         True jeśli zapisano pomyślnie
     """
-    integration = get_explore_integration()
-    
-    # Sprawdź czy powinno być zapisane
-    score = token_data.get("stealth_score", 0)
-    if not integration.should_save_to_explore_mode(symbol, token_data, score):
+    try:
+        # Create explore mode directory
+        explore_dir = "crypto-scan/cache/explore_mode"
+        os.makedirs(explore_dir, exist_ok=True)
+        
+        # Simple direct file naming with timestamp for Enhanced Explore Mode
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # Get detector names for filename
+        detector_names = list(detector_results.keys()) if detector_results else ["stealth"]
+        detector_str = "_".join(detector_names[:2])  # Max 2 detectors in filename
+        
+        # Enhanced Explore Mode filename format: TOKEN_YYYYMMDD_HHMMSS_DETECTORS.json
+        filename = f"{symbol}_{timestamp}_{detector_str}.json"
+        filepath = os.path.join(explore_dir, filename)
+        
+        # Prepare explore mode data
+        explore_data = {
+            "symbol": symbol,
+            "timestamp": datetime.now().isoformat(),
+            "created_at": timestamp,
+            "explore_mode": True,
+            "version": "enhanced_v2",
+            "token_data": token_data,
+            "detector_results": detector_results
+        }
+        
+        # Add consensus data if available
+        if consensus_data:
+            explore_data["consensus_data"] = consensus_data
+        
+        # Write JSON file
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(explore_data, f, indent=2, ensure_ascii=False, default=str)
+        
+        print(f"[ENHANCED EXPLORE SAVE SUCCESS] {symbol}: Saved {filename}")
+        return filename
+        
+    except Exception as e:
+        print(f"[ENHANCED EXPLORE SAVE ERROR] {symbol}: Failed to save - {e}")
         return False
-    
-    return integration.save_explore_data_enhanced(symbol, token_data, detector_results, consensus_data)
 
 def initialize_explore_system():
     """
