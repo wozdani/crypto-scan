@@ -37,6 +37,7 @@ class ExploreIntegration:
     def should_save_to_explore_mode(self, symbol: str, token_data: Dict, score: float) -> bool:
         """
         Sprawdź czy token powinien być zapisany w explore mode.
+        WYMAGANIE: Tylko tokeny z score >= 1.0
         
         Args:
             symbol: Symbol tokena
@@ -46,29 +47,12 @@ class ExploreIntegration:
         Returns:
             True jeśli powinien być zapisany
         """
-        # Kryteria explore mode
-        if score >= 1.0:  # Wysokie score
+        # JEDYNE KRYTERIUM: Score >= 1.0
+        if score >= 1.0:
+            print(f"[EXPLORE MODE QUALIFIED] {symbol}: Score {score:.3f} >= 1.0 - saving to explore mode")
             return True
         
-        # Wysokie confidence scores from AI detectors
-        diamond_score = token_data.get("diamond_ai_score", 0)
-        californium_score = token_data.get("californium_ai_score", 0)
-        
-        if diamond_score >= 0.4 or californium_score >= 0.5:
-            return True
-        
-        # Wiele aktywnych sygnałów
-        active_signals = token_data.get("active_signals", [])
-        if len(active_signals) >= 5:
-            return True
-        
-        # High value whale ping or dex inflow
-        whale_strength = token_data.get("whale_ping_strength", 0)
-        dex_inflow = token_data.get("dex_inflow_usd", 0)
-        
-        if whale_strength > 0.8 or dex_inflow > 50000:
-            return True
-        
+        print(f"[EXPLORE MODE SKIP] {symbol}: Score {score:.3f} < 1.0 - not saving")
         return False
     
     def save_explore_data_enhanced(self, symbol: str, token_data: Dict, detector_results: Dict, 
@@ -253,9 +237,10 @@ def get_explore_integration() -> ExploreIntegration:
     return _integration_instance
 
 def save_explore_mode_data(symbol: str, token_data: Dict, detector_results: Dict, 
-                          consensus_data: Optional[Dict] = None) -> bool:
+                          consensus_data: Optional[Dict] = None) -> Optional[str]:
     """
     Public interface do zapisu explore mode data.
+    WYMAGANIE: Tylko tokeny z score >= 1.0 są zapisywane
     
     Args:
         symbol: Symbol tokena
@@ -264,8 +249,15 @@ def save_explore_mode_data(symbol: str, token_data: Dict, detector_results: Dict
         consensus_data: Dane consensus (opcjonalne)
         
     Returns:
-        True jeśli zapisano pomyślnie
+        Filename jeśli zapisano pomyślnie, None jeśli nie
     """
+    # Check if token qualifies for explore mode (score >= 1.0)
+    integration = get_explore_integration()
+    score = token_data.get("stealth_score", 0.0)
+    
+    if not integration.should_save_to_explore_mode(symbol, token_data, score):
+        return None
+        
     try:
         # Create explore mode directory
         explore_dir = "crypto-scan/cache/explore_mode"

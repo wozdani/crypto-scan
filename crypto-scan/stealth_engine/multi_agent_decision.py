@@ -324,8 +324,11 @@ class MultiAgentDecisionSystem:
             # Zwróć specjalną decyzję wymagającą doładowania danych
             return "PRE_CONFIRMATORY_POKE", avg_confidence, f"PRE-CONFIRMATORY POKE triggered for {detector_name}: score={score:.3f}, buy_votes={buy_votes}"
         
-        # Logika decyzyjna: BUY wymaga przewagi nad HOLD+AVOID
-        if buy_votes > hold_votes + avoid_votes and buy_votes >= 3:
+        # Logika decyzyjna: BUY wymaga MINIMUM 2 przewagi nad innymi głosami
+        non_buy_votes = hold_votes + avoid_votes
+        vote_margin = buy_votes - non_buy_votes
+        
+        if vote_margin >= 2:  # Minimum 2 przewagi (np. 3 BUY vs 1 HOLD = różnica 2)
             final_decision = "BUY"
         elif hold_votes > buy_votes + avoid_votes:
             final_decision = "HOLD"
@@ -351,8 +354,8 @@ class MultiAgentDecisionSystem:
         print(f"\n[MULTI-AGENT SUMMARY]")
         print(f"  📊 Final Decision: {final_decision}")
         # Calculate vote distribution
-        vote_difference = buy_votes - (hold_votes + avoid_votes)
         print(f"  🗳️ Votes: {buy_votes} BUY / {hold_votes} HOLD / {avoid_votes} AVOID")
+        print(f"  📊 Vote Margin: {vote_margin} (need ≥2 for BUY alert)")
         print(f"  💪 Average Confidence: {avg_confidence:.3f}")
         print(f"  🎯 Detector Score: {score:.3f} (threshold: {threshold:.3f})")
         

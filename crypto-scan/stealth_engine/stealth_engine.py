@@ -2359,7 +2359,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                     result["alert_sent"] = False
                                     result["alert_skip_reason"] = "cooldown_or_error"
                         else:
-                            print(f"[STEALTH V3 ALERT] {symbol}: Score {score:.3f} poniżej progu alertów (1.5)")
+                            # Removed annoying low score log - only consensus system determines alerts now
                             # STAGE 10 FIX: Safe variable access using locals()
                             if 'result' in locals():
                                 result["alert_sent"] = False
