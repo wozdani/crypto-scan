@@ -700,13 +700,17 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         
                         # Save enhanced explore mode data using new system
                         try:
+                            # Add confidence and trigger_reason to consensus_data before saving
+                            if consensus_data is None:
+                                consensus_data = {}
+                            consensus_data["explore_confidence"] = explore_confidence
+                            consensus_data["explore_trigger_reason"] = explore_trigger_reason
+                            
                             saved_filename = save_explore_mode_data(
                                 symbol=symbol,
                                 token_data=enhanced_token_data,
                                 detector_results=detector_results,
-                                consensus_data=consensus_data,
-                                confidence=explore_confidence,
-                                trigger_reason=explore_trigger_reason
+                                consensus_data=consensus_data
                             )
                             
                             if saved_filename:
