@@ -43,7 +43,7 @@ The system employs a multi-stage detection pipeline for pre-pump signals, built 
     -   **Wallet Behavior Encoder**: Generates behavioral embeddings from transaction histories for whale classification.
     -   **Contextual Chart Generation**: Generates TradingView-style charts with contextual overlays for Vision-AI training.
     -   **Individual Multi-Agent Processing**: The Multi-Agent Consensus System uses individual OpenAI API calls per detector (1 call per detector for all 5 agents) rather than batch processing, providing better reliability and easier debugging for each detector's 5-agent evaluation.
-    -   **GPT-5 Integration**: The system utilizes GPT-5 for enhanced AI capabilities across all OpenAI API calls, providing superior crypto analysis and reasoning.
+    -   **GPT-4o Integration**: The system utilizes GPT-4o for reliable AI capabilities across all OpenAI API calls, providing consistent crypto analysis and reasoning.
     -   **Canonical Price System**: Single frozen price per token per scan round eliminates dispersed price fallback logic, ensuring consistent pricing across all modules and agents.
     -   **Chain Router System**: Consistent (chain, contract) mapping across whale_ping and dex_inflow modules prevents chain mismatches.
     -   **Pre-Confirmatory Poke System**: Detects when 2/3 AI agents score just under threshold (0.60-0.68) and forces additional data loading (orderbook, chain inflow) before finalizing HOLD decisions.
@@ -53,7 +53,7 @@ The system employs a multi-stage detection pipeline for pre-pump signals, built 
 
 ## External Dependencies
 
--   **OpenAI API**: For GPT-5 powered signal analysis, AI reasoning within the multi-agent system, and chart commentary generation.
+-   **OpenAI API**: For GPT-4o powered signal analysis, AI reasoning within the multi-agent system, and chart commentary generation.
 -   **Telegram Bot API**: For sending real-time alert notifications.
 -   **Bybit API**: Primary source for market data, orderbook information, and trading pair details.
 -   **CoinGecko API**: For token contract addresses and metadata.

@@ -158,10 +158,10 @@ TP Forecast: {tp_forecast}
 Provide brief analysis (max 100 words) with risk level (low/medium/high), confidence (1-100), and entry recommendation (immediate/wait/avoid)."""
 
     try:
-        # the newest OpenAI model is "gpt-5" which was released May 13, 2024.
+        # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
         # do not change this unless explicitly requested by the user
         response = openai.chat.completions.create(
-            model="gpt-5",
+            model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
             max_completion_tokens=150
         )

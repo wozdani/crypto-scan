@@ -97,7 +97,7 @@ class MultiAgentDecisionSystem:
                 
                 response = await asyncio.to_thread(
                     self.openai_client.chat.completions.create,
-                    model="gpt-5",
+                    model="gpt-4o",
                     messages=[
                         {"role": "system", "content": "You are a cryptocurrency trading analysis panel of 5 expert agents. Each agent has a specialized role."},
                         {"role": "user", "content": batch_prompt}
@@ -423,13 +423,14 @@ class MultiAgentDecisionSystem:
         batch_prompt = self._create_batch_prompt(all_contexts)
         
         try:
-            print(f"[BATCH API] Calling OpenAI with GPT-5 for {len(all_contexts)} agents...")
+            print(f"[BATCH API] Calling OpenAI with GPT-4o for {len(all_contexts)} agents...")
             
             # Single OpenAI API call for all 5 agents
-            # GPT-5 only supports default temperature=1, not 0.1
+            # GPT-4o with temperature=0.7 for consistent analysis
             response = await asyncio.to_thread(
                 self.openai_client.chat.completions.create,
-                model="gpt-5",
+                model="gpt-4o",
+                temperature=0.7,
                 messages=[{"role": "user", "content": batch_prompt}],
                 response_format={"type": "json_object"},
                 max_completion_tokens=2000,
@@ -863,10 +864,10 @@ Respond with JSON format:
                 
             print(f"[MULTI-AGENT OpenAI] {role.value}: Calling OpenAI API...")
             
-            # Upgraded to GPT-5 for enhanced crypto trading decision capabilities
-            # using latest OpenAI model for superior pattern recognition
+            # Using GPT-4o for reliable crypto trading decision capabilities
+            # proven model with consistent performance for pattern recognition
             response = self.openai_client.chat.completions.create(
-                model="gpt-5",
+                model="gpt-4o",
                 messages=[
                     {"role": "system", "content": "You are an expert cryptocurrency trading AI agent. Always respond with valid JSON."},
                     {"role": "user", "content": role_prompts[role]}

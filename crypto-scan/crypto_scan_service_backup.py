@@ -172,7 +172,7 @@ Evaluate the quality and strength of this signal. Provide a confident but concis
 
     try:
         response = openai.chat.completions.create(
-            model="gpt-5",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": "You are a crypto signal quality evaluator. Respond in Polish."},
                 {"role": "user", "content": prompt}

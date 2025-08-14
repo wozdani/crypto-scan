@@ -114,9 +114,9 @@ Odpowiedz tylko jedną etykietą, która najlepiej opisuje sytuację na wykresie
             # Create prompt with features
             prompt = self.create_vision_prompt(features)
             
-            # Call OpenAI Vision API with GPT-5
+            # Call OpenAI Vision API with GPT-4o
             response = self.client.chat.completions.create(
-                model="gpt-5",  # Upgraded to GPT-5 for enhanced chart pattern recognition capabilities
+                model="gpt-4o",  # Using GPT-4o for reliable chart pattern recognition capabilities
                 messages=[
                     {
                         "role": "user",

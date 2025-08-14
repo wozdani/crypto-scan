@@ -206,10 +206,10 @@ ANALYSIS: [2-3 sentence technical explanation why you chose this specific setup]
 
 Be consistent - the SETUP field must match your analysis description exactly."""
 
-        # Upgraded to GPT-5 for enhanced crypto chart analysis capabilities
+        # Using GPT-4o for reliable crypto chart analysis capabilities
         # using latest OpenAI model for superior pattern recognition
         response = openai_client.chat.completions.create(
-            model="gpt-5",
+            model="gpt-4o",
             messages=[
                 {
                     "role": "user",
@@ -293,7 +293,7 @@ Be consistent - the SETUP field must match your analysis description exactly."""
             'symbol': symbol,
             'tjde_score': tjde_score,
             'image_path': image_path,
-            'model': 'gpt-5',
+            'model': 'gpt-4o',
             'tokens_used': response.usage.total_tokens if response.usage else None,
             'label_conflict': label_conflict,
             'consistency_check': consistency_check
@@ -373,7 +373,7 @@ def rename_chart_with_setup_label(
                 metadata.update({
                     'gpt_analysis': gpt_analysis.get('gpt_commentary', ''),
                     'setup_label': setup_label,
-                    'gpt_model': gpt_analysis.get('model', 'gpt-5'),
+                    'gpt_model': gpt_analysis.get('model', 'gpt-4o'),
                     'gpt_tokens': gpt_analysis.get('tokens_used'),
                     'original_filename': original_filename,
                     'renamed_for_clip_training': True,

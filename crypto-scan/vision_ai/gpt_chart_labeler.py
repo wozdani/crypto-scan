@@ -100,7 +100,7 @@ Keep it concise and technical. Focus on the most obvious pattern visible on the 
             
             # Call GPT Vision API
             response = self.client.chat.completions.create(
-                model="gpt-5",  # Upgraded to GPT-5 for enhanced chart pattern recognition capabilities
+                model="gpt-4o",  # Using GPT-4o for reliable chart pattern recognition capabilities
                 messages=[
                     {
                         "role": "user",

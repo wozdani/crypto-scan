@@ -87,9 +87,9 @@ Podaj tylko w formacie JSON:
 
 Bez wyjaśnień."""
             
-            # Call GPT-5 Vision for enhanced chart analysis
+            # Call GPT-4o Vision for reliable chart analysis
             response = self.client.chat.completions.create(
-                model="gpt-5",  # Upgraded to GPT-5 for enhanced chart pattern recognition capabilities
+                model="gpt-4o",  # Using GPT-4o for reliable chart pattern recognition capabilities
                 messages=[
                     {
                         "role": "user",
@@ -116,7 +116,7 @@ Bez wyjaśnień."""
             # Validate and clean response
             cleaned_result = self._validate_labels(result)
             cleaned_result["timestamp"] = datetime.now(timezone.utc).isoformat()
-            cleaned_result["labeler"] = "gpt-5-vision"
+            cleaned_result["labeler"] = "gpt-4o-vision"
             
             print(f"[LABEL GEN] GPT labeled: {cleaned_result['phase_type']} / {cleaned_result['setup_type']} ({cleaned_result['confidence']:.2f})")
             return cleaned_result

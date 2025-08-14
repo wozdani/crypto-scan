@@ -292,10 +292,10 @@ class TraderLevelAIEngine:
             Użyj konkretnego języka rynkowego. Nie podejmuj decyzji - tylko wyjaśnij kontekst.
             """
             
-            # Upgraded to GPT-5 for enhanced crypto trading commentary
+            # Using GPT-4o for reliable crypto trading commentary
             # using latest OpenAI model for superior market analysis
             response = self.openai_client.chat.completions.create(
-                model="gpt-5",
+                model="gpt-4o",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=1.0,
                 max_completion_tokens=150

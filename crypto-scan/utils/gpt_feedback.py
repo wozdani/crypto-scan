@@ -32,7 +32,7 @@ def send_report_to_chatgpt(symbol: str, tags: list[str], score: float, compresse
         )
 
         response = client.chat.completions.create(
-            model="gpt-5",  # Upgraded to GPT-5 for enhanced crypto analysis capabilities
+            model="gpt-4o",  # Using GPT-4o for reliable crypto analysis capabilities
             messages=[
                 {"role": "system", "content": "Jesteś ekspertem rynku kryptowalut specjalizującym się w analizie sygnałów pre-pump."},
                 {"role": "user", "content": prompt}
@@ -253,7 +253,7 @@ TP Forecast:
 Evaluate the quality and strength of this signal. Provide a confident but concise assessment in 3 short sentences, including any risk factors and probability of continuation. Reply in Polish."""
 
         response = client.chat.completions.create(
-            model="gpt-5",  # Upgraded to GPT-5 for enhanced crypto signal evaluation capabilities
+            model="gpt-4o",  # Using GPT-4o for reliable crypto signal evaluation capabilities
             messages=[
                 {"role": "system", "content": "You are a crypto signal quality evaluator. Respond in Polish."},
                 {"role": "user", "content": prompt}
@@ -303,7 +303,7 @@ def test_openai_connection():
     """
     try:
         response = client.chat.completions.create(
-            model="gpt-5",
+            model="gpt-4o",
             messages=[{"role": "user", "content": "Hello, respond with 'Connection successful'"}],
             max_completion_tokens=50
         )

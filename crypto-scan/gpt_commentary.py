@@ -248,7 +248,7 @@ Format odpowiedzi:
 - Potencjalne zagrożenia: [co może się zmienić]"""
 
         response = openai_client.chat.completions.create(
-            model="gpt-5",  # Latest model with vision capabilities
+            model="gpt-4o",  # Reliable model with vision capabilities
             messages=[
                 {
                     "role": "user",
@@ -330,7 +330,7 @@ Wyjaśnij możliwe przyczyny błędnej klasyfikacji:
 Bądź konkretny i wskaż specific visual patterns."""
 
         response = openai_client.chat.completions.create(
-            model="gpt-5",
+            model="gpt-4o",
             messages=[
                 {
                     "role": "user", 
@@ -414,7 +414,7 @@ ZADANIE AUDYTU:
 Bądź krytyczny i wskaż konkretne problemy."""
 
         response = openai_client.chat.completions.create(
-            model="gpt-5",
+            model="gpt-4o",
             messages=[
                 {
                     "role": "user",
@@ -486,7 +486,7 @@ Format opisu:
 Bądź precyzyjny i używaj terminologii technicznej."""
 
         response = openai_client.chat.completions.create(
-            model="gpt-5",
+            model="gpt-4o",
             messages=[
                 {
                     "role": "user",
@@ -566,7 +566,7 @@ WYMAGANIA:
 Przykład: "Obserwujemy cofnięcie do strefy wsparcia w silnym trendzie. Wolumen stabilny. Sygnał pozostaje neutralny – obserwacja." """
 
         response = openai_client.chat.completions.create(
-            model="gpt-5",
+            model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
             max_completion_tokens=200
         )
