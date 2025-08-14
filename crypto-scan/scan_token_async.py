@@ -664,9 +664,13 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         "enabled": True
                     }
                     
-                    # Check if token qualifies for enhanced explore mode
-                    # Enhanced criteria: stealth score >= 1.0 OR consensus decision == BUY OR multiple AI detectors active
-                    enhanced_explore_criteria = (
+                    # Check explore mode - use information from stealth_engine.py
+                    stealth_explore_triggered = stealth_result.get("explore_mode_triggered", False)
+                    stealth_explore_reason = stealth_result.get("explore_trigger_reason", "unknown")
+                    stealth_explore_confidence = stealth_result.get("explore_confidence", 0.0)
+                    
+                    # Enhanced criteria as fallback if stealth_engine didn't trigger explore mode
+                    fallback_explore_criteria = (
                         stealth_score >= 1.0 or 
                         consensus_data["decision"] == "BUY" or
                         len(ai_detectors_active) >= 2 or
@@ -674,25 +678,35 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         stealth_dex_inflow >= 100000
                     )
                     
+                    # Use stealth_engine trigger OR fallback criteria
+                    enhanced_explore_criteria = stealth_explore_triggered or fallback_explore_criteria
+                    
                     if enhanced_explore_criteria:
                         explore_mode = True
                         
-                        # Determine specific trigger reason
-                        if stealth_score >= 1.0:
-                            explore_trigger_reason = f"stealth_score_{stealth_score:.3f}"
-                            explore_confidence = min(stealth_score / 4.0, 1.0)
-                        elif consensus_data["decision"] == "BUY":
-                            explore_trigger_reason = f"consensus_buy_{consensus_data['confidence']:.3f}"
-                            explore_confidence = consensus_data["confidence"]
-                        elif len(ai_detectors_active) >= 2:
-                            explore_trigger_reason = f"multi_ai_detectors_{len(ai_detectors_active)}"
-                            explore_confidence = len(ai_detectors_active) / 5.0
-                        elif whale_ping_strength >= 1.0:
-                            explore_trigger_reason = f"whale_activity_{whale_ping_strength:.3f}"
-                            explore_confidence = min(whale_ping_strength / 3.0, 1.0)
-                        elif stealth_dex_inflow >= 100000:
-                            explore_trigger_reason = f"dex_inflow_{stealth_dex_inflow:.0f}"
-                            explore_confidence = min(stealth_dex_inflow / 500000.0, 1.0)
+                        # Use trigger reason and confidence from stealth_engine if available
+                        if stealth_explore_triggered:
+                            explore_trigger_reason = stealth_explore_reason
+                            explore_confidence = stealth_explore_confidence
+                            print(f"[EXPLORE FROM STEALTH ENGINE] {symbol}: Using trigger from stealth_engine: {explore_trigger_reason}")
+                        else:
+                            # Fallback: determine trigger reason from local criteria  
+                            if stealth_score >= 1.0:
+                                explore_trigger_reason = f"stealth_score_{stealth_score:.3f}"
+                                explore_confidence = min(stealth_score / 4.0, 1.0)
+                            elif consensus_data["decision"] == "BUY":
+                                explore_trigger_reason = f"consensus_buy_{consensus_data['confidence']:.3f}"
+                                explore_confidence = consensus_data["confidence"]
+                            elif len(ai_detectors_active) >= 2:
+                                explore_trigger_reason = f"multi_ai_detectors_{len(ai_detectors_active)}"
+                                explore_confidence = len(ai_detectors_active) / 5.0
+                            elif whale_ping_strength >= 1.0:
+                                explore_trigger_reason = f"whale_activity_{whale_ping_strength:.3f}"
+                                explore_confidence = min(whale_ping_strength / 3.0, 1.0)
+                            elif stealth_dex_inflow >= 100000:
+                                explore_trigger_reason = f"dex_inflow_{stealth_dex_inflow:.0f}"
+                                explore_confidence = min(stealth_dex_inflow / 500000.0, 1.0)
+                            print(f"[EXPLORE FROM FALLBACK] {symbol}: Using fallback trigger: {explore_trigger_reason}")
                         
                         print(f"[ENHANCED EXPLORE MODE TRIGGERED] {symbol}: {explore_trigger_reason}")
                         print(f"[ENHANCED EXPLORE MODE] {symbol}: Confidence={explore_confidence:.3f}")

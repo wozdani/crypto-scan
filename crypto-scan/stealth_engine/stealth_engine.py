@@ -1385,24 +1385,48 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         explore_trigger_reason = f"score_threshold_{score:.3f}"
                         explore_confidence = min(score / 4.0, 1.0)  # Confidence based on score
                         print(f"[EXPLORE MODE TRIGGER] {symbol}: Score {score:.3f} >= 1.0 → explore_mode_triggered = True")
+                        
+                        # Add explore mode data to stealth result for scan_token_async.py
+                        stealth_result["explore_mode_triggered"] = True
+                        stealth_result["explore_trigger_reason"] = explore_trigger_reason
+                        stealth_result["explore_confidence"] = explore_confidence
+                        
                     elif len(used_signals) >= 5:  # Alternative trigger: many signals
                         explore_mode_triggered = True
                         explore_trigger_reason = f"signal_count_{len(used_signals)}"
                         explore_confidence = len(used_signals) / 10.0  # Confidence based on signal count
                         print(f"[EXPLORE MODE TRIGGER] {symbol}: {len(used_signals)} signals >= 5 → explore_mode_triggered = True")
+                        
+                        # Add explore mode data to stealth result for scan_token_async.py
+                        stealth_result["explore_mode_triggered"] = True
+                        stealth_result["explore_trigger_reason"] = explore_trigger_reason
+                        stealth_result["explore_confidence"] = explore_confidence
+                        
                     elif diamond_enabled and diamond_score >= 0.4:  # AI detector trigger
                         explore_mode_triggered = True
                         explore_trigger_reason = f"diamond_ai_{diamond_score:.3f}"
                         explore_confidence = diamond_score
                         print(f"[EXPLORE MODE TRIGGER] {symbol}: Diamond AI {diamond_score:.3f} >= 0.4 → explore_mode_triggered = True")
+                        
+                        # Add explore mode data to stealth result for scan_token_async.py
+                        stealth_result["explore_mode_triggered"] = True
+                        stealth_result["explore_trigger_reason"] = explore_trigger_reason
+                        stealth_result["explore_confidence"] = explore_confidence
                     elif californium_enabled and californium_score >= 0.5:  # Californium trigger
                         explore_mode_triggered = True
                         explore_trigger_reason = f"californium_ai_{californium_score:.3f}"
                         explore_confidence = californium_score
                         print(f"[EXPLORE MODE TRIGGER] {symbol}: Californium AI {californium_score:.3f} >= 0.5 → explore_mode_triggered = True")
+                        
+                        # Add explore mode data to stealth result for scan_token_async.py
+                        stealth_result["explore_mode_triggered"] = True
+                        stealth_result["explore_trigger_reason"] = explore_trigger_reason
+                        stealth_result["explore_confidence"] = explore_confidence
+                        
                     else:
                         explore_mode_triggered = False
                         print(f"[EXPLORE MODE SKIP] {symbol}: Score {score:.3f}, signals {len(used_signals)}, Diamond {diamond_score:.3f}, Californium {californium_score:.3f} - below thresholds")
+                        stealth_result["explore_mode_triggered"] = False
                     
                     # === GOLDEN KEY GNN DETECTOR INTEGRATION ===
                     # 🔥 STAGE: Integrate Golden Key GNN Detector - Graph Neural Networks
