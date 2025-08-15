@@ -43,6 +43,7 @@ The system employs a multi-stage detection pipeline for pre-pump signals, built 
     -   **Wallet Behavior Encoder**: Generates behavioral embeddings from transaction histories for whale classification.
     -   **Contextual Chart Generation**: Generates TradingView-style charts with contextual overlays for Vision-AI training.
     -   **Individual Multi-Agent Processing**: The Multi-Agent Consensus System uses individual OpenAI API calls per detector (1 call per detector for all 5 agents) rather than batch processing, providing better reliability and easier debugging for each detector's 5-agent evaluation.
+-   **Fixed AlertDecision Enum Conversion Issue**: Resolved critical bug where consensus decisions were being converted from proper BUY/HOLD/AVOID strings to AlertDecision enum values (causing system to return AlertDecision.NO_ALERT instead of "HOLD"). Multi-Agent consensus now maintains string format throughout the pipeline, eliminating hardcoded WATCH fallbacks and ensuring proper decision flow.
     -   **GPT-4o Integration**: The system utilizes GPT-4o for reliable AI capabilities across all OpenAI API calls, providing consistent crypto analysis and reasoning.
     -   **Canonical Price System**: Single frozen price per token per scan round eliminates dispersed price fallback logic, ensuring consistent pricing across all modules and agents.
     -   **Chain Router System**: Consistent (chain, contract) mapping across whale_ping and dex_inflow modules prevents chain mismatches.
