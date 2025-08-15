@@ -547,14 +547,28 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 
                 # Add AI detectors to active_signals for better explore mode debug
                 ai_detectors_active = []
-                if stealth_result.get("diamond_score", 0) > 0:
-                    ai_detectors_active.append("diamond_ai")
-                if stealth_result.get("californium_score", 0) > 0:
-                    ai_detectors_active.append("californium_ai") 
-                if stealth_result.get("whaleclip_score", 0) > 0:
-                    ai_detectors_active.append("whaleclip_ai")
-                if stealth_score > 0.5:  # StealthEngine is active if has decent score
-                    ai_detectors_active.append("stealth_engine")
+                
+                # 🎯 CRITICAL FIX: Use Multi-Agent consensus contributing_detectors first
+                if consensus_data and "contributing_detectors" in consensus_data:
+                    consensus_detectors = consensus_data["contributing_detectors"]
+                    if isinstance(consensus_detectors, list) and len(consensus_detectors) > 0:
+                        # Use Multi-Agent consensus result as primary source
+                        ai_detectors_active = consensus_detectors.copy()
+                        print(f"[ACTIVE DETECTORS FIX] {symbol}: Using consensus contributing_detectors: {ai_detectors_active}")
+                    else:
+                        print(f"[ACTIVE DETECTORS WARNING] {symbol}: Empty or invalid contributing_detectors: {consensus_detectors}")
+                
+                # 🛠️ FALLBACK: Use individual scores if Multi-Agent consensus not available  
+                if not ai_detectors_active:
+                    print(f"[ACTIVE DETECTORS FALLBACK] {symbol}: Using individual detector scores as fallback")
+                    if stealth_result.get("diamond_score", 0) > 0:
+                        ai_detectors_active.append("DiamondWhale")
+                    if stealth_result.get("californium_score", 0) > 0:
+                        ai_detectors_active.append("CaliforniumWhale") 
+                    if stealth_result.get("whaleclip_score", 0) > 0:
+                        ai_detectors_active.append("WhaleCLIP")
+                    if stealth_score > 0.5:  # StealthEngine is active if has decent score
+                        ai_detectors_active.append("StealthEngine")
                 
                 # Combine basic signals with AI detectors for comprehensive view
                 enhanced_active_signals = active_signals + ai_detectors_active
