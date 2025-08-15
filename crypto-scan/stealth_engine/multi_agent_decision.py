@@ -1103,9 +1103,22 @@ async def evaluate_detector_with_agents(
     Returns:
         Tuple (decision, confidence, log)
     """
-    return await multi_agent_system.multi_agent_decision(
-        detector_name, score, signal_data, market_data, threshold
-    )
+    print(f"[EVALUATE DETECTOR DEBUG] Starting evaluation for {detector_name} with score {score:.3f}")
+    print(f"[EVALUATE DETECTOR DEBUG] multi_agent_system initialized: {multi_agent_system is not None}")
+    print(f"[EVALUATE DETECTOR DEBUG] market_data available: {market_data is not None}")
+    
+    try:
+        result = await multi_agent_system.multi_agent_decision(
+            detector_name, score, signal_data, market_data, threshold
+        )
+        print(f"[EVALUATE DETECTOR DEBUG] Success! Result: {result[0]} (confidence: {result[1]:.3f})")
+        return result
+    except Exception as e:
+        print(f"[EVALUATE DETECTOR ERROR] Failed to evaluate {detector_name}: {e}")
+        import traceback
+        print(f"[EVALUATE DETECTOR ERROR] Traceback: {traceback.format_exc()}")
+        # Return fallback decision
+        return "HOLD", 0.5, f"Error in multi-agent evaluation: {e}"
 
 
 def evaluate_all_detectors_with_consensus(detectors_data: Dict[str, Dict], threshold: float = 0.7) -> Tuple[str, Dict, str]:

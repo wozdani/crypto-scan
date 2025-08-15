@@ -855,32 +855,9 @@ class DecisionConsensusEngine:
                         )
                     
                     # 🎯 PRE-CONFIRMATORY POKE - obsługa specjalnej decyzji
-                    if decision == "PRE_CONFIRMATORY_POKE":
-                        print(f"[PRE-CONFIRMATORY POKE] {detector_name}: Wykryto edge case - zwracam specjalną decyzję")
-                        # Zwróć natychmiast ImportedConsensusResult z PRE_CONFIRMATORY_POKE
-                        try:
-                            # Use imported AlertDecision if available
-                            from .consensus_decision_engine import AlertDecision as ImportedAlertDecision, ConsensusStrategy as ImportedConsensusStrategy
-                            decision_enum = ImportedAlertDecision.WATCH
-                            strategy_enum = ImportedConsensusStrategy.MAJORITY_VOTE
-                            votes_list = [ImportedAlertDecision.WATCH]
-                        except ImportError:
-                            # Fallback to local AlertDecision
-                            decision_enum = AlertDecision.WATCH
-                            strategy_enum = ConsensusStrategy.MAJORITY_VOTE 
-                            votes_list = [AlertDecision.WATCH]
-                        
-                        return ImportedConsensusResult(
-                            decision=decision_enum,
-                            final_score=detector_data.get("score", 0.0),
-                            confidence=confidence,
-                            strategy_used=strategy_enum,
-                            contributing_detectors=[detector_name],
-                            reasoning=f"PRE-CONFIRMATORY POKE triggered for {detector_name}: score={detector_data.get('score', 0.0):.3f}",
-                            consensus_strength=0.5,
-                            votes=votes_list,
-                            timestamp=datetime.now().isoformat()
-                        )
+                    # FIXED: Removed PRE_CONFIRMATORY_POKE hardcoded WATCH return
+                    # This was blocking proper Multi-Agent BUY/HOLD/AVOID decisions
+                    print(f"[MULTI-AGENT DEBUG] {detector_name}: Individual evaluation completed with decision: {decision} (confidence: {confidence:.3f})")
                     
                     # Store results
                     agent_decisions[detector_name] = decision

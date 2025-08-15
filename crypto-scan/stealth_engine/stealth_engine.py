@@ -753,6 +753,8 @@ def compute_stealth_score(token_data: Dict) -> Dict:
             "active_signals": list  # Lista nazw aktywnych sygnałów
         }
     """
+    symbol = token_data.get('symbol', 'UNKNOWN')
+    print(f"[FUNCTION ENTRY DEBUG] {symbol}: compute_stealth_score STARTED - testing function execution path")
     # Initialize all variables at function start to prevent UnboundLocalError
     score = 0.0
     active_signals = []
@@ -1551,35 +1553,41 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     print(f"[DETECTORS ACTIVE] {symbol}: StealthEngine=True, Diamond={diamond_enabled}, Californium={californium_enabled}, WhaleCLIP={whaleclip_status_corrected}, GNN={gnn_active}")
                     print(f"[WHALECLIP STATUS CORRECTED] {symbol}: whaleclip_enabled={whaleclip_enabled}, whaleclip_score={whaleclip_score:.3f} → Status={whaleclip_status_corrected} (whale_signal_strength={whale_signal_strength:.3f} ignored for consensus)")
                     
-                    # 🚨 CONSENSUS ENGINE MOVED OUTSIDE IF BLOCK
-                    # Consensus logic has been relocated to execute for ALL tokens
-                    # regardless of skip_reason - see lines 2234+ for the new location
-                    
-                    # 🧠 CONSENSUS ENGINE INTEGRATION - Run Now With Real AI Values
-                    # Move consensus engine HERE where AI detector values are available
-                    print(f"[CONSENSUS COMPUTING] {symbol}: Running consensus engine with real AI values")
-                    print(f"[CONSENSUS VALUES] {symbol}: Diamond={diamond_score:.3f} (enabled={diamond_enabled})")
-                    print(f"[CONSENSUS VALUES] {symbol}: Californium={californium_score:.3f} (enabled={californium_enabled})")
-                    print(f"[CONSENSUS VALUES] {symbol}: WhaleCLIP={whaleclip_score:.3f} (enabled={whaleclip_status_corrected})")
-                    print(f"[CONSENSUS VALUES] {symbol}: GNN={gnn_subgraph_score:.3f} (enabled={gnn_active})")
-                    print(f"[CONSENSUS VALUES] {symbol}: StealthEngine={score:.3f} (core signals)")
-                    
-                    # Store consensus data for later use
-                    stored_final_decision = "WATCH"  # Default fallback
-                    stored_consensus_data = None
-                    stored_consensus_result = None
-                    
-                    # Import consensus functions at the beginning to ensure they're available
-                    consensus_engine_factory = None
-                    adapt_detector_score = None
-                    record_detector_decision = None
+                    # 🚨 CONSENSUS ENGINE PROTECTED FROM BLOCKCHAIN FAILURES
+                    # Wrap consensus engine in its own try/except to ensure it runs
+                    # even if blockchain detectors fail
                     
                     try:
+                        # 🧠 CONSENSUS ENGINE INTEGRATION - Run Now With Real AI Values
+                        print(f"[CONSENSUS COMPUTING] {symbol}: Running consensus engine with real AI values")
+                        print(f"[CONSENSUS VALUES] {symbol}: Diamond={diamond_score:.3f} (enabled={diamond_enabled})")
+                        print(f"[CONSENSUS VALUES] {symbol}: Californium={californium_score:.3f} (enabled={californium_enabled})")
+                        print(f"[CONSENSUS VALUES] {symbol}: WhaleCLIP={whaleclip_score:.3f} (enabled={whaleclip_status_corrected})")
+                        print(f"[CONSENSUS VALUES] {symbol}: GNN={gnn_subgraph_score:.3f} (enabled={gnn_active})")
+                        print(f"[CONSENSUS VALUES] {symbol}: StealthEngine={score:.3f} (core signals)")
+                        
+                        # Store consensus data for later use
+                        stored_final_decision = "WATCH"  # Default fallback
+                        stored_consensus_data = None
+                        stored_consensus_result = None
+                        
+                        # Import consensus functions at the beginning to ensure they're available
+                        consensus_engine_factory = None
+                        adapt_detector_score = None
+                        record_detector_decision = None
+                        
                         from .decision_consensus import create_decision_consensus_engine as consensus_engine_factory
                         from .detector_learning_system import adapt_detector_score, record_detector_decision
                         
                         # AI DETECTORS INTEGRATION FOR CONSENSUS VOTING
                         detector_outputs = {}
+                        
+                        print(f"[DETECTOR DEBUG] {symbol}: Building detector_outputs for Multi-Agent consensus")
+                        print(f"[DETECTOR DEBUG] {symbol}: StealthEngine score={score:.3f}, threshold=0.1")
+                        print(f"[DETECTOR DEBUG] {symbol}: CaliforniumWhale score={californium_score:.3f}, enabled={californium_enabled}")
+                        print(f"[DETECTOR DEBUG] {symbol}: DiamondWhale score={diamond_score:.3f}, enabled={diamond_enabled}")
+                        print(f"[DETECTOR DEBUG] {symbol}: WhaleCLIP score={whaleclip_score:.3f}, enabled={whaleclip_status_corrected}")
+                        print(f"[DETECTOR DEBUG] {symbol}: GNN score={gnn_subgraph_score:.3f}, active={gnn_active}")
                         
                         # StealthEngine - CORE STEALTH SIGNALS + SELF-LEARNING ADAPTATION
                         # ZAWSZE dodaj StealthEngine jeśli jest aktywny (score > 0.1)
@@ -1707,6 +1715,9 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         
                         # 🤖 MULTI-AGENT CONSENSUS SYSTEM: Real AI Voting with 5 Agents
                         print(f"[MULTI-AGENT EARLY] {symbol}: Starting Multi-Agent Consensus System...")
+                        print(f"[DETECTOR OUTPUTS DEBUG] {symbol}: detector_outputs = {detector_outputs}")
+                        print(f"[DETECTOR OUTPUTS DEBUG] {symbol}: detector_outputs length = {len(detector_outputs)}")
+                        print(f"[DETECTOR OUTPUTS DEBUG] {symbol}: detector_outputs keys = {list(detector_outputs.keys())}")
                         
                         # MULTI-AGENT CONSENSUS with detector outputs
                         if detector_outputs:
