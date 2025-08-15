@@ -1814,8 +1814,61 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             
                     except Exception as consensus_error:
                         print(f"[CONSENSUS ERROR] {symbol}: Consensus engine failed: {consensus_error}")
-                        stored_final_decision = "WATCH"
-                        stored_consensus_data = None
+                        import traceback
+                        print(f"[CONSENSUS ERROR DETAILS] {symbol}: {traceback.format_exc()}")
+                        
+                        # CRITICAL FIX: Proper fallback consensus instead of WATCH
+                        # Run simple voting fallback when Multi-Agent fails
+                        if 'detector_outputs' in locals() and detector_outputs:
+                            buy_count = sum(1 for d in detector_outputs.values() if d.get("vote") == "BUY")
+                            hold_count = sum(1 for d in detector_outputs.values() if d.get("vote") == "HOLD")
+                            avoid_count = sum(1 for d in detector_outputs.values() if d.get("vote") == "AVOID")
+                            
+                            # Calculate scores for decision making since votes are PENDING
+                            total_score = sum(d.get("score", 0) for d in detector_outputs.values())
+                            avg_score = total_score / len(detector_outputs) if detector_outputs else 0
+                            
+                            # Make BUY/HOLD/AVOID decision based on average detector scores
+                            if avg_score >= 0.7:
+                                stored_final_decision = "BUY"
+                            elif avg_score >= 0.4:
+                                stored_final_decision = "HOLD"
+                            else:
+                                stored_final_decision = "AVOID"
+                            
+                            print(f"[CONSENSUS FALLBACK DECISION] {symbol}: avg_score={avg_score:.3f} → Decision={stored_final_decision}")
+                            
+                            stored_consensus_data = {
+                                "decision": stored_final_decision,
+                                "votes": [f"{detector}: score={data.get('score', 0):.3f}" for detector, data in detector_outputs.items()],
+                                "confidence": min(0.8, avg_score),
+                                "final_score": avg_score,
+                                "threshold_met": avg_score >= 0.7,
+                                "contributing_detectors": list(detector_outputs.keys()),
+                                "reasoning": f"Fallback decision based on {len(detector_outputs)} detector scores (avg={avg_score:.3f})"
+                            }
+                        else:
+                            # No detectors available - use stealth score only
+                            if score >= 0.7:
+                                stored_final_decision = "BUY"
+                            elif score >= 0.4:
+                                stored_final_decision = "HOLD"
+                            else:
+                                stored_final_decision = "AVOID"
+                            
+                            print(f"[CONSENSUS STEALTH-ONLY] {symbol}: stealth_score={score:.3f} → Decision={stored_final_decision}")
+                            
+                            stored_consensus_data = {
+                                "decision": stored_final_decision,
+                                "votes": [f"StealthEngine: {score:.3f}"],
+                                "confidence": min(0.6, score),
+                                "final_score": score,
+                                "threshold_met": score >= 0.7,
+                                "contributing_detectors": ["StealthEngine"],
+                                "reasoning": f"Stealth-only decision (score={score:.3f})"
+                            }
+                        
+                        stored_consensus_result = stored_consensus_data
                     
                     # === ALERT TRIGGER DECISION LOG ===
                     # Dodaj pełne uzasadnienie dla decyzji alertu zgodnie z uwagami Szefira

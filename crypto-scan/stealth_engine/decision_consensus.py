@@ -880,14 +880,31 @@ class DecisionConsensusEngine:
                         fallback_agent_system.use_real_llm = False
                         fallback_agent_system.openai_client = None
                         
-                        # Run the 5-agent evaluation in fallback mode
-                        result = await fallback_agent_system.evaluate_detector_with_5_agents(
-                            detector_name=detector_name,
-                            score=detector_data.get("score", 0.0),
-                            threshold=detector_data.get("threshold", 0.7),
-                            signal_data=detector_data.get("signal_data", {}),
-                            market_data=consensus_market_data
-                        )
+                        # Run the 5-agent evaluation in fallback mode (synchronous)
+                        import asyncio
+                        if asyncio.iscoroutinefunction(fallback_agent_system.evaluate_detector_with_5_agents):
+                            # Handle async function properly
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            try:
+                                result = loop.run_until_complete(fallback_agent_system.evaluate_detector_with_5_agents(
+                                    detector_name=detector_name,
+                                    score=detector_data.get("score", 0.0),
+                                    threshold=detector_data.get("threshold", 0.7),
+                                    signal_data=detector_data.get("signal_data", {}),
+                                    market_data=consensus_market_data
+                                ))
+                            finally:
+                                loop.close()
+                        else:
+                            # Synchronous call
+                            result = fallback_agent_system.evaluate_detector_with_5_agents(
+                                detector_name=detector_name,
+                                score=detector_data.get("score", 0.0),
+                                threshold=detector_data.get("threshold", 0.7),
+                                signal_data=detector_data.get("signal_data", {}),
+                                market_data=consensus_market_data
+                            )
                         
                         agent_decisions[detector_name] = result[0]  # decision
                         agent_confidences[detector_name] = result[1]  # confidence
@@ -961,7 +978,9 @@ class DecisionConsensusEngine:
                 if CONSENSUS_CLASSES_AVAILABLE:
                     # Use modern ConsensusResult from consensus_decision_engine.py
                     from .consensus_decision_engine import AlertDecision
-                    alert_decision = AlertDecision.ALERT if final_decision == "BUY" else AlertDecision.NO_ALERT
+                    # CRITICAL FIX: Return string decision, not enum
+                    # This preserves BUY/HOLD/AVOID string format instead of converting to AlertDecision enum
+                    alert_decision = final_decision  # Keep string format: BUY/HOLD/AVOID
                     
                     result = ConsensusResult(
                         decision=alert_decision,
