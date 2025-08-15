@@ -1553,6 +1553,9 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     print(f"[DETECTORS ACTIVE] {symbol}: StealthEngine=True, Diamond={diamond_enabled}, Californium={californium_enabled}, WhaleCLIP={whaleclip_status_corrected}, GNN={gnn_active}")
                     print(f"[WHALECLIP STATUS CORRECTED] {symbol}: whaleclip_enabled={whaleclip_enabled}, whaleclip_score={whaleclip_score:.3f} → Status={whaleclip_status_corrected} (whale_signal_strength={whale_signal_strength:.3f} ignored for consensus)")
                     
+                    print(f"[PRE-CONSENSUS DEBUG] {symbol}: REACHED line 1559 - about to start consensus section")
+                    print(f"[PRE-CONSENSUS DEBUG] {symbol}: Variables status - score={score:.3f}, diamond_enabled={diamond_enabled}, californium_enabled={californium_enabled}")
+                    
                     # 🚨 CONSENSUS ENGINE PROTECTED FROM BLOCKCHAIN FAILURES
                     # Wrap consensus engine in its own try/except to ensure it runs
                     # even if blockchain detectors fail
