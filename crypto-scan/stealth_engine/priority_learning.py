@@ -311,7 +311,7 @@ class PriorityLearningMemory:
             explore_mode_successes = 0
             
             # Load ALL explore mode files (unlimited entries as requested)
-            explore_dir = "cache/explore_mode"
+            explore_dir = "crypto-scan/cache/explore_mode"
             if os.path.exists(explore_dir):
                 try:
                     explore_files = [f for f in os.listdir(explore_dir) if f.endswith('.json')]
