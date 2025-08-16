@@ -614,6 +614,14 @@ def main():
     except Exception as e:
         print(f"[SYSTEM INIT ERROR] ❌ Failed to initialize Detector Learning System: {e}")
     
+    # Initialize threshold-aware learning scheduler
+    try:
+        from utils.threshold_scheduler import start_threshold_learning
+        start_threshold_learning()
+        print(f"[SYSTEM INIT] ✅ Threshold-Aware Learning System started successfully")
+    except Exception as e:
+        print(f"[SYSTEM INIT ERROR] ❌ Failed to start Threshold-Aware Learning System: {e}")
+    
     # 🔍 COMPREHENSIVE STAGE 1-7 DIAGNOSTIC CHECK
     print("\n🔍 === STAGE 1-7 COMPREHENSIVE DIAGNOSTIC CHECK ===")
     

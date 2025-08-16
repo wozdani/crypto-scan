@@ -102,8 +102,13 @@ class ConsensusDecisionEngine:
         self.enable_multi_agent = True  # Flag to enable/disable 5-agent system
         self.multi_agent_override_threshold = 0.5  # Override if agents vote YES even with low score
         
+        # Initialize threshold-aware learning system
+        self.threshold_tracking = {}
+        self.load_threshold_tracking()  # Load existing tracking data
+        
         print("[CONSENSUS ENGINE] Initialized multi-agent decision layer")
         print(f"[CONSENSUS ENGINE] ✅ Multi-agent system ENABLED: {self.enable_multi_agent}")
+        print(f"[CONSENSUS ENGINE] ✅ Threshold-aware learning system initialized with {len(self.threshold_tracking)} tracked detectors")
     
     def run(self, token: str, scores: Union[Dict[str, float], Dict[str, Dict[str, float]]], 
             strategy: ConsensusStrategy = ConsensusStrategy.WEIGHTED_AVERAGE,
@@ -696,17 +701,21 @@ class ConsensusDecisionEngine:
     
     def update_detector_weights(self, feedback_history: Dict[str, Dict], decay: float = 0.95) -> Dict[str, float]:
         """
-        ETAP 6: Dynamiczne modyfikowanie wag detektorów na podstawie feedback history
+        ETAP 6: Threshold-Aware Dynamic Weight Updates
+        
+        Enhanced learning system that understands the 0.7 consensus threshold.
         
         Args:
             feedback_history: Dict z historią skuteczności detektorów
-                {"detector": {"correct": int, "total": int, "avg_conf": float, "prev_weight": float}}
+                {"detector": {"correct": int, "total": int, "avg_conf": float, "prev_weight": float,
+                             "threshold_awareness": dict}}
             decay: Czynnik wygaszania dla smooth weight transitions (default: 0.95)
             
         Returns:
-            Dict z zaktualizowanymi wagami detektorów
+            Dict z zaktualizowanymi wagami detektorów z threshold awareness
         """
         updated_weights = {}
+        consensus_threshold = self.consensus_thresholds.get('alert_threshold', 0.7)
         
         for detector, stats in feedback_history.items():
             if stats["total"] == 0:
@@ -714,24 +723,224 @@ class ConsensusDecisionEngine:
                 updated_weights[detector] = stats.get("prev_weight", 0.25)
                 continue
                 
-            # Oblicz success rate (0.0 - 1.0)
+            # Standardowe metryki
             success_rate = stats["correct"] / max(1, stats["total"])
             avg_confidence = stats.get("avg_conf", 0.70)
             prev_weight = stats.get("prev_weight", 0.25)
             
-            # Adaptive weight formula: exponential moving average z confidence boost
-            # new_weight = decay * prev_weight + (1 - decay) * (success_rate * avg_confidence)
-            performance_factor = success_rate * avg_confidence
+            # === THRESHOLD AWARENESS LOGIC ===
+            threshold_data = stats.get("threshold_awareness", {})
+            
+            # Nowe metryki aware of 0.7 threshold
+            scores_above_threshold = threshold_data.get("scores_above_threshold", 0)
+            scores_near_threshold = threshold_data.get("scores_near_threshold", 0)  # 0.6-0.69
+            scores_below_threshold = threshold_data.get("scores_below_threshold", 0)
+            total_threshold_evaluations = threshold_data.get("total_evaluations", 1)
+            
+            # Oblicz threshold effectiveness ratio
+            if total_threshold_evaluations > 0:
+                # Premiuj detektory które często przekraczają próg 0.7
+                threshold_success_rate = scores_above_threshold / total_threshold_evaluations
+                # Karz detektory które często dają "near miss" (0.6-0.69)
+                near_miss_penalty = scores_near_threshold / total_threshold_evaluations
+                # Neutralnie traktuj scores poniżej 0.6 (jasno słabe sygnały)
+                clearly_weak_ratio = scores_below_threshold / total_threshold_evaluations
+            else:
+                threshold_success_rate = 0.0
+                near_miss_penalty = 0.0
+                clearly_weak_ratio = 0.0
+            
+            # === ENHANCED PERFORMANCE FACTOR ===
+            # Base performance: tradycyjny success rate * confidence
+            base_performance = success_rate * avg_confidence
+            
+            # Threshold-aware adjustments
+            threshold_bonus = threshold_success_rate * 0.3  # Bonus za przekraczanie progu 0.7
+            near_miss_malus = near_miss_penalty * 0.2  # Kara za "near miss" sygnały
+            
+            # Final performance factor with threshold awareness
+            performance_factor = base_performance + threshold_bonus - near_miss_malus
+            performance_factor = max(0.0, min(1.0, performance_factor))  # Bounds [0,1]
+            
+            # Adaptive weight formula with threshold awareness
             new_weight = decay * prev_weight + (1 - decay) * performance_factor
             
-            # Bounds protection: wagi między 0.10 a 0.50
-            new_weight = max(0.10, min(0.50, new_weight))
+            # Bounds protection: wagi między 0.05 a 0.60 (rozszerzone dla better performers)
+            new_weight = max(0.05, min(0.60, new_weight))
             updated_weights[detector] = round(new_weight, 4)
             
-            print(f"[ADAPTIVE WEIGHTS] {detector}: success={success_rate:.2f}, conf={avg_confidence:.2f}, "
-                  f"prev={prev_weight:.3f} → new={new_weight:.3f}")
+            print(f"[THRESHOLD-AWARE WEIGHTS] {detector}:")
+            print(f"  📊 Base: success={success_rate:.2f}, conf={avg_confidence:.2f}")
+            print(f"  🎯 Threshold: above={scores_above_threshold}, near={scores_near_threshold}, below={scores_below_threshold}")
+            print(f"  ⚖️  Performance: base={base_performance:.3f}, bonus={threshold_bonus:.3f}, penalty={near_miss_malus:.3f}")
+            print(f"  📈 Weight: {prev_weight:.3f} → {new_weight:.3f}")
         
         return updated_weights
+    
+    def record_threshold_awareness(self, detector_name: str, score: float, decision: str) -> None:
+        """
+        Record threshold awareness metrics for detectors
+        
+        Args:
+            detector_name: Nazwa detektora
+            score: Score z detektora
+            decision: Finalna decyzja Multi-Agent (BUY/HOLD/AVOID)
+        """
+        consensus_threshold = self.consensus_thresholds.get('alert_threshold', 0.7)
+        
+        # Inicjalizuj tracking dla detektora jeśli nie istnieje
+        if not hasattr(self, 'threshold_tracking'):
+            self.threshold_tracking = {}
+        
+        if detector_name not in self.threshold_tracking:
+            self.threshold_tracking[detector_name] = {
+                'scores_above_threshold': 0,
+                'scores_near_threshold': 0,    # 0.6-0.69
+                'scores_below_threshold': 0,   # <0.6
+                'total_evaluations': 0,
+                'successful_alerts': 0,        # BUY decisions that worked
+                'failed_near_misses': 0        # Near threshold but HOLD/AVOID
+            }
+        
+        tracker = self.threshold_tracking[detector_name]
+        tracker['total_evaluations'] += 1
+        
+        # Kategoryzuj score względem progu
+        if score >= consensus_threshold:
+            tracker['scores_above_threshold'] += 1
+            if decision == 'BUY':
+                tracker['successful_alerts'] += 1
+        elif score >= 0.6:  # Near threshold zone
+            tracker['scores_near_threshold'] += 1
+            if decision in ['HOLD', 'AVOID']:
+                tracker['failed_near_misses'] += 1
+        else:  # Clearly below threshold
+            tracker['scores_below_threshold'] += 1
+        
+        # Log threshold awareness learning
+        if tracker['total_evaluations'] % 10 == 0:  # Every 10 evaluations
+            above_rate = tracker['scores_above_threshold'] / tracker['total_evaluations']
+            near_rate = tracker['scores_near_threshold'] / tracker['total_evaluations']
+            success_rate = tracker['successful_alerts'] / max(1, tracker['scores_above_threshold'])
+            
+            print(f"[THRESHOLD LEARNING] {detector_name} (n={tracker['total_evaluations']}):")
+            print(f"  🎯 Above threshold: {above_rate:.1%}")
+            print(f"  ⚠️  Near threshold: {near_rate:.1%}")
+            print(f"  ✅ Success rate: {success_rate:.1%}")
+    
+    def get_threshold_awareness_data(self, detector_name: str) -> Dict[str, Any]:
+        """
+        Get threshold awareness data for detector weight updates
+        
+        Args:
+            detector_name: Nazwa detektora
+            
+        Returns:
+            Dict z threshold awareness metrics
+        """
+        if not hasattr(self, 'threshold_tracking') or detector_name not in self.threshold_tracking:
+            return {
+                'scores_above_threshold': 0,
+                'scores_near_threshold': 0,
+                'scores_below_threshold': 0,
+                'total_evaluations': 0
+            }
+        
+        return self.threshold_tracking[detector_name].copy()
+    
+    def update_weights_with_threshold_awareness(self, days: int = 7) -> Dict[str, float]:
+        """
+        Update detector weights using threshold awareness data
+        
+        Args:
+            days: Number of days to look back for feedback history
+            
+        Returns:
+            Dict with updated detector weights
+        """
+        if not hasattr(self, 'threshold_tracking'):
+            print("[THRESHOLD-AWARE WEIGHTS] No threshold tracking data available")
+            return self.detector_weights.copy()
+        
+        # Build enhanced feedback history with threshold awareness
+        enhanced_feedback = {}
+        
+        for detector_name, threshold_data in self.threshold_tracking.items():
+            if threshold_data['total_evaluations'] < 5:  # Need minimum data
+                continue
+                
+            # Calculate traditional metrics (simulated for now)
+            success_rate = threshold_data.get('successful_alerts', 0) / max(1, threshold_data.get('scores_above_threshold', 1))
+            avg_confidence = 0.75  # Default confidence
+            prev_weight = self.detector_weights.get(detector_name, 0.25)
+            
+            enhanced_feedback[detector_name] = {
+                'correct': threshold_data.get('successful_alerts', 0),
+                'total': threshold_data['total_evaluations'],
+                'avg_conf': avg_confidence,
+                'prev_weight': prev_weight,
+                'threshold_awareness': threshold_data
+            }
+        
+        if not enhanced_feedback:
+            print("[THRESHOLD-AWARE WEIGHTS] Insufficient data for weight updates")
+            return self.detector_weights.copy()
+        
+        # Update weights using threshold-aware algorithm
+        updated_weights = self.update_detector_weights(enhanced_feedback)
+        
+        # Apply updated weights to system
+        self.detector_weights.update(updated_weights)
+        
+        print(f"[THRESHOLD-AWARE WEIGHTS] Updated {len(updated_weights)} detector weights")
+        return updated_weights
+    
+    def save_threshold_tracking(self, filename: str = "cache/threshold_tracking.json") -> None:
+        """Save threshold tracking data to file"""
+        if not hasattr(self, 'threshold_tracking'):
+            return
+            
+        try:
+            import json
+            import os
+            
+            os.makedirs(os.path.dirname(filename), exist_ok=True)
+            
+            # Add timestamp to tracking data
+            tracking_data = {
+                'timestamp': datetime.now().isoformat(),
+                'detectors': self.threshold_tracking
+            }
+            
+            with open(filename, 'w') as f:
+                json.dump(tracking_data, f, indent=2)
+                
+            print(f"[THRESHOLD TRACKING] Saved tracking data for {len(self.threshold_tracking)} detectors")
+            
+        except Exception as e:
+            print(f"[THRESHOLD TRACKING ERROR] Failed to save tracking data: {e}")
+    
+    def load_threshold_tracking(self, filename: str = "cache/threshold_tracking.json") -> None:
+        """Load threshold tracking data from file"""
+        try:
+            import json
+            import os
+            
+            if not os.path.exists(filename):
+                self.threshold_tracking = {}
+                return
+                
+            with open(filename, 'r') as f:
+                tracking_data = json.load(f)
+                
+            self.threshold_tracking = tracking_data.get('detectors', {})
+            timestamp = tracking_data.get('timestamp', 'unknown')
+            
+            print(f"[THRESHOLD TRACKING] Loaded tracking data for {len(self.threshold_tracking)} detectors from {timestamp}")
+            
+        except Exception as e:
+            print(f"[THRESHOLD TRACKING ERROR] Failed to load tracking data: {e}")
+            self.threshold_tracking = {}
     
     def get_feedback_history_from_decisions(self, days: int = 7) -> Dict[str, Dict]:
         """

@@ -1777,6 +1777,23 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                 }
                                 stored_consensus_result = stored_consensus_data
                                 
+                                # === THRESHOLD AWARENESS TRACKING ===
+                                # Track threshold awareness for each detector that participated in consensus
+                                try:
+                                    from .consensus_decision_engine import ConsensusDecisionEngine
+                                    threshold_tracker = ConsensusDecisionEngine()
+                                    
+                                    for detector_name, detector_data in detector_outputs.items():
+                                        detector_score = detector_data.get("score", 0.0)
+                                        # Record threshold awareness for learning system
+                                        threshold_tracker.record_threshold_awareness(
+                                            detector_name, detector_score, stored_final_decision
+                                        )
+                                        print(f"[THRESHOLD TRACKING] {symbol}: {detector_name} score={detector_score:.3f} → decision={stored_final_decision}")
+                                    
+                                except Exception as track_error:
+                                    print(f"[THRESHOLD TRACKING ERROR] {symbol}: {track_error}")
+                                
                             except Exception as e:
                                 print(f"[MULTI-AGENT ERROR] {symbol}: Consensus engine failed: {e}")
                                 # Fallback to simple voting if multi-agent fails
@@ -1807,6 +1824,20 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                     "contributing_detectors": list(detector_outputs.keys())
                                 }
                                 stored_consensus_result = stored_consensus_data
+                                
+                                # === THRESHOLD AWARENESS TRACKING (FALLBACK) ===
+                                try:
+                                    from .consensus_decision_engine import ConsensusDecisionEngine
+                                    threshold_tracker = ConsensusDecisionEngine()
+                                    
+                                    for detector_name, detector_data in detector_outputs.items():
+                                        detector_score = detector_data.get("score", 0.0)
+                                        threshold_tracker.record_threshold_awareness(
+                                            detector_name, detector_score, stored_final_decision
+                                        )
+                                        print(f"[THRESHOLD TRACKING FALLBACK] {symbol}: {detector_name} score={detector_score:.3f} → decision={stored_final_decision}")
+                                except Exception as track_error:
+                                    print(f"[THRESHOLD TRACKING FALLBACK ERROR] {symbol}: {track_error}")
                                 
                                 print(f"[CONSENSUS FALLBACK] {symbol}: Decision={stored_final_decision}, Score={final_score:.3f}, Confidence={confidence:.3f}")
                         else:
