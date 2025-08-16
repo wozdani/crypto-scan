@@ -10,16 +10,20 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 import sys
 
-# Add parent directory to path
-parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
+# Add parent directory to path (pointing to crypto-scan root)
+crypto_scan_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if crypto_scan_root not in sys.path:
+    sys.path.insert(0, crypto_scan_root)
 
 try:
     from agent_learning.explore_file_manager import ExploreFileManager
     from agent_learning.pump_verification_scheduler import start_pump_verification_scheduler
+    print("[EXPLORE INTEGRATION] Successfully imported ExploreFileManager and scheduler")
 except ImportError as e:
-    print(f"[EXPLORE INTEGRATION WARNING] Import error: {e}")
+    print(f"[EXPLORE INTEGRATION ERROR] Import failed: {e}")
+    print(f"[EXPLORE INTEGRATION ERROR] Current path: {os.getcwd()}")
+    print(f"[EXPLORE INTEGRATION ERROR] crypto_scan_root: {crypto_scan_root}")
+    print(f"[EXPLORE INTEGRATION ERROR] sys.path contains crypto_scan_root: {crypto_scan_root in sys.path}")
     ExploreFileManager = None
 
 class ExploreIntegration:
@@ -71,6 +75,7 @@ class ExploreIntegration:
         """
         if not self.enabled:
             # Fallback to legacy save
+            print(f"[EXPLORE INTEGRATION WARNING] ExploreFileManager not enabled, using legacy save for {symbol}")
             return self._save_legacy_explore_data(symbol, token_data, detector_results)
         
         try:
