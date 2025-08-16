@@ -377,6 +377,7 @@ class ExploreFileManager:
                 ]
             },
             "label": {"status": "pending"},
+            "verification_due": (timestamp + timedelta(hours=self.verification_hours)).isoformat(),
             "file_lifecycle": {
                 "created": timestamp.isoformat(),
                 "verification_scheduled": (timestamp + timedelta(hours=self.verification_hours)).isoformat(),

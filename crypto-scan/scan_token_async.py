@@ -578,9 +578,9 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 print(f"[ENHANCED EXPLORE MODE] {symbol}: AI detectors: {ai_detectors_active}")
                 
                 try:
-                    # Import enhanced explore mode using ExploreFileManager
-                    from agent_learning.explore_file_manager import ExploreFileManager
-                    explore_manager = ExploreFileManager()
+                    # Import enhanced explore mode integration
+                    from stealth_engine.explore_mode_integration import ExploreIntegration
+                    explore_integration = ExploreIntegration()
                     
                     # CRITICAL FIX: Extract actual DEX inflow value from stealth engine 
                     # Always use real_dex_inflow first, then apply intelligent fallback when=0 but signal active
@@ -736,11 +736,22 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                             consensus_data["explore_confidence"] = explore_confidence
                             consensus_data["explore_trigger_reason"] = explore_trigger_reason
                             
-                            saved_filename = explore_manager.save_explore_file(
-                                symbol=symbol,
-                                token_data=enhanced_token_data,
-                                detector_results=detector_results
-                            )
+                            # Use ExploreFileManager directly for full schema v2.0.0 support
+                            from agent_learning.explore_file_manager import ExploreFileManager
+                            file_manager = ExploreFileManager()
+                            
+                            # Add consensus data to enhanced_token_data
+                            enhanced_token_data.update({
+                                "explore_confidence": explore_confidence,
+                                "explore_trigger_reason": explore_trigger_reason,
+                                "consensus_decision": consensus_data.get("decision", "HOLD") if consensus_data else "HOLD",
+                                "consensus_confidence": consensus_data.get("confidence", 0.0) if consensus_data else 0.0,
+                                "consensus_votes": consensus_data.get("votes", {}) if consensus_data else {}
+                            })
+                            
+                            saved_filepath = file_manager.save_explore_file(symbol, enhanced_token_data, detector_results)
+                            saved_success = bool(saved_filepath)
+                            saved_filename = f"Enhanced explore mode for {symbol}" if saved_success else ""
                             
                             if saved_filename:
                                 print(f"[ENHANCED EXPLORE SAVE SUCCESS] {symbol}: Saved as {saved_filename}")
