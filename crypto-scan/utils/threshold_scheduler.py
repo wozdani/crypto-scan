@@ -29,8 +29,8 @@ class ThresholdLearningScheduler:
             
         self.running = True
         
-        # Schedule daily weight updates at 03:00 UTC
-        schedule.every().day.at("03:00").do(self._update_detector_weights)
+        # Schedule weight updates every 3 hours
+        schedule.every(3).hours.do(self._update_detector_weights)
         
         # Schedule periodic saves every 2 hours
         schedule.every(2).hours.do(self._save_threshold_data)
@@ -40,7 +40,7 @@ class ThresholdLearningScheduler:
         self.thread.start()
         
         print("[THRESHOLD SCHEDULER] ✅ Started threshold-aware learning scheduler")
-        print("[THRESHOLD SCHEDULER] - Daily weight updates at 03:00 UTC")
+        print("[THRESHOLD SCHEDULER] - Weight updates every 3 hours")
         print("[THRESHOLD SCHEDULER] - Threshold tracking saves every 2 hours")
         
     def stop_scheduler(self):
@@ -60,7 +60,7 @@ class ThresholdLearningScheduler:
         try:
             from ..stealth_engine.consensus_decision_engine import ConsensusDecisionEngine
             
-            print("[THRESHOLD SCHEDULER] Starting daily weight update...")
+            print("[THRESHOLD SCHEDULER] Starting 3-hourly weight update...")
             
             # Create consensus engine and update weights
             consensus_engine = ConsensusDecisionEngine()
