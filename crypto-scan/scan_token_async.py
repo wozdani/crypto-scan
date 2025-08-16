@@ -548,27 +548,15 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 # Add AI detectors to active_signals for better explore mode debug
                 ai_detectors_active = []
                 
-                # 🎯 CRITICAL FIX: Use Multi-Agent consensus contributing_detectors first
-                if consensus_data and "contributing_detectors" in consensus_data:
-                    consensus_detectors = consensus_data["contributing_detectors"]
-                    if isinstance(consensus_detectors, list) and len(consensus_detectors) > 0:
-                        # Use Multi-Agent consensus result as primary source
-                        ai_detectors_active = consensus_detectors.copy()
-                        print(f"[ACTIVE DETECTORS FIX] {symbol}: Using consensus contributing_detectors: {ai_detectors_active}")
-                    else:
-                        print(f"[ACTIVE DETECTORS WARNING] {symbol}: Empty or invalid contributing_detectors: {consensus_detectors}")
-                
-                # 🛠️ FALLBACK: Use individual scores if Multi-Agent consensus not available  
-                if not ai_detectors_active:
-                    print(f"[ACTIVE DETECTORS FALLBACK] {symbol}: Using individual detector scores as fallback")
-                    if stealth_result.get("diamond_score", 0) > 0:
-                        ai_detectors_active.append("DiamondWhale")
-                    if stealth_result.get("californium_score", 0) > 0:
-                        ai_detectors_active.append("CaliforniumWhale") 
-                    if stealth_result.get("whaleclip_score", 0) > 0:
-                        ai_detectors_active.append("WhaleCLIP")
-                    if stealth_score > 0.5:  # StealthEngine is active if has decent score
-                        ai_detectors_active.append("StealthEngine")
+                # 🛠️ Build initial detector list from individual scores  
+                if stealth_result.get("diamond_score", 0) > 0:
+                    ai_detectors_active.append("DiamondWhale")
+                if stealth_result.get("californium_score", 0) > 0:
+                    ai_detectors_active.append("CaliforniumWhale") 
+                if stealth_result.get("whaleclip_score", 0) > 0:
+                    ai_detectors_active.append("WhaleCLIP")
+                if stealth_score > 0.5:  # StealthEngine is active if has decent score
+                    ai_detectors_active.append("StealthEngine")
                 
                 # Combine basic signals with AI detectors for comprehensive view
                 enhanced_active_signals = active_signals + ai_detectors_active
@@ -674,9 +662,22 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         "decision": stealth_result.get("consensus_decision", "HOLD"),
                         "confidence": stealth_result.get("consensus_confidence", 0.0),
                         "votes": stealth_result.get("consensus_votes", []),
+                        "contributing_detectors": stealth_result.get("contributing_detectors", []),
                         "agent_count": 5,  # Standard 5-agent system
                         "enabled": True
                     }
+                    
+                    # 🎯 CRITICAL FIX: Update ai_detectors_active from Multi-Agent consensus
+                    if consensus_data.get("contributing_detectors"):
+                        consensus_detectors = consensus_data["contributing_detectors"]
+                        if isinstance(consensus_detectors, list) and len(consensus_detectors) > 0:
+                            # Use Multi-Agent consensus result as primary source
+                            ai_detectors_active = consensus_detectors.copy()
+                            print(f"[ACTIVE DETECTORS FIX] {symbol}: Updated from consensus contributing_detectors: {ai_detectors_active}")
+                        else:
+                            print(f"[ACTIVE DETECTORS INFO] {symbol}: Using fallback detector list: {ai_detectors_active}")
+                    else:
+                        print(f"[ACTIVE DETECTORS INFO] {symbol}: No consensus contributing_detectors, using fallback: {ai_detectors_active}")
                     
                     # Check explore mode - use information from stealth_engine.py
                     stealth_explore_triggered = stealth_result.get("explore_mode_triggered", False)
