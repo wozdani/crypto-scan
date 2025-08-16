@@ -2899,6 +2899,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
         "consensus_decision": final_decision,
         "consensus_confidence": consensus_data.get('confidence', 0.0) if consensus_data else 0.0,
         "consensus_votes": consensus_data.get('votes', []) if consensus_data else [],
+        "contributing_detectors": consensus_data.get('contributing_detectors', []) if consensus_data else [],
         "enhanced_rl_available": ENHANCED_RL_AVAILABLE,
         "enhanced_rl_decision": enhanced_rl_decision,
         "enhanced_rl_data": enhanced_rl_data,
