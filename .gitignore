@@ -146,3 +146,6 @@ pump-analysis/outputs/
 
 # generated results
 crypto-scan/feedback_loop/basic_score_results.jsonl
+
+# generated results
+feedback_loop/basic_score_results.jsonl
