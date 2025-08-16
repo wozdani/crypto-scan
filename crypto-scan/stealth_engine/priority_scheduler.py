@@ -164,7 +164,8 @@ class AlertQueueManager:
                 "consensus_decision": stealth_result.get("consensus_decision"),
                 "consensus_score": stealth_result.get("consensus_score"),
                 "consensus_confidence": stealth_result.get("consensus_confidence"),
-                "consensus_detectors": stealth_result.get("consensus_detectors", []),
+                # Check for both field names for backward compatibility
+                "consensus_detectors": stealth_result.get("contributing_detectors", stealth_result.get("consensus_detectors", [])),
                 "consensus_votes": stealth_result.get("consensus_votes", [])
             }
             
