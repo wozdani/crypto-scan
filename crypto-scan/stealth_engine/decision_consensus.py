@@ -635,8 +635,10 @@ class DecisionConsensusEngine:
                 avoid_votes = sum(1 for r in detector_responses if r.decision == "AVOID")
                 total_votes = len(detector_responses)
                 
-                # Decision based on BUY/HOLD/AVOID logic
-                if buy_votes > hold_votes + avoid_votes and buy_votes >= 3:
+                # Decision based on BUY/HOLD/AVOID logic  
+                # Vote margin: BUY votes - (HOLD + AVOID votes) >= 2
+                vote_margin = buy_votes - (hold_votes + avoid_votes)
+                if vote_margin >= 2:
                     decision = "BUY"
                 elif hold_votes > buy_votes + avoid_votes:
                     decision = "HOLD"
@@ -945,10 +947,11 @@ class DecisionConsensusEngine:
                 avg_confidence = sum(agent_confidences.values()) / len(agent_confidences)
                 
                 # Determine final decision with proper BUY/HOLD/AVOID logic
-                if buy_votes > hold_votes + avoid_votes and buy_votes >= 3:
+                # WYMAGANIE: Minimum 2 detektory z BUY decision dla alertu
+                if buy_votes >= 2 and buy_votes > hold_votes + avoid_votes:
                     final_decision = "BUY"
                     decision_strength = buy_votes / total_votes
-                    print(f"[CONSENSUS DECISION] Majority BUY → BUY decision!")
+                    print(f"[CONSENSUS DECISION] {buy_votes} detectors voted BUY (≥2 required) → BUY decision!")
                 elif hold_votes > buy_votes + avoid_votes:
                     final_decision = "HOLD"
                     decision_strength = hold_votes / total_votes
