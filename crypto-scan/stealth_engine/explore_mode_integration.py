@@ -37,7 +37,7 @@ class ExploreIntegration:
     def should_save_to_explore_mode(self, symbol: str, token_data: Dict, score: float) -> bool:
         """
         Sprawdź czy token powinien być zapisany w explore mode.
-        WYMAGANIE: Tylko tokeny z score >= 1.0
+        WYMAGANIE: Tylko tokeny z score >= 0.7 (aligned z consensus threshold)
         
         Args:
             symbol: Symbol tokena
@@ -47,12 +47,12 @@ class ExploreIntegration:
         Returns:
             True jeśli powinien być zapisany
         """
-        # JEDYNE KRYTERIUM: Score >= 1.0
-        if score >= 1.0:
-            print(f"[EXPLORE MODE QUALIFIED] {symbol}: Score {score:.3f} >= 1.0 - saving to explore mode")
+        # JEDYNE KRYTERIUM: Score >= 0.7 (aligned z consensus threshold)
+        if score >= 0.7:
+            print(f"[EXPLORE MODE QUALIFIED] {symbol}: Score {score:.3f} >= 0.7 - saving to explore mode")
             return True
         
-        print(f"[EXPLORE MODE SKIP] {symbol}: Score {score:.3f} < 1.0 - not saving")
+        print(f"[EXPLORE MODE SKIP] {symbol}: Score {score:.3f} < 0.7 - not saving")
         return False
     
     def save_explore_data_enhanced(self, symbol: str, token_data: Dict, detector_results: Dict, 
@@ -240,7 +240,7 @@ def save_explore_mode_data(symbol: str, token_data: Dict, detector_results: Dict
                           consensus_data: Optional[Dict] = None) -> Optional[str]:
     """
     Public interface do zapisu explore mode data.
-    WYMAGANIE: Tylko tokeny z score >= 1.0 są zapisywane
+    WYMAGANIE: Tylko tokeny z score >= 0.7 są zapisywane (aligned z consensus threshold)
     
     Args:
         symbol: Symbol tokena
