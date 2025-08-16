@@ -70,6 +70,222 @@ class ExploreFileManager:
         # Maksymalnie 4 detektory dla czytelności
         return "+".join(active_signals[:4])
     
+    def _build_detector_details(self, token_data: Dict, detector_results: Dict) -> Dict:
+        """Buduj szczegółowe dane wszystkich detektorów"""
+        detectors = {}
+        
+        # StealthEngine
+        stealth_data = token_data.get("stealth_engine_data", {})
+        detectors["stealth_engine"] = {
+            "active": token_data.get("stealth_score", 0.0) > 0.1,
+            "score": token_data.get("stealth_score", 0.0),
+            "confidence": stealth_data.get("confidence", 0.7),
+            "features": {
+                "active_signals": token_data.get("active_signals", []),
+                "signal_count": len(token_data.get("active_signals", [])),
+                "whale_ping_strength": token_data.get("whale_ping_strength", 0.0),
+                "dex_inflow_usd": token_data.get("dex_inflow_usd", 0.0),
+                "volume_spike_detected": "volume_spike" in token_data.get("active_signals", []),
+                "orderbook_anomaly": "orderbook_anomaly" in token_data.get("active_signals", []),
+                "spoofing_layers": "spoofing_layers" in token_data.get("active_signals", [])
+            },
+            "reasoning": stealth_data.get("reasoning", "Comprehensive stealth signal analysis"),
+            "weights_used": stealth_data.get("weights_used", {})
+        }
+        
+        # CaliforniumWhale
+        californium_data = detector_results.get("californium_whale", {})
+        detectors["californium_whale"] = {
+            "active": californium_data.get("score", 0.0) > 0.1,
+            "score": californium_data.get("score", 0.0),
+            "confidence": californium_data.get("confidence", 0.85),
+            "features": {
+                "ai_analysis_score": californium_data.get("ai_score", 0.0),
+                "temporal_graph_signals": californium_data.get("temporal_signals", []),
+                "qirl_score": californium_data.get("qirl_score", 0.0),
+                "whale_pattern_detected": californium_data.get("whale_pattern", False),
+                "trust_score": californium_data.get("trust_score", 0.0)
+            },
+            "reasoning": californium_data.get("reasoning", "AI-powered whale behavior analysis"),
+            "vote_details": californium_data.get("agent_votes", {})
+        }
+        
+        # DiamondWhale
+        diamond_data = detector_results.get("diamond_whale", {})
+        detectors["diamond_whale"] = {
+            "active": diamond_data.get("score", 0.0) > 0.1,
+            "score": diamond_data.get("score", 0.0),
+            "confidence": diamond_data.get("confidence", 0.75),
+            "features": {
+                "diamond_ai_score": diamond_data.get("diamond_ai_score", 0.0),
+                "blockchain_transactions": len(diamond_data.get("transactions", [])),
+                "temporal_graph_analysis": diamond_data.get("temporal_analysis", {}),
+                "advanced_pattern_score": diamond_data.get("pattern_score", 0.0),
+                "stealth_integration_score": diamond_data.get("stealth_integration", 0.0)
+            },
+            "reasoning": diamond_data.get("reasoning", "Advanced Diamond AI blockchain analysis"),
+            "vote_details": diamond_data.get("agent_votes", {})
+        }
+        
+        # WhaleCLIP
+        whales_data = detector_results.get("whale_clip", {})
+        detectors["whale_clip"] = {
+            "active": whales_data.get("score", 0.0) > 0.1,
+            "score": whales_data.get("score", 0.0),
+            "confidence": whales_data.get("confidence", 0.8),
+            "features": {
+                "clip_analysis_score": whales_data.get("clip_score", 0.0),
+                "whale_classification": whales_data.get("whale_class", "unknown"),
+                "behavioral_embedding": whales_data.get("behavioral_score", 0.0),
+                "transaction_patterns": whales_data.get("patterns", []),
+                "historical_performance": whales_data.get("historical_perf", 0.0)
+            },
+            "reasoning": whales_data.get("reasoning", "CLIP-based whale behavior classification"),
+            "vote_details": whales_data.get("agent_votes", {})
+        }
+        
+        # GNN (Graph Neural Network)
+        gnn_data = detector_results.get("gnn", {})
+        detectors["gnn"] = {
+            "active": gnn_data.get("score", 0.0) > 0.1,
+            "score": gnn_data.get("score", 0.0),
+            "confidence": gnn_data.get("confidence", 0.9),
+            "features": {
+                "graph_neural_score": gnn_data.get("gnn_score", 0.0),
+                "node_embeddings": gnn_data.get("embeddings", []),
+                "graph_structure_score": gnn_data.get("structure_score", 0.0),
+                "anomaly_detection": gnn_data.get("anomaly_detected", False),
+                "network_analysis": gnn_data.get("network_analysis", {})
+            },
+            "reasoning": gnn_data.get("reasoning", "Graph Neural Network blockchain analysis"),
+            "vote_details": gnn_data.get("agent_votes", {})
+        }
+        
+        return detectors
+    
+    def _build_consensus_details(self, token_data: Dict, detector_results: Dict) -> Dict:
+        """Buduj szczegółowe dane consensus multi-agent"""
+        return {
+            "multi_agent_system": {
+                "total_detectors": len([d for d in detector_results.values() if d.get("score", 0) > 0.1]),
+                "consensus_method": "5-agent-individual-evaluation",
+                "threshold_logic": "minimum_2_detectors_BUY_for_alert",
+                "vote_margin_required": 2,
+                "consensus_threshold": 0.7
+            },
+            "detector_summary": {
+                "stealth_engine": {
+                    "decision": detector_results.get("stealth_engine", {}).get("decision", "PENDING"),
+                    "score": token_data.get("stealth_score", 0.0),
+                    "confidence": detector_results.get("stealth_engine", {}).get("confidence", 0.7)
+                },
+                "californium_whale": {
+                    "decision": detector_results.get("californium_whale", {}).get("decision", "PENDING"),
+                    "score": detector_results.get("californium_whale", {}).get("score", 0.0),
+                    "confidence": detector_results.get("californium_whale", {}).get("confidence", 0.85)
+                },
+                "diamond_whale": {
+                    "decision": detector_results.get("diamond_whale", {}).get("decision", "PENDING"),
+                    "score": detector_results.get("diamond_whale", {}).get("score", 0.0),
+                    "confidence": detector_results.get("diamond_whale", {}).get("confidence", 0.75)
+                },
+                "whale_clip": {
+                    "decision": detector_results.get("whale_clip", {}).get("decision", "PENDING"),
+                    "score": detector_results.get("whale_clip", {}).get("score", 0.0),
+                    "confidence": detector_results.get("whale_clip", {}).get("confidence", 0.8)
+                },
+                "gnn": {
+                    "decision": detector_results.get("gnn", {}).get("decision", "PENDING"),
+                    "score": detector_results.get("gnn", {}).get("score", 0.0),
+                    "confidence": detector_results.get("gnn", {}).get("confidence", 0.9)
+                }
+            },
+            "final_consensus": {
+                "decision": token_data.get("consensus_decision", "EXPLORE"),
+                "buy_votes": token_data.get("buy_votes", 0),
+                "hold_votes": token_data.get("hold_votes", 0),
+                "avoid_votes": token_data.get("avoid_votes", 0),
+                "alert_triggered": token_data.get("alert_triggered", False),
+                "consensus_confidence": token_data.get("consensus_confidence", 0.0)
+            }
+        }
+    
+    def _build_agent_votes_details(self, token_data: Dict, detector_results: Dict) -> Dict:
+        """Buduj szczegółowe głosy wszystkich agentów dla każdego detektora"""
+        agent_votes = {}
+        
+        for detector_name, detector_data in detector_results.items():
+            if detector_data.get("agent_votes"):
+                agent_votes[detector_name] = {
+                    "analyzer": {
+                        "vote": detector_data["agent_votes"].get("analyzer", {}).get("vote", "UNKNOWN"),
+                        "confidence": detector_data["agent_votes"].get("analyzer", {}).get("confidence", 0.0),
+                        "reasoning": detector_data["agent_votes"].get("analyzer", {}).get("reasoning", "No reasoning provided")
+                    },
+                    "reasoner": {
+                        "vote": detector_data["agent_votes"].get("reasoner", {}).get("vote", "UNKNOWN"),
+                        "confidence": detector_data["agent_votes"].get("reasoner", {}).get("confidence", 0.0),
+                        "reasoning": detector_data["agent_votes"].get("reasoner", {}).get("reasoning", "No reasoning provided")
+                    },
+                    "voter": {
+                        "vote": detector_data["agent_votes"].get("voter", {}).get("vote", "UNKNOWN"),
+                        "confidence": detector_data["agent_votes"].get("voter", {}).get("confidence", 0.0),
+                        "reasoning": detector_data["agent_votes"].get("voter", {}).get("reasoning", "No reasoning provided")
+                    },
+                    "debater": {
+                        "vote": detector_data["agent_votes"].get("debater", {}).get("vote", "UNKNOWN"),
+                        "confidence": detector_data["agent_votes"].get("debater", {}).get("confidence", 0.0),
+                        "reasoning": detector_data["agent_votes"].get("debater", {}).get("reasoning", "No reasoning provided")
+                    },
+                    "decider": {
+                        "vote": detector_data["agent_votes"].get("decider", {}).get("vote", "UNKNOWN"),
+                        "confidence": detector_data["agent_votes"].get("decider", {}).get("confidence", 0.0),
+                        "reasoning": detector_data["agent_votes"].get("decider", {}).get("reasoning", "No reasoning provided")
+                    },
+                    "vote_summary": {
+                        "buy_count": sum(1 for agent in detector_data["agent_votes"].values() if agent.get("vote") == "BUY"),
+                        "hold_count": sum(1 for agent in detector_data["agent_votes"].values() if agent.get("vote") == "HOLD"),
+                        "avoid_count": sum(1 for agent in detector_data["agent_votes"].values() if agent.get("vote") == "AVOID"),
+                        "average_confidence": sum(agent.get("confidence", 0) for agent in detector_data["agent_votes"].values()) / 5,
+                        "vote_margin": detector_data.get("vote_margin", 0),
+                        "final_decision": detector_data.get("decision", "PENDING")
+                    }
+                }
+            else:
+                # Fallback dla detektorów bez szczegółowych głosów
+                agent_votes[detector_name] = {
+                    "vote_summary": {
+                        "final_decision": detector_data.get("decision", "PENDING"),
+                        "score": detector_data.get("score", 0.0),
+                        "confidence": detector_data.get("confidence", 0.0),
+                        "note": "Detailed agent votes not available for this detector"
+                    }
+                }
+        
+        return agent_votes
+    
+    def _build_feature_vector(self, token_data: Dict) -> Dict:
+        """Buduj wektor cech dla machine learning"""
+        return {
+            "fv_stealth_score": token_data.get("stealth_score", 0.0),
+            "fv_whale_ping_strength": token_data.get("whale_ping_strength", 0.0),
+            "fv_dex_inflow_usd": token_data.get("dex_inflow_usd", 0.0),
+            "fv_volume_24h": token_data.get("volume_24h", 0.0),
+            "fv_price_change_24h": token_data.get("price_change_24h", 0.0),
+            "fv_market_cap": token_data.get("market_cap", 0.0),
+            "fv_orderbook_depth": token_data.get("orderbook_depth_usd", 0.0),
+            "fv_orderbook_imbalance": token_data.get("orderbook_imbalance", 0.0),
+            "fv_active_signals_count": len(token_data.get("active_signals", [])),
+            "fv_address_trust_score": token_data.get("address_trust_score", 0.0),
+            "fv_repeated_addresses": token_data.get("repeated_addresses_count", 0),
+            "fv_californium_score": token_data.get("californium_ai_score", 0.0),
+            "fv_diamond_score": token_data.get("diamond_ai_score", 0.0),
+            "fv_whale_clip_score": token_data.get("whale_clip_score", 0.0),
+            "fv_gnn_score": token_data.get("gnn_score", 0.0),
+            "fv_price": token_data.get("price", 0.0),
+            "fv_consensus_confidence": token_data.get("consensus_confidence", 0.0)
+        }
+    
     def save_explore_file(self, symbol: str, token_data: Dict, detector_results: Dict) -> str:
         """
         Zapisz plik explore mode z nowym nazewnictwem.
@@ -91,36 +307,92 @@ class ExploreFileManager:
         filename = f"{symbol}_{timestamp.strftime('%Y%m%d_%H%M%S')}_{detector_label}.json"
         filepath = os.path.join(self.explore_dir, filename)
         
-        # Przygotuj dane do zapisu
+        # Przygotuj dane do zapisu w zaawansowanym schemacie
         explore_data = {
-            "symbol": symbol,
-            "timestamp": timestamp.isoformat(),
-            "creation_time": timestamp.strftime("%Y-%m-%d %H:%M:%S UTC"),
-            "status": "pending_verification",
-            "detector_labels": detector_label,
-            "verification_due": (timestamp + timedelta(hours=self.verification_hours)).isoformat(),
+            "schema_version": "explore-stealth/v2.0.0",
+            "engine": {
+                "name": "stealth_pre_pump_enhanced",
+                "weights_version": "v4.0.0",
+                "commit": "enhanced_detectors",
+                "threshold_profile_id": "prepump-enhanced-2025-08"
+            },
+            "event": {
+                "event_id": f"EXP-{timestamp.strftime('%Y%m%d')}-{symbol}-{timestamp.strftime('%H%M')}",
+                "run_id": f"SCAN-{timestamp.strftime('%Y%m%d-%H%MZ')}",
+                "ts": timestamp.isoformat(),
+                "symbol": symbol,
+                "exchange": "Bybit",
+                "market_type": "perp",
+                "chain": token_data.get("chain", "ethereum"),
+                "price": token_data.get("price", 0.0),
+                "window": {
+                    "lookback_s": 1800,
+                    "features_end_ts": timestamp.isoformat()
+                }
+            },
+            "market_context": {
+                "volume_24h": token_data.get("volume_24h", 0.0),
+                "price_change_24h": token_data.get("price_change_24h", 0.0),
+                "market_cap": token_data.get("market_cap", 0.0),
+                "price_source": token_data.get("price_source", "unknown"),
+                "orderbook_available": token_data.get("orderbook_available", False),
+                "candle_data_quality": token_data.get("candle_data_quality", "unknown")
+            },
+            "liquidity_context": {
+                "orderbook_bids": token_data.get("orderbook_bids", 0),
+                "orderbook_asks": token_data.get("orderbook_asks", 0),
+                "orderbook_spread": token_data.get("orderbook_spread", 0.0),
+                "orderbook_depth_usd": token_data.get("orderbook_depth_usd", 0.0),
+                "liquidity_score": token_data.get("liquidity_score", 0.0)
+            },
+            "detectors": self._build_detector_details(token_data, detector_results),
+            "consensus_data": self._build_consensus_details(token_data, detector_results),
+            "agent_votes": self._build_agent_votes_details(token_data, detector_results),
+            "memory_trust": {
+                "whale_addresses_known": len(token_data.get("whale_addresses", [])),
+                "repeated_addresses": token_data.get("repeated_addresses_count", 0),
+                "address_trust_score": token_data.get("address_trust_score", 0.0),
+                "trust_context": token_data.get("trust_context", {})
+            },
+            "decision_snapshot": {
+                "stealth_score": token_data.get("stealth_score", 0.0),
+                "decision": "EXPLORE",
+                "reasons": token_data.get("explore_reasons", ["stealth signals detected"]),
+                "threshold_met": token_data.get("stealth_score", 0.0) >= 0.5
+            },
+            "feature_vector": self._build_feature_vector(token_data),
+            "blockchain_context": {
+                "contract_address": token_data.get("contract_address", ""),
+                "chain": token_data.get("chain", "ethereum"),
+                "dex_inflow_usd": token_data.get("dex_inflow_usd", 0.0),
+                "whale_transactions": token_data.get("whale_transactions", []),
+                "blockchain_data_quality": token_data.get("blockchain_data_quality", "unknown")
+            },
+            "labeling_policy": {
+                "verification_hours": self.verification_hours,
+                "pump_threshold_pct": 8.0,
+                "dump_threshold_pct": -8.0,
+                "horizons": [
+                    {"name": "H6", "hours": 6, "pump_threshold": 0.08, "dump_threshold": -0.08}
+                ]
+            },
+            "label": {"status": "pending"},
             "file_lifecycle": {
                 "created": timestamp.isoformat(),
                 "verification_scheduled": (timestamp + timedelta(hours=self.verification_hours)).isoformat(),
-                "cleanup_scheduled": (timestamp + timedelta(days=self.max_file_age_days)).isoformat()
+                "cleanup_scheduled": (timestamp + timedelta(days=self.max_file_age_days)).isoformat(),
+                "status": "pending_verification"
             },
-            
-            # Core token data
-            "token_data": token_data,
-            "detector_results": detector_results,
-            
-            # Enhanced explore data
-            "explore_confidence": token_data.get("explore_confidence", 2.0),
-            "explore_reason": token_data.get("explore_reason", "stealth signals detected"),
-            "stealth_score": token_data.get("stealth_score", 0.0),
-            "whale_ping_strength": token_data.get("whale_ping_strength", 0.0),
-            "dex_inflow_usd": token_data.get("dex_inflow_usd", 0.0),
-            "active_signals": token_data.get("active_signals", []),
-            
-            # Price and market data for verification
-            "initial_price": token_data.get("price", 0.0),
-            "initial_volume": token_data.get("volume_24h", 0.0),
-            "price_source": token_data.get("price_source", "unknown")
+            "quality": {
+                "data_gaps": token_data.get("data_gaps", []),
+                "warnings": token_data.get("warnings", []),
+                "notes": f"Explore mode activated with score {token_data.get('stealth_score', 0.0):.3f}"
+            },
+            "audit": {
+                "created_ts": timestamp.isoformat(),
+                "updated_ts": timestamp.isoformat(),
+                "history": [{"ts": timestamp.isoformat(), "action": "create", "by": "explore_mode_enhanced"}]
+            }
         }
         
         try:

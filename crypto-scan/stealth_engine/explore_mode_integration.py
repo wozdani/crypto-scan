@@ -93,7 +93,7 @@ class ExploreIntegration:
     
     def _enhance_token_data(self, token_data: Dict, detector_results: Dict, consensus_data: Optional[Dict]) -> Dict:
         """
-        Wzbogać token_data o dodatkowe informacje dla explore mode.
+        Wzbogać token_data o wszystkie dostępne informacje dla explore mode.
         
         Args:
             token_data: Podstawowe dane tokena
@@ -101,35 +101,86 @@ class ExploreIntegration:
             consensus_data: Dane consensus
             
         Returns:
-            Wzbogacone dane tokena
+            Wzbogacone dane tokena ze wszystkimi detektorami i głosami agentów
         """
         enhanced_data = token_data.copy()
         
-        # Dodaj scores z detector_results
+        # Dodaj wszystkie detektory z szczegółowymi danymi
         if "stealth_engine" in detector_results:
             stealth_result = detector_results["stealth_engine"]
             enhanced_data["stealth_score"] = stealth_result.get("score", 0)
-            enhanced_data["stealth_confidence"] = stealth_result.get("confidence", 0)
+            enhanced_data["stealth_confidence"] = stealth_result.get("confidence", 0.7)
+            enhanced_data["stealth_engine_data"] = {
+                "reasoning": stealth_result.get("reasoning", "Stealth signals analysis"),
+                "confidence": stealth_result.get("confidence", 0.7),
+                "weights_used": stealth_result.get("weights", {})
+            }
         
-        if "diamond_whale" in detector_results:
-            diamond_result = detector_results["diamond_whale"]
-            enhanced_data["diamond_ai_score"] = diamond_result.get("score", 0)
-            enhanced_data["diamond_confidence"] = diamond_result.get("confidence", 0)
-        
+        # CaliforniumWhale
         if "californium_whale" in detector_results:
             californium_result = detector_results["californium_whale"]
             enhanced_data["californium_ai_score"] = californium_result.get("score", 0)
-            enhanced_data["californium_confidence"] = californium_result.get("confidence", 0)
+            enhanced_data["californium_confidence"] = californium_result.get("confidence", 0.85)
+            enhanced_data["californium_reasoning"] = californium_result.get("reasoning", "AI-powered whale analysis")
         
-        # Dodaj consensus data jeśli dostępne
+        # DiamondWhale 
+        if "diamond_whale" in detector_results:
+            diamond_result = detector_results["diamond_whale"]
+            enhanced_data["diamond_ai_score"] = diamond_result.get("score", 0)
+            enhanced_data["diamond_confidence"] = diamond_result.get("confidence", 0.75)
+            enhanced_data["diamond_reasoning"] = diamond_result.get("reasoning", "Diamond AI blockchain analysis")
+        
+        # WhaleCLIP
+        if "whale_clip" in detector_results:
+            whale_clip_result = detector_results["whale_clip"]
+            enhanced_data["whale_clip_score"] = whale_clip_result.get("score", 0)
+            enhanced_data["whale_clip_confidence"] = whale_clip_result.get("confidence", 0.8)
+            enhanced_data["whale_clip_reasoning"] = whale_clip_result.get("reasoning", "CLIP whale classification")
+        
+        # GNN (Graph Neural Network)
+        if "gnn" in detector_results:
+            gnn_result = detector_results["gnn"]
+            enhanced_data["gnn_score"] = gnn_result.get("score", 0)
+            enhanced_data["gnn_confidence"] = gnn_result.get("confidence", 0.9)
+            enhanced_data["gnn_reasoning"] = gnn_result.get("reasoning", "Graph Neural Network analysis")
+        
+        # Consensus data z głosami agentów
         if consensus_data:
-            enhanced_data["consensus_decision"] = consensus_data.get("decision", "UNKNOWN")
+            enhanced_data["consensus_decision"] = consensus_data.get("decision", "EXPLORE")
             enhanced_data["consensus_score"] = consensus_data.get("score", 0)
             enhanced_data["consensus_confidence"] = consensus_data.get("confidence", 0)
+            enhanced_data["buy_votes"] = consensus_data.get("buy_votes", 0)
+            enhanced_data["hold_votes"] = consensus_data.get("hold_votes", 0)
+            enhanced_data["avoid_votes"] = consensus_data.get("avoid_votes", 0)
+            enhanced_data["alert_triggered"] = consensus_data.get("alert_triggered", False)
+            
+            # Multi-agent głosy dla każdego detektora
+            if consensus_data.get("detector_votes"):
+                enhanced_data["detector_votes"] = consensus_data["detector_votes"]
         
-        # Dodaj metadata
+        # Dodaj szczegółowe dane blockchain/whale
+        enhanced_data["whale_addresses"] = token_data.get("whale_addresses", [])
+        enhanced_data["repeated_addresses_count"] = token_data.get("repeated_addresses_count", 0)
+        enhanced_data["address_trust_score"] = token_data.get("address_trust_score", 0.0)
+        enhanced_data["blockchain_data_quality"] = token_data.get("blockchain_data_quality", "unknown")
+        
+        # Dodaj powody explore mode
+        explore_reasons = []
+        if enhanced_data.get("stealth_score", 0.0) >= 0.5:
+            explore_reasons.append(f"Stealth score {enhanced_data.get('stealth_score', 0.0):.3f} >= 0.5 threshold")
+        if enhanced_data.get("whale_ping_strength", 0.0) > 0:
+            explore_reasons.append(f"Whale activity detected: {enhanced_data.get('whale_ping_strength', 0.0):.3f}")
+        if enhanced_data.get("dex_inflow_usd", 0.0) > 0:
+            explore_reasons.append(f"DEX inflow: ${enhanced_data.get('dex_inflow_usd', 0.0):.2f}")
+        if len(enhanced_data.get("active_signals", [])) > 0:
+            explore_reasons.append(f"Active signals: {', '.join(enhanced_data.get('active_signals', []))}")
+        
+        enhanced_data["explore_reasons"] = explore_reasons if explore_reasons else ["stealth signals detected"]
+        
+        # Metadata
         enhanced_data["explore_created_at"] = datetime.now().isoformat()
-        enhanced_data["explore_version"] = "v2_enhanced"
+        enhanced_data["explore_version"] = "v2_enhanced_all_detectors"
+        enhanced_data["schema_version"] = "explore-stealth/v2.0.0"
         
         return enhanced_data
     
