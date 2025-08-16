@@ -113,7 +113,8 @@ class StealthLogger:
         print(f" - 🎯 StealthEngine:       {stealth_engine_score:.2f}")
         
         # Pokaż aktywne detektory
-        consensus_detectors = token_data.get('consensus_detectors', [])
+        # Check for both possible field names for backward compatibility
+        consensus_detectors = token_data.get('contributing_detectors', token_data.get('consensus_detectors', []))
         if consensus_detectors:
             print(f" - ✅ Active detectors:   {len(consensus_detectors)} ({', '.join(consensus_detectors)})")
         else:
