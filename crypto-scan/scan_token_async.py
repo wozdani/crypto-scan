@@ -19,6 +19,15 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 # Import training data manager
 from utils.training_data_manager import TrainingDataManager
 
+# Import Last10Store for token memory system
+try:
+    from state.last10_store import get_last10_store
+    LAST10_STORE_AVAILABLE = True
+    print("[LAST10 STORE] Token memory system loaded successfully")
+except ImportError as e:
+    print(f"[LAST10 STORE ERROR] Failed to import Last10Store: {e}")
+    LAST10_STORE_AVAILABLE = False
+
 # 🎯 STEALTH ENGINE INTEGRATION - Import Stealth Engine v2
 try:
     from stealth_engine.stealth_engine import compute_stealth_score, classify_stealth_alert
@@ -2057,6 +2066,72 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 "data_sources": getattr(market_data, 'data_sources', ['cache']) if market_data else ['cache']
             }
         }
+        
+        # === LAST10 STORE INTEGRATION ===
+        # Record token with active detectors for Last10 memory system
+        if LAST10_STORE_AVAILABLE:
+            try:
+                active_detectors = {}
+                current_time = time.time()
+                
+                # Collect active detector features
+                stealth_result = locals().get('stealth_result', {})
+                stealth_score = locals().get('stealth_score', 0.0)
+                
+                # StealthEngine (always active if stealth_score > 0)
+                if stealth_score > 0:
+                    active_detectors["stealth_engine"] = {
+                        "stealth_score": stealth_score,
+                        "trust_score": market_data.get("trust_score", 0.0),
+                        "liquidity_1pct_usd": volume_24h * 0.01 if volume_24h else 0.0,
+                        "whale_ping_strength": locals().get('whale_ping_strength', 0.0),
+                        "repeated_whale_boost": stealth_result.get("repeated_whale_boost", 0.0),
+                        "smart_money_detection": stealth_result.get("smart_money_detection", 0.0)
+                    }
+                
+                # WhaleClip detector
+                whaleclip_score = locals().get('whaleclip_score', 0.0)
+                if whaleclip_score > 0:
+                    active_detectors["whaleclip"] = {
+                        "vision_score": whaleclip_score,
+                        "trust_score": market_data.get("trust_score", 0.0),
+                        "liquidity_1pct_usd": volume_24h * 0.01 if volume_24h else 0.0,
+                        "pattern_match": stealth_result.get("pattern_match", 0.0),
+                        "confidence_score": stealth_result.get("whaleclip_confidence", 0.0)
+                    }
+                
+                # CaliforniumWhale detector
+                californium_score = locals().get('californium_score', 0.0)
+                if californium_score > 0:
+                    active_detectors["californium"] = {
+                        "californium_score": californium_score,
+                        "trust_score": market_data.get("trust_score", 0.0),
+                        "liquidity_1pct_usd": volume_24h * 0.01 if volume_24h else 0.0,
+                        "ai_confidence": stealth_result.get("californium_confidence", 0.0),
+                        "signal_strength": stealth_result.get("californium_signal_strength", 0.0)
+                    }
+                
+                # DiamondWhale detector  
+                diamond_score = locals().get('diamond_score', 0.0)
+                if diamond_score > 0:
+                    active_detectors["diamond"] = {
+                        "diamond_score": diamond_score,
+                        "trust_score": market_data.get("trust_score", 0.0),
+                        "liquidity_1pct_usd": volume_24h * 0.01 if volume_24h else 0.0,
+                        "temporal_score": stealth_result.get("diamond_temporal", 0.0),
+                        "graph_score": stealth_result.get("diamond_graph", 0.0)
+                    }
+                
+                # Record in Last10Store if any active detectors
+                if active_detectors:
+                    last10_store = get_last10_store()
+                    last10_store.record(symbol, current_time, active_detectors)
+                    print(f"[LAST10 RECORD] {symbol} → Recorded {len(active_detectors)} active detectors")
+                else:
+                    print(f"[LAST10 SKIP] {symbol} → No active detectors to record")
+                    
+            except Exception as last10_error:
+                print(f"[LAST10 ERROR] {symbol} → Failed to record: {last10_error}")
         
         return result
         

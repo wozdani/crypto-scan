@@ -26,6 +26,15 @@ except ImportError:
     EXPLORE_CLEANUP_AVAILABLE = False
     print("[EXPLORE CLEANUP] Cleanup function not available")
 
+# Import Last10Runner for single LLM call after scan cycle
+try:
+    from pipeline.last10_runner import get_last10_runner
+    LAST10_RUNNER_AVAILABLE = True
+    print("[LAST10 RUNNER] Single LLM call system for last 10 tokens loaded")
+except ImportError:
+    LAST10_RUNNER_AVAILABLE = False
+    print("[LAST10 RUNNER] Last10 runner system not available")
+
 # Global scan warnings system
 SCAN_WARNINGS = []
 
@@ -313,6 +322,38 @@ def scan_cycle():
     
     # Display TOP 5 stealth score tokens at end of scan
     display_top5_stealth_tokens()
+    
+    # === LAST10 RUNNER INTEGRATION ===
+    # Run single LLM call for last 10 tokens after full scan cycle
+    if LAST10_RUNNER_AVAILABLE:
+        try:
+            print("\n[LAST10 ANALYSIS] Running single LLM analysis for last 10 tokens...")
+            last10_runner = get_last10_runner()
+            results = last10_runner.run_one_call_for_last10(min_trust=0.2, min_liq_usd=50000)
+            
+            if results:
+                print(f"[LAST10 SUCCESS] Analyzed {len(results)} detector items from last 10 tokens")
+                
+                # Aggregate results per token (optional)
+                aggregated = last10_runner.aggregate_per_token(results)
+                
+                # Display summary
+                buy_tokens = [token for token, data in aggregated.items() if data["decision"] == "BUY"]
+                hold_tokens = [token for token, data in aggregated.items() if data["decision"] == "HOLD"]
+                avoid_tokens = [token for token, data in aggregated.items() if data["decision"] == "AVOID"]
+                
+                print(f"[LAST10 SUMMARY] BUY: {len(buy_tokens)}, HOLD: {len(hold_tokens)}, AVOID: {len(avoid_tokens)}")
+                
+                if buy_tokens:
+                    print(f"[LAST10 BUY SIGNALS] {', '.join(buy_tokens)}")
+                    
+            else:
+                print("[LAST10 INFO] No items from last 10 tokens to analyze")
+                
+        except Exception as last10_error:
+            print(f"[LAST10 ERROR] Failed to run last10 analysis: {last10_error}")
+    else:
+        print("[LAST10 INFO] Last10 runner not available")
     
     # Run memory feedback evaluation periodically
     try:
