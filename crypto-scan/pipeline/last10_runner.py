@@ -8,6 +8,50 @@ from typing import List, Dict, Any, Optional
 from pipeline.last10_batch_runner import build_items_from_last10, _cache_key
 from llm.multi_detector_last10 import run_last10_all_detectors
 
+# Global counter for multi-detector tokens (≥2 detectors)
+_multi_detector_counter = 0
+_counter_file_path = "state/multi_detector_counter.json"
+
+def _load_counter() -> int:
+    """Load counter from disk"""
+    global _multi_detector_counter
+    if os.path.exists(_counter_file_path):
+        try:
+            with open(_counter_file_path, 'r') as f:
+                data = json.load(f)
+                _multi_detector_counter = data.get("count", 0)
+        except (json.JSONDecodeError, FileNotFoundError):
+            _multi_detector_counter = 0
+    return _multi_detector_counter
+
+def _save_counter() -> None:
+    """Save counter to disk"""
+    global _multi_detector_counter
+    os.makedirs(os.path.dirname(_counter_file_path), exist_ok=True)
+    with open(_counter_file_path, 'w') as f:
+        json.dump({"count": _multi_detector_counter, "last_update": time.time()}, f)
+
+def increment_multi_detector_counter() -> int:
+    """Increment counter for tokens with ≥2 detectors and return new count"""
+    global _multi_detector_counter
+    _load_counter()  # Ensure we have latest from disk
+    _multi_detector_counter += 1
+    _save_counter()
+    return _multi_detector_counter
+
+def check_and_reset_counter(force_reset: bool = False) -> int:
+    """Check counter and optionally reset it. Returns current count before reset."""
+    global _multi_detector_counter
+    _load_counter()
+    current = _multi_detector_counter
+    if force_reset or current >= 10:
+        _multi_detector_counter = 0
+        _save_counter()
+    return current
+
+# Initialize counter on import
+_load_counter()
+
 class Last10Runner:
     """Runner with cache and budget management for last 10 tokens"""
     

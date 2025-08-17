@@ -2078,6 +2078,13 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 stealth_result = locals().get('stealth_result', {})
                 stealth_score = locals().get('stealth_score', 0.0)
                 
+                # DEBUG: Show what scores are available
+                debug_california = stealth_result.get("californium_score", 0.0)
+                debug_diamond = stealth_result.get("diamond_score", 0.0)
+                print(f"[LAST10 DEBUG] {symbol} → stealth_result keys: {list(stealth_result.keys())}")
+                print(f"[LAST10 DEBUG] {symbol} → californium_score={debug_california}, diamond_score={debug_diamond}")
+                print(f"[LAST10 DEBUG] {symbol} → About to build active_detectors...")
+                
                 # StealthEngine (always active if stealth_score > 0)
                 if stealth_score > 0:
                     active_detectors["stealth_engine"] = {
@@ -2100,23 +2107,23 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         "confidence_score": stealth_result.get("whaleclip_confidence", 0.0)
                     }
                 
-                # CaliforniumWhale detector
-                californium_score = locals().get('californium_score', 0.0)
+                # CaliforniumWhale detector - get from stealth_result
+                californium_score = stealth_result.get("californium_score", 0.0)
                 if californium_score > 0:
                     active_detectors["californium"] = {
                         "californium_score": californium_score,
-                        "trust_score": market_data.get("trust_score", 0.0),
+                        "trust_score": market_data.get("trust_score", 0.0) if market_data else 0.0,
                         "liquidity_1pct_usd": volume_24h * 0.01 if volume_24h else 0.0,
                         "ai_confidence": stealth_result.get("californium_confidence", 0.0),
                         "signal_strength": stealth_result.get("californium_signal_strength", 0.0)
                     }
                 
-                # DiamondWhale detector  
-                diamond_score = locals().get('diamond_score', 0.0)
+                # DiamondWhale detector - get from stealth_result
+                diamond_score = stealth_result.get("diamond_score", 0.0)
                 if diamond_score > 0:
                     active_detectors["diamond"] = {
                         "diamond_score": diamond_score,
-                        "trust_score": market_data.get("trust_score", 0.0),
+                        "trust_score": market_data.get("trust_score", 0.0) if market_data else 0.0,
                         "liquidity_1pct_usd": volume_24h * 0.01 if volume_24h else 0.0,
                         "temporal_score": stealth_result.get("diamond_temporal", 0.0),
                         "graph_score": stealth_result.get("diamond_graph", 0.0)
@@ -2127,6 +2134,42 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     last10_store = get_last10_store()
                     last10_store.record(symbol, current_time, active_detectors)
                     print(f"[LAST10 RECORD] {symbol} → Recorded {len(active_detectors)} active detectors")
+                    
+                    # CHECK FOR BATCH PROCESSING - Trigger Last10Runner every 10 tokens with ≥2 detectors
+                    if len(active_detectors) >= 2:
+                        # Import and check counter
+                        try:
+                            from pipeline.last10_runner import get_last10_runner, increment_multi_detector_counter, check_and_reset_counter
+                            
+                            count = increment_multi_detector_counter()
+                            print(f"[LAST10 BATCH] {symbol} → Multi-detector token #{count}/10")
+                            
+                            # Trigger analysis every 10 tokens with ≥2 detectors
+                            if count >= 10:
+                                print(f"[LAST10 BATCH] Reached 10 multi-detector tokens, triggering analysis...")
+                                runner = get_last10_runner()
+                                results = runner.run_one_call_for_last10(min_trust=0.2, min_liq_usd=50000)
+                                
+                                if results:
+                                    print(f"[LAST10 BATCH SUCCESS] Analyzed {len(results)} detector items")
+                                    # Aggregate results per token
+                                    aggregated = runner.aggregate_per_token(results)
+                                    buy_tokens = [token for token, data in aggregated.items() if data["decision"] == "BUY"]
+                                    hold_tokens = [token for token, data in aggregated.items() if data["decision"] == "HOLD"]
+                                    avoid_tokens = [token for token, data in aggregated.items() if data["decision"] == "AVOID"]
+                                    
+                                    print(f"[LAST10 BATCH SUMMARY] BUY: {len(buy_tokens)}, HOLD: {len(hold_tokens)}, AVOID: {len(avoid_tokens)}")
+                                    if buy_tokens:
+                                        print(f"[LAST10 BUY SIGNALS] {', '.join(buy_tokens)}")
+                                else:
+                                    print("[LAST10 BATCH INFO] No analysis items returned")
+                                
+                                # Reset counter after processing
+                                check_and_reset_counter(force_reset=True)
+                                print("[LAST10 BATCH] Counter reset, ready for next 10 tokens")
+                                
+                        except Exception as batch_error:
+                            print(f"[LAST10 BATCH ERROR] Failed batch processing: {batch_error}")
                 else:
                     print(f"[LAST10 SKIP] {symbol} → No active detectors to record")
                     
