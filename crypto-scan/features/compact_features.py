@@ -11,7 +11,8 @@ DET_SHORT = {
     "whaleclip": "WCL",
     "diamond": "DIA",
     "californium": "CAL",
-    "mastermind_tracing": "MMT"
+    "mastermind_tracing": "MMT",
+    "stealth_engine": "SE"
 }
 
 def compact_for_detector(det: str, feats: Dict[str, Any]) -> Dict[str, Any]:
@@ -81,6 +82,15 @@ def compact_for_detector(det: str, feats: Dict[str, Any]) -> Dict[str, Any]:
             "mmt": float(feats.get("mastermind_score", 0.0)),
             "trc": float(feats.get("trace_confidence", 0.0)),
             "net": float(feats.get("network_score", 0.0))
+        })
+    
+    elif det == "stealth_engine":
+        compact.update({
+            "se": float(feats.get("stealth_score", 0.0)),
+            "wp": float(feats.get("whale_ping_strength", 0.0)),
+            "dx": float(feats.get("dex_inflow", 0.0)),
+            "vs": float(feats.get("volume_spike", 0.0)),
+            "oba": float(feats.get("orderbook_anomaly", 0.0))
         })
     
     # Convert all values to numbers or booleans only
