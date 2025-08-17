@@ -8,6 +8,12 @@ def _load_aliases() -> Dict[str, int]:
     if not raw:
         raise RuntimeError("[CONFIG] Missing ETHERSCAN_V2_CHAIN_ALIASES in .env")
     try:
+        # Fix malformed JSON - add braces if missing
+        raw = raw.strip()
+        if not raw.startswith('{'):
+            raw = '{' + raw
+        if not raw.endswith('}'):
+            raw = raw + '}'
         return {str(k).strip(): int(v) for k, v in json.loads(raw).items()}
     except Exception as e:
         raise RuntimeError(f"[CONFIG] Invalid ETHERSCAN_V2_CHAIN_ALIASES JSON: {e}")

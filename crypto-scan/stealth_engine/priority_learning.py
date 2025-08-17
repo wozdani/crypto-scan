@@ -310,7 +310,7 @@ class PriorityLearningMemory:
             explore_mode_entries = 0
             explore_mode_successes = 0
             
-            # Load ALL explore mode files (unlimited entries as requested)
+            # Load ALL explore mode files (unlimited entries as requested) 
             explore_dir = "crypto-scan/cache/explore_mode"
             if os.path.exists(explore_dir):
                 try:

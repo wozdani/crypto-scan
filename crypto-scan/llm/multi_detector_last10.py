@@ -22,14 +22,24 @@ def build_prompt(items: List[Dict[str, Any]]) -> str:
 
 POLICY:
 - AVOID if tr<0.2 OR lq<50000
-- BUY if (WP/MMT/WCL/DIA/CAL signal OR DX strong OR OBA confirms) AND tr≥0.2 AND lq≥50000
+- BUY if (SE/WP/MMT/WCL/DIA/CAL signal OR DX strong OR OBA confirms) AND tr≥0.2 AND lq≥50000
 - HOLD otherwise
 - Confidence c: 0-1 based on feature strength
+
+DETECTORS:
+- SE (stealth_engine): se=score, wp=whale_ping, dx=dex_inflow, vs=volume_spike, oba=orderbook_anomaly
+- CAL (californium): cal=score, ai=confidence, sig=strength
+- DIA (diamond): dia=score, tmp=temporal, grph=graph
+- WP (whale_ping): wp=strength, rw=repeated_whale, sd=smart_money
+- DX (dex_inflow): dx5=5m_inflow, dx15=15m_inflow, rx=reliability
+- OBA (orderbook_anomaly): bw=bid_wall, oba=anomaly, imb=imbalance, spr=spread
+- WCL (whaleclip): vis=vision, pat=pattern, conf=confidence
+- MMT (mastermind_tracing): mmt=score, trc=trace, net=network
 
 ITEMS={items_json}
 
 Return ONLY this JSON format:
-{{"results":[{{"s":"SYMBOL","det":"WP|DX|OBA|WCL|DIA|CAL|MMT","d":"BUY|HOLD|AVOID","c":0.0,"cl":{{"ok":0,"warn":0}},"dbg":{{"a":[],"p":[],"n":[]}}}}]}}"""
+{{"results":[{{"s":"SYMBOL","det":"SE|WP|DX|OBA|WCL|DIA|CAL|MMT","d":"BUY|HOLD|AVOID","c":0.0,"cl":{{"ok":0,"warn":0}},"dbg":{{"a":[],"p":[],"n":[]}}}}]}}"""
     
     return prompt
 
