@@ -26,6 +26,15 @@ except ImportError:
     EXPLORE_CLEANUP_AVAILABLE = False
     print("[EXPLORE CLEANUP] Cleanup function not available")
 
+# Import Last10Runner for single LLM call after scan cycle
+try:
+    from pipeline.last10_runner import get_last10_runner
+    LAST10_RUNNER_AVAILABLE = True
+    print("[LAST10 RUNNER] Single LLM call system for last 10 tokens loaded")
+except ImportError:
+    LAST10_RUNNER_AVAILABLE = False
+    print("[LAST10 RUNNER] Last10 runner system not available")
+
 # Global scan warnings system
 SCAN_WARNINGS = []
 
@@ -313,6 +322,11 @@ def scan_cycle():
     
     # Display TOP 5 stealth score tokens at end of scan
     display_top5_stealth_tokens()
+    
+    # === LAST10 INTEGRATION MOVED ===
+    # Last10 runner now triggers directly in scan_token_async.py every 10 tokens with ≥2 detectors
+    # This provides more efficient real-time analysis instead of post-scan processing
+    print("[LAST10 INFO] Last10 system now runs during scanning every 10 multi-detector tokens")
     
     # Run memory feedback evaluation periodically
     try:

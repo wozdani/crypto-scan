@@ -123,37 +123,12 @@ class DecisionConsensusEngine:
         Returns:
             ConsensusResult z finalną decyzją i metadanami
         """
-        # Always use multi-agent system as primary consensus mechanism
-        try:
-            if market_data:
-                print(f"[MULTI-AGENT PRIMARY] Processing {token} with 5-agent system as primary consensus")
-                
-                # Use multi-agent evaluation directly
-                multi_agent_decision = self._run_multi_agent_consensus(
-                    detector_outputs, 
-                    market_data, 
-                    token,
-                    threshold
-                )
-                
-                if multi_agent_decision:
-                    print(f"[MULTI-AGENT PRIMARY] Decision: {multi_agent_decision.decision}, Score: {multi_agent_decision.final_score:.3f}")
-                    return multi_agent_decision
-                else:
-                    print(f"[MULTI-AGENT ERROR] Failed to get multi-agent decision, using fallback")
-            else:
-                print(f"[MULTI-AGENT WARNING] No market_data provided, using fallback weighted voting")
-                
-        except ImportError:
-            print(f"[MULTI-AGENT INFO] Multi-agent module not available, using fallback weighted voting")
-        except Exception as e:
-            print(f"[MULTI-AGENT ERROR] System failed: {e}. Using fallback weighted voting.")
-            # Log detailed error for debugging
-            import traceback
-            print(f"[MULTI-AGENT ERROR DETAILS] {traceback.format_exc()}")
-                
-        # Fallback to simple weighted voting only if multi-agent fails
-        print(f"[FALLBACK VOTING] Processing {token} with weighted voting (multi-agent unavailable)")
+        # 🚫 INDIVIDUAL MULTI-AGENT CONSENSUS DISABLED - ONLY LAST10 BATCH ALLOWED  
+        print(f"[INDIVIDUAL CONSENSUS DISABLED] {token}: Individual Multi-Agent consensus DISABLED - using simple weighted voting")
+        print(f"[INDIVIDUAL CONSENSUS DISABLED] {token}: Multi-Agent consensus will only run for LAST10 batch processing")
+        
+        # Use simple weighted voting instead of Multi-Agent for individual tokens
+        print(f"[SIMPLE WEIGHTED VOTING] Processing {token} with weighted voting (Multi-Agent disabled for individuals)")
         
         # Inicjalizacja ważonych scores dla każdej decyzji
         weighted_scores = {"BUY": 0.0, "HOLD": 0.0, "AVOID": 0.0}
@@ -776,33 +751,14 @@ class DecisionConsensusEngine:
         threshold: float
     ) -> Optional[ConsensusResult]:
         """
-        Run multi-agent consensus as primary decision mechanism
-        Each detector gets evaluated by 5 agents (Analyzer, Reasoner, Voter, Debater, Decider)
-        
-        Returns:
-            ConsensusResult with multi-agent decision
+        🚫 MULTI-AGENT CONSENSUS DISABLED FOR INDIVIDUAL TOKENS
+        This function is disabled to prevent individual OpenAI API calls.
+        Multi-Agent consensus will ONLY run for LAST10 batch processing.
         """
-        try:
-            from .multi_agent_decision import evaluate_detector_with_agents
-            import asyncio
-            
-            print(f"\n{'#'*80}")
-            print(f"[MULTI-AGENT CONSENSUS] Starting evaluation for token: {token}")
-            print(f"[MULTI-AGENT CONSENSUS] Evaluating {len(detector_outputs)} detectors with 5-agent system")
-            print(f"[MULTI-AGENT CONSENSUS] Market data available: {'YES' if market_data else 'NO'}")
-            if market_data:
-                volume = market_data.get('volume_24h', 0)
-                price_change = market_data.get('price_change_24h', 0)
-                print(f"[MULTI-AGENT DEBUG] Market data contents: Volume=${volume:,.0f}, Price change={price_change:.2f}%")
-            print(f"{'#'*80}\n")
-            
-            # Collect all agent evaluations
-            agent_decisions = {}
-            agent_confidences = {}
-            all_logs = []
-            
-            # INDIVIDUAL: Multi-agent evaluation per detector (1 zapytanie per detektor)
-            print(f"[MULTI-AGENT INDIVIDUAL] Starting individual evaluation for {len(detector_outputs)} detectors...")
+        print(f"[MULTI-AGENT DISABLED] {token}: _run_multi_agent_consensus DISABLED for individual tokens")
+        print(f"[MULTI-AGENT DISABLED] {token}: Multi-Agent consensus will ONLY run for LAST10 batch processing")
+        print(f"[MULTI-AGENT DISABLED] {token}: Returning None to force fallback to weighted voting")
+        return None
             
             # Filter only active detectors (score > 0)
             active_detectors = {name: data for name, data in detector_outputs.items() if data.get("score", 0) > 0}

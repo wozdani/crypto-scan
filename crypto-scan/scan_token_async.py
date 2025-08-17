@@ -19,6 +19,15 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 # Import training data manager
 from utils.training_data_manager import TrainingDataManager
 
+# Import Last10Store for token memory system
+try:
+    from state.last10_store import get_last10_store
+    LAST10_STORE_AVAILABLE = True
+    print("[LAST10 STORE] Token memory system loaded successfully")
+except ImportError as e:
+    print(f"[LAST10 STORE ERROR] Failed to import Last10Store: {e}")
+    LAST10_STORE_AVAILABLE = False
+
 # 🎯 STEALTH ENGINE INTEGRATION - Import Stealth Engine v2
 try:
     from stealth_engine.stealth_engine import compute_stealth_score, classify_stealth_alert
@@ -2057,6 +2066,115 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 "data_sources": getattr(market_data, 'data_sources', ['cache']) if market_data else ['cache']
             }
         }
+        
+        # === LAST10 STORE INTEGRATION ===
+        # Record token with active detectors for Last10 memory system
+        if LAST10_STORE_AVAILABLE:
+            try:
+                active_detectors = {}
+                current_time = time.time()
+                
+                # Collect active detector features
+                stealth_result = locals().get('stealth_result', {})
+                stealth_score = locals().get('stealth_score', 0.0)
+                
+                # DEBUG: Show what scores are available
+                debug_california = stealth_result.get("californium_score", 0.0)
+                debug_diamond = stealth_result.get("diamond_score", 0.0)
+                print(f"[LAST10 DEBUG] {symbol} → stealth_result keys: {list(stealth_result.keys())}")
+                print(f"[LAST10 DEBUG] {symbol} → californium_score={debug_california}, diamond_score={debug_diamond}")
+                print(f"[LAST10 DEBUG] {symbol} → About to build active_detectors...")
+                
+                # StealthEngine (always active if stealth_score > 0)
+                if stealth_score > 0:
+                    active_detectors["stealth_engine"] = {
+                        "stealth_score": stealth_score,
+                        "trust_score": market_data.get("trust_score", 0.0),
+                        "liquidity_1pct_usd": volume_24h * 0.01 if volume_24h else 0.0,
+                        "whale_ping_strength": locals().get('whale_ping_strength', 0.0),
+                        "repeated_whale_boost": stealth_result.get("repeated_whale_boost", 0.0),
+                        "smart_money_detection": stealth_result.get("smart_money_detection", 0.0)
+                    }
+                
+                # WhaleClip detector
+                whaleclip_score = locals().get('whaleclip_score', 0.0)
+                if whaleclip_score > 0:
+                    active_detectors["whaleclip"] = {
+                        "vision_score": whaleclip_score,
+                        "trust_score": market_data.get("trust_score", 0.0),
+                        "liquidity_1pct_usd": volume_24h * 0.01 if volume_24h else 0.0,
+                        "pattern_match": stealth_result.get("pattern_match", 0.0),
+                        "confidence_score": stealth_result.get("whaleclip_confidence", 0.0)
+                    }
+                
+                # CaliforniumWhale detector - get from stealth_result
+                californium_score = stealth_result.get("californium_score", 0.0)
+                if californium_score > 0:
+                    active_detectors["californium"] = {
+                        "californium_score": californium_score,
+                        "trust_score": market_data.get("trust_score", 0.0) if market_data else 0.0,
+                        "liquidity_1pct_usd": volume_24h * 0.01 if volume_24h else 0.0,
+                        "ai_confidence": stealth_result.get("californium_confidence", 0.0),
+                        "signal_strength": stealth_result.get("californium_signal_strength", 0.0)
+                    }
+                
+                # DiamondWhale detector - get from stealth_result
+                diamond_score = stealth_result.get("diamond_score", 0.0)
+                if diamond_score > 0:
+                    active_detectors["diamond"] = {
+                        "diamond_score": diamond_score,
+                        "trust_score": market_data.get("trust_score", 0.0) if market_data else 0.0,
+                        "liquidity_1pct_usd": volume_24h * 0.01 if volume_24h else 0.0,
+                        "temporal_score": stealth_result.get("diamond_temporal", 0.0),
+                        "graph_score": stealth_result.get("diamond_graph", 0.0)
+                    }
+                
+                # Record in Last10Store if any active detectors
+                if active_detectors:
+                    last10_store = get_last10_store()
+                    last10_store.record(symbol, current_time, active_detectors)
+                    print(f"[LAST10 RECORD] {symbol} → Recorded {len(active_detectors)} active detectors")
+                    
+                    # CHECK FOR BATCH PROCESSING - Trigger Last10Runner every 10 tokens with ≥2 detectors
+                    if len(active_detectors) >= 2:
+                        # Import and check counter
+                        try:
+                            from pipeline.last10_runner import get_last10_runner, increment_multi_detector_counter, check_and_reset_counter
+                            
+                            count = increment_multi_detector_counter()
+                            print(f"[LAST10 BATCH] {symbol} → Multi-detector token #{count}/10")
+                            
+                            # Trigger analysis every 10 tokens with ≥2 detectors
+                            if count >= 10:
+                                print(f"[LAST10 BATCH] Reached 10 multi-detector tokens, triggering analysis...")
+                                runner = get_last10_runner()
+                                results = runner.run_one_call_for_last10(min_trust=0.2, min_liq_usd=50000)
+                                
+                                if results:
+                                    print(f"[LAST10 BATCH SUCCESS] Analyzed {len(results)} detector items")
+                                    # Aggregate results per token
+                                    aggregated = runner.aggregate_per_token(results)
+                                    buy_tokens = [token for token, data in aggregated.items() if data["decision"] == "BUY"]
+                                    hold_tokens = [token for token, data in aggregated.items() if data["decision"] == "HOLD"]
+                                    avoid_tokens = [token for token, data in aggregated.items() if data["decision"] == "AVOID"]
+                                    
+                                    print(f"[LAST10 BATCH SUMMARY] BUY: {len(buy_tokens)}, HOLD: {len(hold_tokens)}, AVOID: {len(avoid_tokens)}")
+                                    if buy_tokens:
+                                        print(f"[LAST10 BUY SIGNALS] {', '.join(buy_tokens)}")
+                                else:
+                                    print("[LAST10 BATCH INFO] No analysis items returned")
+                                
+                                # Reset counter after processing
+                                check_and_reset_counter(force_reset=True)
+                                print("[LAST10 BATCH] Counter reset, ready for next 10 tokens")
+                                
+                        except Exception as batch_error:
+                            print(f"[LAST10 BATCH ERROR] Failed batch processing: {batch_error}")
+                else:
+                    print(f"[LAST10 SKIP] {symbol} → No active detectors to record")
+                    
+            except Exception as last10_error:
+                print(f"[LAST10 ERROR] {symbol} → Failed to record: {last10_error}")
         
         return result
         

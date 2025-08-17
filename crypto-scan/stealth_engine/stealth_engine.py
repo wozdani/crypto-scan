@@ -1716,132 +1716,40 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                                 "PENDING", explore_mode=False, market_context=token_data
                             )
                         
-                        # 🤖 MULTI-AGENT CONSENSUS SYSTEM: Real AI Voting with 5 Agents
-                        print(f"[MULTI-AGENT EARLY] {symbol}: Starting Multi-Agent Consensus System...")
+                        # 🚫 INDIVIDUAL MULTI-AGENT CONSENSUS DISABLED - ONLY LAST10 BATCH ALLOWED
+                        print(f"[LAST10 ONLY] {symbol}: Individual Multi-Agent consensus DISABLED - waiting for LAST10 batch trigger")
                         print(f"[DETECTOR OUTPUTS DEBUG] {symbol}: detector_outputs = {detector_outputs}")
                         print(f"[DETECTOR OUTPUTS DEBUG] {symbol}: detector_outputs length = {len(detector_outputs)}")
                         print(f"[DETECTOR OUTPUTS DEBUG] {symbol}: detector_outputs keys = {list(detector_outputs.keys())}")
                         
-                        # MULTI-AGENT CONSENSUS with detector outputs
+                        # SKIP INDIVIDUAL MULTI-AGENT CONSENSUS - Use simple fallback instead
                         if detector_outputs:
-                            print(f"[MULTI-AGENT CONSENSUS] {symbol}: Using Multi-Agent decision system with {len(detector_outputs)} detectors")
+                            print(f"[INDIVIDUAL SKIP] {symbol}: Skipping individual Multi-Agent consensus (will run only for LAST10 batch)")
                             
-                            # Detectors prepared for 5-agent Multi-Agent Consensus (no simple votes)
+                            # Simple fallback logic based on detector scores (NO OpenAI calls)
+                            avg_score = sum(d["score"] for d in detector_outputs.values()) / len(detector_outputs)
                             
-                            # Use Decision Consensus Engine with Multi-Agent System
-                            try:
-                                if consensus_engine_factory is None:
-                                    raise ImportError("consensus_engine_factory not imported successfully")
-                                consensus_engine = consensus_engine_factory()
-                                # Prepare market_data for consensus - USE CORRECT KEYS
-                                consensus_market_data = {
-                                    "symbol": symbol,
-                                    "price": price_ref,  # Use actual price from stealth analysis
-                                    "price_source": token_data.get('price_source', 'unknown'),  # Fixed: Add price_source for multi-agent
-                                    "volume_24h": volume_24h,  # Use actual volume from stealth analysis 
-                                    "price_change_24h": token_data.get('price_change_24h', 0.0),  # Correct key
-                                    "market_cap": token_data.get('market_cap', 0.0),
-                                    "timestamp": time.time(),
-                                    "candles_15m": len(token_data.get('candles_15m', [])),
-                                    "candles_5m": len(token_data.get('candles_5m', [])),
-                                    "orderbook_available": bool(token_data.get('orderbook_data'))
-                                }
-                                
-                                print(f"[MARKET DATA DEBUG] {symbol}: consensus_market_data prepared: volume=${consensus_market_data['volume_24h']:,.0f}, price=${consensus_market_data['price']:.6f}, change={consensus_market_data['price_change_24h']:.2f}%")
-                                
-                                consensus_result_obj = consensus_engine.simulate_decision_consensus(
-                                    detector_outputs=detector_outputs,
-                                    threshold=0.7,
-                                    token=symbol,
-                                    market_data=consensus_market_data
-                                )
-                                
-                                stored_final_decision = consensus_result_obj.decision
-                                final_score = consensus_result_obj.final_score
-                                confidence = consensus_result_obj.confidence
-                                threshold_met = consensus_result_obj.threshold_met
-                                
-                                # Enhanced logging dla multi-agent consensus
-                                print(f"[MULTI-AGENT VOTES] {symbol}: Individual votes: {consensus_result_obj.votes}")
-                                print(f"[MULTI-AGENT REASONING] {symbol}: {consensus_result_obj.reasoning}")
-                                print(f"[MULTI-AGENT COMPLETE] {symbol}: Decision={stored_final_decision}, Score={final_score:.3f}, Confidence={confidence:.3f}, Threshold={threshold_met}")
-                                
-                                stored_consensus_data = {
-                                    "decision": stored_final_decision,
-                                    "votes": consensus_result_obj.votes,
-                                    "confidence": confidence,
-                                    "final_score": final_score,
-                                    "threshold_met": threshold_met,
-                                    "contributing_detectors": consensus_result_obj.contributing_detectors,
-                                    "reasoning": consensus_result_obj.reasoning
-                                }
-                                stored_consensus_result = stored_consensus_data
-                                
-                                # === THRESHOLD AWARENESS TRACKING ===
-                                # Track threshold awareness for each detector that participated in consensus
-                                try:
-                                    from .consensus_decision_engine import ConsensusDecisionEngine
-                                    threshold_tracker = ConsensusDecisionEngine()
-                                    
-                                    for detector_name, detector_data in detector_outputs.items():
-                                        detector_score = detector_data.get("score", 0.0)
-                                        # Record threshold awareness for learning system
-                                        threshold_tracker.record_threshold_awareness(
-                                            detector_name, detector_score, stored_final_decision
-                                        )
-                                        print(f"[THRESHOLD TRACKING] {symbol}: {detector_name} score={detector_score:.3f} → decision={stored_final_decision}")
-                                    
-                                except Exception as track_error:
-                                    print(f"[THRESHOLD TRACKING ERROR] {symbol}: {track_error}")
-                                
-                            except Exception as e:
-                                print(f"[MULTI-AGENT ERROR] {symbol}: Consensus engine failed: {e}")
-                                # Fallback to simple voting if multi-agent fails
-                                buy_count = sum(1 for d in detector_outputs.values() if d["vote"] == "BUY")
-                                hold_count = sum(1 for d in detector_outputs.values() if d["vote"] == "HOLD")
-                                avoid_count = sum(1 for d in detector_outputs.values() if d["vote"] == "AVOID")
-                                
-                                if buy_count > hold_count + avoid_count:
-                                    stored_final_decision = "BUY"
-                                elif hold_count >= avoid_count:
-                                    stored_final_decision = "HOLD"
-                                else:
-                                    stored_final_decision = "AVOID"
-                                
-                                # Calculate weighted score as fallback
-                                total_weighted_score = sum(d["score"] * d["weight"] for d in detector_outputs.values())
-                                total_weight = sum(d["weight"] for d in detector_outputs.values())
-                                final_score = total_weighted_score / total_weight if total_weight > 0 else score
-                                confidence = min(0.95, max(0.15, final_score / 2.5))
-                                threshold_met = final_score > 0.65
-                                
-                                stored_consensus_data = {
-                                    "decision": stored_final_decision,
-                                    "votes": [f"{detector}: {data['vote']}" for detector, data in detector_outputs.items()],
-                                    "confidence": confidence,
-                                    "final_score": final_score,
-                                    "threshold_met": threshold_met,
-                                    "contributing_detectors": list(detector_outputs.keys())
-                                }
-                                stored_consensus_result = stored_consensus_data
-                                
-                                # === THRESHOLD AWARENESS TRACKING (FALLBACK) ===
-                                try:
-                                    from .consensus_decision_engine import ConsensusDecisionEngine
-                                    threshold_tracker = ConsensusDecisionEngine()
-                                    
-                                    for detector_name, detector_data in detector_outputs.items():
-                                        detector_score = detector_data.get("score", 0.0)
-                                        threshold_tracker.record_threshold_awareness(
-                                            detector_name, detector_score, stored_final_decision
-                                        )
-                                        print(f"[THRESHOLD TRACKING FALLBACK] {symbol}: {detector_name} score={detector_score:.3f} → decision={stored_final_decision}")
-                                except Exception as track_error:
-                                    print(f"[THRESHOLD TRACKING FALLBACK ERROR] {symbol}: {track_error}")
-                                
-                                print(f"[CONSENSUS FALLBACK] {symbol}: Decision={stored_final_decision}, Score={final_score:.3f}, Confidence={confidence:.3f}")
+                            if avg_score >= 0.7:
+                                stored_final_decision = "BUY"
+                            elif avg_score >= 0.4:
+                                stored_final_decision = "HOLD"
+                            else:
+                                stored_final_decision = "AVOID"
+                            
+                            print(f"[SIMPLE FALLBACK] {symbol}: avg_score={avg_score:.3f} → Decision={stored_final_decision}")
+                            
+                            stored_consensus_data = {
+                                "decision": stored_final_decision,
+                                "votes": [f"{k}: {v['score']:.3f}" for k, v in detector_outputs.items()],
+                                "confidence": min(0.8, avg_score),
+                                "final_score": avg_score,
+                                "threshold_met": avg_score >= 0.7,
+                                "contributing_detectors": list(detector_outputs.keys()),
+                                "reasoning": f"Simple fallback decision based on {len(detector_outputs)} detector scores (avg={avg_score:.3f})"
+                            }
+                            stored_consensus_result = stored_consensus_data
                         else:
-                            print(f"[MULTI-AGENT SKIP] {symbol}: No detector outputs available for Multi-Agent Consensus")
+                            print(f"[LAST10 SKIP] {symbol}: No detector outputs available for consensus")
                             
                     except Exception as consensus_error:
                         print(f"[CONSENSUS ERROR] {symbol}: Consensus engine failed: {consensus_error}")
@@ -2637,6 +2545,12 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         threshold=0.7,
                         token=symbol
                     )
+                    
+                    # Check if consensus_result_obj is None (Multi-Agent disabled)
+                    if consensus_result_obj is None:
+                        print(f"[MULTI-AGENT DISABLED] {symbol}: simulate_decision_consensus returned None - Multi-Agent disabled for individual tokens")
+                        # Fallback to simple voting logic
+                        raise Exception("Multi-Agent consensus disabled - falling back to simple voting")
                     
                     final_decision = consensus_result_obj.decision
                     final_score = consensus_result_obj.final_score
