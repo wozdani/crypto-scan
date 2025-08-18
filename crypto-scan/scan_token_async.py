@@ -2029,6 +2029,9 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         processing_time = time.time() - start_time if 'start_time' in locals() else 0.0
         
         print(f"✅ {symbol}: TJDE {tjde_score:.3f} ({tjde_decision}), {len(candles_15m)}x15M, {len(candles_5m)}x5M")
+        
+        # DEBUG: Track if token reaches LAST10 STORE section
+        print(f"[FLOW DEBUG] {symbol} → About to enter LAST10 STORE section (flag={LAST10_STORE_AVAILABLE})")
         # === DUAL ENGINE FINAL RESULT ===
         # Complete separated scoring structure
         result = {
@@ -2068,7 +2071,8 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
         }
         
         # === LAST10 STORE INTEGRATION ===
-        # Record token with active detectors for Last10 memory system
+        # Record token with active detectors for Last10 memory system BEFORE RETURNING
+        print(f"[FLOW DEBUG] {symbol} → Checking LAST10_STORE_AVAILABLE: {LAST10_STORE_AVAILABLE}")
         if LAST10_STORE_AVAILABLE:
             try:
                 active_detectors = {}
@@ -2208,6 +2212,8 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     
             except Exception as last10_error:
                 print(f"[LAST10 ERROR] {symbol} → Failed to record: {last10_error}")
+        else:
+            print(f"[FLOW DEBUG] {symbol} → LAST10_STORE_AVAILABLE is False - skipping TOP10 recording")
         
         return result
         
