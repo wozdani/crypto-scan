@@ -136,7 +136,18 @@ class Last10Runner:
             print("[LAST10 RUNNER] No items from last 10 tokens")
             return []
         
-        print(f"[LAST10 RUNNER] Processing {len(items)} items from last 10 tokens")
+        print(f"[LAST10 RUNNER] ✅ BATCH PROCESSING: {len(items)} items from last 10 tokens")
+        
+        # Show breakdown by detector
+        detector_counts = {}
+        for item in items:
+            det = item["det"]
+            detector_counts[det] = detector_counts.get(det, 0) + 1
+        print(f"[LAST10 RUNNER] Detector breakdown: {detector_counts}")
+        
+        # Show symbols being processed
+        symbols = list(set(item["s"] for item in items))
+        print(f"[LAST10 RUNNER] Processing symbols: {symbols}")
         
         # Split into cache hits and items to query
         cache_hits = {}
