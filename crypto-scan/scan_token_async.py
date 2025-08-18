@@ -2133,10 +2133,9 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         "graph_score": stealth_result.get("diamond_graph", 0.0)
                     }
                 
-                # Record in Last10Store if any active detectors
-                if active_detectors:
+                # Record in Last10Store ONLY if ≥2 active detectors (consistent with batch system)
+                if len(active_detectors) >= 2:
                     last10_store = get_last10_store()
-                    current_store_size = len(last10_store.get_last10())
                     
                     # Show detailed detector info before recording
                     detector_details = []
@@ -2148,8 +2147,6 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     last10_store.record(symbol, current_time, active_detectors)
                     new_store_size = len(last10_store.get_last10())
                     
-                    print(f"[TOP10] {new_store_size}/10 → {symbol} ({', '.join(detector_details)}) | Store: {list(last10_store.get_last10().keys())}")
-                    
                     # Show final decision for this token
                     final_decision = locals().get('final_engine_decision', tjde_decision if 'tjde_decision' in locals() else 'unknown')
                     tjde_score_val = locals().get('tjde_score', final_score if 'final_score' in locals() else 0.0)
@@ -2158,16 +2155,16 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     print(f"[TOP10 DECISION] {symbol}: TJDE={tjde_score_val:.3f}/{tjde_decision}, Stealth={stealth_score_val:.3f}, Final={final_decision}")
                     
                     # CHECK FOR BATCH PROCESSING - Trigger Last10Runner every 10 tokens with ≥2 detectors
-                    if len(active_detectors) >= 2:
-                        # Import and check counter
-                        try:
-                            from pipeline.last10_runner import get_last10_runner, increment_multi_detector_counter, check_and_reset_counter
-                            
-                            count = increment_multi_detector_counter()
-                            print(f"[TOP10 BATCH] {symbol} → Multi-detector token #{count}/10 (need {10-count} more)")
-                            
-                            # Trigger analysis every 10 tokens with ≥2 detectors
-                            if count >= 10:
+                    # Import and check counter
+                    try:
+                        from pipeline.last10_runner import get_last10_runner, increment_multi_detector_counter, check_and_reset_counter
+                        
+                        count = increment_multi_detector_counter()
+                        print(f"[TOP10] {count}/10 → {symbol} ({', '.join(detector_details)}) | Store: {new_store_size} tokens")
+                        print(f"[TOP10 BATCH] {symbol} → Multi-detector token #{count}/10 (need {10-count} more)")
+                        
+                        # Trigger analysis every 10 tokens with ≥2 detectors
+                        if count >= 10:
                                 print(f"[TOP10 BATCH] ✅ 10/10 COMPLETE! Triggering AI analysis...")
                                 
                                 # Show all 10 tokens before analysis
@@ -2205,8 +2202,13 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                                 check_and_reset_counter(force_reset=True)
                                 print("[TOP10 RESET] Counter reset, ready for next 10 tokens")
                                 
-                        except Exception as batch_error:
-                            print(f"[TOP10 BATCH ERROR] Failed batch processing: {batch_error}")
+                    except Exception as batch_error:
+                        print(f"[TOP10 BATCH ERROR] Failed batch processing: {batch_error}")
+                elif active_detectors:
+                    # Token has detectors but <2, so skip for TOP10
+                    detector_count = len(active_detectors)
+                    detector_names = list(active_detectors.keys())
+                    print(f"[TOP10 SKIP] {symbol} → Only {detector_count} detector(s): {', '.join(detector_names)} (need ≥2)")
                 else:
                     print(f"[TOP10 SKIP] {symbol} → No active detectors to record")
                     
