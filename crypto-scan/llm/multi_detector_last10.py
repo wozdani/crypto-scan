@@ -27,13 +27,13 @@ POLICY:
 - Confidence c: 0-1 based on feature strength
 
 DETECTORS:
-- SE (stealth_engine): se=score, wp=whale_ping, dx=dex_inflow, vs=volume_spike, oba=orderbook_anomaly
-- CAL (californium): cal=score, ai=confidence, sig=strength
-- DIA (diamond): dia=score, tmp=temporal, grph=graph
+- SE (StealthEngine): se=score, wp=whale_ping, dx=dex_inflow, vs=volume_spike, oba=orderbook_anomaly
+- CAL (CaliforniumWhale): cal=score, ai=confidence, sig=strength
+- DIA (DiamondWhale): dia=score, tmp=temporal, grph=graph
 - WP (whale_ping): wp=strength, rw=repeated_whale, sd=smart_money
 - DX (dex_inflow): dx5=5m_inflow, dx15=15m_inflow, rx=reliability
 - OBA (orderbook_anomaly): bw=bid_wall, oba=anomaly, imb=imbalance, spr=spread
-- WCL (whaleclip): vis=vision, pat=pattern, conf=confidence
+- WCL (WhaleCLIP): vis=vision, pat=pattern, conf=confidence
 - MMT (mastermind_tracing): mmt=score, trc=trace, net=network
 
 ITEMS={items_json}
