@@ -21,16 +21,23 @@ def build_items_from_last10(min_trust: float = 0.0, min_liq_usd: float = 0.0) ->
     store = get_last10_store()
     last10_data = store.get_last10()
     
+    print(f"[LAST10 BATCH] Building items from {len(last10_data)} tokens in store")
+    
     items = []
+    token_count = 0
     
     for symbol, token_data in last10_data.items():
         ts = token_data["ts"]
         detectors = token_data["detectors"]
         feats = token_data["feats"]
         
+        token_count += 1
+        print(f"[LAST10 BATCH] Token {token_count}: {symbol} with detectors: {detectors}")
+        
         # Create item for each active detector
         for detector in detectors:
             if detector not in DET_SHORT:
+                print(f"[LAST10 BATCH] Skipping unknown detector: {detector} for {symbol}")
                 continue  # Skip unknown detectors
             
             detector_feats = feats.get(detector, {})
@@ -38,8 +45,10 @@ def build_items_from_last10(min_trust: float = 0.0, min_liq_usd: float = 0.0) ->
             
             # Apply filters
             if compact_feats.get("tr", 0.0) < min_trust:
+                print(f"[LAST10 BATCH] Filtered {symbol}/{detector}: trust={compact_feats.get('tr', 0.0)} < {min_trust}")
                 continue
             if compact_feats.get("lq", 0.0) < min_liq_usd:
+                print(f"[LAST10 BATCH] Filtered {symbol}/{detector}: liquidity={compact_feats.get('lq', 0.0)} < {min_liq_usd}")
                 continue
             
             # Create item
@@ -51,7 +60,9 @@ def build_items_from_last10(min_trust: float = 0.0, min_liq_usd: float = 0.0) ->
             }
             
             items.append(item)
+            print(f"[LAST10 BATCH] Added item: {symbol}/{DET_SHORT[detector]} (detector={detector})")
     
+    print(f"[LAST10 BATCH] Total items built: {len(items)} from {token_count} tokens")
     return items
 
 def _cache_key(item: Dict[str, Any]) -> str:

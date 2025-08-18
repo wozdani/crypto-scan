@@ -42,21 +42,38 @@ class Last10Store:
             ts: Timestamp (float)
             features_by_detector: Dict of {detector_name: {feature_dict}} for ACTIVE detectors only
         """
+        detectors = list(features_by_detector.keys())
+        print(f"[LAST10 STORE] Recording {symbol} with {len(detectors)} detectors: {detectors}")
+        
         # Remove if already exists (to update position)
         if symbol in self._data:
             del self._data[symbol]
+            print(f"[LAST10 STORE] Updated existing {symbol} position in store")
         
         # Add new record at end (most recent)
         self._data[symbol] = {
             "ts": int(ts),
-            "detectors": list(features_by_detector.keys()),
+            "detectors": detectors,
             "feats": features_by_detector
         }
+        
+        current_count = len(self._data)
+        print(f"[LAST10 STORE] Store size: {current_count}/{self.capacity} tokens")
         
         # Maintain LRU capacity
         while len(self._data) > self.capacity:
             # Remove oldest (first item)
-            self._data.popitem(last=False)
+            removed_symbol, _ = self._data.popitem(last=False)
+            print(f"[LAST10 STORE] Removed oldest token: {removed_symbol}")
+        
+        # Show store status
+        if current_count >= self.capacity:
+            print(f"[LAST10 STORE] ✅ BATCH READY: {current_count} tokens collected!")
+            symbols = list(self._data.keys())
+            print(f"[LAST10 STORE] Tokens in batch: {symbols}")
+        else:
+            remaining = self.capacity - current_count
+            print(f"[LAST10 STORE] ⏳ Need {remaining} more tokens for batch")
         
         # Persist to disk
         self._save_to_disk()

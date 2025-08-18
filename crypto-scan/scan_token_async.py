@@ -2132,8 +2132,26 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 # Record in Last10Store if any active detectors
                 if active_detectors:
                     last10_store = get_last10_store()
+                    current_store_size = len(last10_store.get_last10())
+                    
+                    # Show detailed detector info before recording
+                    detector_details = []
+                    for det_name, det_data in active_detectors.items():
+                        score_key = f"{det_name}_score" if f"{det_name}_score" in det_data else list(det_data.keys())[0]
+                        score = det_data.get(score_key, 0.0)
+                        detector_details.append(f"{det_name}={score:.3f}")
+                    
                     last10_store.record(symbol, current_time, active_detectors)
-                    print(f"[LAST10 RECORD] {symbol} → Recorded {len(active_detectors)} active detectors")
+                    new_store_size = len(last10_store.get_last10())
+                    
+                    print(f"[TOP10] {new_store_size}/10 → {symbol} ({', '.join(detector_details)}) | Store: {list(last10_store.get_last10().keys())}")
+                    
+                    # Show final decision for this token
+                    final_decision = locals().get('final_engine_decision', tjde_decision if 'tjde_decision' in locals() else 'unknown')
+                    tjde_score_val = locals().get('tjde_score', final_score if 'final_score' in locals() else 0.0)
+                    stealth_score_val = locals().get('stealth_score', 0.0)
+                    
+                    print(f"[TOP10 DECISION] {symbol}: TJDE={tjde_score_val:.3f}/{tjde_decision}, Stealth={stealth_score_val:.3f}, Final={final_decision}")
                     
                     # CHECK FOR BATCH PROCESSING - Trigger Last10Runner every 10 tokens with ≥2 detectors
                     if len(active_detectors) >= 2:
@@ -2142,36 +2160,51 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                             from pipeline.last10_runner import get_last10_runner, increment_multi_detector_counter, check_and_reset_counter
                             
                             count = increment_multi_detector_counter()
-                            print(f"[LAST10 BATCH] {symbol} → Multi-detector token #{count}/10")
+                            print(f"[TOP10 BATCH] {symbol} → Multi-detector token #{count}/10 (need {10-count} more)")
                             
                             # Trigger analysis every 10 tokens with ≥2 detectors
                             if count >= 10:
-                                print(f"[LAST10 BATCH] Reached 10 multi-detector tokens, triggering analysis...")
+                                print(f"[TOP10 BATCH] ✅ 10/10 COMPLETE! Triggering AI analysis...")
+                                
+                                # Show all 10 tokens before analysis
+                                store_tokens = last10_store.get_last10()
+                                print("[TOP10 FINAL LIST] Analyzing these 10 tokens:")
+                                for i, (token, data) in enumerate(store_tokens.items(), 1):
+                                    detectors = data.get('detectors', [])
+                                    print(f"  {i}/10: {token} → {len(detectors)} detectors: {', '.join(detectors)}")
+                                
                                 runner = get_last10_runner()
                                 results = runner.run_one_call_for_last10(min_trust=0.2, min_liq_usd=50000)
                                 
                                 if results:
-                                    print(f"[LAST10 BATCH SUCCESS] Analyzed {len(results)} detector items")
+                                    print(f"[TOP10 BATCH SUCCESS] ✅ Single LLM call completed! Analyzed {len(results)} detector items")
                                     # Aggregate results per token
                                     aggregated = runner.aggregate_per_token(results)
                                     buy_tokens = [token for token, data in aggregated.items() if data["decision"] == "BUY"]
                                     hold_tokens = [token for token, data in aggregated.items() if data["decision"] == "HOLD"]
                                     avoid_tokens = [token for token, data in aggregated.items() if data["decision"] == "AVOID"]
                                     
-                                    print(f"[LAST10 BATCH SUMMARY] BUY: {len(buy_tokens)}, HOLD: {len(hold_tokens)}, AVOID: {len(avoid_tokens)}")
+                                    print(f"[TOP10 AI RESULTS] BUY: {len(buy_tokens)}, HOLD: {len(hold_tokens)}, AVOID: {len(avoid_tokens)}")
                                     if buy_tokens:
-                                        print(f"[LAST10 BUY SIGNALS] {', '.join(buy_tokens)}")
+                                        print(f"[TOP10 BUY SIGNALS] 🚀 {', '.join(buy_tokens)}")
+                                    
+                                    # Show individual decisions
+                                    print("[TOP10 DECISIONS] Individual token decisions:")
+                                    for token, data in aggregated.items():
+                                        decision = data["decision"]
+                                        confidence = data.get("confidence", 0.0)
+                                        print(f"  {token}: {decision} (confidence: {confidence:.2f})")
                                 else:
-                                    print("[LAST10 BATCH INFO] No analysis items returned")
+                                    print("[TOP10 BATCH INFO] ⚠️ No analysis items returned from LLM")
                                 
                                 # Reset counter after processing
                                 check_and_reset_counter(force_reset=True)
-                                print("[LAST10 BATCH] Counter reset, ready for next 10 tokens")
+                                print("[TOP10 RESET] Counter reset, ready for next 10 tokens")
                                 
                         except Exception as batch_error:
-                            print(f"[LAST10 BATCH ERROR] Failed batch processing: {batch_error}")
+                            print(f"[TOP10 BATCH ERROR] Failed batch processing: {batch_error}")
                 else:
-                    print(f"[LAST10 SKIP] {symbol} → No active detectors to record")
+                    print(f"[TOP10 SKIP] {symbol} → No active detectors to record")
                     
             except Exception as last10_error:
                 print(f"[LAST10 ERROR] {symbol} → Failed to record: {last10_error}")
