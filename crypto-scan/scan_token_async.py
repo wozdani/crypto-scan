@@ -2189,7 +2189,20 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                                     if buy_tokens:
                                         print(f"[TOP10 BUY SIGNALS] 🚀 {', '.join(buy_tokens)}")
                                     
-                                    # Show individual decisions
+                                    # Show detailed agent voting results
+                                    print("[TOP10 AGENT VOTING] Detailed 5-agent consensus results:")
+                                    for result in results:
+                                        if "agent_votes" in result:
+                                            symbol = result["s"]
+                                            detector = result["det"]
+                                            agent_votes = result["agent_votes"]
+                                            buy_votes = agent_votes.get("buy", 0)
+                                            hold_votes = agent_votes.get("hold", 0)
+                                            avoid_votes = agent_votes.get("avoid", 0)
+                                            
+                                            print(f"[TOP10] {symbol} - {buy_votes} BUY / {hold_votes} HOLD / {avoid_votes} AVOID - {detector}")
+                                    
+                                    # Show individual token decisions summary
                                     print("[TOP10 DECISIONS] Individual token decisions:")
                                     for token, data in aggregated.items():
                                         decision = data["decision"]
