@@ -98,29 +98,33 @@ def _run_multi_agent_consensus(items: List[Dict[str, Any]]) -> Dict[str, Any]:
         detectors_data = {}
         for item in token_items:
             detector = item["det"]
+            features = item.get("f", {})  # Compact features are in "f" key
             
-            # Extract score based on detector type  
+            # Extract score based on detector type from compact features
             if detector == "SE":  # StealthEngine
-                score = item.get("se", 0.0)
-            elif detector == "CAL":  # CaliforniumWhale
-                score = item.get("cal", 0.0)
+                score = features.get("se", 0.0)
+            elif detector == "CAL":  # CaliforniumWhale  
+                score = features.get("cal", 0.0)
             elif detector == "DIA":  # DiamondWhale
-                score = item.get("dia", 0.0)
+                score = features.get("dia", 0.0)
             else:
                 score = 0.0
             
-            # Build context from all available data
+            # Build context from compact features
             context_parts = []
-            for key, value in item.items():
-                if key not in ["s", "det"] and value != 0.0:
+            for key, value in features.items():
+                if key not in ["tr", "lq"] and value != 0.0:
                     context_parts.append(f"{key}:{value:.3f}")
-            context = f"trust:{item.get('tr', 0.0):.1f}, liq:${item.get('lq', 0)/1000:.0f}k, " + ", ".join(context_parts)
+            
+            trust = features.get("tr", 0.0)
+            liquidity = features.get("lq", 0.0)
+            context = f"trust:{trust:.1f}, liq:${liquidity/1000:.0f}k, " + ", ".join(context_parts)
             
             detectors_data[detector] = {
                 "score": score,
                 "context": context,
-                "trust": item.get("tr", 0.0),
-                "liquidity": item.get("lq", 0.0)
+                "trust": trust,
+                "liquidity": liquidity
             }
         
         # Run multi-agent consensus for this token

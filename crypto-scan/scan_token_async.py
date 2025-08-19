@@ -2178,7 +2178,8 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                                     print(f"  {i}/10: {token} → {len(detectors)} detectors: {', '.join(detectors)}")
                                 
                                 runner = get_last10_runner()
-                                results = runner.run_one_call_for_last10(min_trust=0.2, min_liq_usd=50000)
+                                # Multi-Agent Consensus for batch of 10 tokens - no filtering needed
+                                results = runner.run_one_call_for_last10(min_trust=0.0, min_liq_usd=0)
                                 
                                 if results:
                                     print(f"[TOP10 BATCH SUCCESS] ✅ Single LLM call completed! Analyzed {len(results)} detector items")
