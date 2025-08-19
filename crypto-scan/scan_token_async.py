@@ -2154,16 +2154,19 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     
                     print(f"[TOP10 DECISION] {symbol}: TJDE={tjde_score_val:.3f}/{tjde_decision}, Stealth={stealth_score_val:.3f}, Final={final_decision}")
                     
-                    # CHECK FOR BATCH PROCESSING - Trigger Last10Runner every 10 tokens with ≥2 detectors
-                    # Import and check counter
+                    # CHECK FOR BATCH PROCESSING - Use store size instead of separate counter for consistency
+                    # Import and check store directly
                     try:
                         from pipeline.last10_runner import get_last10_runner, increment_multi_detector_counter, check_and_reset_counter
                         
-                        count = increment_multi_detector_counter()
-                        print(f"[TOP10] {count}/10 → {symbol} ({', '.join(detector_details)}) | Store: {new_store_size} tokens")
-                        print(f"[TOP10 BATCH] {symbol} → Multi-detector token #{count}/10 (need {10-count} more)")
+                        # SYNCHRONIZATION FIX: Use actual store size instead of separate counter
+                        count = new_store_size  # Use store size directly
+                        counter_val = increment_multi_detector_counter()  # Still track counter for debug
                         
-                        # Trigger analysis every 10 tokens with ≥2 detectors
+                        print(f"[TOP10] {count}/10 → {symbol} ({', '.join(detector_details)}) | Store: {new_store_size} tokens")
+                        print(f"[TOP10 SYNC] Store={count}, Counter={counter_val} → Using store size for trigger")
+                        
+                        # Trigger analysis when store reaches capacity (10 tokens)
                         if count >= 10:
                                 print(f"[TOP10 BATCH] ✅ 10/10 COMPLETE! Triggering AI analysis...")
                                 
