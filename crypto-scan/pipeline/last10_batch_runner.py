@@ -43,11 +43,11 @@ def build_items_from_last10(min_trust: float = 0.0, min_liq_usd: float = 0.0) ->
             detector_feats = feats.get(detector, {})
             compact_feats = compact_for_detector(detector, detector_feats)
             
-            # Apply filters
-            if compact_feats.get("tr", 0.0) < min_trust:
+            # Skip filters when min thresholds are 0 (Multi-Agent should analyze all data)
+            if min_trust > 0.0 and compact_feats.get("tr", 0.0) < min_trust:
                 print(f"[LAST10 BATCH] Filtered {symbol}/{detector}: trust={compact_feats.get('tr', 0.0)} < {min_trust}")
                 continue
-            if compact_feats.get("lq", 0.0) < min_liq_usd:
+            if min_liq_usd > 0.0 and compact_feats.get("lq", 0.0) < min_liq_usd:
                 print(f"[LAST10 BATCH] Filtered {symbol}/{detector}: liquidity={compact_feats.get('lq', 0.0)} < {min_liq_usd}")
                 continue
             
