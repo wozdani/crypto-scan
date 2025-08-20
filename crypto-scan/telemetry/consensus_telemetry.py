@@ -130,7 +130,7 @@ class ConsensusTelemetry:
                 "action": record.get("dominant_action", "unknown"),
                 "confidence": round(record.get("confidence", 0), 3),
                 "entropy": round(record.get("entropy", 0), 2),
-                "time_ago_mins": self._time_ago_minutes(record.get("timestamp")),
+                "time_ago_mins": self._time_ago_minutes(record.get("timestamp", "")),
                 "cost_usd": round(record.get("cost_estimate_usd", 0), 4)
             })
             
@@ -144,7 +144,7 @@ class ConsensusTelemetry:
                 delta = datetime.utcnow() - timestamp.replace(tzinfo=None)
                 return int(delta.total_seconds() / 60)
             return 0
-        except:
+        except Exception:
             return 0
     
     def export_daily_summary(self, date_str: str = None) -> Dict[str, Any]:
