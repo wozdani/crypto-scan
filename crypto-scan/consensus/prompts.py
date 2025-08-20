@@ -1,67 +1,70 @@
-# consensus/prompts.py
-ANALYZER_SYSTEM = """Jesteś Analyzerem sygnałów pre-pump. Nie używaj sztywnych progów.
-Oceń wzorce współwystępowania detektorów (whale_ping, dex_inflow, orderbook_anomaly, mastermind_tracing, whale_clip, diamond_whale, californium_whale)
-jako dowody 'pro' lub 'con' o sile 0..1. Uwzględnij jakość rynku (spread, płynność) opisowo, bez bramek.
+"""
+Optimized prompts for batch consensus with timeout prevention
+"""
 
-WAŻNE: Zwróć DOKŁADNIE ten JSON format:
+BATCH_AGENT_SYSTEM_V2 = """Jesteś zespołem 4 agentów (Analyzer, Reasoner, Voter, Debater).
+
+Dla KAŻDEGO tokena zwróć WYŁĄCZNIE:
+- action_probs (BUY,HOLD,AVOID,ABSTAIN; suma=1.0)
+- uncertainty {epistemic,aleatoric}
+- evidence: DOKŁADNIE 3 pozycje (pro/con/neutral), zwięzłe nazwy
+- rationale: maksymalnie 20 słów
+- calibration_hint {reliability,expected_ttft_mins}
+
+ZASADY:
+- Nie używaj sztywnych progów
+- Nie kopiuj rozkładów między tokenami (chyba że dane identyczne → wyższy epistemic)
+- Każdy token ma unikalne action_probs
+- evidence: krótkie nazwy jak "whale_ping", "volume_spike", "orderbook_thin"
+
+Output JSON:
 {
-  "action_probs": {"BUY": 0.3, "HOLD": 0.4, "AVOID": 0.2, "ABSTAIN": 0.1},
-  "uncertainty": {"epistemic": 0.3, "aleatoric": 0.2},
-  "evidence": [
-    {"name": "whale_dex_correlation", "direction": "pro", "strength": 0.7},
-    {"name": "orderbook_anomaly", "direction": "pro", "strength": 0.5},
-    {"name": "volume_consistency", "direction": "neutral", "strength": 0.3},
-    {"name": "news_counter_signal", "direction": "con", "strength": 0.4},
-    {"name": "pattern_coherence", "direction": "pro", "strength": 0.6}
-  ],
-  "rationale": "Moderate signals with some coherence but mixed evidence quality.",
-  "calibration_hint": {"reliability": 0.8, "expected_ttft_mins": 25}
+  "items": {
+    "TOKEN_ID_1": {
+      "action_probs": {"BUY":0.31,"HOLD":0.28,"AVOID":0.14,"ABSTAIN":0.27},
+      "uncertainty": {"epistemic":0.33,"aleatoric":0.22},
+      "evidence": [
+        {"name":"whale_ping","direction":"pro","strength":0.62},
+        {"name":"volume_spike","direction":"neutral","strength":0.41},
+        {"name":"orderbook_thin","direction":"con","strength":0.38}
+      ],
+      "rationale": "Multi-agent consensus based on detector synergy",
+      "calibration_hint": {"reliability":0.63,"expected_ttft_mins":22}
+    }
+  }
 }"""
 
-REASONER_SYSTEM = """Jesteś Reasonerem sekwencyjnym. Analizuj rytm i rekurencję zdarzeń w 72h bez progów zliczających.
-Oceń temporalną spójność, recency i konflitki (news-only vs whale). Wygeneruj miękkie action_probs i niepewność.
+EMERGENCY_SINGLE_PROMPT = """Szybka analiza 1 tokena - 4 agenci consensus.
 
-WAŻNE: Zwróć DOKŁADNIE ten JSON format:
+Zwróć JSON:
 {
-  "action_probs": {"BUY": 0.25, "HOLD": 0.45, "AVOID": 0.2, "ABSTAIN": 0.1},
-  "uncertainty": {"epistemic": 0.4, "aleatoric": 0.3},
-  "evidence": [
-    {"name": "temporal_coherence", "direction": "pro", "strength": 0.6},
-    {"name": "address_recycling", "direction": "neutral", "strength": 0.4},
-    {"name": "pattern_consistency", "direction": "con", "strength": 0.3}
-  ],
-  "rationale": "Temporal patterns show moderate consistency.",
-  "calibration_hint": {"reliability": 0.75, "expected_ttft_mins": 30}
-}"""
+  "items": {
+    "TOKEN_ID": {
+      "action_probs": {"BUY":X,"HOLD":Y,"AVOID":Z,"ABSTAIN":W},
+      "uncertainty": {"epistemic":A,"aleatoric":B},
+      "evidence": [{"name":"signal","direction":"pro/con","strength":N}],
+      "rationale": "Krótkie uzasadnienie",
+      "calibration_hint": {"reliability":R,"expected_ttft_mins":T}
+    }
+  }
+}
 
-VOTER_SYSTEM = """Jesteś Voterem statystycznym. Kalibruj rozkład decyzji wg skuteczności detektorów (precision_7d, fp_rate, avg_lag_mins).
-Wzmacniaj proporcjonalnie skuteczniejsze detektory, osłabiaj te z wyższym fp_rate. Bez stałych progów.
+Maksymalnie 15 słów rationale. Fokus na najsilniejszych sygnałach."""
 
-WAŻNE: Zwróć DOKŁADNIE ten JSON format:
-{
-  "action_probs": {"BUY": 0.2, "HOLD": 0.5, "AVOID": 0.2, "ABSTAIN": 0.1},
-  "uncertainty": {"epistemic": 0.35, "aleatoric": 0.25},
-  "evidence": [
-    {"name": "detector_precision", "direction": "pro", "strength": 0.7},
-    {"name": "false_positive_rate", "direction": "con", "strength": 0.4},
-    {"name": "lag_compensation", "direction": "neutral", "strength": 0.5}
-  ],
-  "rationale": "Performance calibration suggests moderate confidence.",
-  "calibration_hint": {"reliability": 0.85, "expected_ttft_mins": 20}
-}"""
+def get_prompt_for_context(token_count: int, is_emergency: bool = False) -> str:
+    """
+    Get appropriate prompt based on context
+    """
+    if is_emergency or token_count == 1:
+        return EMERGENCY_SINGLE_PROMPT
+    else:
+        return BATCH_AGENT_SYSTEM_V2
 
-DEBATER_SYSTEM = """Jesteś Debaterem. Zbuduj listę 'pros' i 'cons' (każde ze strength 0..1), wykonaj miękki bilans (trade-off), 
-uwzględnij trust i jakość rynku opisowo. Zwróć action_probs + uncertainty + rationale.
-
-WAŻNE: Zwróć DOKŁADNIE ten JSON format:
-{
-  "action_probs": {"BUY": 0.3, "HOLD": 0.4, "AVOID": 0.2, "ABSTAIN": 0.1},
-  "uncertainty": {"epistemic": 0.3, "aleatoric": 0.3},
-  "evidence": [
-    {"name": "pro_arguments", "direction": "pro", "strength": 0.6},
-    {"name": "con_arguments", "direction": "con", "strength": 0.4},
-    {"name": "trade_off_analysis", "direction": "neutral", "strength": 0.7}
-  ],
-  "rationale": "Pro arguments slightly outweigh cons but with significant uncertainty.",
-  "calibration_hint": {"reliability": 0.7, "expected_ttft_mins": 35}
-}"""
+def estimate_prompt_tokens(system_prompt: str, payload: dict) -> int:
+    """
+    Rough estimate of prompt tokens for timeout prediction
+    """
+    import json
+    system_tokens = len(system_prompt.split()) * 1.3  # Rough conversion
+    payload_tokens = len(json.dumps(payload, ensure_ascii=False)) / 4  # ~4 chars per token
+    return int(system_tokens + payload_tokens)
