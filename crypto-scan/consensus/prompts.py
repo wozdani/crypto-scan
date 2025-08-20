@@ -88,6 +88,10 @@ Wymagania:
 - Nie kopiuj identycznych rozkładów między różnymi tokenami/agentami.
 - Odpowiedź musi być JEDNYM obiektem JSON dokładnie w tej strukturze.
 - KAŻDY agent musi mieć różne action_probs bazujące na swoich zadaniach.
+
+Nie używaj tej samej wartości action_probs dla wielu tokenów bez konkretnego uzasadnienia w rationale (token-specyficznego).
+
+Jeśli dane są słabe, ABSTAIN jest prawidłową akcją; nie zamieniaj jej na HOLD.
 """
 
 EMERGENCY_SINGLE_PROMPT = """Szybka analiza 1 tokena - 4 agenci consensus.
