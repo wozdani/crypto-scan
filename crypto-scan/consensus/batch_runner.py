@@ -1,17 +1,26 @@
 """
-Adaptive batch consensus runner with degeneracy prevention and timeout handling
+Load-aware batch consensus runner with timeout prevention and retry splitting
 """
 import json
 import time
+import asyncio
 from typing import Dict, Any, List, Optional
 from .validators import validate_batch_keys, detect_degenerate_distributions, validate_batch_quality
+from .batching import make_balanced_chunks, analyze_chunk_distribution, order_tokens_for_first_chunk
+from .context_packer import pack_token_context, compress_for_emergency
+from .prompts import get_prompt_for_context, estimate_prompt_tokens
 from llm.llm_client import chat_json
 
-# Adaptive batch configuration
-MAX_BATCH_SIZE = 6           # Reduced from 10 to prevent timeouts
-TIMEOUT_MS = 65000          # 65s timeout per chunk
+# Load-aware configuration
+MAX_BATCH_SIZE = 5           # Further reduced to 5 for timeout prevention
+TIMEOUT_MS = 20000          # 20s HTTP timeout per chunk
 MODEL = "gpt-4o"            # Use gpt-4o for consistency
-FALLBACK_TEMPERATURE = 0.35  # Higher temp for per-token fallback
+FALLBACK_TEMPERATURE = 0.3   # Slightly higher temp for diversity
+MICRO_CONCURRENCY = 3       # Parallel micro-fallbacks
+
+class LLMTimeout(Exception):
+    """Custom exception for LLM timeout situations"""
+    pass
 
 BATCH_AGENT_SYSTEM = """Jesteś zespołem czterech agentów (Analyzer, Reasoner, Voter, Debater) i masz ocenić *wiele tokenów naraz*.
 
@@ -42,22 +51,36 @@ DIFFERENTIATION: Analyze each token's unique detector breakdown, market conditio
 
 def run_batch_consensus(tokens_payload: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
-    Run adaptive batch consensus with degeneracy detection and fallback
+    Run load-aware batch consensus with timeout prevention and retry splitting
     """
     if not tokens_payload:
         return {}
     
-    print(f"[BATCH CONSENSUS] Processing {len(tokens_payload)} tokens with adaptive chunking")
+    print(f"[BATCH CONSENSUS] Processing {len(tokens_payload)} tokens with load-aware chunking")
     
-    # Adaptive chunking to prevent timeouts
-    chunks = [tokens_payload[i:i+MAX_BATCH_SIZE] for i in range(0, len(tokens_payload), MAX_BATCH_SIZE)]
+    # Pack contexts to reduce payload size
+    packed_tokens = [pack_token_context(token) for token in tokens_payload]
+    
+    # Priority ordering - most promising tokens first
+    prioritized_tokens = order_tokens_for_first_chunk(packed_tokens)
+    
+    # Load-aware balanced chunking
+    chunks = make_balanced_chunks(prioritized_tokens, max_chunk=MAX_BATCH_SIZE)
+    
+    # Analyze chunk distribution
+    distribution_analysis = analyze_chunk_distribution(chunks)
+    print(f"[BATCH LOAD] {distribution_analysis['total_chunks']} chunks, balanced: {distribution_analysis['balanced']}")
+    
+    # Process chunks with timeout handling
     results: Dict[str, Dict[str, Any]] = {}
     
-    for chunk_idx, chunk in enumerate(chunks):
-        print(f"[BATCH CONSENSUS] Processing chunk {chunk_idx+1}/{len(chunks)} with {len(chunk)} tokens")
-        
-        chunk_results = _process_chunk_with_fallback(chunk, chunk_idx)
-        results.update(chunk_results)
+    try:
+        # Use asyncio for better timeout control
+        results = asyncio.run(_process_all_chunks_async(chunks))
+    except Exception as e:
+        print(f"[BATCH CONSENSUS ERROR] Async processing failed: {e}")
+        # Fallback to synchronous processing
+        results = _process_chunks_sync(chunks)
     
     # Final validation
     quality_report = validate_batch_quality(results)
@@ -66,6 +89,186 @@ def run_batch_consensus(tokens_payload: List[Dict[str, Any]]) -> Dict[str, Any]:
     
     print(f"[BATCH CONSENSUS] ✅ Completed processing {len(results)} tokens")
     return results
+
+async def _process_all_chunks_async(chunks: List[List[Dict[str, Any]]]) -> Dict[str, Any]:
+    """Process all chunks asynchronously with timeout handling"""
+    results = {}
+    
+    for chunk_idx, chunk in enumerate(chunks):
+        print(f"[BATCH ASYNC] Processing chunk {chunk_idx+1}/{len(chunks)} with {len(chunk)} tokens")
+        
+        try:
+            chunk_results = await _process_chunk_async(chunk, chunk_idx)
+            results.update(chunk_results)
+        except Exception as e:
+            print(f"[BATCH ASYNC ERROR] Chunk {chunk_idx} failed: {e}")
+            # Emergency micro-fallback
+            fallback_results = await _micro_fallback_async(chunk)
+            results.update(fallback_results)
+    
+    return results
+
+def _process_chunks_sync(chunks: List[List[Dict[str, Any]]]) -> Dict[str, Any]:
+    """Synchronous fallback chunk processing"""
+    results = {}
+    
+    for chunk_idx, chunk in enumerate(chunks):
+        print(f"[BATCH SYNC] Processing chunk {chunk_idx+1}/{len(chunks)} with {len(chunk)} tokens")
+        chunk_results = _process_chunk_with_fallback(chunk, chunk_idx)
+        results.update(chunk_results)
+    
+    return results
+
+async def _process_chunk_async(chunk: List[Dict[str, Any]], chunk_idx: int) -> Dict[str, Any]:
+    """Process chunk asynchronously with timeout protection"""
+    
+    payload = {
+        "tokens": chunk,
+        "chunk_info": {
+            "chunk_id": chunk_idx,
+            "token_count": len(chunk),
+            "timestamp": time.time()
+        }
+    }
+    
+    # Estimate tokens and select appropriate prompt
+    prompt = get_prompt_for_context(len(chunk))
+    estimated_tokens = estimate_prompt_tokens(prompt, payload)
+    
+    print(f"[BATCH CHUNK {chunk_idx}] Estimated tokens: {estimated_tokens}, timeout: {TIMEOUT_MS/1000}s")
+    
+    try:
+        # Use asyncio.wait_for for timeout control
+        response = await asyncio.wait_for(
+            asyncio.to_thread(
+                chat_json,
+                model=MODEL,
+                system_prompt=prompt,
+                user_payload=payload,
+                agent_name="BatchConsensus",
+                token=f"CHUNK_{chunk_idx}_{len(chunk)}",
+                temperature=0.2
+            ),
+            timeout=TIMEOUT_MS / 1000.0
+        )
+        
+        # Validate response
+        items = response.get("items", {})
+        expected_tokens = [token["token_id"] for token in chunk]
+        
+        validate_batch_keys(expected_tokens, list(items.keys()))
+        
+        # Check for degeneracy
+        if detect_degenerate_distributions(items):
+            print(f"[BATCH CHUNK {chunk_idx}] Degeneracy detected → micro-fallback")
+            return await _micro_fallback_async(chunk)
+        
+        print(f"[BATCH CHUNK {chunk_idx}] ✅ Successful processing")
+        return items
+        
+    except asyncio.TimeoutError:
+        print(f"[BATCH TIMEOUT] Chunk {chunk_idx} timeout → splitting and retrying")
+        return await _retry_with_split(chunk, chunk_idx)
+    except Exception as e:
+        print(f"[BATCH ERROR] Chunk {chunk_idx}: {e} → micro-fallback")
+        return await _micro_fallback_async(chunk)
+
+async def _retry_with_split(chunk: List[Dict[str, Any]], chunk_idx: int) -> Dict[str, Any]:
+    """Retry failed chunk by splitting into smaller pieces"""
+    if len(chunk) <= 2:
+        # Can't split further, use emergency single processing
+        return await _emergency_single_processing(chunk)
+    
+    # Split chunk in half
+    mid = len(chunk) // 2
+    chunk_a = chunk[:mid]
+    chunk_b = chunk[mid:]
+    
+    print(f"[BATCH SPLIT] Chunk {chunk_idx}: {len(chunk)} → {len(chunk_a)} + {len(chunk_b)}")
+    
+    # Process both halves
+    results_a = await _process_chunk_async(chunk_a, f"{chunk_idx}a")
+    results_b = await _process_chunk_async(chunk_b, f"{chunk_idx}b")
+    
+    # Combine results
+    combined_results = {}
+    combined_results.update(results_a)
+    combined_results.update(results_b)
+    
+    return combined_results
+
+async def _micro_fallback_async(chunk: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Async micro-fallback: process tokens individually with concurrency control"""
+    semaphore = asyncio.Semaphore(MICRO_CONCURRENCY)
+    
+    async def _process_single(token: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+        async with semaphore:
+            try:
+                # Compress context for emergency processing
+                compressed_token = compress_for_emergency(token)
+                single_payload = {"tokens": [compressed_token]}
+                
+                response = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        chat_json,
+                        model=MODEL,
+                        system_prompt=get_prompt_for_context(1, is_emergency=True),
+                        user_payload=single_payload,
+                        agent_name="MicroFallback",
+                        token=f"SINGLE_{token['token_id']}",
+                        temperature=FALLBACK_TEMPERATURE
+                    ),
+                    timeout=10.0  # Shorter timeout for single tokens
+                )
+                
+                return response.get("items", {})
+                
+            except Exception as e:
+                print(f"[MICRO FALLBACK ERROR] {token['token_id']}: {e}")
+                return {token["token_id"]: _generate_emergency_fallback(token)}
+    
+    # Process all tokens concurrently
+    tasks = [_process_single(token) for token in chunk]
+    individual_results = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    # Combine results
+    combined_results = {}
+    for result in individual_results:
+        if isinstance(result, dict):
+            combined_results.update(result)
+        else:
+            print(f"[MICRO FALLBACK] Task failed: {result}")
+    
+    return combined_results
+
+async def _emergency_single_processing(chunk: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Emergency single-token processing for minimal chunks"""
+    results = {}
+    
+    for token in chunk:
+        try:
+            compressed_token = compress_for_emergency(token)
+            emergency_result = _generate_emergency_fallback(compressed_token)
+            results[token["token_id"]] = emergency_result
+        except Exception as e:
+            print(f"[EMERGENCY ERROR] {token['token_id']}: {e}")
+            results[token["token_id"]] = _generate_emergency_fallback(token)
+    
+    return results
+
+def _generate_emergency_fallback(token: Dict[str, Any]) -> Dict[str, Any]:
+    """Generate emergency fallback result for failed token processing"""
+    return {
+        "action_probs": {"BUY": 0.15, "HOLD": 0.45, "AVOID": 0.25, "ABSTAIN": 0.15},
+        "uncertainty": {"epistemic": 0.9, "aleatoric": 0.7},
+        "evidence": [
+            {"name": "processing_error", "direction": "con", "strength": 0.8},
+            {"name": "timeout_fallback", "direction": "neutral", "strength": 0.6},
+            {"name": "insufficient_context", "direction": "con", "strength": 0.7}
+        ],
+        "rationale": f"Emergency fallback for {token.get('token_id', 'unknown')} due to processing failure",
+        "calibration_hint": {"reliability": 0.1, "expected_ttft_mins": 999}
+    }
 
 def _process_chunk_with_fallback(chunk: List[Dict[str, Any]], chunk_idx: int) -> Dict[str, Any]:
     """Process chunk with automatic fallback on degeneracy or timeout"""
