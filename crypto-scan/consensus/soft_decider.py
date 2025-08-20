@@ -8,6 +8,7 @@ import logging
 from typing import List, Dict, Any
 from datetime import datetime
 from consensus.contracts import AgentOpinion, FinalDecision
+from consensus.decider import aggregate
 from contracts.agent_contracts import AgentResponse, ConsensusResult, normalize_action_probs
 
 logger = logging.getLogger(__name__)
@@ -19,7 +20,7 @@ class SoftDecider:
         self.eps = 1e-6  # Small epsilon to avoid log(0)
         self.actions = ["BUY", "HOLD", "AVOID", "ABSTAIN"]
     
-    def aggregate(self, agent_responses: List[AgentResponse], symbol: str = "unknown") -> ConsensusResult:
+    def aggregate_legacy(self, agent_responses: List[AgentResponse], symbol: str = "unknown") -> ConsensusResult:
         """
         Aggregate agent responses using Bradley-Terry soft consensus
         No hard thresholds - uses weighted log-probabilities
@@ -192,6 +193,67 @@ class SoftDecider:
             uncertainty_global={"epistemic": 0.9, "aleatoric": 0.5},
             rationale="Fallback consensus due to no agent responses available"
         )
+
+    def aggregate_new(self, agent_responses: List[AgentResponse], symbol: str = "unknown") -> ConsensusResult:
+        """
+        Aggregate using new miękka agregacja decider
+        Uses weighted log-probabilities with reliability*(1-epistemic) weights
+        """
+        if not agent_responses:
+            return self._fallback_consensus(symbol)
+        
+        start_time = datetime.utcnow()
+        
+        try:
+            # Convert AgentResponse to AgentOpinion for new decider
+            opinions = []
+            for response in agent_responses:
+                action_probs = response.action_probs.dict() if hasattr(response.action_probs, 'dict') else response.action_probs
+                if isinstance(action_probs, dict) and all(isinstance(v, (int, float)) for v in action_probs.values()):
+                    opinion = AgentOpinion(
+                        action_probs=action_probs,
+                        uncertainty=response.uncertainty,
+                        evidence=response.evidence,
+                        rationale=response.rationale,
+                        calibration_hint=response.calibration_hint
+                    )
+                    opinions.append(opinion)
+            
+            if not opinions:
+                return self._fallback_consensus(symbol)
+            
+            # Use new improved decider
+            decision = aggregate(opinions)
+            
+            # Calculate entropy for consistency
+            eps = 1e-6
+            entropy = -sum(p * math.log(max(p, eps)) for p in decision.final_probs.values()) / math.log(len(self.actions))
+            
+            # Determine dominant action and confidence
+            dominant_action = max(decision.final_probs, key=decision.final_probs.get)
+            confidence = decision.final_probs[dominant_action]
+            
+            processing_time = (datetime.utcnow() - start_time).total_seconds() * 1000
+            
+            logger.info(f"[CONSENSUS] {symbol}: {dominant_action} ({confidence:.3f}), "
+                       f"entropy={entropy:.2f}, agents={len(agent_responses)}, "
+                       f"time={processing_time:.1f}ms [miękka_agregacja]")
+            
+            result = {
+                "final_probs": decision.final_probs,
+                "dominant_action": dominant_action,
+                "confidence": confidence,
+                "entropy": entropy,
+                "top_evidence": decision.top_evidence,
+                "uncertainty_global": decision.uncertainty_global,
+                "rationale": f"{decision.rationale} ({len(agent_responses)} agents, {processing_time:.1f}ms)"
+            }
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Miękka agregacja failed for {symbol}: {e}, using legacy")
+            return self.aggregate_legacy(agent_responses, symbol)
 
 # Global instance
 soft_decider = SoftDecider()
