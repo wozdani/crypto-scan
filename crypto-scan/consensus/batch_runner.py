@@ -117,6 +117,34 @@ async def run_batch_consensus(tokens_payload: List[Dict[str, Any]]) -> Dict[str,
                     print(f"[MICRO V3] REJECTED {token['token_id']} - no fallback to fixed distributions")
     
     print(f"[BATCH CONSENSUS V3] ✅ Completed {len(results)} tokens with per-agent validation")
+    
+    # Quality telemetry check for degenerate mapping
+    try:
+        from .quality import quality_snapshot, suggest_recovery_action
+        
+        # Prepare per-agent map for quality analysis
+        per_agent_map = {}
+        for token_id, result in results.items():
+            agent_opinions = result.get("agent_opinions", [])
+            if agent_opinions:
+                per_agent_map[token_id] = agent_opinions
+        
+        # Run quality assessment
+        quality_metrics = quality_snapshot(per_agent_map)
+        
+        # Check for degenerate patterns
+        if quality_metrics.get("degenerate_detected", False):
+            recovery_suggestion = suggest_recovery_action(quality_metrics)
+            print(f"[QUALITY ALERT] Degenerate mapping detected - recovery needed")
+            print(f"[QUALITY ALERT] Severity: {recovery_suggestion.get('severity', 'UNKNOWN')}")
+            
+            # Log detailed issues for debugging
+            issues = quality_metrics.get("issues", [])
+            for issue in issues:
+                print(f"[QUALITY ISSUE] {issue}")
+    except Exception as e:
+        print(f"[QUALITY ERROR] Quality check failed: {e}")
+    
     return results
 
 def parse_batch_per_agent(batch_output: Dict[str, Any], expected_token_ids: List[str]) -> Dict[str, Dict[str, Any]]:
