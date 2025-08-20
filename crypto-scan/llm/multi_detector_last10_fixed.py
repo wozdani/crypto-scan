@@ -91,18 +91,23 @@ def run_last10_all_detectors(items: List[Dict[str, Any]], model: str = "gpt-4o")
     # Convert batch results to individual token results
     results = []
     for symbol, token_items in token_groups.items():
-        consensus_result = batch_consensus_results.get(symbol, {
-            "final_probs": {"BUY": 0.2, "HOLD": 0.5, "AVOID": 0.2, "ABSTAIN": 0.1},
-            "dominant_action": "HOLD",
-            "confidence": 0.4,
-            "top_evidence": ["batch_processing"],
-            "rationale": "Batch consensus result"
-        })
+        # NO FALLBACK DICTIONARY - only process tokens that passed consensus
+        if symbol not in batch_consensus_results:
+            print(f"[NO FALLBACK] {symbol}: Token rejected during consensus - skipping all detectors")
+            continue
+            
+        consensus_result = batch_consensus_results[symbol]
         
-        final_probs = consensus_result.get("final_probs", {})
-        dominant_action = consensus_result.get("dominant_action", "HOLD")
-        confidence = consensus_result.get("confidence", 0.0)
+        # Extract consensus data without fallback values
+        final_probs = consensus_result.get("final_probs")
+        dominant_action = consensus_result.get("dominant_action")
+        confidence = consensus_result.get("confidence")
         
+        # Validate all required fields are present
+        if not final_probs or not dominant_action or confidence is None:
+            print(f"[NO FALLBACK] {symbol}: Missing consensus data - skipping token")
+            continue
+            
         # Convert to traditional format
         if dominant_action == "BUY" and confidence > 0.6:
             decision = "BUY"
@@ -139,18 +144,15 @@ def run_last10_all_detectors(items: List[Dict[str, Any]], model: str = "gpt-4o")
                         print(f"[PROBABILISTIC V3] {symbol}: {final_action} (conf: {final_confidence:.3f})")
                         print(f"[PROBABILISTIC V3] {symbol}: Evidence: {final_decision.get('total_evidence', 0)}")
                     else:
-                        print(f"[PROBABILISTIC V3 ERROR] {symbol}: Invalid decision structure, using fallback")
-                        final_action, final_confidence = "HOLD", 0.4
-                        full_probs = {"BUY": 0.2, "HOLD": 0.5, "AVOID": 0.2, "ABSTAIN": 0.1}
+                        print(f"[PROBABILISTIC V3 ERROR] {symbol}: Invalid decision structure - REJECTING TOKEN")
+                        continue  # Skip this token entirely - NO FALLBACK
                         
                 except Exception as e:
-                    print(f"[PROBABILISTIC V3 ERROR] {symbol}: Decider failed: {e}")
-                    final_action, final_confidence = "HOLD", 0.3
-                    full_probs = {"BUY": 0.2, "HOLD": 0.5, "AVOID": 0.2, "ABSTAIN": 0.1}
+                    print(f"[PROBABILISTIC V3 ERROR] {symbol}: Decider failed: {e} - REJECTING TOKEN")
+                    continue  # Skip this token entirely - NO FALLBACK
             else:
-                print(f"[PROBABILISTIC V3 ERROR] {symbol}: Invalid agent opinions count: {len(agent_opinions)}")
-                final_action, final_confidence = "HOLD", 0.3
-                full_probs = {"BUY": 0.2, "HOLD": 0.5, "AVOID": 0.2, "ABSTAIN": 0.1}
+                print(f"[PROBABILISTIC V3 ERROR] {symbol}: Invalid agent opinions count: {len(agent_opinions)} - REJECTING TOKEN")
+                continue  # Skip this token entirely - NO FALLBACK
             
             results.append({
                 "s": symbol,

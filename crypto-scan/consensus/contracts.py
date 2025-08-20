@@ -23,8 +23,13 @@ class ActionProbs(BaseModel):
     def check_sum_equals_one(cls, v, values):
         if len(values) == 4:  # All fields validated
             total = sum(values.values())
+            if total <= 0:
+                raise ValueError("Empty action_probs - no fallback to fixed distributions allowed")
             if not (0.99 <= total <= 1.01):  # Allow small floating point errors
-                raise ValueError(f"action_probs must sum to 1.0, got {total:.6f}")
+                # Normalize probabilities instead of rejecting
+                for key in values:
+                    values[key] = values[key] / total
+                print(f"[CONTRACTS] Normalized action_probs: sum was {total:.6f}, now 1.0")
         return v
 
 class CalibrationHint(BaseModel):

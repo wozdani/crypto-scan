@@ -58,9 +58,10 @@ def decide_and_log(token_id: str, opinions: List[Union[AgentOpinion, Dict[str, A
 def aggregate(opinions: List[Union[AgentOpinion, Dict[str, Any]]]) -> Dict[str, Any]:
     """
     Bradley-Terry consensus aggregation with reliability weighting
+    NO FALLBACK TO FIXED DISTRIBUTIONS - empty opinions raises error
     """
     if not opinions:
-        raise ValueError("Cannot aggregate empty opinions list")
+        raise ValueError("Cannot aggregate empty opinions list - no fallback to fixed distributions allowed")
     
     # Initialize aggregated probabilities
     aggregated_probs = {"BUY": 0.0, "HOLD": 0.0, "AVOID": 0.0, "ABSTAIN": 0.0}
@@ -107,10 +108,8 @@ def aggregate(opinions: List[Union[AgentOpinion, Dict[str, Any]]]) -> Dict[str, 
         for action in aggregated_probs:
             aggregated_probs[action] /= total_weight
     else:
-        # Fallback to uniform distribution if no valid weights
-        uniform_prob = 1.0 / len(aggregated_probs)
-        aggregated_probs = {action: uniform_prob for action in aggregated_probs}
-        print(f"[AGGREGATE WARNING] Zero total weight, using uniform distribution")
+        # NO FALLBACK TO UNIFORM DISTRIBUTION - raise error
+        raise ValueError(f"Total weight is zero - cannot aggregate agent opinions without valid weights")
     
     # Calculate consensus entropy
     entropy = 0.0
