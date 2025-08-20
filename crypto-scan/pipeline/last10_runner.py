@@ -149,22 +149,12 @@ class Last10Runner:
         symbols = list(set(item["s"] for item in items))
         print(f"[LAST10 RUNNER] Processing symbols: {symbols}")
         
-        # Split into cache hits and items to query
-        cache_hits = {}
-        to_query = []
+        # DISABLE CACHE for true batch processing - wszystkie items w jednym API call
+        to_query = items  # Wszystkie items idą do batch processing
+        cache_hits = {}   # Nie używamy cache dla LAST10
         
-        for item in items:
-            cache_key = _cache_key(item)
-            if cache_key in self._cache:
-                cache_hits[cache_key] = {
-                    "s": item["s"],
-                    "det": item["det"], 
-                    "result": self._cache[cache_key]
-                }
-            else:
-                to_query.append(item)
-        
-        print(f"[LAST10 RUNNER] Cache hits: {len(cache_hits)}, To query: {len(to_query)}")
+        print(f"[LAST10 RUNNER] BATCH MODE: Processing all {len(to_query)} items in single API call")
+        print(f"[LAST10 RUNNER] Cache DISABLED for consistent batch processing")
         
         # Check budget for new queries
         if to_query and not self._check_budget():
