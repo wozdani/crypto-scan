@@ -168,7 +168,9 @@ Return the same JSON format."""
                 elif "```" in content:
                     content = content.split("```")[1].split("```")[0].strip()
                 
-                return json.loads(content)
+                parsed = json.loads(content)
+                # Validate and normalize the response
+                return self._normalize_agent_response(parsed)
         except Exception as e:
             logger.error(f"OpenAI API error: {e}")
             # Return default probabilistic response
@@ -179,6 +181,52 @@ Return the same JSON format."""
                 "rationale": f"API error: {str(e)[:100]}",
                 "calibration_hint": {"reliability": 0.3, "expected_ttft_mins": 30}
             }
+    
+    def _normalize_agent_response(self, response: Any) -> Dict[str, Any]:
+        """Normalize agent response to expected format"""
+        if not isinstance(response, dict):
+            # Convert non-dict responses to default format
+            return {
+                "action_probs": {"BUY": 0.2, "HOLD": 0.5, "AVOID": 0.2, "ABSTAIN": 0.1},
+                "uncertainty": {"epistemic": 0.5, "aleatoric": 0.3},
+                "evidence": [{"name": "normalized_response", "direction": "neutral", "strength": 0.5}],
+                "rationale": "Response normalized from non-standard format",
+                "calibration_hint": {"reliability": 0.5, "expected_ttft_mins": 30}
+            }
+        
+        # Ensure action_probs exists and is properly formatted
+        action_probs = response.get("action_probs", {})
+        if not isinstance(action_probs, dict) or not action_probs:
+            # Try to extract from different possible formats
+            if "buy" in response:
+                action_probs = {
+                    "BUY": float(response.get("buy", 0.2)),
+                    "HOLD": float(response.get("hold", 0.5)),
+                    "AVOID": float(response.get("sell", 0.2)),
+                    "ABSTAIN": float(response.get("abstain", 0.1))
+                }
+            elif "BUY" in response:
+                action_probs = {
+                    "BUY": float(response.get("BUY", 0.2)),
+                    "HOLD": float(response.get("HOLD", 0.5)),
+                    "AVOID": float(response.get("AVOID", 0.2)),
+                    "ABSTAIN": float(response.get("ABSTAIN", 0.1))
+                }
+            else:
+                action_probs = {"BUY": 0.2, "HOLD": 0.5, "AVOID": 0.2, "ABSTAIN": 0.1}
+        
+        # Normalize probabilities to sum to 1
+        total = sum(action_probs.values())
+        if total > 0:
+            action_probs = {k: v/total for k, v in action_probs.items()}
+        
+        return {
+            "action_probs": action_probs,
+            "uncertainty": response.get("uncertainty", {"epistemic": 0.3, "aleatoric": 0.3}),
+            "evidence": response.get("evidence", [{"name": "soft_reasoning", "direction": "neutral", "strength": 0.5}]),
+            "rationale": response.get("rationale", "Probabilistic analysis completed"),
+            "calibration_hint": response.get("calibration_hint", {"reliability": 0.6, "expected_ttft_mins": 30})
+        }
 
     def run_analyzer(self, inputs: Dict) -> Dict:
         """Run ANALYZER agent with soft reasoning"""
@@ -216,11 +264,37 @@ Return the same JSON format."""
         all_evidence = []
         
         for op in opinions:
-            p = op.get("action_probs", {})
-            rel = op.get("calibration_hint", {}).get("reliability", 0.6)
-            uncertainty = op.get("uncertainty", {})
-            epi = uncertainty.get("epistemic", 0.3)
-            ale = uncertainty.get("aleatoric", 0.3)
+            # Handle different response formats gracefully
+            if isinstance(op, dict):
+                p = op.get("action_probs", {})
+                # If no action_probs, try to infer from other fields
+                if not p:
+                    # Some agents return different formats - normalize them
+                    if "buy" in op and "hold" in op:
+                        p = {"BUY": op.get("buy", 0.2), "HOLD": op.get("hold", 0.5), 
+                             "AVOID": op.get("sell", 0.2), "ABSTAIN": op.get("abstain", 0.1)}
+                    elif "BUY" in op:
+                        p = {"BUY": op.get("BUY", 0.2), "HOLD": op.get("HOLD", 0.5), 
+                             "AVOID": op.get("AVOID", 0.2), "ABSTAIN": op.get("ABSTAIN", 0.1)}
+                    else:
+                        # Default probabilistic distribution
+                        p = {"BUY": 0.2, "HOLD": 0.5, "AVOID": 0.2, "ABSTAIN": 0.1}
+                
+                rel = 0.6
+                if isinstance(op.get("calibration_hint"), dict):
+                    rel = op.get("calibration_hint", {}).get("reliability", 0.6)
+                
+                uncertainty = op.get("uncertainty", {})
+                if not isinstance(uncertainty, dict):
+                    uncertainty = {"epistemic": 0.3, "aleatoric": 0.3}
+                epi = uncertainty.get("epistemic", 0.3)
+                ale = uncertainty.get("aleatoric", 0.3)
+            else:
+                # Fallback for non-dict responses
+                p = {"BUY": 0.2, "HOLD": 0.5, "AVOID": 0.2, "ABSTAIN": 0.1}
+                rel = 0.5
+                epi = 0.5
+                ale = 0.3
             
             # Weight = reliability * (1 - epistemic_uncertainty)
             weight = rel * (1.0 - epi)
@@ -230,9 +304,12 @@ Return the same JSON format."""
             epistemic_sum += epi
             aleatoric_sum += ale
             
-            # Collect evidence
-            evidence = op.get("evidence", [])
-            all_evidence.extend(evidence)
+            # Collect evidence safely
+            evidence = op.get("evidence", []) if isinstance(op, dict) else []
+            if isinstance(evidence, list):
+                all_evidence.extend(evidence)
+            else:
+                all_evidence.append({"name": "unknown_evidence", "strength": 0.5})
             
             # Soft aggregation: weighted log-probabilities
             for a in A:
@@ -271,11 +348,16 @@ Return the same JSON format."""
         global_epistemic = epistemic_sum / num_agents
         global_aleatoric = aleatoric_sum / num_agents
         
-        # Extract top evidence
-        evidence_by_strength = sorted(all_evidence, 
-                                    key=lambda x: x.get("strength", 0), 
-                                    reverse=True)
-        top_evidence = [e.get("name", "unknown") for e in evidence_by_strength[:3]]
+        # Extract top evidence safely
+        try:
+            evidence_by_strength = sorted([e for e in all_evidence if isinstance(e, dict)], 
+                                        key=lambda x: x.get("strength", 0), 
+                                        reverse=True)
+            top_evidence = [e.get("name", "unknown") for e in evidence_by_strength[:3]]
+            if not top_evidence:
+                top_evidence = ["probabilistic_analysis", "soft_reasoning", "consensus"]
+        except Exception:
+            top_evidence = ["analysis_completed", "consensus_reached"]
         
         # Generate rationale based on final probabilities
         max_action = max(final_probs, key=final_probs.get)

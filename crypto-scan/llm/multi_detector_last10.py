@@ -169,11 +169,33 @@ def _run_multi_agent_consensus(items: List[Dict[str, Any]]) -> Dict[str, Any]:
             avg_lag_mins=15.0
         )
         
-        # Run probabilistic consensus
+        # Run probabilistic consensus with robust error handling
         try:
             consensus_result = prob_system.probabilistic_consensus(
                 detector_breakdown, meta, trust, history, perf
             )
+            
+            # Validate consensus result
+            if not isinstance(consensus_result, dict):
+                print(f"[PROBABILISTIC WARNING] {symbol}: Invalid consensus result type, using fallback")
+                consensus_result = {
+                    "final_probs": {"BUY": 0.2, "HOLD": 0.5, "AVOID": 0.2, "ABSTAIN": 0.1},
+                    "dominant_action": "HOLD",
+                    "confidence": 0.5,
+                    "top_evidence": ["probabilistic_analysis"],
+                    "uncertainty_global": {"epistemic": 0.5, "aleatoric": 0.3},
+                    "rationale": "Fallback consensus due to parsing issues"
+                }
+        except Exception as consensus_error:
+            print(f"[PROBABILISTIC ERROR] {symbol}: Consensus failed: {consensus_error}")
+            consensus_result = {
+                "final_probs": {"BUY": 0.2, "HOLD": 0.5, "AVOID": 0.2, "ABSTAIN": 0.1},
+                "dominant_action": "HOLD", 
+                "confidence": 0.4,
+                "top_evidence": ["error_recovery"],
+                "uncertainty_global": {"epistemic": 0.8, "aleatoric": 0.5},
+                "rationale": f"Error recovery: {str(consensus_error)[:100]}"
+            }
             
             # Extract probabilistic results
             final_probs = consensus_result.get("final_probs", {})
