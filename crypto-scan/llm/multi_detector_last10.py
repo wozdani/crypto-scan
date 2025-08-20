@@ -74,19 +74,18 @@ def run_last10_all_detectors(items: List[Dict[str, Any]], model: str = "gpt-4o-m
 
 def _run_multi_agent_consensus(items: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
-    Run Probabilistic Multi-Agent Consensus with soft reasoning (no hard thresholds)
+    Run TRUE BATCH Probabilistic Multi-Agent Consensus - ALL TOKENS IN SINGLE API CALL
     """
-    print(f"[LAST10 PROBABILISTIC] Processing {len(items)} items with probabilistic consensus")
+    print(f"[LAST10 PROBABILISTIC] Processing {len(items)} items with SINGLE BATCH CALL")
     
-    from stealth_engine.probabilistic_agents import (
-        ProbabilisticMultiAgentSystem, TokenMeta, TrustProfile, 
-        TokenHistory, DetectorPerfStats
-    )
+    # Import consensus system
+    from consensus.agents import run_analyzer, run_reasoner, run_voter, run_debater
+    from consensus.decider import aggregate
+    from consensus.contracts import FinalDecision
     
-    prob_system = ProbabilisticMultiAgentSystem()
     results = []
     
-    # Group items by token for easier processing
+    # Group items by token for payload preparation
     token_groups = {}
     for item in items:
         symbol = item["s"]
@@ -96,10 +95,22 @@ def _run_multi_agent_consensus(items: List[Dict[str, Any]]) -> Dict[str, Any]:
     
     print(f"[LAST10 MULTI-AGENT] Grouped {len(items)} items into {len(token_groups)} tokens")
     
+    # CRITICAL: Build payload for ALL tokens in single batch
+    batch_payload = {
+        "batch_type": "multi_token_consensus",
+        "tokens": {},
+        "meta_info": {
+            "total_tokens": len(token_groups),
+            "total_items": len(items),
+            "batch_timestamp": time.time()
+        }
+    }
+    
+    # Build comprehensive payload for all tokens
     for symbol, token_items in token_groups.items():
-        print(f"[LAST10 PROBABILISTIC] Processing {symbol} with {len(token_items)} detectors")
+        print(f"[LAST10 BATCH PREP] Preparing {symbol} with {len(token_items)} detectors")
         
-        # Prepare detector breakdown for probabilistic analysis
+        # Prepare detector breakdown for this token
         detector_breakdown = {}
         total_trust = 0.0
         total_liquidity = 0.0
@@ -134,76 +145,77 @@ def _run_multi_agent_consensus(items: List[Dict[str, Any]]) -> Dict[str, Any]:
             if features.get("vol", 0.0) > 0:
                 volume_24h = features.get("vol", 0.0)
         
-        # Create data structures for probabilistic analysis
+        # Create payload data for this token
         num_detectors = len(token_items)
         avg_trust = total_trust / max(num_detectors, 1)
         avg_liquidity = total_liquidity / max(num_detectors, 1)
         
-        meta = TokenMeta(
-            price=price,
-            volume_24h=volume_24h,
-            spread_bps=10.0,  # Default
-            liquidity_tier="medium",
-            is_perp=True,
-            exchange="bybit"
-        )
-        meta.symbol = symbol
-        
-        trust = TrustProfile(
-            trusted_addresses_share=avg_trust,
-            recurring_wallets_7d=0,  # Not available in compact features
-            smart_money_score=avg_trust
-        )
-        
-        history = TokenHistory(
-            events_72h=[],
-            repeats_24h=0,
-            cooldown_active=False,
-            last_alert_outcome="unknown"
-        )
-        
-        perf = DetectorPerfStats(
-            precision_7d=0.7,  # Default values - should be loaded from actual performance data
-            tp_rate=0.6,
-            fp_rate=0.3,
-            avg_lag_mins=15.0
-        )
-        
-        # Run probabilistic consensus with robust error handling
-        try:
-            consensus_result = prob_system.probabilistic_consensus(
-                detector_breakdown, meta, trust, history, perf
-            )
-            
-            # Validate consensus result
-            if not isinstance(consensus_result, dict):
-                print(f"[PROBABILISTIC WARNING] {symbol}: Invalid consensus result type, using fallback")
-                consensus_result = {
-                    "final_probs": {"BUY": 0.2, "HOLD": 0.5, "AVOID": 0.2, "ABSTAIN": 0.1},
-                    "dominant_action": "HOLD",
-                    "confidence": 0.5,
-                    "top_evidence": ["probabilistic_analysis"],
-                    "uncertainty_global": {"epistemic": 0.5, "aleatoric": 0.3},
-                    "rationale": "Fallback consensus due to parsing issues"
-                }
-        except Exception as consensus_error:
-            print(f"[PROBABILISTIC ERROR] {symbol}: Consensus failed: {consensus_error}")
-            consensus_result = {
-                "final_probs": {"BUY": 0.2, "HOLD": 0.5, "AVOID": 0.2, "ABSTAIN": 0.1},
-                "dominant_action": "HOLD", 
-                "confidence": 0.4,
-                "top_evidence": ["error_recovery"],
-                "uncertainty_global": {"epistemic": 0.8, "aleatoric": 0.5},
-                "rationale": f"Error recovery: {str(consensus_error)[:100]}"
+        # Add to batch payload
+        batch_payload["tokens"][symbol] = {
+            "symbol": symbol,
+            "detector_breakdown": detector_breakdown,
+            "meta": {
+                "price": price,
+                "volume_24h": volume_24h,
+                "price_change_24h": 0.02,  # Default
+                "spread": 0.001,
+                "market_cap": volume_24h * 50  # Estimate
+            },
+            "trust": {
+                "whale_addresses": [],
+                "trust_score": avg_trust,
+                "dex_inflow": detector_breakdown.get("dex_inflow", 0.0),
+                "address_reputation": "medium"
+            },
+            "history": {
+                "recent_pumps": [],
+                "volume_pattern": "normal",
+                "price_trend": "neutral",
+                "whale_activity_24h": "low"
+            },
+            "perf": {
+                "detector_precision": {"stealth_engine": 0.7, "californium_whale": 0.65},
+                "false_positive_rate": {"stealth_engine": 0.3, "californium_whale": 0.35},
+                "avg_lag_mins": 20
             }
+        }
+    
+    # NOW MAKE SINGLE BATCH API CALL FOR ALL TOKENS
+    print(f"[LAST10 BATCH] ✅ Making SINGLE API call for {len(token_groups)} tokens")
+    
+    try:
+        # Build batch consensus payload - this should be a SINGLE prompt with ALL tokens
+        batch_consensus_payload = {
+            "batch_mode": True,
+            "token_count": len(token_groups),
+            "tokens_data": batch_payload["tokens"]
+        }
+        
+        # Make SINGLE API call with ALL tokens - should use new batch consensus system
+        import time
+        start_time = time.time()
+        
+        # Use batch consensus system - SINGLE API CALL FOR ALL TOKENS
+        batch_consensus_results = _run_batch_consensus_single_call(batch_consensus_payload)
+        
+        processing_time = (time.time() - start_time) * 1000
+        print(f"[LAST10 BATCH] ✅ Single API call completed in {processing_time:.1f}ms")
+        
+        # Process batch results and create individual token results
+        for symbol, token_items in token_groups.items():
+            consensus_result = batch_consensus_results.get(symbol, {
+                "final_probs": {"BUY": 0.2, "HOLD": 0.5, "AVOID": 0.2, "ABSTAIN": 0.1},
+                "dominant_action": "HOLD",
+                "confidence": 0.4,
+                "top_evidence": ["batch_processing"],
+                "rationale": "Batch consensus processing"
+            })
             
-            # Extract probabilistic results
             final_probs = consensus_result.get("final_probs", {})
             dominant_action = consensus_result.get("dominant_action", "HOLD")
             confidence = consensus_result.get("confidence", 0.0)
             top_evidence = consensus_result.get("top_evidence", [])
-            uncertainty = consensus_result.get("uncertainty_global", {})
-            rationale = consensus_result.get("rationale", "No rationale provided")
+            rationale = consensus_result.get("rationale", "Batch consensus result")
             
             # Convert probabilistic decision to traditional format for compatibility
             if dominant_action == "BUY" and confidence > 0.6:

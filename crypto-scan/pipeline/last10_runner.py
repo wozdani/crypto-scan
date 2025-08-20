@@ -6,7 +6,7 @@ import os
 import time
 from typing import List, Dict, Any, Optional
 from pipeline.last10_batch_runner import build_items_from_last10, _cache_key
-from llm.multi_detector_last10 import run_last10_all_detectors
+from llm.multi_detector_last10_fixed import run_last10_all_detectors
 
 # Global counter for multi-detector tokens (≥2 detectors)
 _multi_detector_counter = 0
