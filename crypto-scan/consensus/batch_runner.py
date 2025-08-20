@@ -75,11 +75,22 @@ def run_batch_consensus(tokens_payload: List[Dict[str, Any]]) -> Dict[str, Any]:
     results: Dict[str, Dict[str, Any]] = {}
     
     try:
-        # Use asyncio for better timeout control
-        results = asyncio.run(_process_all_chunks_async(chunks))
+        # Check if we're already in an event loop
+        try:
+            loop = asyncio.get_running_loop()
+            print(f"[BATCH ASYNC] Running in existing event loop, using create_task")
+            # We're in an event loop, use create_task instead of asyncio.run
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(asyncio.run, _process_all_chunks_async(chunks))
+                results = future.result(timeout=120)  # 2 minute total timeout
+        except RuntimeError:
+            # No event loop running, safe to use asyncio.run
+            print(f"[BATCH ASYNC] No event loop detected, using asyncio.run")
+            results = asyncio.run(_process_all_chunks_async(chunks))
     except Exception as e:
         print(f"[BATCH CONSENSUS ERROR] Async processing failed: {e}")
-        # Fallback to synchronous processing
+        # Fallback to synchronous processing (which works perfectly)
         results = _process_chunks_sync(chunks)
     
     # Final validation
