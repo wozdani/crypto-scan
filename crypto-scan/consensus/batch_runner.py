@@ -98,8 +98,54 @@ def run_batch_consensus(tokens_payload: List[Dict[str, Any]]) -> Dict[str, Any]:
     if not quality_report["is_valid"]:
         print(f"[BATCH QUALITY WARNING] Issues detected: {quality_report['issues']}")
     
-    print(f"[BATCH CONSENSUS] ✅ Completed processing {len(results)} tokens")
-    return results
+    # Map batch results to proper agent format for Decider
+    mapped_results = _map_batch_results_to_agent_format(results)
+    
+    print(f"[BATCH CONSENSUS] ✅ Completed processing {len(mapped_results)} tokens with per-agent mapping")
+    return mapped_results
+
+def _map_batch_results_to_agent_format(batch_results: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Map batch results to per-agent format for Decider
+    """
+    mapped_results = {}
+    
+    for token_id, token_result in batch_results.items():
+        if "agents" in token_result:
+            # Per-agent format from BATCH_AGENT_SYSTEM_V3
+            agents_data = token_result["agents"]
+            agent_opinions = []
+            
+            for agent_name in ["Analyzer", "Reasoner", "Voter", "Debater"]:
+                if agent_name in agents_data:
+                    agent_data = agents_data[agent_name]
+                    agent_opinions.append({
+                        "agent": agent_name,
+                        "action_probs": agent_data.get("action_probs", {}),
+                        "uncertainty": agent_data.get("uncertainty", {}),
+                        "evidence": agent_data.get("evidence", []),
+                        "rationale": agent_data.get("rationale", ""),
+                        "calibration_hint": agent_data.get("calibration_hint", {})
+                    })
+                    print(f"[AGENT MAP] {token_id}/{agent_name}: evidence_count={len(agent_data.get('evidence', []))}")
+            
+            mapped_results[token_id] = {
+                "agent_opinions": agent_opinions,
+                "evidence_count": sum(len(op.get("evidence", [])) for op in agent_opinions),
+                "source": "batch_per_agent"
+            }
+            print(f"[AGENT MAP] {token_id}: Mapped {len(agent_opinions)} agents, total_evidence={mapped_results[token_id]['evidence_count']}")
+            
+        else:
+            # Legacy single result format - wrap as single opinion
+            mapped_results[token_id] = {
+                "agent_opinions": [token_result],
+                "evidence_count": len(token_result.get("evidence", [])),
+                "source": "batch_legacy"  
+            }
+            print(f"[AGENT MAP] {token_id}: Legacy format, evidence_count={mapped_results[token_id]['evidence_count']}")
+    
+    return mapped_results
 
 async def _process_all_chunks_async(chunks: List[List[Dict[str, Any]]]) -> Dict[str, Any]:
     """Process all chunks asynchronously with timeout handling"""
