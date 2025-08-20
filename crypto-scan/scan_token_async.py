@@ -2133,18 +2133,34 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         "graph_score": stealth_result.get("diamond_graph", 0.0)
                     }
                 
-                # Record in Last10Store ONLY if ≥2 active detectors (consistent with batch system)
-                if len(active_detectors) >= 2:
+                # Record in Last10Store ONLY if ≥2 active detectors AND they meet score thresholds
+                # Apply strict threshold validation - detectors must score ≥0.6 to qualify
+                qualified_detectors = {}
+                threshold = 0.6
+                
+                for det_name, det_data in active_detectors.items():
+                    score_key = f"{det_name}_score" if f"{det_name}_score" in det_data else list(det_data.keys())[0]
+                    score = det_data.get(score_key, 0.0)
+                    
+                    if score >= threshold:
+                        qualified_detectors[det_name] = det_data
+                        print(f"[TOP10 QUALIFIED] {symbol}: {det_name}={score:.3f} ≥ {threshold} ✅")
+                    else:
+                        print(f"[TOP10 REJECTED] {symbol}: {det_name}={score:.3f} < {threshold} ❌")
+                
+                if len(qualified_detectors) >= 2:
                     last10_store = get_last10_store()
                     
-                    # Show detailed detector info before recording
+                    # Show detailed qualified detector info before recording
                     detector_details = []
-                    for det_name, det_data in active_detectors.items():
+                    for det_name, det_data in qualified_detectors.items():
                         score_key = f"{det_name}_score" if f"{det_name}_score" in det_data else list(det_data.keys())[0]
                         score = det_data.get(score_key, 0.0)
                         detector_details.append(f"{det_name}={score:.3f}")
                     
-                    last10_store.record(symbol, current_time, active_detectors)
+                    # Record only qualified detectors (those meeting threshold)
+                    last10_store.record(symbol, current_time, qualified_detectors)
+                    print(f"[TOP10 THRESHOLD] {symbol}: Recorded {len(qualified_detectors)}/{len(active_detectors)} qualified detectors")
                     new_store_size = len(last10_store.get_last10())
                     
                     # Show final decision for this token
@@ -2221,11 +2237,20 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                                 
                     except Exception as batch_error:
                         print(f"[TOP10 BATCH ERROR] Failed batch processing: {batch_error}")
+                elif qualified_detectors:
+                    # Token has qualified detectors but <2, so skip for TOP10
+                    detector_count = len(qualified_detectors)
+                    detector_names = list(qualified_detectors.keys())
+                    total_detectors = len(active_detectors)
+                    print(f"[TOP10 SKIP] {symbol} → Only {detector_count}/{total_detectors} qualified detector(s): {', '.join(detector_names)} (need ≥2 with score≥{threshold})")
                 elif active_detectors:
-                    # Token has detectors but <2, so skip for TOP10
-                    detector_count = len(active_detectors)
-                    detector_names = list(active_detectors.keys())
-                    print(f"[TOP10 SKIP] {symbol} → Only {detector_count} detector(s): {', '.join(detector_names)} (need ≥2)")
+                    # Token has detectors but none meet threshold
+                    detector_details = []
+                    for det_name, det_data in active_detectors.items():
+                        score_key = f"{det_name}_score" if f"{det_name}_score" in det_data else list(det_data.keys())[0]
+                        score = det_data.get(score_key, 0.0)
+                        detector_details.append(f"{det_name}={score:.3f}")
+                    print(f"[TOP10 SKIP] {symbol} → All detectors below threshold: {', '.join(detector_details)} (need ≥{threshold})")
                 else:
                     print(f"[TOP10 SKIP] {symbol} → No active detectors to record")
                     
