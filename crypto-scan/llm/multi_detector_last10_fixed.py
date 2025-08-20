@@ -124,12 +124,33 @@ def run_last10_all_detectors(items: List[Dict[str, Any]], model: str = "gpt-4o")
             hold_votes = max(1, int(hold_prob * 5))
             avoid_votes = max(1, int(avoid_prob * 5))
             
-            # Use NEW decider for proper ABSTAIN handling
-            from consensus.decider_fixed import decide_and_log
-            final_action, final_confidence, full_probs = decide_and_log(symbol, consensus_result)
+            # Use NEW decider interface for proper AgentOpinion handling
+            from consensus.decider import decide_and_log, validate_consensus_decision
             
-            print(f"[PROBABILISTIC] {symbol}: Final consensus: {final_action} (confidence: {final_confidence:.3f})")
-            print(f"[PROBABILISTIC] {symbol}: Full action_probs: {full_probs}")
+            # Extract agent opinions from consensus result
+            agent_opinions = consensus_result.get("agent_opinions", [])
+            if agent_opinions and len(agent_opinions) == 4:
+                try:
+                    final_decision, final_action, final_confidence = decide_and_log(symbol, agent_opinions)
+                    
+                    # Validate decision structure
+                    if validate_consensus_decision(final_decision, symbol):
+                        full_probs = final_decision.get("final_probs", {})
+                        print(f"[PROBABILISTIC V3] {symbol}: {final_action} (conf: {final_confidence:.3f})")
+                        print(f"[PROBABILISTIC V3] {symbol}: Evidence: {final_decision.get('total_evidence', 0)}")
+                    else:
+                        print(f"[PROBABILISTIC V3 ERROR] {symbol}: Invalid decision structure, using fallback")
+                        final_action, final_confidence = "HOLD", 0.4
+                        full_probs = {"BUY": 0.2, "HOLD": 0.5, "AVOID": 0.2, "ABSTAIN": 0.1}
+                        
+                except Exception as e:
+                    print(f"[PROBABILISTIC V3 ERROR] {symbol}: Decider failed: {e}")
+                    final_action, final_confidence = "HOLD", 0.3
+                    full_probs = {"BUY": 0.2, "HOLD": 0.5, "AVOID": 0.2, "ABSTAIN": 0.1}
+            else:
+                print(f"[PROBABILISTIC V3 ERROR] {symbol}: Invalid agent opinions count: {len(agent_opinions)}")
+                final_action, final_confidence = "HOLD", 0.3
+                full_probs = {"BUY": 0.2, "HOLD": 0.5, "AVOID": 0.2, "ABSTAIN": 0.1}
             
             results.append({
                 "s": symbol,
