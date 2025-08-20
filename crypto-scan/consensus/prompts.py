@@ -34,6 +34,66 @@ Output JSON:
   }
 }"""
 
+BATCH_AGENT_SYSTEM_V3 = """
+Jesteś zespołem 4 agentów: Analyzer, Reasoner, Voter, Debater.
+Dla KAŻDEGO tokena zwróć wyniki PER-AGENT w formacie:
+{
+  "items": {
+    "<TOKEN_ID>": {
+      "agents": {
+        "Analyzer": {
+          "action_probs": {"BUY": 0.0, "HOLD": 0.0, "AVOID": 0.0, "ABSTAIN": 0.0},
+          "uncertainty": {"epistemic": 0.0, "aleatoric": 0.0},
+          "evidence": [{"name": "signal_name", "direction": "pro|con|neutral", "strength": 0.0},
+                       {"name": "signal_name", "direction": "pro|con|neutral", "strength": 0.0},
+                       {"name": "signal_name", "direction": "pro|con|neutral", "strength": 0.0}],
+          "rationale": "Krótkie uzasadnienie (max 20 słów)",
+          "calibration_hint": {"reliability": 0.0, "expected_ttft_mins": 0}
+        },
+        "Reasoner": {
+          "action_probs": {"BUY": 0.0, "HOLD": 0.0, "AVOID": 0.0, "ABSTAIN": 0.0},
+          "uncertainty": {"epistemic": 0.0, "aleatoric": 0.0},
+          "evidence": [{"name": "signal_name", "direction": "pro|con|neutral", "strength": 0.0},
+                       {"name": "signal_name", "direction": "pro|con|neutral", "strength": 0.0},
+                       {"name": "signal_name", "direction": "pro|con|neutral", "strength": 0.0}],
+          "rationale": "Krótkie uzasadnienie (max 20 słów)",
+          "calibration_hint": {"reliability": 0.0, "expected_ttft_mins": 0}
+        },
+        "Voter": {
+          "action_probs": {"BUY": 0.0, "HOLD": 0.0, "AVOID": 0.0, "ABSTAIN": 0.0},
+          "uncertainty": {"epistemic": 0.0, "aleatoric": 0.0},
+          "evidence": [{"name": "signal_name", "direction": "pro|con|neutral", "strength": 0.0},
+                       {"name": "signal_name", "direction": "pro|con|neutral", "strength": 0.0},
+                       {"name": "signal_name", "direction": "pro|con|neutral", "strength": 0.0}],
+          "rationale": "Krótkie uzasadnienie (max 20 słów)",
+          "calibration_hint": {"reliability": 0.0, "expected_ttft_mins": 0}
+        },
+        "Debater": {
+          "action_probs": {"BUY": 0.0, "HOLD": 0.0, "AVOID": 0.0, "ABSTAIN": 0.0},
+          "uncertainty": {"epistemic": 0.0, "aleatoric": 0.0},
+          "evidence": [{"name": "signal_name", "direction": "pro|con|neutral", "strength": 0.0},
+                       {"name": "signal_name", "direction": "pro|con|neutral", "strength": 0.0},
+                       {"name": "signal_name", "direction": "pro|con|neutral", "strength": 0.0}],
+          "rationale": "Krótkie uzasadnienie (max 20 słów)",
+          "calibration_hint": {"reliability": 0.0, "expected_ttft_mins": 0}
+        }
+      }
+    }
+  }
+}
+
+Wymagania:
+- Nie używaj sztywnych progów/reguł; zwracaj rozkłady probabilistyczne (suma=1).
+- Dla KAŻDEGO agenta podaj DOKŁADNIE 3 evidence (różne sygnały).
+- Nie kopiuj identycznych rozkładów między różnymi tokenami/agentami.
+- Odpowiedź musi być JEDNYM obiektem JSON dokładnie w tej strukturze.
+- KAŻDY agent musi mieć różne action_probs bazujące na swoich zadaniach.
+
+Nie używaj tej samej wartości action_probs dla wielu tokenów bez konkretnego uzasadnienia w rationale (token-specyficznego).
+
+Jeśli dane są słabe, ABSTAIN jest prawidłową akcją; nie zamieniaj jej na HOLD.
+"""
+
 EMERGENCY_SINGLE_PROMPT = """Szybka analiza 1 tokena - 4 agenci consensus.
 
 Zwróć JSON:
@@ -58,7 +118,7 @@ def get_prompt_for_context(token_count: int, is_emergency: bool = False) -> str:
     if is_emergency or token_count == 1:
         return EMERGENCY_SINGLE_PROMPT
     else:
-        return BATCH_AGENT_SYSTEM_V2
+        return BATCH_AGENT_SYSTEM_V3  # Per-agent output for proper mapping
 
 def estimate_prompt_tokens(system_prompt: str, payload: dict) -> int:
     """

@@ -5,10 +5,10 @@ import json
 import time
 import asyncio
 from typing import Dict, Any, List, Optional
-from .validators import validate_batch_keys, detect_degenerate_distributions, validate_batch_quality
+from .validators import validate_batch_keys, detect_degenerate_distributions, validate_batch_quality, ensure_agents_complete
 from .batching import make_balanced_chunks, analyze_chunk_distribution, order_tokens_for_first_chunk
 from .context_packer import pack_token_context, compress_for_emergency
-from .prompts import get_prompt_for_context, estimate_prompt_tokens
+from .prompts import get_prompt_for_context, estimate_prompt_tokens, BATCH_AGENT_SYSTEM_V3
 from llm.llm_client import chat_json
 
 # Load-aware configuration
@@ -49,14 +49,14 @@ STRUCTURE: Zwróć JEDYNY obiekt JSON:
 
 DIFFERENTIATION: Analyze each token's unique detector breakdown, market conditions, trust profile, and history. Generate distinct probability distributions that reflect genuine differences in signal strength and market context."""
 
-def run_batch_consensus(tokens_payload: List[Dict[str, Any]]) -> Dict[str, Any]:
+async def run_batch_consensus(tokens_payload: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
-    Run load-aware batch consensus with timeout prevention and retry splitting
+    NEW: Per-agent batch consensus with zero fallbacks to fixed distributions
     """
     if not tokens_payload:
         return {}
     
-    print(f"[BATCH CONSENSUS] Processing {len(tokens_payload)} tokens with load-aware chunking")
+    print(f"[BATCH CONSENSUS V3] Processing {len(tokens_payload)} tokens with per-agent parsing")
     
     # Pack contexts to reduce payload size
     packed_tokens = [pack_token_context(token) for token in tokens_payload]
@@ -64,42 +64,205 @@ def run_batch_consensus(tokens_payload: List[Dict[str, Any]]) -> Dict[str, Any]:
     # Priority ordering - most promising tokens first
     prioritized_tokens = order_tokens_for_first_chunk(packed_tokens)
     
-    # Load-aware balanced chunking
+    # Load-aware balanced chunking (max 5 for timeout prevention)
     chunks = make_balanced_chunks(prioritized_tokens, max_chunk=MAX_BATCH_SIZE)
     
     # Analyze chunk distribution
     distribution_analysis = analyze_chunk_distribution(chunks)
-    print(f"[BATCH LOAD] {distribution_analysis['total_chunks']} chunks, balanced: {distribution_analysis['balanced']}")
+    print(f"[BATCH LOAD V3] {distribution_analysis['total_chunks']} chunks, balanced: {distribution_analysis['balanced']}")
     
-    # Process chunks with timeout handling
+    # Process chunks with per-agent parsing
     results: Dict[str, Dict[str, Any]] = {}
     
-    try:
-        # Check if we're already in an event loop
+    for chunk_idx, chunk in enumerate(chunks):
+        token_ids = [token["token_id"] for token in chunk]
+        payload = {"tokens": chunk}
+        
         try:
-            loop = asyncio.get_running_loop()
-            print(f"[BATCH ASYNC] Running in existing event loop, using create_task")
-            # We're in an event loop, use create_task instead of asyncio.run
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(asyncio.run, _process_all_chunks_async(chunks))
-                results = future.result(timeout=120)  # 2 minute total timeout
-        except RuntimeError:
-            # No event loop running, safe to use asyncio.run
-            print(f"[BATCH ASYNC] No event loop detected, using asyncio.run")
-            results = asyncio.run(_process_all_chunks_async(chunks))
+            print(f"[BATCH V3] Processing chunk {chunk_idx+1}/{len(chunks)} with {len(chunk)} tokens")
+            batch_output = await _call_with_retry(
+                payload, 
+                tag=f"CHUNK_{chunk_idx}_{len(chunk)}", 
+                system_prompt=get_prompt_for_context(len(chunk))  # Uses BATCH_AGENT_SYSTEM_V3
+            )
+            
+            # Parse per-agent format with strict validation
+            per_agent_results = parse_batch_per_agent(batch_output, expected_token_ids=token_ids)
+            results.update(per_agent_results)
+            
+            print(f"[BATCH V3] ✅ Chunk {chunk_idx} completed with {len(per_agent_results)} validated tokens")
+            
+        except Exception as e:
+            print(f"[BATCH V3 ERROR] Chunk {chunk_idx} failed: {e}")
+            print(f"[BATCH V3] Micro-fallback per token with per-agent system...")
+            
+            # Micro-fallback: process tokens individually with per-agent system
+            for token in chunk:
+                try:
+                    single_payload = {"tokens": [token]}
+                    single_output = await _call_with_retry(
+                        single_payload,
+                        tag=f"SINGLE_{token['token_id']}",
+                        system_prompt=get_prompt_for_context(1)  # Single token per-agent
+                    )
+                    
+                    single_result = parse_batch_per_agent(single_output, expected_token_ids=[token["token_id"]])
+                    results.update(single_result)
+                    
+                    print(f"[MICRO V3] ✅ {token['token_id']} processed individually")
+                    
+                except Exception as single_error:
+                    print(f"[MICRO V3 ERROR] {token['token_id']}: {single_error}")
+                    # NO FALLBACK TO FIXED DISTRIBUTIONS - reject token entirely
+                    print(f"[MICRO V3] REJECTED {token['token_id']} - no fallback to fixed distributions")
+    
+    print(f"[BATCH CONSENSUS V3] ✅ Completed {len(results)} tokens with per-agent validation")
+    
+    # Quality telemetry check for degenerate mapping
+    try:
+        from .quality import quality_snapshot, suggest_recovery_action
+        
+        # Prepare per-agent map for quality analysis
+        per_agent_map = {}
+        for token_id, result in results.items():
+            agent_opinions = result.get("agent_opinions", [])
+            if agent_opinions:
+                per_agent_map[token_id] = agent_opinions
+        
+        # Run quality assessment
+        quality_metrics = quality_snapshot(per_agent_map)
+        
+        # Check for degenerate patterns
+        if quality_metrics.get("degenerate_detected", False):
+            recovery_suggestion = suggest_recovery_action(quality_metrics)
+            print(f"[QUALITY ALERT] Degenerate mapping detected - recovery needed")
+            print(f"[QUALITY ALERT] Severity: {recovery_suggestion.get('severity', 'UNKNOWN')}")
+            
+            # Log detailed issues for debugging
+            issues = quality_metrics.get("issues", [])
+            for issue in issues:
+                print(f"[QUALITY ISSUE] {issue}")
     except Exception as e:
-        print(f"[BATCH CONSENSUS ERROR] Async processing failed: {e}")
-        # Fallback to synchronous processing (which works perfectly)
-        results = _process_chunks_sync(chunks)
+        print(f"[QUALITY ERROR] Quality check failed: {e}")
     
-    # Final validation
-    quality_report = validate_batch_quality(results)
-    if not quality_report["is_valid"]:
-        print(f"[BATCH QUALITY WARNING] Issues detected: {quality_report['issues']}")
-    
-    print(f"[BATCH CONSENSUS] ✅ Completed processing {len(results)} tokens")
     return results
+
+def parse_batch_per_agent(batch_output: Dict[str, Any], expected_token_ids: List[str]) -> Dict[str, Dict[str, Any]]:
+    """
+    Parse batch output with per-agent validation using Pydantic contracts
+    """
+    items = batch_output.get("items", {})
+    
+    # Validate expected tokens are present
+    validate_batch_keys(expected_token_ids, list(items.keys()))
+    
+    # Ensure complete 4-agent structure with proper evidence
+    ensure_agents_complete(items)
+    
+    # Map to AgentOpinion format
+    opinions_by_token = {}
+    for token_id, token_payload in items.items():
+        agents_data = token_payload.get("agents", {})
+        agent_opinions = []
+        
+        for agent_name in ["Analyzer", "Reasoner", "Voter", "Debater"]:
+            if agent_name in agents_data:
+                agent_data = agents_data[agent_name]
+                # Convert to AgentOpinion format for strict validation
+                opinion = {
+                    "agent": agent_name,
+                    "action_probs": agent_data.get("action_probs", {}),
+                    "uncertainty": agent_data.get("uncertainty", {}),
+                    "evidence": agent_data.get("evidence", []),
+                    "rationale": agent_data.get("rationale", ""),
+                    "calibration_hint": agent_data.get("calibration_hint", {})
+                }
+                agent_opinions.append(opinion)
+                print(f"[PARSE AGENT] {token_id}/{agent_name}: evidence_count={len(opinion['evidence'])}")
+        
+        total_evidence = sum(len(op["evidence"]) for op in agent_opinions)
+        opinions_by_token[token_id] = {
+            "agent_opinions": agent_opinions,
+            "evidence_count": total_evidence,
+            "source": "batch_per_agent_validated"
+        }
+        print(f"[PARSE BATCH] {token_id}: Validated {len(agent_opinions)} agents, evidence_total={total_evidence}")
+    
+    return opinions_by_token
+
+def _map_batch_results_to_agent_format(batch_results: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Map batch results to per-agent format for Decider (legacy compatibility)
+    """
+    mapped_results = {}
+    
+    for token_id, token_result in batch_results.items():
+        if "agents" in token_result:
+            # Per-agent format from BATCH_AGENT_SYSTEM_V3
+            agents_data = token_result["agents"]
+            agent_opinions = []
+            
+            for agent_name in ["Analyzer", "Reasoner", "Voter", "Debater"]:
+                if agent_name in agents_data:
+                    agent_data = agents_data[agent_name]
+                    agent_opinions.append({
+                        "agent": agent_name,
+                        "action_probs": agent_data.get("action_probs", {}),
+                        "uncertainty": agent_data.get("uncertainty", {}),
+                        "evidence": agent_data.get("evidence", []),
+                        "rationale": agent_data.get("rationale", ""),
+                        "calibration_hint": agent_data.get("calibration_hint", {})
+                    })
+                    print(f"[AGENT MAP] {token_id}/{agent_name}: evidence_count={len(agent_data.get('evidence', []))}")
+            
+            mapped_results[token_id] = {
+                "agent_opinions": agent_opinions,
+                "evidence_count": sum(len(op.get("evidence", [])) for op in agent_opinions),
+                "source": "batch_per_agent"
+            }
+            print(f"[AGENT MAP] {token_id}: Mapped {len(agent_opinions)} agents, total_evidence={mapped_results[token_id]['evidence_count']}")
+            
+        else:
+            # Legacy single result format - wrap as single opinion
+            mapped_results[token_id] = {
+                "agent_opinions": [token_result],
+                "evidence_count": len(token_result.get("evidence", [])),
+                "source": "batch_legacy"  
+            }
+            print(f"[AGENT MAP] {token_id}: Legacy format, evidence_count={mapped_results[token_id]['evidence_count']}")
+    
+    return mapped_results
+
+async def _call_with_retry(payload: Dict[str, Any], tag: str, system_prompt: str, max_retries: int = 3) -> Dict[str, Any]:
+    """
+    Call LLM with retry logic and proper JSON response format
+    """
+    for attempt in range(max_retries):
+        try:
+            response = await asyncio.to_thread(
+                chat_json,
+                model=MODEL,
+                system_prompt=system_prompt,
+                user_payload=payload,
+                agent_name="BatchConsensusV3",
+                token=tag,
+                temperature=0.2,
+                response_format={"type": "json_object"}  # Force pure JSON
+            )
+            
+            # Validate response structure
+            if not isinstance(response, dict) or "items" not in response:
+                raise ValueError(f"Invalid response structure: missing 'items' key")
+            
+            return response
+            
+        except Exception as e:
+            print(f"[CALL RETRY] {tag} attempt {attempt+1}/{max_retries} failed: {e}")
+            if attempt == max_retries - 1:
+                raise e
+            await asyncio.sleep(1.0 * (attempt + 1))  # Exponential backoff
+    
+    raise Exception(f"All {max_retries} attempts failed for {tag}")
 
 async def _process_all_chunks_async(chunks: List[List[Dict[str, Any]]]) -> Dict[str, Any]:
     """Process all chunks asynchronously with timeout handling"""
@@ -149,7 +312,7 @@ async def _process_chunk_async(chunk: List[Dict[str, Any]], chunk_idx: int) -> D
     print(f"[BATCH CHUNK {chunk_idx}] Estimated tokens: {estimated_tokens}, timeout: {TIMEOUT_MS/1000}s")
     
     try:
-        # Use asyncio.wait_for for timeout control
+        # Use asyncio.wait_for for timeout control with proper response format
         response = await asyncio.wait_for(
             asyncio.to_thread(
                 chat_json,
@@ -158,7 +321,8 @@ async def _process_chunk_async(chunk: List[Dict[str, Any]], chunk_idx: int) -> D
                 user_payload=payload,
                 agent_name="BatchConsensus",
                 token=f"CHUNK_{chunk_idx}_{len(chunk)}",
-                temperature=0.2
+                temperature=0.2,
+                response_format={"type": "json_object"}  # Force pure JSON response
             ),
             timeout=TIMEOUT_MS / 1000.0
         )
