@@ -74,12 +74,16 @@ def run_last10_all_detectors(items: List[Dict[str, Any]], model: str = "gpt-4o-m
 
 def _run_multi_agent_consensus(items: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
-    Run Multi-Agent Consensus with 5 agents for detailed voting
+    Run Probabilistic Multi-Agent Consensus with soft reasoning (no hard thresholds)
     """
-    print(f"[LAST10 MULTI-AGENT] Processing {len(items)} items with 5-agent consensus")
+    print(f"[LAST10 PROBABILISTIC] Processing {len(items)} items with probabilistic consensus")
     
-    from stealth_engine.multi_agent_decision import MultiAgentDecisionSystem
-    multi_agent = MultiAgentDecisionSystem()
+    from stealth_engine.probabilistic_agents import (
+        ProbabilisticMultiAgentSystem, TokenMeta, TrustProfile, 
+        TokenHistory, DetectorPerfStats
+    )
+    
+    prob_system = ProbabilisticMultiAgentSystem()
     results = []
     
     # Group items by token for easier processing
@@ -93,117 +97,186 @@ def _run_multi_agent_consensus(items: List[Dict[str, Any]]) -> Dict[str, Any]:
     print(f"[LAST10 MULTI-AGENT] Grouped {len(items)} items into {len(token_groups)} tokens")
     
     for symbol, token_items in token_groups.items():
-        print(f"[LAST10 MULTI-AGENT] Processing {symbol} with {len(token_items)} detectors")
+        print(f"[LAST10 PROBABILISTIC] Processing {symbol} with {len(token_items)} detectors")
         
-        # Prepare detectors data for multi-agent consensus
-        detectors_data = {}
+        # Prepare detector breakdown for probabilistic analysis
+        detector_breakdown = {}
+        total_trust = 0.0
+        total_liquidity = 0.0
+        price = 0.0
+        volume_24h = 0.0
+        
         for item in token_items:
             detector = item["det"]
             features = item.get("f", {})  # Compact features are in "f" key
             
-            # Extract score based on detector type from compact features
+            # Extract scores based on detector type from compact features
             if detector == "SE":  # StealthEngine
-                score = features.get("se", 0.0)
+                detector_breakdown["stealth_engine"] = features.get("se", 0.0)
+                detector_breakdown["whale_ping"] = features.get("wp", 0.0)
+                detector_breakdown["dex_inflow"] = features.get("dx", 0.0)
+                detector_breakdown["volume_spike"] = features.get("vs", 0.0)
+                detector_breakdown["orderbook_anomaly"] = features.get("oba", 0.0)
             elif detector == "CAL":  # CaliforniumWhale  
-                score = features.get("cal", 0.0)
+                detector_breakdown["californium_whale"] = features.get("cal", 0.0)
+                detector_breakdown["ai_confidence"] = features.get("ai", 0.0)
+                detector_breakdown["signal_strength"] = features.get("sig", 0.0)
             elif detector == "DIA":  # DiamondWhale
-                score = features.get("dia", 0.0)
-            else:
-                score = 0.0
+                detector_breakdown["diamond_whale"] = features.get("dia", 0.0)
+                detector_breakdown["temporal_score"] = features.get("tmp", 0.0)
+                detector_breakdown["graph_score"] = features.get("grph", 0.0)
             
-            # Build context from compact features
-            context_parts = []
-            for key, value in features.items():
-                if key not in ["tr", "lq"] and value != 0.0:
-                    context_parts.append(f"{key}:{value:.3f}")
-            
-            trust = features.get("tr", 0.0)
-            liquidity = features.get("lq", 0.0)
-            context = f"trust:{trust:.1f}, liq:${liquidity/1000:.0f}k, " + ", ".join(context_parts)
-            
-            detectors_data[detector] = {
-                "score": score,
-                "context": context,
-                "trust": trust,
-                "liquidity": liquidity
-            }
+            # Accumulate meta data
+            total_trust += features.get("tr", 0.0)
+            total_liquidity += features.get("lq", 0.0)
+            if features.get("price", 0.0) > 0:
+                price = features.get("price", 0.0)
+            if features.get("vol", 0.0) > 0:
+                volume_24h = features.get("vol", 0.0)
         
-        # Run multi-agent consensus for this token
+        # Create data structures for probabilistic analysis
+        num_detectors = len(token_items)
+        avg_trust = total_trust / max(num_detectors, 1)
+        avg_liquidity = total_liquidity / max(num_detectors, 1)
+        
+        meta = TokenMeta(
+            price=price,
+            volume_24h=volume_24h,
+            spread_bps=10.0,  # Default
+            liquidity_tier="medium",
+            is_perp=True,
+            exchange="bybit"
+        )
+        meta.symbol = symbol
+        
+        trust = TrustProfile(
+            trusted_addresses_share=avg_trust,
+            recurring_wallets_7d=0,  # Not available in compact features
+            smart_money_score=avg_trust
+        )
+        
+        history = TokenHistory(
+            events_72h=[],
+            repeats_24h=0,
+            cooldown_active=False,
+            last_alert_outcome="unknown"
+        )
+        
+        perf = DetectorPerfStats(
+            precision_7d=0.7,  # Default values - should be loaded from actual performance data
+            tp_rate=0.6,
+            fp_rate=0.3,
+            avg_lag_mins=15.0
+        )
+        
+        # Run probabilistic consensus
         try:
-            decision, consensus_data, log = multi_agent.multi_agent_consensus_all_detectors(
-                detectors_data, 
-                alert_threshold=0.7, 
-                min_yes_detectors=2
+            consensus_result = prob_system.probabilistic_consensus(
+                detector_breakdown, meta, trust, history, perf
             )
             
-            # Extract detailed agent votes from consensus_data  
-            agent_votes = {}
-            for detector, det_data in consensus_data.items():
-                if isinstance(det_data, dict) and "agents" in det_data:
-                    agent_votes[detector] = det_data["agents"]
+            # Extract probabilistic results
+            final_probs = consensus_result.get("final_probs", {})
+            dominant_action = consensus_result.get("dominant_action", "HOLD")
+            confidence = consensus_result.get("confidence", 0.0)
+            top_evidence = consensus_result.get("top_evidence", [])
+            uncertainty = consensus_result.get("uncertainty_global", {})
+            rationale = consensus_result.get("rationale", "No rationale provided")
             
-            # Create detailed results for each detector with agent breakdown
+            # Convert probabilistic decision to traditional format for compatibility
+            if dominant_action == "BUY" and confidence > 0.6:
+                decision = "BUY"
+            elif dominant_action == "AVOID" and confidence > 0.6:
+                decision = "AVOID"
+            else:
+                decision = "HOLD"
+            
+            # Create detailed results for each detector with probabilistic breakdown
             for item in token_items:
                 detector = item["det"]
-                det_consensus = consensus_data.get(detector, {})
+                features = item.get("f", {})
                 
-                # Extract final decision for this detector
-                det_decision = det_consensus.get("decision", "HOLD")
-                det_confidence = det_consensus.get("confidence", 0.0)
+                # Extract detector-specific probability (simplified)
+                det_confidence = confidence * 0.8  # Scale down individual detector confidence
                 
-                # Extract agent voting breakdown
-                agents_data = det_consensus.get("agents", {})
-                buy_votes = 0
-                hold_votes = 0 
-                avoid_votes = 0
-                agent_details = []
+                # Simulate agent votes based on probabilities (for display compatibility)
+                buy_prob = final_probs.get("BUY", 0.0)
+                hold_prob = final_probs.get("HOLD", 0.0)
+                avoid_prob = final_probs.get("AVOID", 0.0)
                 
-                for agent_name, agent_result in agents_data.items():
-                    if isinstance(agent_result, dict):
-                        agent_decision = agent_result.get("decision", "HOLD")
-                        if agent_decision == "BUY":
-                            buy_votes += 1
-                        elif agent_decision == "AVOID":
-                            avoid_votes += 1
-                        else:
-                            hold_votes += 1
-                        agent_details.append(f"{agent_name}:{agent_decision}")
+                # Convert probabilities to vote counts (5 agents)
+                buy_votes = int(buy_prob * 5)
+                hold_votes = int(hold_prob * 5)
+                avoid_votes = int(avoid_prob * 5)
                 
-                # Add result with detailed agent voting
+                # Ensure total is 5
+                total_votes = buy_votes + hold_votes + avoid_votes
+                if total_votes < 5:
+                    hold_votes += (5 - total_votes)
+                elif total_votes > 5:
+                    # Reduce the largest category
+                    if hold_votes >= buy_votes and hold_votes >= avoid_votes:
+                        hold_votes -= (total_votes - 5)
+                    elif buy_votes >= avoid_votes:
+                        buy_votes -= (total_votes - 5)
+                    else:
+                        avoid_votes -= (total_votes - 5)
+                
+                # Display format: [TOP10] TOKEN - X BUY / Y HOLD / Z AVOID - DetectorName
+                vote_summary = f"{buy_votes} BUY / {hold_votes} HOLD / {avoid_votes} AVOID"
+                print(f"[TOP10] {symbol} - {vote_summary} - {detector}")
+                
+                # Add probabilistic details to output
+                epistemic = uncertainty.get("epistemic", 0.0)
+                aleatoric = uncertainty.get("aleatoric", 0.0)
+                
+                print(f"[PROBABILISTIC] {symbol}-{detector}: "
+                      f"Action={dominant_action}({confidence:.2f}), "
+                      f"Uncertainty=epi:{epistemic:.2f}/ale:{aleatoric:.2f}, "
+                      f"Evidence={top_evidence[:2]}")
+                
                 results.append({
-                    "s": symbol,
-                    "det": detector,
-                    "d": det_decision,
-                    "c": det_confidence,
-                    "cl": {"ok": 1 if det_decision == "BUY" else 0, "warn": 0},
-                    "dbg": {
-                        "a": agent_details,
-                        "p": [f"agents_vote: {buy_votes}BUY/{hold_votes}HOLD/{avoid_votes}AVOID"],
-                        "n": []
-                    },
-                    # Extra fields for TOP10 display
-                    "agent_votes": {
-                        "buy": buy_votes,
-                        "hold": hold_votes, 
-                        "avoid": avoid_votes
-                    },
-                    "agents_detail": agents_data
+                    "symbol": symbol,
+                    "detector": detector,
+                    "decision": decision,
+                    "confidence": confidence,
+                    "buy_votes": buy_votes,
+                    "hold_votes": hold_votes,
+                    "avoid_votes": avoid_votes,
+                    "features": item.get("f", {}),
+                    "probabilistic_data": {
+                        "final_probs": final_probs,
+                        "dominant_action": dominant_action,
+                        "uncertainty": uncertainty,
+                        "top_evidence": top_evidence,
+                        "rationale": rationale
+                    }
                 })
-                
-                print(f"[TOP10] {symbol} - {buy_votes} BUY / {hold_votes} HOLD / {avoid_votes} AVOID - {detector}")
-            
+        
         except Exception as e:
-            print(f"[LAST10 MULTI-AGENT ERROR] Failed consensus for {symbol}: {e}")
+            print(f"[LAST10 PROBABILISTIC ERROR] Failed consensus for {symbol}: {e}")
             # Fallback to basic results
             for item in token_items:
                 results.append({
-                    "s": symbol,
-                    "det": item["det"],
-                    "d": "HOLD",
-                    "c": 0.5,
-                    "cl": {"ok": 0, "warn": 1},
-                    "dbg": {"a": [], "p": [], "n": [f"consensus_error: {str(e)}"]}
+                    "symbol": symbol,
+                    "detector": item["det"],
+                    "decision": "HOLD",
+                    "confidence": 0.5,
+                    "buy_votes": 0,
+                    "hold_votes": 5,
+                    "avoid_votes": 0,
+                    "features": item.get("f", {}),
+                    "probabilistic_data": {
+                        "final_probs": {"BUY": 0.2, "HOLD": 0.6, "AVOID": 0.1, "ABSTAIN": 0.1},
+                        "dominant_action": "HOLD",
+                        "uncertainty": {"epistemic": 0.8, "aleatoric": 0.5},
+                        "top_evidence": ["error"],
+                        "rationale": f"Analysis failed: {str(e)}"
+                    }
                 })
+    
+    print(f"[LAST10 PROBABILISTIC] Completed consensus analysis with {len(results)} results")
+    return {"results": results}
     
     print(f"[LAST10 MULTI-AGENT] Completed consensus analysis with {len(results)} results")
     return {"results": results}

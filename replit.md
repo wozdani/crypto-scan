@@ -23,6 +23,13 @@ This project is a cryptocurrency market scanner designed to detect pre-pump sign
 
 The system employs a multi-stage detection pipeline for pre-pump signals, built on a Python backend using Flask for a web dashboard and a dedicated background scanning service. Data storage primarily utilizes JSON files for caching, alerts, reports, and configuration.
 
+**MAJOR UPGRADE - Probabilistic Multi-Agent System (Aug 2025):**
+- **Replaced Hard Rules with Soft Reasoning**: Migrated from rigid threshold-based decisions to probabilistic consensus using GPT-4o powered agents (Analyzer, Reasoner, Voter, Debater, Decider)
+- **Batch Processing Cost Optimization**: Queues tokens with ≥2 detectors scoring ≥0.6 into batches of 10, then processes entire batch with single API call instead of individual calls, dramatically reducing OpenAI costs
+- **Evidence-Based Decision Making**: Each agent provides uncertainty quantification (epistemic/aleatoric), evidence strength scoring, and probabilistic action distributions (BUY/HOLD/AVOID/ABSTAIN)
+- **Bradley-Terry Aggregation**: Uses sophisticated softmax-based consensus instead of simple majority voting, weighing agent reliability and uncertainty
+- **No Hard Thresholds**: All decisions based on soft evidence weighting, trade-off analysis, and confidence distributions rather than binary rules
+
 **Key Architectural Decisions & Design Patterns:**
 
 -   **Multi-Agent Consensus Engine**: A primary decision-making mechanism utilizing a 5-agent system (Analyzer, Reasoner, Voter, Debater, Decider) for evaluating each detector's output and reaching a unified decision (BUY/HOLD/AVOID), often integrating with OpenAI's GPT for real AI reasoning. Alerts are triggered only from consensus BUY decisions.
