@@ -7,6 +7,8 @@ class LLMJsonError(Exception): pass
 
 def _extract_json(text: str) -> str:
     # wytnij największy blok { ... } (na wypadek prefix/suffix)
+    if not text:
+        return "{}"
     m = re.search(r"\{.*\}", text, flags=re.S)
     return m.group(0) if m else text
 
@@ -17,22 +19,32 @@ def chat_json(model: str, system_prompt: str, user_payload: Dict[str, Any],
     # Użyj oficjalnego klienta; tu tylko interfejs
     from openai import OpenAI
     client = OpenAI()
+    
     msgs = [
-        {"role":"system","content": system_prompt},
-        {"role":"user","content": json.dumps(user_payload, ensure_ascii=False)}
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)}
     ]
+    
+    # Handle response_format properly
+    rf = {"type": "json_object"} if response_format is None else response_format
+    
     resp = client.chat.completions.create(
         model=model,
         messages=msgs,
         temperature=temperature,
-        response_format={"type": "json_object"} if response_format is None else response_format,
+        response_format=rf,
+        timeout=30
     )
+    
     raw = resp.choices[0].message.content
+    if not raw:
+        raise LLMJsonError("Empty response from OpenAI API")
+    
     try:
         return json.loads(_extract_json(raw))
     except Exception:
         # szybka naprawa typowych artefaktów
-        fixed = raw.replace("\n", " ").replace("\t"," ")
+        fixed = raw.replace("\n", " ").replace("\t", " ")
         fixed = re.sub(r",\s*}", "}", fixed)
         fixed = re.sub(r",\s*]", "]", fixed)
         try:

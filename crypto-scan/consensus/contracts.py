@@ -22,7 +22,7 @@ class AgentOpinion(BaseModel):
     uncertainty: Uncertainty
     evidence: List[Evidence]
     rationale: str
-    calibration_hint: CalibrationHint = Field(default_factory=CalibrationHint)
+    calibration_hint: CalibrationHint = Field(default_factory=lambda: CalibrationHint())
 
     @validator("action_probs")
     def probs_sum_to_1(cls, v):
