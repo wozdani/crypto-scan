@@ -12,6 +12,7 @@ import os
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 from consensus.contracts import AgentOpinion
 from contracts.agent_contracts import validate_agent_response_json, AgentResponse
+from llm.llm_client import chat_json, LLMJsonError
 
 logger = logging.getLogger(__name__)
 
@@ -64,74 +65,63 @@ class StableLLMClient:
         self.max_tokens = 800
         self.temperature = 0.3  # Lower temperature for more consistent JSON
         
-    @retry(
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        stop=stop_after_attempt(3),
-        retry=retry_if_exception_type((Exception,))
-    )
     def chat_json_only(self, system_prompt: str, user_data: Dict[str, Any], 
                        agent_name: str = "unknown") -> AgentResponse:
         """
-        Make OpenAI API call with JSON-only response
+        Make OpenAI API call with JSON-only response using improved client
         Returns validated AgentResponse object
         """
         start_time = time.time()
         
         try:
-            messages = [
-                {
-                    "role": "system", 
-                    "content": f"{system_prompt}\n\nIMPORTANT: Respond ONLY with valid JSON. No markdown, no text before/after JSON."
-                },
-                {
-                    "role": "user",
-                    "content": json.dumps(user_data, indent=2)
-                }
-            ]
+            # Enhanced system prompt for JSON-only response
+            enhanced_system = f"{system_prompt}\n\nIMPORTANT: Respond ONLY with valid JSON. No markdown, no explanations, no text before/after JSON."
             
-            response = self.client.chat.completions.create(
+            # Use improved JSON client with auto-repair
+            data = chat_json(
                 model=self.model,
-                messages=messages,
-                max_tokens=self.max_tokens,
+                system_prompt=enhanced_system,
+                user_payload=user_data,
                 temperature=self.temperature,
-                response_format={"type": "json_object"},  # Force JSON response
-                timeout=30
+                response_format={"type": "json_object"}
             )
             
-            # Track costs
-            usage = response.usage
+            # Estimate cost (since we don't have direct access to usage stats with the wrapper)
+            estimated_prompt_tokens = len(json.dumps(user_data)) // 3  # Rough estimate
+            estimated_completion_tokens = len(json.dumps(data)) // 3
             call_cost = self.cost_tracker.add_usage(
-                usage.prompt_tokens, 
-                usage.completion_tokens,
+                estimated_prompt_tokens,
+                estimated_completion_tokens,
                 self.model
             )
             
-            # Parse response
-            content = response.choices[0].message.content.strip()
+            # Validate response
+            agent_response = validate_agent_response_json(data)
             
-            # Clean JSON (remove markdown blocks if present)
-            if "```json" in content:
-                content = content.split("```json")[1].split("```")[0].strip()
-            elif "```" in content:
-                content = content.split("```")[1].split("```")[0].strip()
+            # Add metadata
+            processing_time = int((time.time() - start_time) * 1000)
             
-            # Parse and validate JSON
-            try:
-                data = json.loads(content)
-                agent_response = validate_agent_response_json(data)
-                
-                # Add metadata
-                processing_time = int((time.time() - start_time) * 1000)
-                
-                logger.info(f"[{agent_name}] API success: {processing_time}ms, ${call_cost:.4f}, "
-                           f"tokens: {usage.prompt_tokens}+{usage.completion_tokens}")
-                
-                return agent_response
-                
-            except json.JSONDecodeError as e:
-                logger.error(f"[{agent_name}] JSON parse error: {e}, content: {content[:100]}")
-                raise ValueError(f"Invalid JSON response: {e}")
-                
+            logger.info(f"[{agent_name}] API success: {processing_time}ms, ${call_cost:.4f}, "
+                       f"tokens: ~{estimated_prompt_tokens}+{estimated_completion_tokens}")
+            
+            return agent_response
+            
+        except LLMJsonError as e:
+            logger.error(f"[{agent_name}] LLM JSON error: {e}")
+            
+            # Return fallback response with JSON error context
+            return AgentResponse(
+                action_probs={"BUY": 0.15, "HOLD": 0.6, "AVOID": 0.15, "ABSTAIN": 0.1},
+                uncertainty={"epistemic": 0.95, "aleatoric": 0.7},
+                evidence=[
+                    {"name": "json_parse_failure", "direction": "neutral", "strength": 0.0},
+                    {"name": "llm_response_corrupted", "direction": "con", "strength": 0.9},
+                    {"name": "fallback_applied", "direction": "neutral", "strength": 0.5}
+                ],
+                rationale=f"LLM JSON error: {str(e)[:60]}",
+                calibration_hint={"reliability": 0.1, "expected_ttft_mins": 60}
+            )
+            
         except Exception as e:
             logger.error(f"[{agent_name}] API call failed: {e}")
             
