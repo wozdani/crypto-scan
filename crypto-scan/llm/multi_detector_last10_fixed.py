@@ -17,10 +17,25 @@ def run_last10_all_detectors(items: List[Dict[str, Any]], model: str = "gpt-4o")
     # Group items by token
     token_groups = {}
     for item in items:
-        symbol = item["s"]
-        if symbol not in token_groups:
-            token_groups[symbol] = []
-        token_groups[symbol].append(item)
+        try:
+            # Handle different item formats
+            if isinstance(item, dict):
+                symbol = item.get("s") or item.get("symbol") or item.get("token_id")
+                if not symbol:
+                    print(f"[LAST10 ERROR] Invalid item structure: {item}")
+                    continue
+            elif isinstance(item, str):
+                symbol = item
+            else:
+                print(f"[LAST10 ERROR] Unexpected item type: {type(item)} - {item}")
+                continue
+                
+            if symbol not in token_groups:
+                token_groups[symbol] = []
+            token_groups[symbol].append(item)
+        except Exception as item_error:
+            print(f"[LAST10 ERROR] Failed to process item: {item_error} - Item: {item}")
+            continue
     
     print(f"[LAST10 BATCH] Grouped {len(items)} items into {len(token_groups)} tokens")
     
@@ -34,8 +49,17 @@ def run_last10_all_detectors(items: List[Dict[str, Any]], model: str = "gpt-4o")
         volume_24h = 0.0
         
         for item in token_items:
-            detector = item["det"]
-            features = item.get("f", {})
+            try:
+                # Handle different item formats safely
+                if isinstance(item, dict):
+                    detector = item.get("det", item.get("detector", "UNKNOWN"))
+                    features = item.get("f", item.get("features", {}))
+                else:
+                    # Skip non-dict items in feature extraction
+                    continue
+            except Exception as detector_error:
+                print(f"[LAST10 ERROR] Failed to extract detector info: {detector_error}")
+                continue
             
             if detector == "SE":
                 detector_breakdown["stealth_engine"] = features.get("se", 0.0)
@@ -118,7 +142,18 @@ def run_last10_all_detectors(items: List[Dict[str, Any]], model: str = "gpt-4o")
         
         # Create results for each detector
         for item in token_items:
-            detector = item["det"]
+            try:
+                if isinstance(item, dict):
+                    detector = item.get("det", item.get("detector", "UNKNOWN"))
+                else:
+                    detector = "UNKNOWN"
+                    
+                if detector == "UNKNOWN":
+                    print(f"[LAST10 WARNING] Unknown detector for item: {item}")
+                    continue
+            except Exception as det_error:
+                print(f"[LAST10 ERROR] Failed to extract detector: {det_error}")
+                continue
             
             # Simulate agent votes for display
             buy_prob = final_probs.get("BUY", 0.0)
