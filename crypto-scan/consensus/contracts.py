@@ -16,6 +16,15 @@ class Uncertainty(BaseModel):
 class CalibrationHint(BaseModel):
     reliability: float = Field(0.6, ge=0, le=1)
     expected_ttft_mins: float = Field(30, ge=0, le=1440)
+    
+    @classmethod
+    def from_agent(cls, agent_name: str, ttft_mins: float = 30):
+        """Create CalibrationHint using current reliability from EMA system"""
+        try:
+            from .reliability import get
+            return cls(reliability=get(agent_name), expected_ttft_mins=ttft_mins)
+        except ImportError:
+            return cls(reliability=0.6, expected_ttft_mins=ttft_mins)
 
 class AgentOpinion(BaseModel):
     action_probs: Dict[Action, float]
