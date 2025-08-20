@@ -975,7 +975,7 @@ Respond with JSON format:
         # WARUNEK WSTĘPNY: Obniżony próg dla więcej analizy Multi-Agent
         if score < 0.3:
             print(f"[MULTI-AGENT SKIP] {detector} score {score:.3f} < 0.3 - skipping agent voting")
-            return "NO", 0.0, f"Score {score:.3f} below voting threshold (0.6) - no agent evaluation needed"
+            return "NO", 0.0, f"Score {score:.3f} below voting threshold (0.3) - no agent evaluation needed"
         
         roles = ["Analyzer", "Reasoner", "Voter", "Debater", "Decider"]
         output_queue = Queue()
@@ -1010,8 +1010,8 @@ Respond with JSON format:
         confidence = (score + (yes_count / len(roles))) / 2.0
         confidence = min(1.0, max(0.0, confidence))
 
-        # Decision: Majority YES i score > 0.6 (voting threshold)
-        decision = "YES" if yes_count >= len(roles) // 2 + 1 and score > 0.6 else "NO"
+        # Decision: Majority YES i score > 0.3 (obniżony próg dla Multi-Agent batch)
+        decision = "YES" if yes_count >= len(roles) // 2 + 1 and score > 0.3 else "NO"
 
         log = f"{datetime.now()} - {detector} Agents Results: {results}\nDecision: {decision}, Confidence: {confidence:.2f}, Votes YES: {yes_count}/{len(roles)}"
         

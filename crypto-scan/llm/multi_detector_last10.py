@@ -78,6 +78,7 @@ def _run_multi_agent_consensus(items: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     print(f"[LAST10 MULTI-AGENT] Processing {len(items)} items with 5-agent consensus")
     
+    from stealth_engine.multi_agent_decision import MultiAgentDecisionSystem
     multi_agent = MultiAgentDecisionSystem()
     results = []
     
@@ -235,7 +236,9 @@ def _run_simple_llm_fallback(items: List[Dict[str, Any]], model: str) -> Dict[st
             max_tokens=4096
         )
         
-        content = response.choices[0].message.content.strip()
+        content = response.choices[0].message.content
+        if content:
+            content = content.strip()
         
         # Try to parse JSON
         try:
