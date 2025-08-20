@@ -5,15 +5,21 @@ import json
 import time
 import asyncio
 from typing import Dict, Any, List, Optional
-from .validators import validate_batch_keys, detect_degenerate_distributions, validate_batch_quality, ensure_agents_complete
+from .validators import validate_batch_keys, detect_degenerate_distributions, validate_batch_quality, ensure_agents_complete, ensure_agents_or_per_agent
 from .batching import make_balanced_chunks, analyze_chunk_distribution, order_tokens_for_first_chunk
 from .context_packer import pack_token_context, compress_for_emergency
-from .prompts import get_prompt_for_context, estimate_prompt_tokens, BATCH_AGENT_SYSTEM_V3
+from .prompts import get_prompt_for_context, estimate_prompt_tokens, BATCH_AGENT_SYSTEM_V3, SINGLE_AGENT_SYSTEM_V3_1
+from .schemas import SINGLE_SCHEMA, BATCH_SCHEMA
+from .coerce import coerce_single_shape, ensure_batch_shape
+from .per_agent_single import single_per_agent
 from llm.llm_client import chat_json
+from llm.single_client import chat_json_schema_single
 
-# Load-aware configuration
+# Load-aware configuration (Hotfix v3.1)
 MAX_BATCH_SIZE = 5           # Further reduced to 5 for timeout prevention
 TIMEOUT_MS = 20000          # 20s HTTP timeout per chunk
+MAX_CHUNK_RETRIES = 2       # Reduced from 3 to switch to micro faster
+MICRO_CONCURRENCY = 1       # Reduced concurrency to prevent timeouts
 
 # Model configuration with environment variable control
 import os
@@ -99,28 +105,33 @@ async def run_batch_consensus(tokens_payload: List[Dict[str, Any]]) -> Dict[str,
             print(f"[BATCH V3] ✅ Chunk {chunk_idx} completed with {len(per_agent_results)} validated tokens")
             
         except Exception as e:
-            print(f"[BATCH V3 ERROR] Chunk {chunk_idx} failed: {e}")
-            print(f"[BATCH V3] Micro-fallback per token with per-agent system...")
+            print(f"[BATCH V3.1 ERROR] Chunk {chunk_idx} failed: {e}")
+            print(f"[BATCH V3.1] Switching to micro-fallback with per-agent guarantee...")
             
-            # Micro-fallback: process tokens individually with per-agent system
-            for token in chunk:
-                try:
-                    single_payload = {"tokens": [token]}
-                    single_output = await _call_with_retry(
-                        single_payload,
-                        tag=f"SINGLE_{token['token_id']}",
-                        system_prompt=get_prompt_for_context(1)  # Single token per-agent
-                    )
-                    
-                    single_result = parse_batch_per_agent(single_output, expected_token_ids=[token["token_id"]])
-                    results.update(single_result)
-                    
-                    print(f"[MICRO V3] ✅ {token['token_id']} processed individually")
-                    
-                except Exception as single_error:
-                    print(f"[MICRO V3 ERROR] {token['token_id']}: {single_error}")
-                    # NO FALLBACK TO FIXED DISTRIBUTIONS - reject token entirely
-                    print(f"[MICRO V3] REJECTED {token['token_id']} - no fallback to fixed distributions")
+            # HOTFIX v3.1: Use new micro-fallback with per-agent guarantee
+            try:
+                sub_payloads = [{"tokens": [token]} for token in chunk]
+                micro_results = await micro_fallback_per_agent(sub_payloads)
+                
+                # Convert micro results to expected format for aggregation
+                for token_id, micro_data in micro_results.items():
+                    # Find the original token data for agents section
+                    for token in chunk:
+                        if token["token_id"] == token_id:
+                            # Create fake single result for parsing
+                            single_result = await call_single(token, f"MICRO_{token_id}")
+                            if single_result and "agents" in single_result:
+                                parsed_result = parse_batch_per_agent(
+                                    {"items": {token_id: {"agents": single_result["agents"]}}},
+                                    expected_token_ids=[token_id]
+                                )
+                                results.update(parsed_result)
+                                print(f"[MICRO V3.1] ✅ {token_id} processed with per-agent guarantee")
+                            break
+                
+            except Exception as micro_error:
+                print(f"[MICRO V3.1 ERROR] Micro-fallback failed: {micro_error}")
+                # No hard fallbacks - let tokens be rejected
     
     print(f"[BATCH CONSENSUS V3] ✅ Completed {len(results)} tokens with per-agent validation")
     
@@ -239,7 +250,86 @@ def _map_batch_results_to_agent_format(batch_results: Dict[str, Any]) -> Dict[st
     
     return mapped_results
 
-async def _call_with_retry(payload: Dict[str, Any], tag: str, system_prompt: str, max_retries: int = 3) -> Dict[str, Any]:
+# ensure_agents_or_per_agent moved to validators.py
+
+async def call_single(item: Dict[str, Any], tag: str) -> Dict[str, Any]:
+    """
+    HOTFIX v3.1: Single token processing with per-agent micro fallback
+    """
+    token_id = item["token_id"]
+    compact = item  # Assume pack_token_context already reduced payload
+    
+    print(f"[SINGLE V3.1] {token_id}: Attempting single call with strict schema...")
+    
+    # 1) Try SINGLE with json_schema(strict) + few-shot example
+    try:
+        result = chat_json_schema_single(
+            model=MODEL_SINGLE,
+            system_prompt=SINGLE_AGENT_SYSTEM_V3_1,
+            user_payload={"token_id": token_id, **compact},
+            schema_name="SingleAgentsResponse",
+            schema=SINGLE_SCHEMA,
+            temperature=0.2,
+            max_tokens=420
+        )
+        
+        # Coerce and validate
+        result = coerce_single_shape(result, token_id)
+        ensure_agents_complete({token_id: {"agents": result["agents"]}})
+        
+        print(f"[SINGLE V3.1] {token_id}: ✅ Single call succeeded")
+        return result
+        
+    except Exception as e:
+        print(f"[SINGLE V3.1] {token_id}: Single call failed: {e}")
+        print(f"[SINGLE V3.1] {token_id}: Switching to per-agent micro calls...")
+    
+    # 2) Per-agent micro (4 separate calls) - guarantees 'agents' section
+    try:
+        result = single_per_agent(MODEL_SINGLE, token_id, compact)
+        ensure_agents_complete({token_id: {"agents": result["agents"]}})
+        
+        print(f"[SINGLE V3.1] {token_id}: ✅ Per-agent micro succeeded")
+        return result
+        
+    except Exception as micro_error:
+        print(f"[SINGLE V3.1] {token_id}: Per-agent micro failed: {micro_error}")
+        raise micro_error
+
+async def micro_fallback_per_agent(sub_payloads: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Process tokens individually with limited concurrency to prevent timeouts
+    """
+    print(f"[MICRO FALLBACK V3.1] Processing {len(sub_payloads)} tokens with concurrency={MICRO_CONCURRENCY}")
+    
+    sem = asyncio.Semaphore(MICRO_CONCURRENCY)
+    
+    async def _process_one(payload: Dict[str, Any]) -> Dict[str, Any]:
+        async with sem:
+            token = payload["tokens"][0]
+            return await call_single(token, tag=f"SINGLE_{token['token_id']}")
+    
+    results = await asyncio.gather(*[_process_one(p) for p in sub_payloads], return_exceptions=True)
+    
+    # Convert results to expected format
+    final_results = {}
+    for i, result in enumerate(results):
+        if isinstance(result, Exception):
+            token_id = sub_payloads[i]["tokens"][0]["token_id"]
+            print(f"[MICRO FALLBACK V3.1] {token_id}: Failed with exception: {result}")
+            continue
+        
+        if isinstance(result, dict) and "token_id" in result:
+            token_id = result["token_id"]
+            final_results[token_id] = {
+                "agent_opinions": [],  # Will be populated by parse_batch_per_agent
+                "source": "micro_fallback_v3_1"
+            }
+    
+    print(f"[MICRO FALLBACK V3.1] ✅ Completed {len(final_results)}/{len(sub_payloads)} tokens")
+    return final_results
+
+async def _call_with_retry(payload: Dict[str, Any], tag: str, system_prompt: str, max_retries: int = MAX_CHUNK_RETRIES) -> Dict[str, Any]:
     """
     Call LLM with retry logic and proper JSON response format
     """
@@ -269,7 +359,8 @@ async def _call_with_retry(payload: Dict[str, Any], tag: str, system_prompt: str
             print(f"[CALL RETRY] {tag} attempt {attempt+1}/{max_retries} failed: {e}")
             if attempt == max_retries - 1:
                 raise e
-            await asyncio.sleep(1.0 * (attempt + 1))  # Exponential backoff
+            # Increased backoff for hotfix v3.1
+            await asyncio.sleep(2.0 * (attempt + 1))  # Longer exponential backoff
     
     raise Exception(f"All {max_retries} attempts failed for {tag}")
 

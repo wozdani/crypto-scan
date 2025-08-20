@@ -2,6 +2,17 @@
 Optimized prompts for batch consensus with timeout prevention
 """
 
+# Ultra-short SINGLE prompt with few-shot example to prevent missing 'agents' section
+SINGLE_AGENT_SYSTEM_V3_1 = """Jesteś zespołem 4 agentów: Analyzer, Reasoner, Voter, Debater.
+Zwróć WYŁĄCZNIE JSON dla JEDNEGO tokena w postaci:
+{"token_id":"<ID>","agents":{
+ "Analyzer":{"action_probs":{"BUY":0.33,"HOLD":0.33,"AVOID":0.17,"ABSTAIN":0.17},"uncertainty":{"epistemic":0.3,"aleatoric":0.2},"evidence":[{"name":"whale_ping","direction":"pro","strength":0.6},{"name":"dex_inflow","direction":"pro","strength":0.5},{"name":"spread","direction":"con","strength":0.3}],"rationale":"zwięzły powód","calibration_hint":{"reliability":0.6,"expected_ttft_mins":20}},
+ "Reasoner":{"action_probs":{"BUY":0.25,"HOLD":0.40,"AVOID":0.20,"ABSTAIN":0.15},"uncertainty":{"epistemic":0.25,"aleatoric":0.18},"evidence":[{"name":"volume_spike","direction":"pro","strength":0.7},{"name":"orderbook_thin","direction":"con","strength":0.4},{"name":"trust_score","direction":"neutral","strength":0.5}],"rationale":"analiza czasowa","calibration_hint":{"reliability":0.65,"expected_ttft_mins":18}},
+ "Voter":{"action_probs":{"BUY":0.20,"HOLD":0.45,"AVOID":0.25,"ABSTAIN":0.10},"uncertainty":{"epistemic":0.28,"aleatoric":0.22},"evidence":[{"name":"liquidity","direction":"pro","strength":0.55},{"name":"momentum","direction":"con","strength":0.35},{"name":"risk_level","direction":"con","strength":0.45}],"rationale":"ocena ryzyka","calibration_hint":{"reliability":0.7,"expected_ttft_mins":25}},
+ "Debater":{"action_probs":{"BUY":0.15,"HOLD":0.35,"AVOID":0.35,"ABSTAIN":0.15},"uncertainty":{"epistemic":0.32,"aleatoric":0.25},"evidence":[{"name":"market_sentiment","direction":"con","strength":0.6},{"name":"technical_analysis","direction":"pro","strength":0.4},{"name":"fundamentals","direction":"neutral","strength":0.5}],"rationale":"kontra-argumenty","calibration_hint":{"reliability":0.6,"expected_ttft_mins":22}}
+}}
+Wymagania: (1) brak sztywnych progów; (2) DOKŁADNIE 3 evidence per agent; (3) suma action_probs=1; (4) nic poza JSON."""
+
 BATCH_AGENT_SYSTEM_V2 = """Jesteś zespołem 4 agentów (Analyzer, Reasoner, Voter, Debater).
 
 Dla KAŻDEGO tokena zwróć WYŁĄCZNIE:
