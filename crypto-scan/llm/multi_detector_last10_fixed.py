@@ -81,12 +81,12 @@ def run_last10_all_detectors(items: List[Dict[str, Any]], model: str = "gpt-4o")
             }
         }
     
-    # CRITICAL: Make SINGLE API call for ALL tokens
+    # CRITICAL: Make SINGLE API call for ALL tokens with NEW async system
     start_time = time.time()
-    batch_consensus_results = _run_single_batch_consensus(batch_tokens_data)
+    batch_consensus_results = _run_single_batch_consensus_async(batch_tokens_data)
     processing_time = (time.time() - start_time) * 1000
     
-    print(f"[LAST10 BATCH] ✅ SINGLE API call completed in {processing_time:.1f}ms for {len(token_groups)} tokens")
+    print(f"[LAST10 BATCH V3] ✅ SINGLE API call completed in {processing_time:.1f}ms for {len(token_groups)} tokens")
     
     # Convert batch results to individual token results
     results = []
@@ -147,15 +147,17 @@ def run_last10_all_detectors(items: List[Dict[str, Any]], model: str = "gpt-4o")
     print(f"[LAST10 BATCH] ✅ Completed with {len(results)} total results")
     return {"results": results}
 
-def _run_single_batch_consensus(batch_tokens_data: Dict[str, Any]) -> Dict[str, Any]:
+def _run_single_batch_consensus_async(batch_tokens_data: Dict[str, Any]) -> Dict[str, Any]:
     """
-    CRITICAL: Make SINGLE API call for ALL tokens using NEW batch consensus system
+    CRITICAL: Make SINGLE API call for ALL tokens using NEW async batch consensus system V3
     """
     if not batch_tokens_data:
         return {}
     
-    print(f"[BATCH CONSENSUS] Making SINGLE API call for {len(batch_tokens_data)} tokens")
+    print(f"[BATCH CONSENSUS V3] Making SINGLE API call for {len(batch_tokens_data)} tokens")
     
+    import asyncio
+    import concurrent.futures
     from consensus.batch_runner import run_batch_consensus
     
     # Convert to new batch format
@@ -170,33 +172,72 @@ def _run_single_batch_consensus(batch_tokens_data: Dict[str, Any]) -> Dict[str, 
             "perf": token_data["perf"]
         })
     
-    # Use NEW batch consensus system with degeneracy prevention
+    # Use NEW async batch consensus system with per-agent validation
     try:
-        batch_results = run_batch_consensus(tokens_payload)
-        
-        print(f"[BATCH CONSENSUS] ✅ NEW batch system completed successfully")
-        
-        # Convert to compatible format
-        compatible_results = {}
-        for symbol, result in batch_results.items():
-            action_probs = result.get("action_probs", {})
-            top_action = max(action_probs.items(), key=lambda x: x[1])[0] if action_probs else "HOLD"
-            confidence = max(action_probs.values()) if action_probs else 0.4
+        # Use ThreadPoolExecutor to isolate async call from existing event loop
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(asyncio.run, run_batch_consensus(tokens_payload))
+            batch_results = future.result(timeout=120)  # 2 minute timeout
             
-            compatible_results[symbol] = {
-                "final_probs": action_probs,
-                "dominant_action": top_action,
-                "confidence": confidence,
-                "top_evidence": [ev.get("name", "unknown") for ev in result.get("evidence", [])[:3]],
-                "rationale": result.get("rationale", "Batch consensus result"),
-                "uncertainty_global": result.get("uncertainty", {"epistemic": 0.5, "aleatoric": 0.3})
-            }
+        print(f"[BATCH SUCCESS V3] ✅ Processed {len(batch_results)} tokens with per-agent consensus")
         
-        return compatible_results
+        # Transform NEW per-agent batch results to expected format
+        final_results = {}
+        for token_id, agent_results in batch_results.items():
+            agent_opinions = agent_results.get("agent_opinions", [])
+            evidence_count = agent_results.get("evidence_count", 0)
+            source = agent_results.get("source", "unknown")
+            
+            print(f"[PER-AGENT MAP] {token_id}: {len(agent_opinions)} agents, evidence={evidence_count}, source={source}")
+            
+            # Extract consensus probabilities from agent opinions
+            if agent_opinions and evidence_count >= 12:  # Require proper per-agent evidence
+                # Aggregate agent probabilities using Bradley-Terry style aggregation
+                total_probs = {"BUY": 0.0, "HOLD": 0.0, "AVOID": 0.0, "ABSTAIN": 0.0}
+                
+                for opinion in agent_opinions:
+                    action_probs = opinion.get("action_probs", {})
+                    for action, prob in action_probs.items():
+                        total_probs[action] += prob
+                
+                # Average the probabilities
+                num_agents = len(agent_opinions)
+                avg_probs = {action: prob / num_agents for action, prob in total_probs.items()}
+                
+                # Determine dominant action and confidence
+                dominant_action = max(avg_probs, key=avg_probs.get)
+                confidence = avg_probs[dominant_action]
+                
+                # Extract evidence from all agents
+                all_evidence = []
+                for opinion in agent_opinions:
+                    agent_name = opinion.get("agent", "unknown")
+                    evidence = opinion.get("evidence", [])
+                    for e in evidence:
+                        evidence_name = e.get("name", str(e)) if isinstance(e, dict) else str(e)
+                        all_evidence.append(f"{agent_name}:{evidence_name}")
+                
+                final_results[token_id] = {
+                    "final_probs": avg_probs,
+                    "dominant_action": dominant_action,
+                    "confidence": confidence,
+                    "top_evidence": all_evidence[:8],  # Top 8 evidence items from all agents
+                    "rationale": f"Per-agent consensus: {num_agents} agents, {evidence_count} evidence, source={source}"
+                }
+                
+                print(f"[CONSENSUS V3] {token_id}: {dominant_action} ({confidence:.3f}) evidence_count={evidence_count}")
+            else:
+                # REJECT tokens without proper per-agent structure - NO FALLBACK
+                print(f"[CONSENSUS V3 REJECT] {token_id}: Insufficient evidence ({evidence_count}) or agents ({len(agent_opinions)}) - REJECTED")
+                continue  # Skip this token entirely
+        
+        return final_results
         
     except Exception as e:
-        print(f"[BATCH CONSENSUS ERROR] NEW batch system failed: {e}")
-        return _generate_fallback_results(batch_tokens_data)
+        print(f"[BATCH CONSENSUS V3 ERROR] Failed batch processing: {e}")
+        # NO FALLBACK TO FIXED DISTRIBUTIONS - return empty results
+        print(f"[BATCH CONSENSUS V3] NO FALLBACK - returning empty results to force proper per-agent processing")
+        return {}
 
 def _generate_fallback_results(batch_tokens_data: Dict[str, Any]) -> Dict[str, Any]:
     """Generate fallback consensus results for all tokens"""
