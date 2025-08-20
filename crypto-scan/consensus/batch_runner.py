@@ -14,7 +14,13 @@ from llm.llm_client import chat_json
 # Load-aware configuration
 MAX_BATCH_SIZE = 5           # Further reduced to 5 for timeout prevention
 TIMEOUT_MS = 20000          # 20s HTTP timeout per chunk
-MODEL = "gpt-4o"            # Use gpt-4o for consistency
+
+# Model configuration with environment variable control
+import os
+MODEL = os.getenv("OPENAI_CONSENSUS_MODEL", "gpt-4o")  # Default to gpt-4o
+MODEL_BATCH = os.getenv("OPENAI_CONSENSUS_MODEL_BATCH", MODEL)  # Separate batch model option
+MODEL_SINGLE = os.getenv("OPENAI_CONSENSUS_MODEL_SINGLE", MODEL_BATCH)  # Single call fallback model
+
 FALLBACK_TEMPERATURE = 0.3   # Slightly higher temp for diversity
 MICRO_CONCURRENCY = 3       # Parallel micro-fallbacks
 
@@ -239,14 +245,17 @@ async def _call_with_retry(payload: Dict[str, Any], tag: str, system_prompt: str
     """
     for attempt in range(max_retries):
         try:
+            # Determine model based on operation type (batch vs single)
+            operation_model = MODEL_BATCH if len(payload.get("tokens", [])) > 1 else MODEL_SINGLE
+            
             response = await asyncio.to_thread(
                 chat_json,
-                model=MODEL,
+                model=operation_model,
                 system_prompt=system_prompt,
                 user_payload=payload,
                 agent_name="BatchConsensusV3",
                 token=tag,
-                temperature=0.2,
+                temperature=0.25,  # Optimized for GPT-4o
                 response_format={"type": "json_object"}  # Force pure JSON
             )
             
