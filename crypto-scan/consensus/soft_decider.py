@@ -7,6 +7,7 @@ import math
 import logging
 from typing import List, Dict, Any
 from datetime import datetime
+from consensus.contracts import AgentOpinion, FinalDecision
 from contracts.agent_contracts import AgentResponse, ConsensusResult, normalize_action_probs
 
 logger = logging.getLogger(__name__)

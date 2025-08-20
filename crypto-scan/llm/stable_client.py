@@ -10,6 +10,7 @@ from typing import Dict, Any, Optional, List
 from openai import OpenAI
 import os
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
+from consensus.contracts import AgentOpinion
 from contracts.agent_contracts import validate_agent_response_json, AgentResponse
 
 logger = logging.getLogger(__name__)

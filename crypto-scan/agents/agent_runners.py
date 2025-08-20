@@ -5,6 +5,7 @@ Agent Runners - Execute individual agents with stable prompts and validation
 
 import logging
 from typing import Dict, Any
+from consensus.contracts import AgentOpinion
 from contracts.agent_contracts import AgentInput, AgentResponse
 from llm.stable_client import stable_client
 

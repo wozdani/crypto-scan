@@ -139,9 +139,11 @@ class ConsensusTelemetry:
     def _time_ago_minutes(self, timestamp_str: str) -> int:
         """Calculate minutes since timestamp"""
         try:
-            timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-            delta = datetime.utcnow() - timestamp.replace(tzinfo=None)
-            return int(delta.total_seconds() / 60)
+            if timestamp_str:
+                timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                delta = datetime.utcnow() - timestamp.replace(tzinfo=None)
+                return int(delta.total_seconds() / 60)
+            return 0
         except:
             return 0
     

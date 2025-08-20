@@ -8,23 +8,13 @@ from pydantic import BaseModel, Field, validator
 from typing import Dict, List, Optional, Literal
 from enum import Enum
 
+# Import updated contracts
+from consensus.contracts import Action, Evidence, Uncertainty, CalibrationHint, AgentOpinion, FinalDecision
+
 class EvidenceDirection(str, Enum):
     PRO = "pro"
     CON = "con" 
     NEUTRAL = "neutral"
-
-class Evidence(BaseModel):
-    name: str = Field(..., min_length=1, max_length=50)
-    direction: EvidenceDirection
-    strength: float = Field(..., ge=0.0, le=1.0)
-
-class Uncertainty(BaseModel):
-    epistemic: float = Field(..., ge=0.0, le=1.0)
-    aleatoric: float = Field(..., ge=0.0, le=1.0)
-
-class CalibrationHint(BaseModel):
-    reliability: float = Field(..., ge=0.1, le=1.0)
-    expected_ttft_mins: float = Field(..., ge=0.0, le=120.0)
 
 class ActionProbs(BaseModel):
     BUY: float = Field(..., ge=0.0, le=1.0)
@@ -34,29 +24,27 @@ class ActionProbs(BaseModel):
 
     @validator('*', pre=True)
     def validate_probabilities(cls, v, values):
-        """Ensure all probabilities sum to 1.0"""
+        """Soft normalization instead of hard validation"""
         if len(values) == 3:  # Last field being validated
             total = sum(values.values()) + v
             if not (0.95 <= total <= 1.05):  # Allow small floating point errors
-                raise ValueError(f"Action probabilities must sum to 1.0, got {total}")
+                # Soft renormalization instead of raising error
+                all_values = dict(values)
+                all_values[cls.__fields__[list(cls.__fields__.keys())[len(values)]].name] = v
+                
+                if total > 0:
+                    # Normalize proportionally
+                    scale_factor = 1.0 / total
+                    return v * scale_factor
+                else:
+                    # Uniform fallback
+                    return 0.25
         return v
 
-class AgentResponse(BaseModel):
-    action_probs: ActionProbs
-    uncertainty: Uncertainty
-    evidence: List[Evidence] = Field(..., min_items=3, max_items=10)
-    rationale: str = Field(..., min_length=10, max_length=200)
-    calibration_hint: CalibrationHint
-
-    @validator('evidence')
-    def validate_evidence_diversity(cls, v):
-        """Ensure evidence has some diversity in directions"""
-        directions = [e.direction for e in v]
-        unique_directions = set(directions)
-        if len(unique_directions) < 2:
-            # Allow single direction but warn
-            pass
-        return v
+# Use AgentOpinion as primary contract (replaces AgentResponse)
+class AgentResponse(AgentOpinion):
+    """Legacy compatibility wrapper for AgentOpinion"""
+    pass
 
 class ConsensusResult(BaseModel):
     final_probs: ActionProbs
