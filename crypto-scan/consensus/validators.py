@@ -161,3 +161,36 @@ def validate_batch_quality(items: Dict[str, Any]) -> Dict[str, Any]:
     print(f"[BATCH QUALITY] Entropy: {avg_entropy:.2f}, BUY variance: {buy_variance:.6f}, HOLD dominant: {hold_ratio:.1%}, ABSTAIN: {abstain_count}")
     
     return diagnostics
+
+def ensure_agents_complete(items: Dict[str, Any]) -> None:
+    """
+    Ensure all tokens have complete 4-agent structure with proper evidence
+    """
+    for token_id, token_data in items.items():
+        agents_data = token_data.get("agents", {})
+        
+        # Check for missing agents
+        required_agents = ["Analyzer", "Reasoner", "Voter", "Debater"]
+        missing_agents = [agent for agent in required_agents if agent not in agents_data]
+        if missing_agents:
+            raise ValueError(f"[BATCH VALIDATION] {token_id} missing agents: {missing_agents}")
+        
+        # Check each agent for proper structure
+        for agent_name, agent_body in agents_data.items():
+            # Validate evidence count
+            evidence = agent_body.get("evidence", [])
+            if not isinstance(evidence, list) or len(evidence) < 3:
+                raise ValueError(f"[BATCH VALIDATION] {token_id}/{agent_name} evidence too short: {len(evidence)}")
+            
+            # Validate action_probs structure
+            action_probs = agent_body.get("action_probs", {})
+            required_actions = {"BUY", "HOLD", "AVOID", "ABSTAIN"}
+            if set(action_probs.keys()) != required_actions:
+                raise ValueError(f"[BATCH VALIDATION] {token_id}/{agent_name} action_probs keys invalid: {list(action_probs.keys())}")
+            
+            # Validate action_probs sum
+            total_prob = sum(action_probs.values())
+            if not (0.99 <= total_prob <= 1.01):
+                raise ValueError(f"[BATCH VALIDATION] {token_id}/{agent_name} action_probs sum invalid: {total_prob:.6f}")
+    
+    print(f"[BATCH VALIDATION] ✅ All {len(items)} tokens have complete 4-agent structure")

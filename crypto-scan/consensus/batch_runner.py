@@ -5,7 +5,7 @@ import json
 import time
 import asyncio
 from typing import Dict, Any, List, Optional
-from .validators import validate_batch_keys, detect_degenerate_distributions, validate_batch_quality
+from .validators import validate_batch_keys, detect_degenerate_distributions, validate_batch_quality, ensure_agents_complete
 from .batching import make_balanced_chunks, analyze_chunk_distribution, order_tokens_for_first_chunk
 from .context_packer import pack_token_context, compress_for_emergency
 from .prompts import get_prompt_for_context, estimate_prompt_tokens
@@ -104,9 +104,52 @@ def run_batch_consensus(tokens_payload: List[Dict[str, Any]]) -> Dict[str, Any]:
     print(f"[BATCH CONSENSUS] ✅ Completed processing {len(mapped_results)} tokens with per-agent mapping")
     return mapped_results
 
+def parse_batch_per_agent(batch_output: Dict[str, Any], expected_token_ids: List[str]) -> Dict[str, Dict[str, Any]]:
+    """
+    Parse batch output with per-agent validation using Pydantic contracts
+    """
+    items = batch_output.get("items", {})
+    
+    # Validate expected tokens are present
+    validate_batch_keys(expected_token_ids, list(items.keys()))
+    
+    # Ensure complete 4-agent structure with proper evidence
+    ensure_agents_complete(items)
+    
+    # Map to AgentOpinion format
+    opinions_by_token = {}
+    for token_id, token_payload in items.items():
+        agents_data = token_payload.get("agents", {})
+        agent_opinions = []
+        
+        for agent_name in ["Analyzer", "Reasoner", "Voter", "Debater"]:
+            if agent_name in agents_data:
+                agent_data = agents_data[agent_name]
+                # Convert to AgentOpinion format for strict validation
+                opinion = {
+                    "agent": agent_name,
+                    "action_probs": agent_data.get("action_probs", {}),
+                    "uncertainty": agent_data.get("uncertainty", {}),
+                    "evidence": agent_data.get("evidence", []),
+                    "rationale": agent_data.get("rationale", ""),
+                    "calibration_hint": agent_data.get("calibration_hint", {})
+                }
+                agent_opinions.append(opinion)
+                print(f"[PARSE AGENT] {token_id}/{agent_name}: evidence_count={len(opinion['evidence'])}")
+        
+        total_evidence = sum(len(op["evidence"]) for op in agent_opinions)
+        opinions_by_token[token_id] = {
+            "agent_opinions": agent_opinions,
+            "evidence_count": total_evidence,
+            "source": "batch_per_agent_validated"
+        }
+        print(f"[PARSE BATCH] {token_id}: Validated {len(agent_opinions)} agents, evidence_total={total_evidence}")
+    
+    return opinions_by_token
+
 def _map_batch_results_to_agent_format(batch_results: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Map batch results to per-agent format for Decider
+    Map batch results to per-agent format for Decider (legacy compatibility)
     """
     mapped_results = {}
     
