@@ -124,7 +124,12 @@ def run_last10_all_detectors(items: List[Dict[str, Any]], model: str = "gpt-4o")
             hold_votes = max(1, int(hold_prob * 5))
             avoid_votes = max(1, int(avoid_prob * 5))
             
-            print(f"[PROBABILISTIC] Final consensus: {dominant_action} (confidence: {confidence:.2f})")
+            # Use NEW decider for proper ABSTAIN handling
+            from consensus.decider_fixed import decide_and_log
+            final_action, final_confidence, full_probs = decide_and_log(symbol, consensus_result)
+            
+            print(f"[PROBABILISTIC] {symbol}: Final consensus: {final_action} (confidence: {final_confidence:.3f})")
+            print(f"[PROBABILISTIC] {symbol}: Full action_probs: {full_probs}")
             
             results.append({
                 "s": symbol,
@@ -144,73 +149,53 @@ def run_last10_all_detectors(items: List[Dict[str, Any]], model: str = "gpt-4o")
 
 def _run_single_batch_consensus(batch_tokens_data: Dict[str, Any]) -> Dict[str, Any]:
     """
-    CRITICAL: Make SINGLE API call for ALL tokens using consensus system
+    CRITICAL: Make SINGLE API call for ALL tokens using NEW batch consensus system
     """
     if not batch_tokens_data:
         return {}
     
     print(f"[BATCH CONSENSUS] Making SINGLE API call for {len(batch_tokens_data)} tokens")
     
-    from llm.llm_client import chat_json
+    from consensus.batch_runner import run_batch_consensus
     
-    # Build comprehensive prompt for ALL tokens
-    batch_prompt_data = {
-        "analysis_type": "multi_token_batch_consensus",
-        "token_count": len(batch_tokens_data),
-        "tokens": []
-    }
-    
+    # Convert to new batch format
+    tokens_payload = []
     for symbol, token_data in batch_tokens_data.items():
-        batch_prompt_data["tokens"].append({
-            "symbol": symbol,
-            "detectors": token_data["detector_breakdown"],
-            "market": token_data["meta"],
+        tokens_payload.append({
+            "token_id": symbol,
+            "detector_breakdown": token_data["detector_breakdown"],
+            "meta": token_data["meta"],
             "trust": token_data["trust"],
             "history": token_data["history"],
-            "performance": token_data["perf"]
+            "perf": token_data["perf"]
         })
     
-    # Make SINGLE API call with batch consensus
+    # Use NEW batch consensus system with degeneracy prevention
     try:
-        response = chat_json(
-            model="gpt-4o",
-            system_prompt=f"""Jesteś Multi-Agent Consensus System dla {len(batch_tokens_data)} tokenów JEDNOCZEŚNIE.
-
-Wykonaj consensus analysis dla WSZYSTKICH tokenów w jednym przebieju:
-- Dla każdego tokena: 4-agent consensus (Analyzer, Reasoner, Voter, Debater)
-- Soft reasoning bez sztywnych progów
-- Probabilistic action_probs z uncertainty quantification
-
-Zwróć DOKŁADNIE ten JSON format:
-{{
-  "SYMBOL1": {{
-    "final_probs": {{"BUY": 0.3, "HOLD": 0.4, "AVOID": 0.2, "ABSTAIN": 0.1}},
-    "dominant_action": "HOLD",
-    "confidence": 0.4,
-    "top_evidence": ["evidence1", "evidence2"],
-    "rationale": "Brief multi-agent reasoning"
-  }},
-  "SYMBOL2": {{ ... }}
-}}
-
-Analizuj WSZYSTKIE tokeny równolegle w jednej odpowiedzi.""",
-            user_payload=batch_prompt_data,
-            agent_name="BatchConsensus",
-            token=f"BATCH_{len(batch_tokens_data)}",
-            temperature=0.2
-        )
+        batch_results = run_batch_consensus(tokens_payload)
         
-        print(f"[BATCH CONSENSUS] ✅ Single API call successful")
+        print(f"[BATCH CONSENSUS] ✅ NEW batch system completed successfully")
         
-        # Validate response structure
-        if isinstance(response, dict) and len(response) > 0:
-            return response
-        else:
-            print(f"[BATCH CONSENSUS WARNING] Invalid response structure, using fallback")
-            return _generate_fallback_results(batch_tokens_data)
+        # Convert to compatible format
+        compatible_results = {}
+        for symbol, result in batch_results.items():
+            action_probs = result.get("action_probs", {})
+            top_action = max(action_probs.items(), key=lambda x: x[1])[0] if action_probs else "HOLD"
+            confidence = max(action_probs.values()) if action_probs else 0.4
+            
+            compatible_results[symbol] = {
+                "final_probs": action_probs,
+                "dominant_action": top_action,
+                "confidence": confidence,
+                "top_evidence": [ev.get("name", "unknown") for ev in result.get("evidence", [])[:3]],
+                "rationale": result.get("rationale", "Batch consensus result"),
+                "uncertainty_global": result.get("uncertainty", {"epistemic": 0.5, "aleatoric": 0.3})
+            }
+        
+        return compatible_results
         
     except Exception as e:
-        print(f"[BATCH CONSENSUS ERROR] Single API call failed: {e}")
+        print(f"[BATCH CONSENSUS ERROR] NEW batch system failed: {e}")
         return _generate_fallback_results(batch_tokens_data)
 
 def _generate_fallback_results(batch_tokens_data: Dict[str, Any]) -> Dict[str, Any]:
