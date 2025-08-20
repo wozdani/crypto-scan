@@ -25,6 +25,8 @@ dependencies = [
     "pytesseract>=0.3.13",
     "scikit-learn>=1.7.0",
     "networkx>=3.5",
+    "pydantic>=2.11.5",
+    "tenacity>=9.1.2",
 ]
 
 [[tool.uv.index]]
