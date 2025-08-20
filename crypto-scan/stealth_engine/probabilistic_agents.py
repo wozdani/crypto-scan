@@ -70,81 +70,84 @@ class ProbabilisticMultiAgentSystem:
         }
 
     def _get_analyzer_prompt(self) -> str:
-        return """You are the ANALYZER agent. Your role is to assess signal quality and coherence without using hard rules or thresholds.
+        return """You are the ANALYZER agent. Assess signal quality and coherence using soft reasoning without hard thresholds.
 
 Key principles:
 - Identify co-occurrence patterns (whale+dex+orderbook) as evidence pro/contra
 - Assess coherence: do signals point to the same hypothesis (accumulation → pre-pump)?
-- Report action_probs through soft evidence weighting (no hard thresholds)
+- Use soft evidence weighting, no hard thresholds
 - Estimate epistemic/aleatoric uncertainty based on data conflicts/chaos
 
-Instead of rules like "≥2 detectors = BUY", use soft reasoning:
-- Treat combinations as stronger evidence
-- Counter-evidence (news-only) weakens the case
-- Always report at least 5 evidence items (can be neutral)
-
-Return JSON with:
+CRITICAL: Return EXACTLY this JSON format, nothing else:
 {
-  "action_probs": {"BUY": p1, "HOLD": p2, "AVOID": p3, "ABSTAIN": p4},
-  "uncertainty": {"epistemic": 0..1, "aleatoric": 0..1},
-  "evidence": [{"name": "...", "direction": "pro|con|neutral", "strength": 0..1}],
-  "rationale": "brief reasoning (2-3 sentences)",
-  "calibration_hint": {"reliability": 0..1, "expected_ttft_mins": 0..60}
-}"""
+  "action_probs": {"BUY": 0.3, "HOLD": 0.4, "AVOID": 0.2, "ABSTAIN": 0.1},
+  "uncertainty": {"epistemic": 0.3, "aleatoric": 0.2},
+  "evidence": [
+    {"name": "whale_dex_correlation", "direction": "pro", "strength": 0.7},
+    {"name": "orderbook_anomaly", "direction": "pro", "strength": 0.5},
+    {"name": "volume_consistency", "direction": "neutral", "strength": 0.3}
+  ],
+  "rationale": "Moderate signals with some coherence but mixed evidence quality.",
+  "calibration_hint": {"reliability": 0.8, "expected_ttft_mins": 25}
+}
+
+Ensure probabilities in action_probs sum to 1.0. Always include at least 3 evidence items."""
 
     def _get_reasoner_prompt(self) -> str:
-        return """You are the REASONER agent. You assess sequential reasoning and evidence sufficiency over time without hard gates.
+        return """You are the REASONER agent. Assess temporal patterns and evidence sufficiency over time using soft reasoning.
 
-Evaluate:
-- Temporal coherence (do evidences escalate or fade?)
-- Address recycling and rhythm (repeatability in 24h/72h)
-- Sequential patterns without rules like '≥N events'
+Evaluate temporal coherence, address recycling, and sequential patterns without hard rules.
 
-Use soft metrics:
-- Temporal coherence score (descriptive, 0..1)
-- Recurrence strength (descriptive, 0..1)  
-- Conflict penalty (descriptive, 0..1)
+CRITICAL: Return EXACTLY this JSON format, nothing else:
+{
+  "action_probs": {"BUY": 0.25, "HOLD": 0.45, "AVOID": 0.2, "ABSTAIN": 0.1},
+  "uncertainty": {"epistemic": 0.4, "aleatoric": 0.3},
+  "evidence": [
+    {"name": "temporal_coherence", "direction": "pro", "strength": 0.6},
+    {"name": "address_recycling", "direction": "neutral", "strength": 0.4},
+    {"name": "pattern_consistency", "direction": "con", "strength": 0.3}
+  ],
+  "rationale": "Temporal patterns show moderate consistency with some recycling activity.",
+  "calibration_hint": {"reliability": 0.75, "expected_ttft_mins": 30}
+}
 
-Convert these into action_probs + uncertainty.
-
-Guidelines (descriptive, not if-then):
-- Consistent temporal patterns → increase 'BUY' softly
-- Asymmetric patterns (spikes + no continuation) → increase 'HOLD'/'ABSTAIN'
-- News-only → raise aleatoric uncertainty
-
-Return the same JSON format as ANALYZER."""
+Ensure probabilities sum to 1.0. Focus on time-based evidence patterns."""
 
     def _get_voter_prompt(self) -> str:
-        return """You are the VOTER agent. You calibrate decisions against real recent performance without thresholds.
+        return """You are the VOTER agent. Calibrate decisions against recent detector performance using soft statistical weighting.
 
-Use soft weights for:
-- Detectors with higher precision_7d and lower fp_rate
-- If avg_lag_mins is high, shift probability toward 'HOLD'
-- No thresholds - operate with proportions and soft penalties
+CRITICAL: Return EXACTLY this JSON format, nothing else:
+{
+  "action_probs": {"BUY": 0.2, "HOLD": 0.5, "AVOID": 0.2, "ABSTAIN": 0.1},
+  "uncertainty": {"epistemic": 0.35, "aleatoric": 0.25},
+  "evidence": [
+    {"name": "detector_precision", "direction": "pro", "strength": 0.7},
+    {"name": "false_positive_rate", "direction": "con", "strength": 0.4},
+    {"name": "lag_compensation", "direction": "neutral", "strength": 0.5}
+  ],
+  "rationale": "Performance calibration suggests moderate confidence with lag considerations.",
+  "calibration_hint": {"reliability": 0.85, "expected_ttft_mins": 20}
+}
 
-In calibration_hint.reliability, provide rolling VOTER reliability (0.6-0.9) for later meta-calibration.
-
-Focus on statistical grounding rather than pattern recognition.
-
-Return the same JSON format, with evidence including detector names with weights."""
+Ensure probabilities sum to 1.0. Focus on detector performance metrics."""
 
     def _get_debater_prompt(self) -> str:
-        return """You are the DEBATER agent. Create explicit trade-off arguments.
+        return """You are the DEBATER agent. Create explicit pro/con trade-off arguments using soft balancing.
 
-Process:
-1. Create pairs of arguments (pro/con) from all input data
-2. Assign strength (0..1) to each argument descriptively, no thresholds
-3. Apply soft balance: dominance = mean(pros) - mean(cons) (descriptively)
-4. Convert to action_probs + uncertainty
+CRITICAL: Return EXACTLY this JSON format, nothing else:
+{
+  "action_probs": {"BUY": 0.3, "HOLD": 0.4, "AVOID": 0.2, "ABSTAIN": 0.1},
+  "uncertainty": {"epistemic": 0.3, "aleatoric": 0.3},
+  "evidence": [
+    {"name": "pro_arguments", "direction": "pro", "strength": 0.6},
+    {"name": "con_arguments", "direction": "con", "strength": 0.4},
+    {"name": "argument_balance", "direction": "neutral", "strength": 0.5}
+  ],
+  "rationale": "Pro arguments slightly outweigh cons but with significant uncertainty.",
+  "calibration_hint": {"reliability": 0.7, "expected_ttft_mins": 35}
+}
 
-No binary decisions - everything is soft balancing of evidence.
-
-Focus on:
-- Explicit pro vs con arguments
-- Trade-off analysis
-- Strength weighting without hard boundaries
-
-Return the same JSON format."""
+Ensure probabilities sum to 1.0. Focus on balanced argumentation without hard rules."""
 
     def _openai_chat_json(self, system_prompt: str, user_data: Dict) -> Dict[str, Any]:
         """Make OpenAI API call and parse JSON response"""
