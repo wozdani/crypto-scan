@@ -167,6 +167,8 @@ def repair_to_schema(model: str, repair_system: str, broken_payload: str,
         )
         
         raw = resp.choices[0].message.content
+        if not raw:
+            raise ValueError("Empty response from repair API")
         return json.loads(_extract_json(raw))
         
     except Exception as e:
