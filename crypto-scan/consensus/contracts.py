@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field, validator
 
 class Evidence(BaseModel):
     name: str
-    direction: str = Field(..., regex="^(pro|con|neutral)$")
+    direction: str = Field(..., pattern="^(pro|con|neutral)$")
     strength: float = Field(..., ge=0.0, le=1.0)
 
 class Uncertainty(BaseModel):
@@ -57,14 +57,14 @@ class TokenConsensus(BaseModel):
     Complete consensus result for a token with all agent opinions
     """
     token_id: str
-    agent_opinions: List[AgentOpinion] = Field(..., min_items=4, max_items=4)
-    evidence_count: int = Field(..., ge=12)  # 4 agents × 3 evidence minimum
+    agent_opinions: List[AgentOpinion] = Field(..., min_items=5, max_items=5)
+    evidence_count: int = Field(..., ge=15)  # 5 agents × 3 evidence minimum
     source: str
     
     @validator('agent_opinions')
-    def validate_four_agents(cls, v):
-        if len(v) != 4:
-            raise ValueError(f"Must have exactly 4 agent opinions, got {len(v)}")
+    def validate_five_agents(cls, v):
+        if len(v) != 5:
+            raise ValueError(f"Must have exactly 5 agent opinions, got {len(v)}")
         return v
     
     @validator('evidence_count')

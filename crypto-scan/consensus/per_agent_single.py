@@ -96,7 +96,16 @@ AGENT_SYSTEMS = {
              {"name":"alternative_explanation","direction":"pro","strength":0.4},
              {"name":"risk_assessment","direction":"con","strength":0.5}],
  "rationale":"Analiza kontra-argumentów i ryzyka",
- "calibration_hint":{"reliability":0.6,"expected_ttft_mins":22}}"""
+ "calibration_hint":{"reliability":0.6,"expected_ttft_mins":22}}""",
+ 
+    "Decider": """Zwróć WYŁĄCZNIE JSON dla Decider (ostateczna decyzja detektora):
+{"action_probs":{"BUY":0.05,"HOLD":0.85,"AVOID":0.05,"ABSTAIN":0.05},
+ "uncertainty":{"epistemic":0.15,"aleatoric":0.12},
+ "evidence":[{"name":"consensus_synthesis","direction":"neutral","strength":0.7},
+             {"name":"risk_reward_ratio","direction":"con","strength":0.4},
+             {"name":"market_context","direction":"neutral","strength":0.5}],
+ "rationale":"Synteza wszystkich opinii i finalna decyzja",
+ "calibration_hint":{"reliability":0.8,"expected_ttft_mins":30}}"""
 }
 
 REPAIRER_SYSTEM = """Napraw podany JSON tak aby był zgodny ze schematem. Zwróć tylko poprawiony JSON."""
@@ -140,7 +149,8 @@ def call_single_agent(model: str, role_name: str, compact_payload: Dict[str, Any
                 "Analyzer": {"BUY": 0.30, "HOLD": 0.45, "AVOID": 0.15, "ABSTAIN": 0.10},
                 "Reasoner": {"BUY": 0.20, "HOLD": 0.55, "AVOID": 0.15, "ABSTAIN": 0.10},
                 "Voter": {"BUY": 0.15, "HOLD": 0.60, "AVOID": 0.20, "ABSTAIN": 0.05},
-                "Debater": {"BUY": 0.10, "HOLD": 0.45, "AVOID": 0.35, "ABSTAIN": 0.10}
+                "Debater": {"BUY": 0.10, "HOLD": 0.45, "AVOID": 0.35, "ABSTAIN": 0.10},
+                "Decider": {"BUY": 0.05, "HOLD": 0.80, "AVOID": 0.10, "ABSTAIN": 0.05}
             }
             
             return {
@@ -157,12 +167,12 @@ def call_single_agent(model: str, role_name: str, compact_payload: Dict[str, Any
 
 def single_per_agent(model: str, token_id: str, compact_payload: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Process single token using 4 separate micro-calls - guarantees 'agents' section
+    Process single token using 5 separate micro-calls - guarantees 'agents' section
     """
-    print(f"[PER-AGENT MICRO] {token_id}: Starting 4 separate agent calls...")
+    print(f"[PER-AGENT MICRO] {token_id}: Starting 5 separate agent calls...")
     
     agents = {}
-    for role in ["Analyzer", "Reasoner", "Voter", "Debater"]:
+    for role in ["Analyzer", "Reasoner", "Voter", "Debater", "Decider"]:
         agent_result = call_single_agent(model, role, compact_payload)
         agents[role] = agent_result
         print(f"[PER-AGENT MICRO] {token_id}/{role}: ✅ Completed")
@@ -172,5 +182,5 @@ def single_per_agent(model: str, token_id: str, compact_payload: Dict[str, Any])
         "agents": agents
     }
     
-    print(f"[PER-AGENT MICRO] {token_id}: ✅ All 4 agents completed, guaranteed 'agents' section")
+    print(f"[PER-AGENT MICRO] {token_id}: ✅ All 5 agents completed, guaranteed 'agents' section")
     return result

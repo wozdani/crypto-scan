@@ -30,8 +30,8 @@ def decide_and_log(token_id: str, opinions: List[Union[AgentOpinion, Dict[str, A
     if not opinions:
         raise RuntimeError(f"[DECIDER] No agent opinions for {token_id} (mapping error)")
     
-    if len(opinions) != 4:
-        print(f"[DECIDER WARNING] {token_id}: Expected 4 agents, got {len(opinions)}")
+    if len(opinions) != 5:
+        print(f"[DECIDER WARNING] {token_id}: Expected 5 agents, got {len(opinions)}")
     
     # Aggregate using Bradley-Terry softmax with reliability weighting
     final_decision = aggregate(opinions)
@@ -169,8 +169,8 @@ def validate_consensus_decision(decision: Dict[str, Any], token_id: str) -> bool
         return False
     
     # Validate agent count
-    if decision["agent_count"] != 4:
-        print(f"[VALIDATION WARNING] {token_id}: Expected 4 agents, got {decision['agent_count']}")
+    if decision["agent_count"] != 5:
+        print(f"[VALIDATION WARNING] {token_id}: Expected 5 agents, got {decision['agent_count']}")
     
     # Validate evidence count
     if len(decision["evidence"]) < 3:
