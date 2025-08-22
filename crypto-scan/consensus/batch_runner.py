@@ -19,7 +19,7 @@ from llm.single_client import chat_json_schema_single
 MAX_BATCH_SIZE = 5           # Further reduced to 5 for timeout prevention
 TIMEOUT_MS = 20000          # 20s HTTP timeout per chunk
 MAX_CHUNK_RETRIES = 2       # Reduced from 3 to switch to micro faster
-MICRO_CONCURRENCY = 1       # Reduced concurrency to prevent timeouts
+MICRO_CONCURRENCY = 3       # Allow some concurrency but limited
 
 # Model configuration with environment variable control
 import os
