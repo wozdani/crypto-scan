@@ -9,12 +9,35 @@ from openai import OpenAI
 from .usage_logger import log_usage
 
 def _extract_json(text: str) -> str:
-    """Extract largest JSON block from text"""
+    """Extract and repair JSON from text"""
     if not text:
         return "{}"
+    
     import re
+    
+    # First try to find complete JSON block
     m = re.search(r"\{.*\}", text, flags=re.S)
-    return m.group(0) if m else text
+    if not m:
+        return text
+    
+    json_text = m.group(0)
+    
+    # Common JSON repair patterns for GPT-4o
+    repairs = [
+        # Fix trailing commas before closing braces/brackets
+        (r',(\s*[}\]])', r'\1'),
+        # Fix missing commas between object properties
+        (r'(\"\s*:\s*(?:\d+\.?\d*|\"[^\"]*\"|true|false|null|\{[^}]*\}|\[[^\]]*\]))\s*(\"\s*:)', r'\1,\2'),
+        # Fix missing quotes around property names
+        (r'([{\s,])([a-zA-Z_][a-zA-Z0-9_]*)\s*:', r'\1"\2":'),
+        # Fix double quotes inside string values
+        (r':\s*\"([^\"]*\"[^\"]*[^\"]*)\"\s*([,}])', r': "\1"\2'),
+    ]
+    
+    for pattern, replacement in repairs:
+        json_text = re.sub(pattern, replacement, json_text)
+    
+    return json_text
 
 def chat_json_schema_single(model: str, system_prompt: str, user_payload: Dict[str, Any], 
                           schema_name: str, schema: Dict[str, Any], 
@@ -53,7 +76,36 @@ def chat_json_schema_single(model: str, system_prompt: str, user_payload: Dict[s
         if not raw:
             raise ValueError("Empty response from OpenAI API")
         
-        return json.loads(_extract_json(raw))
+        # Extract and repair JSON
+        json_text = _extract_json(raw)
+        
+        try:
+            return json.loads(json_text)
+        except json.JSONDecodeError as e:
+            print(f"[SINGLE JSON ERROR] Parse failed: {e}")
+            print(f"[SINGLE JSON ERROR] Raw text (first 500 chars): {raw[:500]}")
+            print(f"[SINGLE JSON ERROR] Extracted JSON (first 500 chars): {json_text[:500]}")
+            
+            # Try additional repair attempts
+            repaired_attempts = [
+                # Remove everything after last valid closing brace
+                re.sub(r'^(.*\})[^}]*$', r'\1', json_text, flags=re.S),
+                # Try to complete truncated JSON
+                json_text + '}}' if not json_text.endswith('}') else json_text,
+                # Remove potential trailing text after JSON
+                re.split(r'\}\s*[^}]', json_text)[0] + '}' if '}' in json_text else json_text
+            ]
+            
+            for attempt in repaired_attempts:
+                try:
+                    result = json.loads(attempt)
+                    print(f"[SINGLE JSON REPAIR] ✅ Repair successful")
+                    return result
+                except json.JSONDecodeError:
+                    continue
+            
+            # If all repairs fail, raise the original error
+            raise e
         
     except Exception as e:
         print(f"[SINGLE SCHEMA ERROR] {e}")
