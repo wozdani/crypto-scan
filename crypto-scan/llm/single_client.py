@@ -4,6 +4,7 @@ Specialized client for single-token operations with schema repair
 """
 import json
 import os
+import re
 from typing import Dict, Any
 from openai import OpenAI
 from .usage_logger import log_usage
@@ -12,8 +13,6 @@ def _extract_json(text: str) -> str:
     """Extract and repair JSON from text"""
     if not text:
         return "{}"
-    
-    import re
     
     # First try to find complete JSON block
     m = re.search(r"\{.*\}", text, flags=re.S)

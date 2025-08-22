@@ -462,8 +462,8 @@ async def _retry_with_split(chunk: List[Dict[str, Any]], chunk_idx: int) -> Dict
     print(f"[BATCH SPLIT] Chunk {chunk_idx}: {len(chunk)} → {len(chunk_a)} + {len(chunk_b)}")
     
     # Process both halves
-    results_a = await _process_chunk_async(chunk_a, f"{chunk_idx}a")
-    results_b = await _process_chunk_async(chunk_b, f"{chunk_idx}b")
+    results_a = await _process_chunk_async(chunk_a, chunk_idx * 10 + 1)  # Convert to int
+    results_b = await _process_chunk_async(chunk_b, chunk_idx * 10 + 2)  # Convert to int
     
     # Combine results
     combined_results = {}
