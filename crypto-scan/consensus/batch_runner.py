@@ -16,9 +16,9 @@ from llm.llm_client import chat_json
 from llm.single_client import chat_json_schema_single
 
 # Load-aware configuration (Hotfix v3.1)
-MAX_BATCH_SIZE = 5           # Further reduced to 5 for timeout prevention
-TIMEOUT_MS = 20000          # 20s HTTP timeout per chunk
-MAX_CHUNK_RETRIES = 2       # Reduced from 3 to switch to micro faster
+MAX_BATCH_SIZE = 2           # Minimal batch size for maximum reliability
+TIMEOUT_MS = 10000          # 10s HTTP timeout per chunk  
+MAX_CHUNK_RETRIES = 0       # No retries, immediate micro-fallback
 MICRO_CONCURRENCY = 3       # Allow some concurrency but limited
 
 # Model configuration with environment variable control
@@ -394,7 +394,12 @@ def _process_chunks_sync(chunks: List[List[Dict[str, Any]]]) -> Dict[str, Any]:
     return results
 
 async def _process_chunk_async(chunk: List[Dict[str, Any]], chunk_idx: int) -> Dict[str, Any]:
-    """Process chunk asynchronously with timeout protection"""
+    """Process chunk asynchronously with aggressive timeout protection"""
+    
+    # If chunk size is 3 or more, immediately use micro-fallback for reliability
+    if len(chunk) >= 3:
+        print(f"[BATCH CHUNK {chunk_idx}] Large chunk ({len(chunk)} tokens) → immediate micro-fallback")
+        return await _micro_fallback_async(chunk)
     
     payload = {
         "tokens": chunk,
@@ -409,7 +414,7 @@ async def _process_chunk_async(chunk: List[Dict[str, Any]], chunk_idx: int) -> D
     prompt = get_prompt_for_context(len(chunk))
     estimated_tokens = estimate_prompt_tokens(prompt, payload)
     
-    print(f"[BATCH CHUNK {chunk_idx}] Estimated tokens: {estimated_tokens}, timeout: {TIMEOUT_MS/1000}s")
+    print(f"[BATCH CHUNK {chunk_idx}] Small chunk: {estimated_tokens} tokens, timeout: {TIMEOUT_MS/1000}s")
     
     try:
         # Use asyncio.wait_for for timeout control with proper response format
@@ -421,7 +426,7 @@ async def _process_chunk_async(chunk: List[Dict[str, Any]], chunk_idx: int) -> D
                 user_payload=payload,
                 agent_name="BatchConsensus",
                 token=f"CHUNK_{chunk_idx}_{len(chunk)}",
-                temperature=0.2,
+                temperature=0.1,  # Lower temperature for reliability
                 response_format={"type": "json_object"}  # Force pure JSON response
             ),
             timeout=TIMEOUT_MS / 1000.0

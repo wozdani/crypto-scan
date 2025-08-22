@@ -40,7 +40,7 @@ def _extract_json(text: str) -> str:
 
 def chat_json_schema_single(model: str, system_prompt: str, user_payload: Dict[str, Any], 
                           schema_name: str, schema: Dict[str, Any], 
-                          temperature: float = 0.2, max_tokens: int = 500) -> Dict[str, Any]:
+                          temperature: float = 0.1, max_tokens: int = 400) -> Dict[str, Any]:
     """
     Single-token optimized call with strict JSON schema
     """
@@ -102,15 +102,24 @@ def chat_json_schema_single(model: str, system_prompt: str, user_payload: Dict[s
             fixed_commas = re.sub(r',(\s*[}\]])', r'\1', fixed_commas)
             repaired_attempts.append(fixed_commas)
             
-            # Strategy 2: Try to find and fix the truncation point at char 1231/1232
-            if "char 123" in str(e):
-                # Common truncation around character 1232 - try completing the structure
-                truncated = json_text[:1230] if len(json_text) > 1230 else json_text
-                # Try to close any open structures
-                open_braces = truncated.count('{') - truncated.count('}')
-                open_brackets = truncated.count('[') - truncated.count(']')
-                completion = ']' * open_brackets + '}' * open_braces
-                repaired_attempts.append(truncated + completion)
+            # Strategy 2: Handle specific truncation patterns around char 1237-1238
+            if "char 123" in str(e) or e.pos and 1230 <= e.pos <= 1250:
+                # Find the last complete agent section before truncation
+                agents_pattern = r'"agents":\s*\{[^}]*"([^"]+)":\s*\{[^}]*\}[^}]*\}'
+                matches = list(re.finditer(agents_pattern, json_text))
+                if matches:
+                    # Take everything up to the last complete agent
+                    last_match_end = matches[-1].end()
+                    base_json = json_text[:last_match_end]
+                    # Complete the structure: close agents object and main object
+                    repaired_attempts.append(base_json + '}}')
+                else:
+                    # Fallback: truncate at safe point and close structures
+                    safe_point = min(1200, len(json_text))
+                    truncated = json_text[:safe_point]
+                    open_braces = truncated.count('{') - truncated.count('}')
+                    completion = '}' * max(0, open_braces)
+                    repaired_attempts.append(truncated + completion)
             
             # Strategy 3: Extract everything up to last complete structure
             last_brace = json_text.rfind('}')
@@ -167,6 +176,8 @@ def repair_to_schema(model: str, repair_system: str, broken_payload: str,
         )
         
         raw = resp.choices[0].message.content
+        if not raw:
+            raise ValueError("Empty response from repair API")
         return json.loads(_extract_json(raw))
         
     except Exception as e:
