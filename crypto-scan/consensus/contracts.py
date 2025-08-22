@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field, validator
 
 class Evidence(BaseModel):
     name: str
-    direction: str = Field(..., regex="^(pro|con|neutral)$")
+    direction: str = Field(..., pattern="^(pro|con|neutral)$")
     strength: float = Field(..., ge=0.0, le=1.0)
 
 class Uncertainty(BaseModel):
