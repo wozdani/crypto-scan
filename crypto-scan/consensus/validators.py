@@ -162,6 +162,16 @@ def validate_batch_quality(items: Dict[str, Any]) -> Dict[str, Any]:
     
     return diagnostics
 
+def ensure_agents_or_per_agent(items: dict) -> bool:
+    """
+    Check if response has proper 'agents' sections - if not, signal for per-agent micro
+    """
+    for tk, v in items.items():
+        if "agents" not in v:
+            print(f"[VALIDATION NOTICE] {tk} missing 'agents' → switch to per-agent micro")
+            return False
+    return True
+
 def ensure_agents_complete(items: Dict[str, Any]) -> None:
     """
     Ensure all tokens have complete 4-agent structure with proper evidence

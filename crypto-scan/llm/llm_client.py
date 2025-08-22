@@ -28,17 +28,23 @@ def chat_json(model: str, system_prompt: str, user_payload: Dict[str, Any],
         {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)}
     ]
     
-    # Handle response_format properly
+    # Handle response_format properly with strict JSON schema for GPT-4o
     rf = {"type": "json_object"} if response_format is None else response_format
     
+    # Add strict schema enforcement if available
+    if response_format and "json_schema" in response_format:
+        rf = response_format
+    
     timeout = int(os.getenv("OPENAI_TIMEOUT", "20"))
+    max_tokens = 650 if "batch" in agent_name.lower() else 500  # GPT-4o optimized limits
     
     resp = client.chat.completions.create(
         model=model,
         messages=msgs,
         temperature=temperature,
         response_format=rf,
-        timeout=timeout
+        timeout=timeout,
+        max_tokens=max_tokens
     )
     
     # Log usage for cost tracking

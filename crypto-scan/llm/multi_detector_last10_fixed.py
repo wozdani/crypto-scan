@@ -5,14 +5,19 @@ import json
 import time
 from typing import List, Dict, Any
 
-def run_last10_all_detectors(items: List[Dict[str, Any]], model: str = "gpt-4o") -> Dict[str, Any]:
+def run_last10_all_detectors(items: List[Dict[str, Any]], model: str = None) -> Dict[str, Any]:
     """
     TRUE BATCH Processing - SINGLE API call for ALL tokens with multi-agent consensus
     """
     if not items:
         return {"results": []}
     
-    print(f"[LAST10 TRUE BATCH] Processing {len(items)} items with SINGLE API call")
+    # Use environment-controlled model configuration
+    import os
+    if model is None:
+        model = os.getenv("OPENAI_CONSENSUS_MODEL", "gpt-4o")
+    
+    print(f"[LAST10 TRUE BATCH] Processing {len(items)} items with SINGLE API call (model: {model})")
     
     # Group items by token
     token_groups = {}
