@@ -1738,9 +1738,23 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             
                             print(f"[SIMPLE FALLBACK] {symbol}: avg_score={avg_score:.3f} → Decision={stored_final_decision}")
                             
+                            # CRITICAL FIX: Store detector DECISIONS not scores in votes
+                            # Each detector gets one vote based on its score threshold
+                            detector_votes = []
+                            for detector_name, data in detector_outputs.items():
+                                detector_score = data.get("score", 0.0)
+                                # Determine detector's vote based on score
+                                if detector_score >= 0.7:
+                                    detector_vote = "BUY"
+                                elif detector_score >= 0.4:
+                                    detector_vote = "HOLD"
+                                else:
+                                    detector_vote = "AVOID"
+                                detector_votes.append(f"{detector_name}: {detector_vote}")
+                            
                             stored_consensus_data = {
                                 "decision": stored_final_decision,
-                                "votes": [f"{k}: {v['score']:.3f}" for k, v in detector_outputs.items()],
+                                "votes": detector_votes,  # Now contains "DetectorName: BUY/HOLD/AVOID"
                                 "confidence": min(0.8, avg_score),
                                 "final_score": avg_score,
                                 "threshold_met": avg_score >= 0.7,
@@ -1777,9 +1791,22 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             
                             print(f"[CONSENSUS FALLBACK DECISION] {symbol}: avg_score={avg_score:.3f} → Decision={stored_final_decision}")
                             
+                            # CRITICAL FIX: Store detector DECISIONS not scores in votes
+                            detector_votes = []
+                            for detector_name, data in detector_outputs.items():
+                                detector_score = data.get("score", 0.0)
+                                # Determine detector's vote based on score
+                                if detector_score >= 0.7:
+                                    detector_vote = "BUY"
+                                elif detector_score >= 0.4:
+                                    detector_vote = "HOLD"
+                                else:
+                                    detector_vote = "AVOID"
+                                detector_votes.append(f"{detector_name}: {detector_vote}")
+                            
                             stored_consensus_data = {
                                 "decision": stored_final_decision,
-                                "votes": [f"{detector}: score={data.get('score', 0):.3f}" for detector, data in detector_outputs.items()],
+                                "votes": detector_votes,  # Now contains "DetectorName: BUY/HOLD/AVOID"
                                 "confidence": min(0.8, avg_score),
                                 "final_score": avg_score,
                                 "threshold_met": avg_score >= 0.7,

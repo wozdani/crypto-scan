@@ -231,42 +231,45 @@ class StealthLogger:
     
     def _check_consensus_alert(self, token: str, token_data: Dict) -> None:
         """
-        🔐 CRITICAL CONSENSUS VALIDATION - Sprawdź czy RZECZYWIŚCIE jest majority BUY consensus
+        🔐 CRITICAL CONSENSUS VALIDATION - Sprawdź czy RZECZYWIŚCIE jest co najmniej 2 detektory z BUY
         """
         # Używamy nowego pola consensus_decision zamiast consensus_vote
         consensus_decision = token_data.get('consensus_decision', 'UNKNOWN')
         consensus_votes = token_data.get('consensus_votes', [])
         consensus_confidence = token_data.get('consensus_confidence', 0.0)
         
-        # 🚨 CRITICAL FIX: Sprawdź RZECZYWISTE głosy a nie tylko decision field
+        # 🚨 CRITICAL FIX: Liczymy decyzje DETEKTORÓW, nie pojedynczych agentów!
         if isinstance(consensus_votes, list) and len(consensus_votes) > 0:
-            # Parse głosy z formatu "DetectorName: VOTE"
-            buy_count = 0
-            hold_count = 0
-            avoid_count = 0
+            # Parse głosy DETEKTORÓW z formatu "DetectorName: VOTE"
+            # Każdy detektor ma 1 głos (decyzja Decidera), NIE liczymy głosów 4 agentów!
+            detector_buy_count = 0
+            detector_names_buy = []
             
             for vote in consensus_votes:
-                if ": BUY" in str(vote):
-                    buy_count += 1
-                elif ": HOLD" in str(vote):
-                    hold_count += 1
-                elif ": AVOID" in str(vote):
-                    avoid_count += 1
+                vote_str = str(vote)
+                # Wyciągnij nazwę detektora i jego decyzję
+                if ":" in vote_str:
+                    detector_name, decision = vote_str.split(":", 1)
+                    detector_name = detector_name.strip()
+                    decision = decision.strip()
+                    
+                    # Liczymy tylko decyzje detektorów (Decider's vote), nie agentów!
+                    if decision == "BUY":
+                        detector_buy_count += 1
+                        detector_names_buy.append(detector_name)
             
-            total_votes = len(consensus_votes)
-            # 🔐 CRITICAL FIX: Require 2-vote difference (BUY vs HOLD+AVOID >= 2)
-            non_buy_votes = hold_count + avoid_count
-            vote_difference = buy_count - non_buy_votes
-            sufficient_consensus = vote_difference >= 2  # Minimum 2-vote difference required
+            total_detectors = len(consensus_votes)
             
-            print(f"[CONSENSUS VALIDATION] {token}: BUY={buy_count}, HOLD={hold_count}, AVOID={avoid_count}, total={total_votes}, vote_difference={vote_difference}")
-            print(f"[CONSENSUS VALIDATION] {token}: Vote difference: {buy_count} BUY - ({hold_count} HOLD + {avoid_count} AVOID) = {vote_difference} (need ≥2 for alert)")
+            print(f"[CONSENSUS VALIDATION] {token}: {detector_buy_count}/{total_detectors} detectors voted BUY")
+            if detector_names_buy:
+                print(f"[CONSENSUS VALIDATION] {token}: BUY detectors: {', '.join(detector_names_buy)}")
             
-            # Alert tylko jeśli jest różnica co najmniej 2 głosów BUY vs (HOLD+AVOID)
+            # Alert tylko jeśli co najmniej 2 DETEKTORY głosują BUY
+            sufficient_consensus = detector_buy_count >= 2
+            
             if not sufficient_consensus:
-                print(f"[CONSENSUS BLOCK] {token}: Insufficient vote difference ({vote_difference} < 2) - BLOCKING alert")
-                print(f"[CONSENSUS BLOCK] {token}: Need at least {non_buy_votes + 2} BUY votes vs ({hold_count} HOLD + {avoid_count} AVOID) votes")
-                print(f"[CONSENSUS BLOCK] {token}: Votes breakdown: BUY={buy_count}, HOLD={hold_count}, AVOID={avoid_count}")
+                print(f"[CONSENSUS BLOCK] {token}: Only {detector_buy_count} detector(s) voted BUY (need ≥2) - BLOCKING alert")
+                print(f"[CONSENSUS BLOCK] {token}: Minimum 2 detectors must vote BUY for alert")
                 return
         elif consensus_decision != 'BUY':
             print(f"[CONSENSUS BLOCK] {token}: Decision {consensus_decision} != BUY - BLOCKING alert")
