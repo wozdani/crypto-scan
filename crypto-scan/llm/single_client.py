@@ -40,11 +40,11 @@ def _extract_json(text: str) -> str:
 
 def chat_json_schema_single(model: str, system_prompt: str, user_payload: Dict[str, Any], 
                           schema_name: str, schema: Dict[str, Any], 
-                          temperature: float = 0.2, max_tokens: int = 420) -> Dict[str, Any]:
+                          temperature: float = 0.2, max_tokens: int = 500) -> Dict[str, Any]:
     """
     Single-token optimized call with strict JSON schema
     """
-    client = OpenAI(timeout=12.0)  # Shorter timeout for single calls
+    client = OpenAI(timeout=15.0)  # Slightly longer for complex JSON
     
     try:
         resp = client.chat.completions.create(
@@ -82,28 +82,58 @@ def chat_json_schema_single(model: str, system_prompt: str, user_payload: Dict[s
             return json.loads(json_text)
         except json.JSONDecodeError as e:
             print(f"[SINGLE JSON ERROR] Parse failed: {e}")
-            print(f"[SINGLE JSON ERROR] Raw text (first 500 chars): {raw[:500]}")
-            print(f"[SINGLE JSON ERROR] Extracted JSON (first 500 chars): {json_text[:500]}")
+            print(f"[SINGLE JSON ERROR] Error at position {e.pos}: {e.msg}")
             
-            # Try additional repair attempts
-            repaired_attempts = [
-                # Remove everything after last valid closing brace
-                re.sub(r'^(.*\})[^}]*$', r'\1', json_text, flags=re.S),
-                # Try to complete truncated JSON
-                json_text + '}}' if not json_text.endswith('}') else json_text,
-                # Remove potential trailing text after JSON
-                re.split(r'\}\s*[^}]', json_text)[0] + '}' if '}' in json_text else json_text
-            ]
+            # Show context around error position
+            if hasattr(e, 'pos') and e.pos:
+                start = max(0, e.pos - 50)
+                end = min(len(json_text), e.pos + 50)
+                context = json_text[start:end]
+                print(f"[SINGLE JSON ERROR] Context around error: ...{context}...")
             
-            for attempt in repaired_attempts:
+            # Advanced repair strategies
+            repaired_attempts = []
+            
+            # Strategy 1: Fix common comma delimiter issues
+            fixed_commas = json_text
+            # Fix missing commas between properties
+            fixed_commas = re.sub(r'(\"\s*:\s*(?:\d+\.?\d*|\"[^\"]*\"|true|false|null))\s+(\"[^\"]*\"\s*:)', r'\1,\2', fixed_commas)
+            # Fix trailing commas
+            fixed_commas = re.sub(r',(\s*[}\]])', r'\1', fixed_commas)
+            repaired_attempts.append(fixed_commas)
+            
+            # Strategy 2: Try to find and fix the truncation point at char 1231/1232
+            if "char 123" in str(e):
+                # Common truncation around character 1232 - try completing the structure
+                truncated = json_text[:1230] if len(json_text) > 1230 else json_text
+                # Try to close any open structures
+                open_braces = truncated.count('{') - truncated.count('}')
+                open_brackets = truncated.count('[') - truncated.count(']')
+                completion = ']' * open_brackets + '}' * open_braces
+                repaired_attempts.append(truncated + completion)
+            
+            # Strategy 3: Extract everything up to last complete structure
+            last_brace = json_text.rfind('}')
+            if last_brace > 0:
+                repaired_attempts.append(json_text[:last_brace + 1])
+            
+            # Strategy 4: Remove any content after the agents section ends
+            agents_end = json_text.find('}}')
+            if agents_end > 0:
+                repaired_attempts.append(json_text[:agents_end + 2])
+            
+            # Try each repair attempt
+            for i, attempt in enumerate(repaired_attempts):
                 try:
                     result = json.loads(attempt)
-                    print(f"[SINGLE JSON REPAIR] ✅ Repair successful")
+                    print(f"[SINGLE JSON REPAIR] ✅ Strategy {i+1} successful")
                     return result
-                except json.JSONDecodeError:
+                except json.JSONDecodeError as repair_error:
+                    print(f"[SINGLE JSON REPAIR] Strategy {i+1} failed: {repair_error}")
                     continue
             
             # If all repairs fail, raise the original error
+            print(f"[SINGLE JSON REPAIR] ❌ All repair strategies failed")
             raise e
         
     except Exception as e:
