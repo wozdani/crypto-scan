@@ -40,7 +40,7 @@ def _extract_json(text: str) -> str:
 
 def chat_json_schema_single(model: str, system_prompt: str, user_payload: Dict[str, Any], 
                           schema_name: str, schema: Dict[str, Any], 
-                          temperature: float = 0.05, max_tokens: int = 350) -> Dict[str, Any]:
+                          temperature: float = 0.05, max_tokens: int = 800) -> Dict[str, Any]:
     """
     Single-token optimized call with strict JSON schema
     """
@@ -206,7 +206,7 @@ def repair_to_schema(model: str, repair_system: str, broken_payload: str,
                     "strict": True
                 }
             },
-            max_tokens=300
+            max_tokens=800
         )
         
         raw = resp.choices[0].message.content

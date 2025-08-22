@@ -270,7 +270,7 @@ async def call_single(item: Dict[str, Any], tag: str) -> Dict[str, Any]:
             schema_name="SingleAgentsResponse",
             schema=SINGLE_SCHEMA,
             temperature=0.2,
-            max_tokens=180  # Further reduced from 200 to prevent truncation at char 489
+            max_tokens=800  # Increased for full response without truncation
         )
         
         # Coerce and validate

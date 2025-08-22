@@ -36,7 +36,7 @@ def chat_json(model: str, system_prompt: str, user_payload: Dict[str, Any],
         rf = response_format
     
     timeout = int(os.getenv("OPENAI_TIMEOUT", "20"))
-    max_tokens = 500 if "batch" in agent_name.lower() else 350  # Aggressive truncation prevention
+    max_tokens = 1000 if "batch" in agent_name.lower() else 800  # Increased for full response
     
     resp = client.chat.completions.create(
         model=model,
