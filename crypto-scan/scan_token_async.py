@@ -2231,6 +2231,10 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                                 else:
                                     print("[TOP10 BATCH INFO] ⚠️ No analysis items returned from LLM")
                                 
+                                # Clear the store after successful batch processing
+                                last10_store.clear()
+                                print("[TOP10 STORE] Store cleared after batch processing")
+                                
                                 # Reset counter after processing
                                 check_and_reset_counter(force_reset=True)
                                 print("[TOP10 RESET] Counter reset, ready for next 10 tokens")
