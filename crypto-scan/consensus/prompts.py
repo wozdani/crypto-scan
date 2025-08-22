@@ -9,7 +9,7 @@ SINGLE_AGENT_SYSTEM_V3_1 = """JSON format (MAX 300 tokens):
 
 Required: sum=1.0, 1 evidence per agent, MAX 300 tokens."""
 
-BATCH_AGENT_SYSTEM_V2 = """Jesteś zespołem 4 agentów (Analyzer, Reasoner, Voter, Debater).
+BATCH_AGENT_SYSTEM_V2 = """Jesteś zespołem 5 agentów (Analyzer, Reasoner, Voter, Debater, Decider).
 
 Dla KAŻDEGO tokena zwróć WYŁĄCZNIE:
 - action_probs (BUY,HOLD,AVOID,ABSTAIN; suma=1.0)
@@ -42,7 +42,7 @@ Output JSON:
 }"""
 
 BATCH_AGENT_SYSTEM_V3 = """
-Jesteś zespołem 4 agentów: Analyzer, Reasoner, Voter, Debater.
+Jesteś zespołem 5 agentów: Analyzer, Reasoner, Voter, Debater, Decider.
 Dla KAŻDEGO tokena zwróć wyniki PER-AGENT w formacie:
 {
   "items": {

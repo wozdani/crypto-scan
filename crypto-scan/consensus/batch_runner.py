@@ -34,7 +34,7 @@ class LLMTimeout(Exception):
     """Custom exception for LLM timeout situations"""
     pass
 
-BATCH_AGENT_SYSTEM = """Jesteś zespołem czterech agentów (Analyzer, Reasoner, Voter, Debater) i masz ocenić *wiele tokenów naraz*.
+BATCH_AGENT_SYSTEM = """Jesteś zespołem pięciu agentów (Analyzer, Reasoner, Voter, Debater, Decider) i masz ocenić *wiele tokenów naraz*.
 
 CRITICAL REQUIREMENTS:
 - Dla KAŻDEGO tokenu zwróć RÓŻNY rozkład action_probs (BUY/HOLD/AVOID/ABSTAIN; suma=1.0)
