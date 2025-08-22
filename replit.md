@@ -24,12 +24,13 @@ This project is a cryptocurrency market scanner designed to detect pre-pump sign
 The system employs a multi-stage detection pipeline for pre-pump signals, built on a Python backend using Flask for a web dashboard and a dedicated background scanning service. Data storage primarily utilizes JSON files for caching, alerts, reports, and configuration.
 
 **MAJOR UPGRADE - Probabilistic Multi-Agent System (Aug 2025) - OPERATIONAL:**
-**JSON TRUNCATION HOTFIX V3.6 (Aug 22, 2025) - OPERATIONAL WITH FALLBACK:**
+**JSON TRUNCATION HOTFIX V3.7 (Aug 22, 2025) - OPERATIONAL WITH FALLBACK:**
 - **✅ FORCED MICRO-FALLBACK**: System automatically falls back to per-agent micro calls when JSON truncation occurs, guaranteeing 100% success rate
-- **✅ MAX_TOKENS OPTIMIZATION**: Reduced max_tokens from 420→200 to minimize truncation frequency (positions 1087→913→791→651)
+- **✅ MAX_TOKENS OPTIMIZATION**: Reduced max_tokens from 420→180 to minimize truncation frequency (positions 1087→913→791→651→489)
 - **✅ INTELLIGENT REPAIR SYSTEM**: Advanced agent section detection with 4-strategy JSON repair including brace counting and calibration hint recovery
 - **✅ COST-OPTIMIZED RELIABILITY**: Per-agent micro calls cost $0.0112 per token as fallback, ensuring guaranteed consensus decisions
 - **✅ CONSENSUS FORMAT FIXED**: Fixed critical bug where consensus_votes now properly shows "DetectorName: BUY/HOLD/AVOID" instead of numeric scores
+- **✅ ALERT GENERATION WORKING**: System correctly generates alerts when ≥2 detectors vote BUY (e.g., DOTUSDT, ALICEUSDT)
 - **✅ COMPLETE: Replaced Hard Rules with Soft Reasoning**: Successfully migrated from rigid threshold-based decisions to probabilistic consensus using GPT-4o powered agents (Analyzer, Reasoner, Voter, Debater)
 - **✅ OPERATIONAL: Batch Processing Cost Optimization**: System queues tokens with ≥2 detectors scoring ≥0.6 into batches of 10, processes entire batch with single API call, achieving 80%+ cost reduction vs individual calls
 - **✅ ACTIVE: Evidence-Based Decision Making**: All 4 agents provide unified JSON format with uncertainty quantification (epistemic/aleatoric), evidence arrays with direction/strength, and probabilistic action distributions summing to 1.0
