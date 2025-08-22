@@ -40,7 +40,7 @@ def _extract_json(text: str) -> str:
 
 def chat_json_schema_single(model: str, system_prompt: str, user_payload: Dict[str, Any], 
                           schema_name: str, schema: Dict[str, Any], 
-                          temperature: float = 0.1, max_tokens: int = 400) -> Dict[str, Any]:
+                          temperature: float = 0.05, max_tokens: int = 350) -> Dict[str, Any]:
     """
     Single-token optimized call with strict JSON schema
     """
@@ -102,24 +102,58 @@ def chat_json_schema_single(model: str, system_prompt: str, user_payload: Dict[s
             fixed_commas = re.sub(r',(\s*[}\]])', r'\1', fixed_commas)
             repaired_attempts.append(fixed_commas)
             
-            # Strategy 2: Handle specific truncation patterns around char 1237-1238
-            if "char 123" in str(e) or e.pos and 1230 <= e.pos <= 1250:
-                # Find the last complete agent section before truncation
-                agents_pattern = r'"agents":\s*\{[^}]*"([^"]+)":\s*\{[^}]*\}[^}]*\}'
-                matches = list(re.finditer(agents_pattern, json_text))
-                if matches:
+            # Strategy 2: Handle truncation patterns around char 1170-1240
+            if "char 11" in str(e) or "char 12" in str(e) or (e.pos and 1160 <= e.pos <= 1250):
+                # Find the last complete agent and properly close structure
+                agent_sections = []
+                current_pos = 0
+                
+                # Find all complete agent sections
+                while True:
+                    agent_start = json_text.find('"Analyzer":', current_pos)
+                    if agent_start == -1:
+                        agent_start = json_text.find('"Reasoner":', current_pos)
+                    if agent_start == -1:
+                        agent_start = json_text.find('"Voter":', current_pos)
+                    if agent_start == -1:
+                        agent_start = json_text.find('"Debater":', current_pos)
+                    if agent_start == -1:
+                        break
+                    
+                    # Find the end of this agent section
+                    brace_count = 0
+                    agent_end = agent_start
+                    for i in range(agent_start, len(json_text)):
+                        if json_text[i] == '{':
+                            brace_count += 1
+                        elif json_text[i] == '}':
+                            brace_count -= 1
+                            if brace_count == 0:
+                                agent_end = i + 1
+                                break
+                    
+                    if brace_count == 0:  # Complete agent found
+                        agent_sections.append((agent_start, agent_end))
+                        current_pos = agent_end
+                    else:
+                        break
+                
+                if agent_sections:
                     # Take everything up to the last complete agent
-                    last_match_end = matches[-1].end()
-                    base_json = json_text[:last_match_end]
-                    # Complete the structure: close agents object and main object
+                    last_agent_end = agent_sections[-1][1]
+                    base_json = json_text[:last_agent_end]
+                    # Complete the structure
                     repaired_attempts.append(base_json + '}}')
-                else:
-                    # Fallback: truncate at safe point and close structures
-                    safe_point = min(1200, len(json_text))
-                    truncated = json_text[:safe_point]
-                    open_braces = truncated.count('{') - truncated.count('}')
-                    completion = '}' * max(0, open_braces)
-                    repaired_attempts.append(truncated + completion)
+                
+                # Alternative: find last complete calibration_hint
+                last_hint = json_text.rfind('"expected_ttft_mins":')
+                if last_hint > 0:
+                    # Find the closing of this hint
+                    end_search = json_text.find('}', last_hint)
+                    if end_search > 0:
+                        truncated = json_text[:end_search + 1]
+                        # Add proper closing for agent and main structure
+                        repaired_attempts.append(truncated + '}}}')
             
             # Strategy 3: Extract everything up to last complete structure
             last_brace = json_text.rfind('}')

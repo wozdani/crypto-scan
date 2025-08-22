@@ -396,10 +396,9 @@ def _process_chunks_sync(chunks: List[List[Dict[str, Any]]]) -> Dict[str, Any]:
 async def _process_chunk_async(chunk: List[Dict[str, Any]], chunk_idx: int) -> Dict[str, Any]:
     """Process chunk asynchronously with aggressive timeout protection"""
     
-    # If chunk size is 3 or more, immediately use micro-fallback for reliability
-    if len(chunk) >= 3:
-        print(f"[BATCH CHUNK {chunk_idx}] Large chunk ({len(chunk)} tokens) → immediate micro-fallback")
-        return await _micro_fallback_async(chunk)
+    # Force micro-fallback for ALL chunks due to persistent JSON truncation
+    print(f"[BATCH CHUNK {chunk_idx}] FORCED micro-fallback (JSON truncation prevention)")
+    return await _micro_fallback_async(chunk)
     
     payload = {
         "tokens": chunk,
