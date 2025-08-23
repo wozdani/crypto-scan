@@ -2088,6 +2088,7 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 print(f"[LAST10 DEBUG] {symbol} → stealth_result keys: {list(stealth_result.keys())}")
                 print(f"[LAST10 DEBUG] {symbol} → californium_score={debug_california}, diamond_score={debug_diamond}")
                 print(f"[LAST10 DEBUG] {symbol} → About to build active_detectors...")
+                print(f"[LAST10 DEBUG] {symbol} → stealth_score={stealth_score}")
                 
                 # StealthEngine (always active if stealth_score > 0)
                 if stealth_score > 0:
@@ -2134,9 +2135,9 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     }
                 
                 # Record in Last10Store ONLY if ≥2 active detectors AND they meet score thresholds
-                # Apply strict threshold validation - detectors must score ≥0.6 to qualify
+                # Apply threshold validation - detectors must score ≥0.5 to qualify (lowered from 0.6)
                 qualified_detectors = {}
-                threshold = 0.6
+                threshold = 0.5
                 
                 for det_name, det_data in active_detectors.items():
                     score_key = f"{det_name}_score" if f"{det_name}_score" in det_data else list(det_data.keys())[0]
