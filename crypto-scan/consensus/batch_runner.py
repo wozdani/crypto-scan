@@ -37,18 +37,18 @@ class LLMTimeout(Exception):
 BATCH_AGENT_SYSTEM = """Jesteś zespołem pięciu agentów (Analyzer, Reasoner, Voter, Debater, Decider) i masz ocenić *wiele tokenów naraz*.
 
 CRITICAL REQUIREMENTS:
-- Dla KAŻDEGO tokenu zwróć RÓŻNY rozkład action_probs (BUY/HOLD/AVOID/ABSTAIN; suma=1.0)
+- Dla KAŻDEGO tokenu zwróć RÓŻNY rozkład action_probs (BUY/NO_OP/SELL/ABSTAIN; suma=1.0)
 - NIE kopiuj identycznych rozkładów między różnymi tokenami
 - Każdy token ma własne, unikalne evidence i rationale
 - uncertainty (epistemic, aleatoric) musi być token-specyficzne
 - Minimum 3 evidence items per token z name/direction/strength
-- Jeśli dane są słabe → preferuj ABSTAIN zamiast domyślnego HOLD
+- Jeśli dane są słabe → preferuj ABSTAIN zamiast domyślnego NO_OP
 
 STRUCTURE: Zwróć JEDYNY obiekt JSON:
 {
   "items": {
     "TOKEN_ID_1": {
-      "action_probs": {"BUY":0.31,"HOLD":0.28,"AVOID":0.14,"ABSTAIN":0.27},
+      "action_probs": {"BUY":0.31,"NO_OP":0.28,"SELL":0.14,"ABSTAIN":0.27},
       "uncertainty": {"epistemic":0.33,"aleatoric":0.22},
       "evidence":[{"name":"whale_ping","direction":"pro","strength":0.62}, {"name":"volume_spike","direction":"neutral","strength":0.41}, {"name":"orderbook_thin","direction":"con","strength":0.38}],
       "rationale":"Token-specific multi-agent reasoning explaining WHY this specific combination of detectors and market conditions leads to this action distribution",
@@ -538,7 +538,7 @@ async def _emergency_single_processing(chunk: List[Dict[str, Any]]) -> Dict[str,
 def _generate_emergency_fallback(token: Dict[str, Any]) -> Dict[str, Any]:
     """Generate emergency fallback result for failed token processing"""
     return {
-        "action_probs": {"BUY": 0.15, "HOLD": 0.45, "AVOID": 0.25, "ABSTAIN": 0.15},
+        "action_probs": {"BUY": 0.15, "NO_OP": 0.45, "SELL": 0.25, "ABSTAIN": 0.15},
         "uncertainty": {"epistemic": 0.9, "aleatoric": 0.7},
         "evidence": [
             {"name": "processing_error", "direction": "con", "strength": 0.8},
@@ -638,7 +638,7 @@ def _fallback_per_token_processing(chunk: List[Dict[str, Any]], chunk_idx: int) 
 def _generate_fallback_result(token: Dict[str, Any]) -> Dict[str, Any]:
     """Generate minimal fallback result for failed token processing"""
     return {
-        "action_probs": {"BUY": 0.15, "HOLD": 0.45, "AVOID": 0.25, "ABSTAIN": 0.15},
+        "action_probs": {"BUY": 0.15, "NO_OP": 0.45, "SELL": 0.25, "ABSTAIN": 0.15},
         "uncertainty": {"epistemic": 0.8, "aleatoric": 0.6},
         "evidence": [
             {"name": "processing_error", "direction": "con", "strength": 0.8},
