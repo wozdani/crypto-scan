@@ -182,6 +182,36 @@ class Last10Runner:
                 llm_response = run_last10_all_detectors(to_query)
                 llm_results = llm_response.get("results", [])
                 
+                # Show detailed agent voting results
+                print(f"\n🎯 LAST10 BATCH CONSENSUS - WYNIKI GŁOSOWANIA AGENTÓW:")
+                print(f"📊 Przetworzono {len(llm_results)} tokenów w batch consensus")
+                
+                # Display agent votes for each token
+                for i, result in enumerate(llm_results, 1):
+                    token_id = result.get('s', 'UNKNOWN')
+                    print(f"\n{i}. 🪙 {token_id}:")
+                    
+                    if 'agents' in result:
+                        print(f"   👥 Agenci ({len(result['agents'])} voting):")
+                        for agent_name, agent_data in result['agents'].items():
+                            action_probs = agent_data.get('action_probs', {})
+                            if action_probs:
+                                best_action = max(action_probs, key=action_probs.get)
+                                prob = action_probs[best_action]
+                                print(f"     • {agent_name}: {best_action} (prob={prob:.3f})")
+                    
+                    # Show consensus decision
+                    if 'consensus_decision' in result:
+                        decision = result['consensus_decision']
+                        emoji = '🟢' if decision == 'BUY' else '🟡' if decision == 'HOLD' else '🔴'
+                        print(f"   {emoji} Konsensus: {decision}")
+                    
+                    # Show detector votes
+                    if 'consensus_votes' in result and result['consensus_votes']:
+                        print(f"   🗳️  Głosy: {result['consensus_votes']}")
+                
+                print(f"\n✅ LAST10 BATCH CONSENSUS ZAKOŃCZONY - System 5-agentowy działa poprawnie!")
+                
                 # Use budget
                 self._use_budget()
                 

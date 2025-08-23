@@ -27,7 +27,8 @@ def build_items_from_last10(min_trust: float = 0.0, min_liq_usd: float = 0.0) ->
     token_count = 0
     
     for symbol, token_data in last10_data.items():
-        ts = token_data["ts"]
+        # Handle both 'ts' and 'timestamp' field names
+        ts = token_data.get("ts", token_data.get("timestamp", 0))
         detectors = token_data["detectors"]
         feats = token_data["feats"]
         
