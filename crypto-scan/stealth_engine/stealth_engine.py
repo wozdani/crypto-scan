@@ -1714,7 +1714,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             
                             stored_consensus_data = {
                                 "decision": stored_final_decision,
-                                "votes": detector_votes,  # Now contains "DetectorName: BUY/HOLD/AVOID"
+                                "votes": [],  # NO VOTES - only LAST10 batch generates votes
                                 "confidence": min(0.8, avg_score),
                                 "final_score": avg_score,
                                 "threshold_met": avg_score >= 0.7,
@@ -1757,7 +1757,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             
                             stored_consensus_data = {
                                 "decision": stored_final_decision,
-                                "votes": detector_votes,  # Now contains "DetectorName: BUY/HOLD/AVOID"
+                                "votes": [],  # NO VOTES - only LAST10 batch generates votes
                                 "confidence": min(0.8, avg_score),
                                 "final_score": avg_score,
                                 "threshold_met": avg_score >= 0.7,
@@ -1777,7 +1777,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             
                             stored_consensus_data = {
                                 "decision": stored_final_decision,
-                                "votes": [f"StealthEngine: {score:.3f}"],
+                                "votes": [],  # NO VOTES - only LAST10 batch generates votes
                                 "confidence": min(0.6, score),
                                 "final_score": score,
                                 "threshold_met": score >= 0.7,
