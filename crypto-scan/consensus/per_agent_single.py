@@ -6,7 +6,7 @@ import json
 from typing import Dict, Any
 from llm.single_client import chat_json_schema_single, repair_to_schema
 
-# Individual agent schemas
+# Individual agent schemas (HOLD → NO_OP per consensus contract)
 AGENT_OP_SCHEMA = {
     "type": "object",
     "properties": {
@@ -14,13 +14,14 @@ AGENT_OP_SCHEMA = {
             "type": "object",
             "properties": {
                 "BUY": {"type": "number"},
-                "HOLD": {"type": "number"}, 
-                "AVOID": {"type": "number"},
+                "NO_OP": {"type": "number"},  # Changed from HOLD per contract
+                "SELL": {"type": "number"},   # Added SELL per contract
                 "ABSTAIN": {"type": "number"}
             },
-            "required": ["BUY", "HOLD", "AVOID", "ABSTAIN"],
+            "required": ["BUY", "NO_OP", "SELL", "ABSTAIN"],
             "additionalProperties": False
         },
+        "confidence": {"type": "number"},  # Added confidence for floor filtering
         "uncertainty": {
             "type": "object",
             "properties": {
@@ -56,56 +57,79 @@ AGENT_OP_SCHEMA = {
             "additionalProperties": False
         }
     },
-    "required": ["action_probs", "uncertainty", "evidence", "rationale", "calibration_hint"],
+    "required": ["action_probs", "confidence", "uncertainty", "evidence", "rationale", "calibration_hint"],
     "additionalProperties": False
 }
 
-# Ultra-short per-agent prompts
+# Import consensus contract for agent awareness
+from .consensus_contract import ConsensusContract
+
+# Ultra-short per-agent prompts with consensus awareness
 AGENT_SYSTEMS = {
-    "Analyzer": """Zwróć WYŁĄCZNIE JSON dla Analyzer:
-{"action_probs":{"BUY":0.25,"HOLD":0.45,"AVOID":0.20,"ABSTAIN":0.10},
- "uncertainty":{"epistemic":0.3,"aleatoric":0.2},
- "evidence":[{"name":"whale_ping","direction":"pro","strength":0.6},
-             {"name":"volume_spike","direction":"neutral","strength":0.4},
-             {"name":"liquidity","direction":"con","strength":0.3}],
- "rationale":"Analiza fundamentalna detektorów",
- "calibration_hint":{"reliability":0.65,"expected_ttft_mins":20}}""",
+    "Analyzer": f"""{ConsensusContract.to_prompt_context()}
+
+ROLA: Analyzer - sygnalizuj aktywność detektora zgodnie z kontraktem
+Zwróć WYŁĄCZNIE JSON:
+{{"action_probs":{{"BUY":0.15,"NO_OP":0.55,"SELL":0.10,"ABSTAIN":0.20}},
+ "confidence":0.68,
+ "uncertainty":{{"epistemic":0.3,"aleatoric":0.2}},
+ "evidence":[{{"name":"whale_ping","direction":"pro","strength":0.6}},
+             {{"name":"volume_spike","direction":"neutral","strength":0.4}},
+             {{"name":"liquidity","direction":"con","strength":0.3}}],
+ "rationale":"Edge niepewny, NO_OP zamiast forsowania BUY",
+ "calibration_hint":{{"reliability":0.65,"expected_ttft_mins":20}}}}""",
  
-    "Reasoner": """Zwróć WYŁĄCZNIE JSON dla Reasoner:
-{"action_probs":{"BUY":0.20,"HOLD":0.50,"AVOID":0.20,"ABSTAIN":0.10},
- "uncertainty":{"epistemic":0.25,"aleatoric":0.18},
- "evidence":[{"name":"temporal_coherence","direction":"pro","strength":0.7},
-             {"name":"address_recycling","direction":"con","strength":0.4},
-             {"name":"pattern_consistency","direction":"neutral","strength":0.5}],
- "rationale":"Analiza temporalna i koherencja",
- "calibration_hint":{"reliability":0.7,"expected_ttft_mins":18}}""",
+    "Reasoner": f"""{ConsensusContract.to_prompt_context()}
+
+ROLA: Reasoner - normalizuj wnioski do progów kontraktu
+Zwróć WYŁĄCZNIE JSON:
+{{"action_probs":{{"BUY":0.10,"NO_OP":0.60,"SELL":0.15,"ABSTAIN":0.15}},
+ "confidence":0.71,
+ "uncertainty":{{"epistemic":0.25,"aleatoric":0.18}},
+ "evidence":[{{"name":"temporal_coherence","direction":"pro","strength":0.7}},
+             {{"name":"address_recycling","direction":"con","strength":0.4}},
+             {{"name":"pattern_consistency","direction":"neutral","strength":0.5}}],
+ "rationale":"Koherencja średnia, edge<margin, NO_OP",
+ "calibration_hint":{{"reliability":0.7,"expected_ttft_mins":18}}}}""",
  
-    "Voter": """Zwróć WYŁĄCZNIE JSON dla Voter:
-{"action_probs":{"BUY":0.15,"HOLD":0.55,"AVOID":0.25,"ABSTAIN":0.05},
- "uncertainty":{"epistemic":0.28,"aleatoric":0.22},
- "evidence":[{"name":"performance_calibration","direction":"pro","strength":0.55},
-             {"name":"statistical_weight","direction":"con","strength":0.35},
-             {"name":"confidence_interval","direction":"neutral","strength":0.45}],
- "rationale":"Kalibracja wydajności i wagi statystyczne",
- "calibration_hint":{"reliability":0.75,"expected_ttft_mins":25}}""",
+    "Voter": f"""{ConsensusContract.to_prompt_context()}
+
+ROLA: Voter - głosuj zgodnie z kontraktem, nie forsuj BUY gdy margin słaby
+Zwróć WYŁĄCZNIE JSON:
+{{"action_probs":{{"BUY":0.08,"NO_OP":0.65,"SELL":0.12,"ABSTAIN":0.15}},
+ "confidence":0.74,
+ "uncertainty":{{"epistemic":0.28,"aleatoric":0.22}},
+ "evidence":[{{"name":"performance_calibration","direction":"pro","strength":0.55}},
+             {{"name":"statistical_weight","direction":"con","strength":0.35}},
+             {{"name":"confidence_interval","direction":"neutral","strength":0.45}}],
+ "rationale":"Kalibracja: edge<2, NO_OP zgodnie z kontraktem",
+ "calibration_hint":{{"reliability":0.75,"expected_ttft_mins":25}}}}""",
  
-    "Debater": """Zwróć WYŁĄCZNIE JSON dla Debater:
-{"action_probs":{"BUY":0.10,"HOLD":0.40,"AVOID":0.40,"ABSTAIN":0.10},
- "uncertainty":{"epistemic":0.32,"aleatoric":0.25},
- "evidence":[{"name":"counter_evidence","direction":"con","strength":0.6},
-             {"name":"alternative_explanation","direction":"pro","strength":0.4},
-             {"name":"risk_assessment","direction":"con","strength":0.5}],
- "rationale":"Analiza kontra-argumentów i ryzyka",
- "calibration_hint":{"reliability":0.6,"expected_ttft_mins":22}}""",
+    "Debater": f"""{ConsensusContract.to_prompt_context()}
+
+ROLA: Debater - eskalacja przy wąskim gap, dostarcz PRO/CON
+Zwróć WYŁĄCZNIE JSON:
+{{"action_probs":{{"BUY":0.05,"NO_OP":0.50,"SELL":0.35,"ABSTAIN":0.10}},
+ "confidence":0.66,
+ "uncertainty":{{"epistemic":0.32,"aleatoric":0.25}},
+ "evidence":[{{"name":"counter_evidence","direction":"con","strength":0.6}},
+             {{"name":"alternative_explanation","direction":"pro","strength":0.4}},
+             {{"name":"risk_assessment","direction":"con","strength":0.5}}],
+ "rationale":"Ryzyka przeważają, SELL>BUY ale gap<2",
+ "calibration_hint":{{"reliability":0.6,"expected_ttft_mins":22}}}}""",
  
-    "Decider": """Zwróć WYŁĄCZNIE JSON dla Decider (ostateczna decyzja detektora):
-{"action_probs":{"BUY":0.05,"HOLD":0.85,"AVOID":0.05,"ABSTAIN":0.05},
- "uncertainty":{"epistemic":0.15,"aleatoric":0.12},
- "evidence":[{"name":"consensus_synthesis","direction":"neutral","strength":0.7},
-             {"name":"risk_reward_ratio","direction":"con","strength":0.4},
-             {"name":"market_context","direction":"neutral","strength":0.5}],
- "rationale":"Synteza wszystkich opinii i finalna decyzja",
- "calibration_hint":{"reliability":0.8,"expected_ttft_mins":30}}"""
+    "Decider": f"""{ConsensusContract.to_prompt_context()}
+
+ROLA: Decider - finalna decyzja detektora z pełną świadomością margin ≥2
+Zwróć WYŁĄCZNIE JSON:
+{{"action_probs":{{"BUY":0.03,"NO_OP":0.87,"SELL":0.05,"ABSTAIN":0.05}},
+ "confidence":0.78,
+ "uncertainty":{{"epistemic":0.15,"aleatoric":0.12}},
+ "evidence":[{{"name":"consensus_synthesis","direction":"neutral","strength":0.7}},
+             {{"name":"risk_reward_ratio","direction":"con","strength":0.4}},
+             {{"name":"market_context","direction":"neutral","strength":0.5}}],
+ "rationale":"Synteza: brak margin≥2, NO_OP",
+ "calibration_hint":{{"reliability":0.8,"expected_ttft_mins":30}}}}"""
 }
 
 REPAIRER_SYSTEM = """Napraw podany JSON tak aby był zgodny ze schematem. Zwróć tylko poprawiony JSON."""

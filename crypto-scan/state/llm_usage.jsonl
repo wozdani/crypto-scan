@@ -901,3 +901,10 @@
 {"timestamp": "2025-08-23T07:35:10.509342Z", "agent_name": "SingleSchema", "token": "BOBAUSDT", "model": "gpt-4o", "prompt_tokens": 1350, "completion_tokens": 560, "total_tokens": 1910, "estimated_cost_usd": 0.008975}
 {"timestamp": "2025-08-23T07:35:15.115877Z", "agent_name": "SingleSchema", "token": "TESTTOKEN4", "model": "gpt-4o", "prompt_tokens": 1346, "completion_tokens": 559, "total_tokens": 1905, "estimated_cost_usd": 0.008955}
 {"timestamp": "2025-08-23T07:35:18.782822Z", "agent_name": "SingleSchema", "token": "CAKEUSDT", "model": "gpt-4o", "prompt_tokens": 1349, "completion_tokens": 560, "total_tokens": 1909, "estimated_cost_usd": 0.008973}
+{"timestamp": "2025-08-23T08:53:21.765981Z", "agent_name": "SingleSchema", "token": "HOTUSDT", "model": "gpt-4o", "prompt_tokens": 1348, "completion_tokens": 559, "total_tokens": 1907, "estimated_cost_usd": 0.00896}
+{"timestamp": "2025-08-23T08:53:24.418248Z", "agent_name": "SingleSchema", "token": "HOTUSDT", "model": "gpt-4o", "prompt_tokens": 800, "completion_tokens": 195, "total_tokens": 995, "estimated_cost_usd": 0.00395}
+{"timestamp": "2025-08-23T08:53:25.985948Z", "agent_name": "SingleSchema", "token": "HOTUSDT", "model": "gpt-4o", "prompt_tokens": 798, "completion_tokens": 150, "total_tokens": 948, "estimated_cost_usd": 0.003495}
+{"timestamp": "2025-08-23T08:53:28.348376Z", "agent_name": "SingleSchema", "token": "HOTUSDT", "model": "gpt-4o", "prompt_tokens": 806, "completion_tokens": 194, "total_tokens": 1000, "estimated_cost_usd": 0.003955}
+{"timestamp": "2025-08-23T08:53:29.943626Z", "agent_name": "SingleSchema", "token": "HOTUSDT", "model": "gpt-4o", "prompt_tokens": 802, "completion_tokens": 148, "total_tokens": 950, "estimated_cost_usd": 0.003485}
+{"timestamp": "2025-08-23T08:53:32.217897Z", "agent_name": "SingleSchema", "token": "HOTUSDT", "model": "gpt-4o", "prompt_tokens": 800, "completion_tokens": 182, "total_tokens": 982, "estimated_cost_usd": 0.00382}
+{"timestamp": "2025-08-23T08:53:35.507553Z", "agent_name": "SingleSchema", "token": "OPUSDT", "model": "gpt-4o", "prompt_tokens": 1347, "completion_tokens": 559, "total_tokens": 1906, "estimated_cost_usd": 0.008958}

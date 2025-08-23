@@ -13,11 +13,11 @@ def validate_batch_keys(expected: List[str], got: List[str]) -> None:
         raise ValueError(f"[BATCH VALIDATION] Key mismatch - Missing: {sorted(missing)}, Extra: {sorted(extra)}")
 
 def _action_vector(action_probs: Dict[str, float]) -> List[float]:
-    """Convert action_probs to vector for comparison"""
+    """Convert action_probs to vector for comparison (HOLD → NO_OP)"""
     return [
         action_probs.get("BUY", 0.0),
-        action_probs.get("HOLD", 0.0), 
-        action_probs.get("AVOID", 0.0),
+        action_probs.get("NO_OP", 0.0),  # Changed from HOLD
+        action_probs.get("SELL", 0.0),   # Added SELL
         action_probs.get("ABSTAIN", 0.0)
     ]
 
@@ -38,8 +38,8 @@ def detect_degenerate_distributions(items: Dict[str, Any], similarity_threshold:
     for token_id, token_data in items.items():
         action_probs = token_data.get("action_probs", {})
         
-        # Validate structure
-        required_actions = ["BUY", "HOLD", "AVOID", "ABSTAIN"]
+        # Validate structure (HOLD → NO_OP, added SELL)
+        required_actions = ["BUY", "NO_OP", "SELL", "ABSTAIN"]
         if not all(action in action_probs for action in required_actions):
             print(f"[DEGENERACY] {token_id}: Missing required actions in action_probs")
             return True
@@ -125,12 +125,12 @@ def validate_batch_quality(items: Dict[str, Any]) -> Dict[str, Any]:
     # Calculate quality metrics
     avg_entropy = calculate_batch_entropy(items)
     buy_variance = calculate_action_variance(items, "BUY")
-    hold_variance = calculate_action_variance(items, "HOLD")
+    no_op_variance = calculate_action_variance(items, "NO_OP")  # Changed from HOLD
     
     diagnostics["metrics"] = {
         "avg_entropy": avg_entropy,
         "buy_variance": buy_variance,
-        "hold_variance": hold_variance,
+        "no_op_variance": no_op_variance,  # Changed from hold_variance
         "token_count": len(items)
     }
     
@@ -141,24 +141,24 @@ def validate_batch_quality(items: Dict[str, Any]) -> Dict[str, Any]:
     if buy_variance < 1e-4:
         diagnostics["issues"].append(f"Low BUY variance ({buy_variance:.6f}) - potential degeneracy")
     
-    # Check HOLD dominance
-    hold_dominant_count = 0
+    # Check NO_OP dominance (changed from HOLD)
+    no_op_dominant_count = 0
     abstain_count = 0
     
     for token_data in items.values():
         action_probs = token_data.get("action_probs", {})
         top_action = max(action_probs.items(), key=lambda x: x[1])[0] if action_probs else "UNKNOWN"
         
-        if top_action == "HOLD":
-            hold_dominant_count += 1
+        if top_action == "NO_OP":  # Changed from HOLD
+            no_op_dominant_count += 1
         elif top_action == "ABSTAIN":
             abstain_count += 1
     
-    hold_ratio = hold_dominant_count / len(items)
-    if hold_ratio >= 0.9:
-        diagnostics["issues"].append(f"HOLD dominance ({hold_ratio:.1%}) - potential collapse")
+    no_op_ratio = no_op_dominant_count / len(items)
+    if no_op_ratio >= 0.9:
+        diagnostics["issues"].append(f"NO_OP dominance ({no_op_ratio:.1%}) - potential collapse")
     
-    print(f"[BATCH QUALITY] Entropy: {avg_entropy:.2f}, BUY variance: {buy_variance:.6f}, HOLD dominant: {hold_ratio:.1%}, ABSTAIN: {abstain_count}")
+    print(f"[BATCH QUALITY] Entropy: {avg_entropy:.2f}, BUY variance: {buy_variance:.6f}, NO_OP dominant: {no_op_ratio:.1%}, ABSTAIN: {abstain_count}")
     
     return diagnostics
 
@@ -192,9 +192,9 @@ def ensure_agents_complete(items: Dict[str, Any]) -> None:
             if not isinstance(evidence, list) or len(evidence) < 3:
                 raise ValueError(f"[BATCH VALIDATION] {token_id}/{agent_name} evidence too short: {len(evidence)}")
             
-            # Validate action_probs structure
+            # Validate action_probs structure (HOLD → NO_OP, added SELL)
             action_probs = agent_body.get("action_probs", {})
-            required_actions = {"BUY", "HOLD", "AVOID", "ABSTAIN"}
+            required_actions = {"BUY", "NO_OP", "SELL", "ABSTAIN"}
             if set(action_probs.keys()) != required_actions:
                 raise ValueError(f"[BATCH VALIDATION] {token_id}/{agent_name} action_probs keys invalid: {list(action_probs.keys())}")
             
