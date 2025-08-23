@@ -1392,43 +1392,12 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                     print(f"[STEALTH] Final signal for {symbol} → Score: {score:.3f}, Decision: {decision}, Active: {len(used_signals)} signals{partial_note}{diamond_note}{whaleclip_note}{californium_note}")
                     
                     # 🎓 EXPLORE MODE TRIGGER LOGIC - Set explore_mode_triggered for learning
-                    if score >= 1.0:  # Lower threshold for explore mode data collection
+                    # FIXED: Check ONLY overall stealth engine score >= 0.5 (not individual detectors)
+                    if score >= 0.5:  # Overall stealth engine score threshold
                         explore_mode_triggered = True
-                        explore_trigger_reason = f"score_threshold_{score:.3f}"
-                        explore_confidence = min(score / 4.0, 1.0)  # Confidence based on score
-                        print(f"[EXPLORE MODE TRIGGER] {symbol}: Score {score:.3f} >= 1.0 → explore_mode_triggered = True")
-                        
-                        # Add explore mode data to stealth result for scan_token_async.py
-                        stealth_result["explore_mode_triggered"] = True
-                        stealth_result["explore_trigger_reason"] = explore_trigger_reason
-                        stealth_result["explore_confidence"] = explore_confidence
-                        
-                    elif len(used_signals) >= 5:  # Alternative trigger: many signals
-                        explore_mode_triggered = True
-                        explore_trigger_reason = f"signal_count_{len(used_signals)}"
-                        explore_confidence = len(used_signals) / 10.0  # Confidence based on signal count
-                        print(f"[EXPLORE MODE TRIGGER] {symbol}: {len(used_signals)} signals >= 5 → explore_mode_triggered = True")
-                        
-                        # Add explore mode data to stealth result for scan_token_async.py
-                        stealth_result["explore_mode_triggered"] = True
-                        stealth_result["explore_trigger_reason"] = explore_trigger_reason
-                        stealth_result["explore_confidence"] = explore_confidence
-                        
-                    elif diamond_enabled and diamond_score >= 0.4:  # AI detector trigger
-                        explore_mode_triggered = True
-                        explore_trigger_reason = f"diamond_ai_{diamond_score:.3f}"
-                        explore_confidence = diamond_score
-                        print(f"[EXPLORE MODE TRIGGER] {symbol}: Diamond AI {diamond_score:.3f} >= 0.4 → explore_mode_triggered = True")
-                        
-                        # Add explore mode data to stealth result for scan_token_async.py
-                        stealth_result["explore_mode_triggered"] = True
-                        stealth_result["explore_trigger_reason"] = explore_trigger_reason
-                        stealth_result["explore_confidence"] = explore_confidence
-                    elif californium_enabled and californium_score >= 0.5:  # Californium trigger
-                        explore_mode_triggered = True
-                        explore_trigger_reason = f"californium_ai_{californium_score:.3f}"
-                        explore_confidence = californium_score
-                        print(f"[EXPLORE MODE TRIGGER] {symbol}: Californium AI {californium_score:.3f} >= 0.5 → explore_mode_triggered = True")
+                        explore_trigger_reason = f"stealth_score_{score:.3f}"
+                        explore_confidence = min(score / 2.0, 1.0)  # Confidence based on overall score
+                        print(f"[EXPLORE MODE TRIGGER] {symbol}: Overall stealth score {score:.3f} >= 0.5 → explore_mode_triggered = True")
                         
                         # Add explore mode data to stealth result for scan_token_async.py
                         stealth_result["explore_mode_triggered"] = True
@@ -1437,7 +1406,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         
                     else:
                         explore_mode_triggered = False
-                        print(f"[EXPLORE MODE SKIP] {symbol}: Score {score:.3f}, signals {len(used_signals)}, Diamond {diamond_score:.3f}, Californium {californium_score:.3f} - below thresholds")
+                        print(f"[EXPLORE MODE SKIP] {symbol}: Overall stealth score {score:.3f} < 0.5 - below threshold")
                         stealth_result["explore_mode_triggered"] = False
                     
                     # === GOLDEN KEY GNN DETECTOR INTEGRATION ===
