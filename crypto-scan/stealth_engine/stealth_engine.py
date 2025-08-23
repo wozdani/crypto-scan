@@ -1707,23 +1707,14 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             
                             print(f"[SIMPLE FALLBACK] {symbol}: avg_score={avg_score:.3f} → Decision={stored_final_decision}")
                             
-                            # CRITICAL FIX: Store detector DECISIONS not scores in votes
-                            # Each detector gets one vote based on its score threshold
-                            detector_votes = []
-                            for detector_name, data in detector_outputs.items():
-                                detector_score = data.get("score", 0.0)
-                                # Determine detector's vote based on score
-                                if detector_score >= 0.7:
-                                    detector_vote = "BUY"
-                                elif detector_score >= 0.4:
-                                    detector_vote = "HOLD"
-                                else:
-                                    detector_vote = "AVOID"
-                                detector_votes.append(f"{detector_name}: {detector_vote}")
+                            # NO FAKE VOTES: Don't simulate multi-agent votes when system doesn't run them
+                            # Store empty votes list to indicate this is NOT real multi-agent consensus
+                            detector_votes = []  # Empty - no real multi-agent votes available
+                            print(f"[NO FAKE VOTES] {symbol}: Multi-agent consensus disabled - no votes recorded")
                             
                             stored_consensus_data = {
                                 "decision": stored_final_decision,
-                                "votes": detector_votes,  # Now contains "DetectorName: BUY/HOLD/AVOID"
+                                "votes": [],  # NO VOTES - only LAST10 batch generates votes
                                 "confidence": min(0.8, avg_score),
                                 "final_score": avg_score,
                                 "threshold_met": avg_score >= 0.7,
@@ -1760,22 +1751,13 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             
                             print(f"[CONSENSUS FALLBACK DECISION] {symbol}: avg_score={avg_score:.3f} → Decision={stored_final_decision}")
                             
-                            # CRITICAL FIX: Store detector DECISIONS not scores in votes
-                            detector_votes = []
-                            for detector_name, data in detector_outputs.items():
-                                detector_score = data.get("score", 0.0)
-                                # Determine detector's vote based on score
-                                if detector_score >= 0.7:
-                                    detector_vote = "BUY"
-                                elif detector_score >= 0.4:
-                                    detector_vote = "HOLD"
-                                else:
-                                    detector_vote = "AVOID"
-                                detector_votes.append(f"{detector_name}: {detector_vote}")
+                            # NO FAKE VOTES: Don't simulate multi-agent votes in error fallback either  
+                            detector_votes = []  # Empty - no real multi-agent votes available
+                            print(f"[FALLBACK NO FAKE VOTES] {symbol}: Error fallback - no simulated votes recorded")
                             
                             stored_consensus_data = {
                                 "decision": stored_final_decision,
-                                "votes": detector_votes,  # Now contains "DetectorName: BUY/HOLD/AVOID"
+                                "votes": [],  # NO VOTES - only LAST10 batch generates votes
                                 "confidence": min(0.8, avg_score),
                                 "final_score": avg_score,
                                 "threshold_met": avg_score >= 0.7,
@@ -1795,7 +1777,7 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                             
                             stored_consensus_data = {
                                 "decision": stored_final_decision,
-                                "votes": [f"StealthEngine: {score:.3f}"],
+                                "votes": [],  # NO VOTES - only LAST10 batch generates votes
                                 "confidence": min(0.6, score),
                                 "final_score": score,
                                 "threshold_met": score >= 0.7,

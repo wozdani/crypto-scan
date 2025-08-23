@@ -131,9 +131,9 @@ class StealthLogger:
         if consensus_confidence is None:
             consensus_confidence = 0.0
         
-        # Policz głosy BUY/HOLD/AVOID
+        # Show consensus votes ONLY if they exist from LAST10 batch processing
         if isinstance(consensus_votes, list) and consensus_votes:
-            # Parse głosy z formatu "DetectorName: VOTE"
+            # Parse głosy z formatu "DetectorName: VOTE" - TYLKO z LAST10 batch
             buy_count = 0
             hold_count = 0
             avoid_count = 0
@@ -153,13 +153,6 @@ class StealthLogger:
                 print(f" - 📊 consensus_score:    {consensus_score:.3f} (confidence: {consensus_confidence:.2f})")
             else:
                 print(f" - 📊 consensus_score:    0.000 (confidence: {consensus_confidence:.2f})")
-        else:
-            print(f" - 🎯 consensus_decision: {consensus_decision} (no votes)")
-            # Handle None consensus_score
-            if consensus_score is not None:
-                print(f" - 📊 consensus_score:    {consensus_score:.3f}")
-            else:
-                print(f" - 📊 consensus_score:    0.000")
         
         # Feedback adjustment
         feedback_adjust = token_data.get('feedback_adjust', 0.0)

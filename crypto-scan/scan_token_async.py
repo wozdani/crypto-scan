@@ -1032,14 +1032,9 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                             
                             consensus_decision = "HOLD"  # Domyślnie HOLD przy błędzie
                     
-                    market_data["consensus_decision"] = consensus_decision
-                    market_data["consensus_score"] = stealth_result.get("consensus_score", stealth_score)
-                    market_data["consensus_confidence"] = stealth_result.get("consensus_confidence", 0.0)
-                    market_data["consensus_enabled"] = True
-                    market_data["consensus_votes"] = stealth_result.get("consensus_votes", [])
-                    
-                    print(f"[CONSENSUS INTEGRATION V2] {symbol}: Decision={consensus_decision}, Score={market_data['consensus_score']:.3f}, Confidence={market_data['consensus_confidence']:.3f}")
-                    print(f"[CONSENSUS VOTES] {symbol}: {market_data['consensus_votes']}")
+                    # NO INDIVIDUAL CONSENSUS - only basic market data
+                    market_data["consensus_enabled"] = False
+                    print(f"[NO INDIVIDUAL CONSENSUS] {symbol}: Waiting for LAST10 batch processing")
                     
                 elif stealth_result.get("consensus_result"):
                     consensus_result = stealth_result["consensus_result"]
@@ -1055,14 +1050,8 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                             "NO_ALERT": "AVOID"
                         }
                         consensus_decision_enum = str(consensus_result.decision).split('.')[-1]  # Get enum value
-                        consensus_decision = decision_mapping.get(consensus_decision_enum, "HOLD")
-                        
-                        # 🎯 PRE-CONFIRMATORY POKE - sprawdź czy WATCH to PRE_CONFIRMATORY_POKE
-                        if (consensus_decision == "HOLD" and 
-                            hasattr(consensus_result, 'reasoning') and 
-                            "PRE-CONFIRMATORY POKE" in str(consensus_result.reasoning)):
-                            consensus_decision = "PRE_CONFIRMATORY_POKE"
-                            print(f"[PRE-CONFIRMATORY POKE] {symbol}: Wykryto PRE-CONFIRMATORY POKE w consensus_result")
+                        # NO INDIVIDUAL CONSENSUS - skip decision mapping
+                        print(f"[NO INDIVIDUAL CONSENSUS] {symbol}: Skipping individual consensus decision mapping")
                         
                         # Obsługuj PRE_CONFIRMATORY_POKE
                         if consensus_decision == "PRE_CONFIRMATORY_POKE":
@@ -2088,6 +2077,7 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                 print(f"[LAST10 DEBUG] {symbol} → stealth_result keys: {list(stealth_result.keys())}")
                 print(f"[LAST10 DEBUG] {symbol} → californium_score={debug_california}, diamond_score={debug_diamond}")
                 print(f"[LAST10 DEBUG] {symbol} → About to build active_detectors...")
+                print(f"[LAST10 DEBUG] {symbol} → stealth_score={stealth_score}")
                 
                 # StealthEngine (always active if stealth_score > 0)
                 if stealth_score > 0:
