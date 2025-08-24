@@ -2123,22 +2123,23 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         "graph_score": stealth_result.get("diamond_graph", 0.0)
                     }
                 
-                # Record in Last10Store ONLY if ≥2 active detectors AND they meet score thresholds
-                # Apply strict threshold validation - detectors must score ≥0.6 to qualify
+                # Record in Last10Store ONLY if ≥4 active detectors AND they meet score thresholds
+                # Apply Multi-Agent threshold validation - detectors must score >0.5 to qualify for AI consensus
                 qualified_detectors = {}
-                threshold = 0.6
+                threshold = 0.5
                 
                 for det_name, det_data in active_detectors.items():
                     score_key = f"{det_name}_score" if f"{det_name}_score" in det_data else list(det_data.keys())[0]
                     score = det_data.get(score_key, 0.0)
                     
-                    if score >= threshold:
+                    if score > threshold:
                         qualified_detectors[det_name] = det_data
-                        print(f"[TOP10 QUALIFIED] {symbol}: {det_name}={score:.3f} ≥ {threshold} ✅")
+                        print(f"[MULTI-AGENT QUALIFIED] {symbol}: {det_name}={score:.3f} > {threshold} ✅")
                     else:
-                        print(f"[TOP10 REJECTED] {symbol}: {det_name}={score:.3f} < {threshold} ❌")
+                        print(f"[MULTI-AGENT REJECTED] {symbol}: {det_name}={score:.3f} ≤ {threshold} ❌")
                 
-                if len(qualified_detectors) >= 2:
+                # Require minimum 4 detectors for Multi-Agent consensus
+                if len(qualified_detectors) >= 4:
                     last10_store = get_last10_store()
                     
                     # Show detailed qualified detector info before recording
@@ -2148,9 +2149,9 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         score = det_data.get(score_key, 0.0)
                         detector_details.append(f"{det_name}={score:.3f}")
                     
-                    # Record only qualified detectors (those meeting threshold)
+                    # Record only qualified detectors (those meeting Multi-Agent threshold)
                     last10_store.record(symbol, current_time, qualified_detectors)
-                    print(f"[TOP10 THRESHOLD] {symbol}: Recorded {len(qualified_detectors)}/{len(active_detectors)} qualified detectors")
+                    print(f"[MULTI-AGENT THRESHOLD] {symbol}: Recorded {len(qualified_detectors)}/{len(active_detectors)} qualified detectors (≥4 required)")
                     new_store_size = len(last10_store.get_last10())
                     
                     # Show final decision for this token
@@ -2169,38 +2170,38 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         count = new_store_size  # Use store size directly
                         counter_val = increment_multi_detector_counter()  # Still track counter for debug
                         
-                        print(f"[TOP10] {count}/10 → {symbol} ({', '.join(detector_details)}) | Store: {new_store_size} tokens")
-                        print(f"[TOP10 SYNC] Store={count}, Counter={counter_val} → Using store size for trigger")
+                        print(f"[MULTI-AGENT] {count}/10 → {symbol} ({', '.join(detector_details)}) | Store: {new_store_size} tokens")
+                        print(f"[MULTI-AGENT SYNC] Store={count}, Counter={counter_val} → Using store size for trigger")
                         
-                        # Trigger analysis when store reaches capacity (10 tokens)
+                        # Trigger analysis when store reaches capacity (10 tokens with ≥4 detectors each)
                         if count >= 10:
-                                print(f"[TOP10 BATCH] ✅ 10/10 COMPLETE! Triggering AI analysis...")
+                                print(f"[MULTI-AGENT BATCH] ✅ 10/10 COMPLETE! Triggering 5-Agent AI consensus...")
                                 
                                 # Show all 10 tokens before analysis
                                 store_tokens = last10_store.get_last10()
-                                print("[TOP10 FINAL LIST] Analyzing these 10 tokens:")
+                                print("[MULTI-AGENT FINAL LIST] Analyzing these 10 tokens (each with ≥4 detectors):")
                                 for i, (token, data) in enumerate(store_tokens.items(), 1):
                                     detectors = data.get('detectors', [])
                                     print(f"  {i}/10: {token} → {len(detectors)} detectors: {', '.join(detectors)}")
                                 
                                 runner = get_last10_runner()
-                                # Multi-Agent Consensus for batch of 10 tokens - no filtering needed
+                                # Multi-Agent Consensus for batch of 10 high-quality tokens
                                 results = runner.run_one_call_for_last10(min_trust=0.0, min_liq_usd=0)
                                 
                                 if results:
-                                    print(f"[TOP10 BATCH SUCCESS] ✅ Single LLM call completed! Analyzed {len(results)} detector items")
+                                    print(f"[MULTI-AGENT BATCH SUCCESS] ✅ 5-Agent consensus completed! Analyzed {len(results)} detector items")
                                     # Aggregate results per token
                                     aggregated = runner.aggregate_per_token(results)
                                     buy_tokens = [token for token, data in aggregated.items() if data["decision"] == "BUY"]
                                     hold_tokens = [token for token, data in aggregated.items() if data["decision"] == "HOLD"]
                                     avoid_tokens = [token for token, data in aggregated.items() if data["decision"] == "AVOID"]
                                     
-                                    print(f"[TOP10 AI RESULTS] BUY: {len(buy_tokens)}, HOLD: {len(hold_tokens)}, AVOID: {len(avoid_tokens)}")
+                                    print(f"[MULTI-AGENT AI RESULTS] BUY: {len(buy_tokens)}, HOLD: {len(hold_tokens)}, AVOID: {len(avoid_tokens)}")
                                     if buy_tokens:
-                                        print(f"[TOP10 BUY SIGNALS] 🚀 {', '.join(buy_tokens)}")
+                                        print(f"[MULTI-AGENT BUY SIGNALS] 🚀 {', '.join(buy_tokens)}")
                                     
                                     # Show detailed agent voting results
-                                    print("[TOP10 AGENT VOTING] Detailed 5-agent consensus results:")
+                                    print("[MULTI-AGENT VOTING] Detailed 5-agent consensus results:")
                                     for result in results:
                                         if "agent_votes" in result:
                                             symbol = result["s"]
@@ -2232,11 +2233,11 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                     except Exception as batch_error:
                         print(f"[TOP10 BATCH ERROR] Failed batch processing: {batch_error}")
                 elif qualified_detectors:
-                    # Token has qualified detectors but <2, so skip for TOP10
+                    # Token has qualified detectors but <4, so skip for Multi-Agent consensus
                     detector_count = len(qualified_detectors)
                     detector_names = list(qualified_detectors.keys())
                     total_detectors = len(active_detectors)
-                    print(f"[TOP10 SKIP] {symbol} → Only {detector_count}/{total_detectors} qualified detector(s): {', '.join(detector_names)} (need ≥2 with score≥{threshold})")
+                    print(f"[MULTI-AGENT SKIP] {symbol} → Only {detector_count}/{total_detectors} qualified detector(s): {', '.join(detector_names)} (need ≥4 with score>{threshold})")
                 elif active_detectors:
                     # Token has detectors but none meet threshold
                     detector_details = []
@@ -2244,9 +2245,9 @@ async def scan_token_async(symbol: str, session: aiohttp.ClientSession, priority
                         score_key = f"{det_name}_score" if f"{det_name}_score" in det_data else list(det_data.keys())[0]
                         score = det_data.get(score_key, 0.0)
                         detector_details.append(f"{det_name}={score:.3f}")
-                    print(f"[TOP10 SKIP] {symbol} → All detectors below threshold: {', '.join(detector_details)} (need ≥{threshold})")
+                    print(f"[MULTI-AGENT SKIP] {symbol} → All detectors below threshold: {', '.join(detector_details)} (need >{threshold})")
                 else:
-                    print(f"[TOP10 SKIP] {symbol} → No active detectors to record")
+                    print(f"[MULTI-AGENT SKIP] {symbol} → No active detectors to record")
                     
             except Exception as last10_error:
                 print(f"[LAST10 ERROR] {symbol} → Failed to record: {last10_error}")
