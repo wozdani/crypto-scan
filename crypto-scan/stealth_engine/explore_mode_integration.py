@@ -326,8 +326,8 @@ def save_explore_mode_data(symbol: str, token_data: Dict, detector_results: Dict
         detector_names = list(detector_results.keys()) if detector_results else ["stealth"]
         detector_str = "_".join(detector_names[:2])  # Max 2 detectors in filename
         
-        # Enhanced Explore Mode filename format: TOKEN_YYYYMMDD_HHMMSS_DETECTORS.json
-        filename = f"{symbol}_{timestamp}_{detector_str}.json"
+        # Enhanced Explore Mode filename format: TOKEN_YYYYMMDD_HHMMSS_explore.json (compatible with pump verification)
+        filename = f"{symbol}_{timestamp}_explore.json"
         filepath = os.path.join(explore_dir, filename)
         
         # Prepare explore mode data

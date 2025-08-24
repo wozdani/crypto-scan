@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 Pump Verification Scheduler
-Scheduler dla weryfikacji pump po 6h i automatyczne nazewnictwo plików explore mode.
-Uruchamia się co 6h i sprawdza czy były pumpy.
+Scheduler dla weryfikacji pump po 2h i automatyczne nazewnictwo plików explore mode.
+Uruchamia się co 2h i sprawdza czy były pumpy.
 """
 
 import schedule
@@ -25,10 +25,10 @@ class PumpVerificationScheduler:
         
     def verification_job(self):
         """
-        Job function uruchamiany co 6h dla weryfikacji pump.
+        Job function uruchamiany co 2h dla weryfikacji pump.
         """
         try:
-            print(f"[PUMP SCHEDULER] Starting scheduled 6h verification at {datetime.now()}")
+            print(f"[PUMP SCHEDULER] Starting scheduled 2h verification at {datetime.now()}")
             
             # Uruchom cykl weryfikacji
             results = self.file_manager.run_verification_cycle()
@@ -62,7 +62,7 @@ class PumpVerificationScheduler:
             log_entry = {
                 "timestamp": datetime.now().isoformat(),
                 "results": results,
-                "job_type": "scheduled_6h_verification"
+                "job_type": "scheduled_2h_verification"
             }
             
             log_data["verification_history"].append(log_entry)
@@ -86,16 +86,14 @@ class PumpVerificationScheduler:
             print("[PUMP SCHEDULER] Already running")
             return
         
-        print("[PUMP SCHEDULER] Starting 6h pump verification scheduler...")
+        print("[PUMP SCHEDULER] Starting 2h pump verification scheduler...")
         
-        # Zaplanuj job co 6 godzin
-        schedule.every(6).hours.do(self.verification_job)
+        # Zaplanuj job co 2 godziny
+        schedule.every(2).hours.do(self.verification_job)
         
-        # Dodaj job o 2:00, 8:00, 14:00, 20:00 UTC
-        schedule.every().day.at("02:00").do(self.verification_job)
-        schedule.every().day.at("08:00").do(self.verification_job)
-        schedule.every().day.at("14:00").do(self.verification_job)
-        schedule.every().day.at("20:00").do(self.verification_job)
+        # Dodaj job o każdej parzystej godzinie UTC (co 2h)
+        for hour in ["00:00", "02:00", "04:00", "06:00", "08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00", "22:00"]:
+            schedule.every().day.at(hour).do(self.verification_job)
         
         self.running = True
         
@@ -104,7 +102,7 @@ class PumpVerificationScheduler:
         self.scheduler_thread.start()
         
         print("[PUMP SCHEDULER] Scheduler started successfully")
-        print("[PUMP SCHEDULER] Next verification times: 02:00, 08:00, 14:00, 20:00 UTC")
+        print("[PUMP SCHEDULER] Next verification times: Every 2 hours (00:00, 02:00, 04:00, 06:00, 08:00, 10:00, 12:00, 14:00, 16:00, 18:00, 20:00, 22:00 UTC)")
     
     def _run_scheduler(self):
         """
