@@ -482,18 +482,31 @@ class PumpVerificationSystem:
         return enhanced_features
     
     def calculate_agent_accuracy(self, entry: Dict, pump_result: Dict) -> Dict:
-        """Oblicz accuracy każdego agenta dla tego prediction"""
-        agents_decision = entry.get("agents_decision", "NO_CONSENSUS")
+        """Oblicz accuracy każdego agenta dla tego prediction z poprawioną logiką"""
+        agents_decision = entry.get("consensus_decision", entry.get("agents_decision", "NO_CONSENSUS"))
         should_have_voted = pump_result["agent_should_have_voted"]
+        pump_percentage = pump_result["pump_percentage"]
         
-        # Sprawdź czy agents decision był correct
-        correct_decision = agents_decision == should_have_voted
+        # Fixed accuracy logic - prawidłowa ocena decyzji
+        correct_decision = False
+        
+        if pump_percentage >= 2.0:  # Was a pump (≥2%)
+            # Should have been BUY - correct if agents voted BUY
+            correct_decision = agents_decision == "BUY"
+        elif pump_percentage >= -2.0:  # No significant movement
+            # Should have been HOLD - correct if agents voted HOLD or NO_CONSENSUS
+            correct_decision = agents_decision in ["HOLD", "NO_CONSENSUS"]
+        else:  # Was a dump (<-2%)
+            # Should have been AVOID - correct if agents voted AVOID or HOLD
+            correct_decision = agents_decision in ["AVOID", "HOLD"]
         
         return {
             "agents_voted": agents_decision,
             "should_have_voted": should_have_voted,
             "correct_decision": correct_decision,
-            "accuracy_score": 1.0 if correct_decision else 0.0
+            "accuracy_score": 1.0 if correct_decision else 0.0,
+            "pump_percentage": pump_percentage,
+            "accuracy_logic": f"pump={pump_percentage:.1f}%, agents={agents_decision}, correct={correct_decision}"
         }
     
     def update_agent_learning(self, verifications: List[Dict]):
