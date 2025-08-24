@@ -294,6 +294,10 @@ class PumpVerificationSystem:
                     # Update cooldown for this token
                     cooldowns[entry["symbol"]] = now.isoformat()
                     
+                    # Enhanced success/fail logging with percentage
+                    pump_percentage = pump_result['pump_percentage']
+                    result_status = "SUCCESS" if pump_percentage >= 2.0 else "FAIL"
+                    print(f"[EVALUATION RESULT] {entry['symbol']}: {pump_percentage:+.2f}% → {result_status}")
                     print(f"[PUMP VERIFICATION] {entry['symbol']}: {pump_result['pump_level']} ({pump_result['pump_percentage']:.1f}%)")
                 else:
                     print(f"[PUMP VERIFICATION] Could not get price data for {entry['symbol']}")
@@ -402,7 +406,11 @@ class PumpVerificationSystem:
             # Save updated results
             self.save_verification_results(all_results)
             
+            # CRITICAL FIX: Update agent learning with new verification results
+            self.update_agent_learning(new_verifications)
+            
             print(f"[PUMP VERIFICATION] === Completed cycle: {len(new_verifications)} new verifications ===")
+            print(f"[PUMP VERIFICATION] Agent learning updated with {len(new_verifications)} new results")
             return new_verifications
             
         except Exception as e:

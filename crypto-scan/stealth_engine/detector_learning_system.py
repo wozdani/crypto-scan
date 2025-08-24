@@ -186,14 +186,28 @@ class DetectorLearningSystem:
         os.makedirs(os.path.dirname(DECISION_HISTORY_FILE), exist_ok=True)
     
     def load_decision_history(self) -> List[DetectorDecision]:
-        """Załaduj historię decyzji detektorów"""
+        """Załaduj historię decyzji detektorów z fallback dla dużych plików"""
         if os.path.exists(DECISION_HISTORY_FILE):
             try:
+                # Check file size - if >10MB, truncate to last 1000 entries
+                file_size = os.path.getsize(DECISION_HISTORY_FILE)
+                if file_size > 10 * 1024 * 1024:  # 10MB
+                    print(f"[DETECTOR LEARNING] Large file detected ({file_size/1024/1024:.1f}MB) - creating backup and truncating")
+                    import shutil
+                    shutil.move(DECISION_HISTORY_FILE, DECISION_HISTORY_FILE + ".backup")
+                    return []  # Start fresh with empty history
+                
                 with open(DECISION_HISTORY_FILE, 'r') as f:
                     data = json.load(f)
                     return [DetectorDecision(**item) for item in data]
             except Exception as e:
                 print(f"[DETECTOR LEARNING] Error loading decision history: {e}")
+                print(f"[DETECTOR LEARNING] Creating backup and resetting to empty history")
+                try:
+                    import shutil
+                    shutil.move(DECISION_HISTORY_FILE, DECISION_HISTORY_FILE + ".corrupted_backup")
+                except:
+                    pass
         return []
     
     def load_explore_feedback(self) -> List[Dict]:
