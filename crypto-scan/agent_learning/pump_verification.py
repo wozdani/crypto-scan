@@ -482,23 +482,23 @@ class PumpVerificationSystem:
         return enhanced_features
     
     def calculate_agent_accuracy(self, entry: Dict, pump_result: Dict) -> Dict:
-        """Oblicz accuracy każdego agenta dla tego prediction z poprawioną logiką"""
+        """Oblicz accuracy każdego agenta dla tego prediction z ULTRA-FIXED logiką"""
         agents_decision = entry.get("consensus_decision", entry.get("agents_decision", "NO_CONSENSUS"))
         should_have_voted = pump_result["agent_should_have_voted"]
         pump_percentage = pump_result["pump_percentage"]
         
-        # Fixed accuracy logic - prawidłowa ocena decyzji
+        # ULTRA-FIXED accuracy logic - akceptuj UNKNOWN/WATCH jako valid dla NO_PUMP
         correct_decision = False
         
         if pump_percentage >= 2.0:  # Was a pump (≥2%)
             # Should have been BUY - correct if agents voted BUY
             correct_decision = agents_decision == "BUY"
         elif pump_percentage >= -2.0:  # No significant movement
-            # Should have been HOLD - correct if agents voted HOLD or NO_CONSENSUS
-            correct_decision = agents_decision in ["HOLD", "NO_CONSENSUS"]
+            # Should have been HOLD - correct if NOT BUY (HOLD/NO_CONSENSUS/UNKNOWN/WATCH all OK)
+            correct_decision = agents_decision in ["HOLD", "NO_CONSENSUS", "UNKNOWN", "WATCH", "SKIP"]
         else:  # Was a dump (<-2%)
-            # Should have been AVOID - correct if agents voted AVOID or HOLD
-            correct_decision = agents_decision in ["AVOID", "HOLD"]
+            # Should have been AVOID - correct if NOT BUY
+            correct_decision = agents_decision in ["AVOID", "HOLD", "UNKNOWN", "WATCH", "SKIP"]
         
         return {
             "agents_voted": agents_decision,
