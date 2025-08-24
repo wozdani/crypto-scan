@@ -1404,6 +1404,44 @@ def compute_stealth_score(token_data: Dict) -> Dict:
                         stealth_result["explore_trigger_reason"] = explore_trigger_reason
                         stealth_result["explore_confidence"] = explore_confidence
                         
+                        # 🔧 CRITICAL FIX: SAVE EXPLORE MODE DATA
+                        if ENHANCED_EXPLORE_AVAILABLE:
+                            try:
+                                # Collect all detector results for explore mode
+                                detector_results = {
+                                    "stealth_engine": {
+                                        "score": score,
+                                        "signals": active_signals,
+                                        "volume_24h": volume_24h
+                                    }
+                                }
+                                
+                                # Add AI detector results if available  
+                                if diamond_enabled and diamond_score > 0:
+                                    detector_results["diamond_whale"] = {
+                                        "score": diamond_score,
+                                        "confidence": 0.75
+                                    }
+                                
+                                if californium_enabled and californium_score > 0:
+                                    detector_results["californium_whale"] = {
+                                        "score": californium_score,
+                                        "confidence": 0.85
+                                    }
+                                
+                                # Add stealth_score to token_data for compatibility with save function
+                                token_data_with_score = token_data.copy()
+                                token_data_with_score["stealth_score"] = score
+                                
+                                # Save explore mode data
+                                success = save_explore_mode_data(symbol, token_data_with_score, detector_results)
+                                print(f"[EXPLORE SAVE] {symbol}: Explore data saved = {success}")
+                                
+                            except Exception as save_error:
+                                print(f"[EXPLORE SAVE ERROR] {symbol}: {save_error}")
+                        else:
+                            print(f"[EXPLORE SAVE] {symbol}: Enhanced explore system not available")
+                        
                     else:
                         explore_mode_triggered = False
                         print(f"[EXPLORE MODE SKIP] {symbol}: Overall stealth score {score:.3f} < 0.5 - below threshold")
