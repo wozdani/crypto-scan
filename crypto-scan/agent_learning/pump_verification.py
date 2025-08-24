@@ -31,8 +31,29 @@ class PumpVerificationSystem:
         """Załaduj explore mode data from all files"""
         explore_data = []
         try:
-            explore_dir = "/home/runner/workspace/crypto-scan/cache/explore_mode"
-            print(f"[PUMP VERIFICATION DEBUG] Looking for explore data in: {explore_dir}")
+            # FIXED: Use correct nested path where files are actually saved
+            explore_dir_nested = "/home/runner/workspace/crypto-scan/crypto-scan/cache/explore_mode"
+            explore_dir_simple = "/home/runner/workspace/crypto-scan/cache/explore_mode"
+            explore_dir_relative = "crypto-scan/cache/explore_mode"
+            
+            # Try all possible paths to find where files are actually stored
+            if os.path.exists(explore_dir_nested) and len(os.listdir(explore_dir_nested)) > 0:
+                working_dir = explore_dir_nested
+                print(f"[PUMP VERIFICATION DEBUG] Using nested path: {explore_dir_nested}")
+            elif os.path.exists(explore_dir_simple) and len(os.listdir(explore_dir_simple)) > 0:
+                working_dir = explore_dir_simple
+                print(f"[PUMP VERIFICATION DEBUG] Using simple path: {explore_dir_simple}")
+            elif os.path.exists(explore_dir_relative) and len(os.listdir(explore_dir_relative)) > 0:
+                working_dir = explore_dir_relative
+                print(f"[PUMP VERIFICATION DEBUG] Using relative path: {explore_dir_relative}")
+            else:
+                print(f"[PUMP VERIFICATION ERROR] No explore files found in any path:")
+                print(f"  - Nested: {explore_dir_nested} (exists: {os.path.exists(explore_dir_nested)})")
+                print(f"  - Simple: {explore_dir_simple} (exists: {os.path.exists(explore_dir_simple)})")
+                print(f"  - Relative: {explore_dir_relative} (exists: {os.path.exists(explore_dir_relative)})")
+                return []
+            
+            explore_dir = working_dir
             
             if not os.path.exists(explore_dir):
                 print(f"[PUMP VERIFICATION] No explore directory found: {explore_dir}")
