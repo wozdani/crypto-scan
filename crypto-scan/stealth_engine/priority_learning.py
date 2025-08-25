@@ -345,12 +345,17 @@ class PriorityLearningMemory:
                                     # Count as success if verified successful OR consensus decision SUCCESS
                                     is_success = False
                                     
-                                    # Check success_verification field first
-                                    success_verification = explore_data.get('success_verification', {})
-                                    if success_verification.get('result_success') == True or success_verification.get('result_success') == 'true' or success_verification.get('result_success') is True:
+                                    # Check NEW pump verification format first (outcome + verification_result)
+                                    if (explore_data.get('learning_ready') == True and 
+                                        explore_data.get('verification_result', {}).get('status') == 'complete' and
+                                        explore_data.get('outcome') == 'pump'):
                                         is_success = True
                                     
-                                    # Also check consensus_decision field
+                                    # Check success_verification field (legacy format)
+                                    elif explore_data.get('success_verification', {}).get('result_success') in [True, 'true']:
+                                        is_success = True
+                                    
+                                    # Also check consensus_decision field (legacy format)
                                     elif explore_data.get('consensus_decision') == 'SUCCESS':
                                         is_success = True
                                     
