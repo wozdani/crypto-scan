@@ -7,23 +7,27 @@ Wysyła alerty o ukrytych sygnałach pre-pump bez potrzeby wykresów
 import json
 import os
 import time
-from datetime import datetime
-from typing import List, Optional
+import hashlib
+from datetime import datetime, timedelta
+from typing import List, Optional, Tuple
 
 # Stealth Alert Configuration
 STEALTH_ALERT_CONFIG = {
     "telegram_enabled": True,
     "file_logging_enabled": True,
-    "cooldown_minutes": 15,  # Minimalna przerwa między alertami dla tego samego tokena
-    "alert_file": "data/stealth_alerts.json"
+    "cooldown_hours": 12,  # 12-godzinna blokada per token (nie per detektor)
+    "alert_file": "data/stealth_alerts.json",
+    "debug_log_file": "data/alert_debug.json"
 }
 
 class StealthAlertManager:
-    """Zarządzanie alertami Stealth Engine"""
+    """Zarządzanie alertami Stealth Engine z 12h blokowaniem per token i filtrem duplikatów"""
     
     def __init__(self):
         self.alert_history = {}
+        self.debug_history = []
         self.load_alert_history()
+        self.load_debug_history()
     
     def load_alert_history(self):
         """Załaduj historię alertów"""
@@ -35,6 +39,19 @@ class StealthAlertManager:
             print(f"[STEALTH ALERT] Error loading alert history: {e}")
             self.alert_history = {}
     
+    def load_debug_history(self):
+        """Załaduj historię debug alertów"""
+        try:
+            if os.path.exists(STEALTH_ALERT_CONFIG["debug_log_file"]):
+                with open(STEALTH_ALERT_CONFIG["debug_log_file"], 'r') as f:
+                    self.debug_history = json.load(f)
+                    # Ograniczaj do ostatnich 1000 wpisów
+                    if len(self.debug_history) > 1000:
+                        self.debug_history = self.debug_history[-1000:]
+        except Exception as e:
+            print(f"[STEALTH ALERT] Error loading debug history: {e}")
+            self.debug_history = []
+    
     def save_alert_history(self):
         """Zapisz historię alertów"""
         try:
@@ -44,77 +61,166 @@ class StealthAlertManager:
         except Exception as e:
             print(f"[STEALTH ALERT] Error saving alert history: {e}")
     
-    def should_send_alert(self, symbol: str, current_score: float = 0.0) -> bool:
+    def save_debug_history(self):
+        """Zapisz historię debug alertów"""
+        try:
+            os.makedirs(os.path.dirname(STEALTH_ALERT_CONFIG["debug_log_file"]), exist_ok=True)
+            with open(STEALTH_ALERT_CONFIG["debug_log_file"], 'w') as f:
+                json.dump(self.debug_history, f, indent=2)
+        except Exception as e:
+            print(f"[STEALTH ALERT] Error saving debug history: {e}")
+    
+    def generate_alert_hash(self, symbol: str, stealth_score: float, active_signals: List[str], consensus_decision: str = None) -> str:
         """
-        Sprawdź czy można wysłać alert (intelligent cooldown)
+        Generuj unikalny hash dla alertu do wykrywania duplikatów
         
         Args:
             symbol: Token symbol
-            current_score: Current stealth score (for dynamic cooldown calculation)
+            stealth_score: Score alertu
+            active_signals: Lista aktywnych sygnałów
+            consensus_decision: Decyzja consensus
+            
+        Returns:
+            Unikalny hash alertu
         """
-        if symbol not in self.alert_history:
-            return True
+        # Twórz string reprezentujący alert
+        alert_data = {
+            "symbol": symbol,
+            "score": round(stealth_score, 3),  # Zaokrąglij do 3 miejsc po przecinku
+            "signals": sorted(active_signals),  # Sortuj sygnały dla konsystencji
+            "consensus": consensus_decision or "NONE"
+        }
         
-        last_alert_time = self.alert_history[symbol].get("last_alert_time")
-        if not last_alert_time:
-            return True
-        
-        # Sprawdź intelligent cooldown
-        from datetime import datetime, timedelta
-        last_time = datetime.fromisoformat(last_alert_time)
-        last_score = self.alert_history[symbol].get("last_score", 0.0)
-        
-        # 🎯 INTELLIGENT COOLDOWN: Reduced cooldown for exceptional signals
-        base_cooldown = STEALTH_ALERT_CONFIG["cooldown_minutes"]
-        
-        # Dynamic cooldown based on current score strength
-        if current_score >= 1.5:
-            # Very high score: 5 minute cooldown only
-            cooldown_minutes = 5
-            print(f"[COOLDOWN SMART] {symbol} → High score {current_score:.3f}, reduced cooldown: {cooldown_minutes}min")
-        elif current_score >= 1.0:
-            # High score: 8 minute cooldown
-            cooldown_minutes = 8
-            print(f"[COOLDOWN SMART] {symbol} → Good score {current_score:.3f}, reduced cooldown: {cooldown_minutes}min")
-        elif current_score >= 0.8:
-            # Medium-high score: 10 minute cooldown
-            cooldown_minutes = 10
-            print(f"[COOLDOWN SMART] {symbol} → Medium score {current_score:.3f}, reduced cooldown: {cooldown_minutes}min")
-        else:
-            # Standard score: full cooldown
-            cooldown_minutes = base_cooldown
-            print(f"[COOLDOWN SMART] {symbol} → Standard score {current_score:.3f}, normal cooldown: {cooldown_minutes}min")
-        
-        # Check if score significantly improved from last alert
-        if current_score > last_score + 0.3:
-            # Score improved significantly: allow immediate re-alert
-            print(f"[COOLDOWN SMART] {symbol} → Score improved {last_score:.3f} → {current_score:.3f}, bypassing cooldown")
-            return True
-        
-        cooldown_period = timedelta(minutes=cooldown_minutes)
-        time_elapsed = datetime.now() - last_time
-        
-        if time_elapsed <= cooldown_period:
-            remaining_minutes = (cooldown_period - time_elapsed).total_seconds() / 60
-            print(f"[COOLDOWN SMART] {symbol} → Alert blocked, {remaining_minutes:.1f}min remaining (score: {current_score:.3f})")
-            return False
-        
-        return True
+        alert_string = json.dumps(alert_data, sort_keys=True)
+        return hashlib.md5(alert_string.encode()).hexdigest()
     
-    def record_alert(self, symbol: str, stealth_score: float, active_signals: List[str], alert_type: str):
-        """Zapisz wysłany alert"""
+    def log_rejection(self, symbol: str, reason: str, details: dict = None):
+        """
+        Loguj odrzucony token z powodem
+        
+        Args:
+            symbol: Token symbol
+            reason: Powód odrzucenia
+            details: Dodatkowe szczegóły
+        """
+        rejection_entry = {
+            "timestamp": datetime.now().isoformat(),
+            "symbol": symbol,
+            "reason": reason,
+            "details": details or {}
+        }
+        
+        self.debug_history.append(rejection_entry)
+        
+        # Ograniczaj historię do 1000 ostatnich wpisów
+        if len(self.debug_history) > 1000:
+            self.debug_history = self.debug_history[-1000:]
+        
+        # Zapisz od razu
+        self.save_debug_history()
+        
+        # Wyświetl w logach
+        print(f"[ALERT REJECTED] {symbol} → {reason}: {details}")
+    
+    def should_send_alert(self, symbol: str, current_score: float = 0.0, active_signals: List[str] = None, consensus_decision: str = None) -> Tuple[bool, str]:
+        """
+        Sprawdź czy można wysłać alert (12h blokada per token + anti-duplicate filter)
+        
+        Args:
+            symbol: Token symbol
+            current_score: Current stealth score
+            active_signals: Lista aktywnych sygnałów
+            consensus_decision: Decyzja consensus
+            
+        Returns:
+            (bool, str): (czy_wyslac, powod)
+        """
+        active_signals = active_signals or []
+        
+        # 1. Sprawdź 12-godzinną blokadę per token
+        if symbol in self.alert_history:
+            last_alert_time = self.alert_history[symbol].get("last_alert_time")
+            if last_alert_time:
+                last_time = datetime.fromisoformat(last_alert_time)
+                time_elapsed = datetime.now() - last_time
+                cooldown_period = timedelta(hours=STEALTH_ALERT_CONFIG["cooldown_hours"])
+                
+                if time_elapsed < cooldown_period:
+                    remaining_hours = (cooldown_period - time_elapsed).total_seconds() / 3600
+                    reason = f"12h token blocking - {remaining_hours:.1f}h remaining"
+                    self.log_rejection(symbol, reason, {
+                        "score": current_score,
+                        "last_alert_time": last_alert_time,
+                        "hours_since_last": time_elapsed.total_seconds() / 3600
+                    })
+                    return False, reason
+        
+        # 2. Sprawdź anti-duplicate filter
+        current_hash = self.generate_alert_hash(symbol, current_score, active_signals, consensus_decision)
+        
+        if symbol in self.alert_history:
+            last_hash = self.alert_history[symbol].get("alert_hash")
+            if last_hash == current_hash:
+                reason = "duplicate alert detected (identical hash)"
+                self.log_rejection(symbol, reason, {
+                    "score": current_score,
+                    "hash": current_hash,
+                    "signals": active_signals,
+                    "consensus": consensus_decision
+                })
+                return False, reason
+        
+        # 3. Sprawdź podstawowe kryteria (score, consensus)
+        if consensus_decision and consensus_decision != "BUY":
+            reason = f"consensus decision {consensus_decision} (not BUY)"
+            self.log_rejection(symbol, reason, {
+                "score": current_score,
+                "consensus": consensus_decision,
+                "signals_count": len(active_signals)
+            })
+            return False, reason
+        
+        if current_score < 0.5:  # Minimalne wymaganie score
+            reason = f"score too low ({current_score:.3f} < 0.5)"
+            self.log_rejection(symbol, reason, {
+                "score": current_score,
+                "consensus": consensus_decision,
+                "signals": active_signals
+            })
+            return False, reason
+        
+        if len(active_signals) == 0:
+            reason = "no active signals detected"
+            self.log_rejection(symbol, reason, {
+                "score": current_score,
+                "consensus": consensus_decision
+            })
+            return False, reason
+        
+        # Wszystkie sprawdzenia przeszły pomyślnie
+        print(f"[ALERT APPROVED] {symbol} → Score: {current_score:.3f}, Signals: {len(active_signals)}, Consensus: {consensus_decision}")
+        return True, "alert approved"
+    
+    def record_alert(self, symbol: str, stealth_score: float, active_signals: List[str], alert_type: str, consensus_decision: str = None):
+        """Zapisz wysłany alert z hashem dla anti-duplicate filter"""
         if symbol not in self.alert_history:
             self.alert_history[symbol] = {}
+        
+        # Generuj hash alertu dla przyszłego sprawdzania duplikatów
+        alert_hash = self.generate_alert_hash(symbol, stealth_score, active_signals, consensus_decision)
         
         self.alert_history[symbol].update({
             "last_alert_time": datetime.now().isoformat(),
             "last_score": stealth_score,
             "last_signals": active_signals,
             "last_alert_type": alert_type,
+            "last_consensus": consensus_decision,
+            "alert_hash": alert_hash,
             "total_alerts": self.alert_history[symbol].get("total_alerts", 0) + 1
         })
         
         self.save_alert_history()
+        print(f"[ALERT RECORDED] {symbol} → Hash: {alert_hash[:8]}..., Total alerts: {self.alert_history[symbol]['total_alerts']}")
 
 # Global alert manager
 stealth_alert_manager = StealthAlertManager()
@@ -146,9 +252,16 @@ async def send_stealth_alert(symbol: str, stealth_score: float, active_signals: 
         # Removed score >= 0.7 fallback logic - rely on hard gating checks
         return  # Block alert without proper hard gating criteria
     
-    # Sprawdź intelligent cooldown z current score
-    if not stealth_alert_manager.should_send_alert(symbol, stealth_score):
-        print(f"[STEALTH ALERT] {symbol} → Alert w cooldown, pomijam (score: {stealth_score:.3f})")
+    # Sprawdź 12h blokadę per token i anti-duplicate filter
+    should_send, rejection_reason = stealth_alert_manager.should_send_alert(
+        symbol=symbol, 
+        current_score=stealth_score, 
+        active_signals=active_signals, 
+        consensus_decision=consensus_decision
+    )
+    
+    if not should_send:
+        print(f"[STEALTH ALERT BLOCKED] {symbol} → {rejection_reason}")
         return
     
     processing_start = time.time()
@@ -208,7 +321,7 @@ async def send_stealth_alert(symbol: str, stealth_score: float, active_signals: 
             
             # Step 6: Zapisz alert w historii
             if success:
-                stealth_alert_manager.record_alert(symbol, stealth_score, active_signals, alert_type)
+                stealth_alert_manager.record_alert(symbol, stealth_score, active_signals, alert_type, consensus_decision)
                 print(f"[STEALTH ALERT] ✅ {symbol} → Complete alert with utilities sent successfully (Label: {stealth_label})")
                 
                 # STAGE 12 - REMOVED (satellite scanner not requested by user)
@@ -240,7 +353,7 @@ async def send_stealth_alert(symbol: str, stealth_score: float, active_signals: 
                 print(f"[STEALTH ALERT] {symbol} → File logging error: {e}")
         
         if success:
-            stealth_alert_manager.record_alert(symbol, stealth_score, active_signals, alert_type)
+            stealth_alert_manager.record_alert(symbol, stealth_score, active_signals, alert_type, consensus_decision)
             print(f"[STEALTH ALERT] ✅ {symbol} → Basic alert sent successfully")
             
             # STAGE 12 - REMOVED (satellite scanner not requested by user)
