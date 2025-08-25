@@ -60,17 +60,22 @@ class PumpVerificationSystem:
                 return []
             
             files = os.listdir(explore_dir)
-            # UPDATED: Accept both formats - legacy "_explore.json" and new "TOKEN_YYYYMMDD_HHMMSS_DETECTORS.json"
-            json_files = [f for f in files if f.endswith("_explore.json") or (f.endswith(".json") and "_" in f and any(c.isdigit() for c in f))]
-            print(f"[PUMP VERIFICATION DEBUG] Found {len(json_files)} explore files (legacy + enhanced format)")
+            # FIXED: Only load "_explore.json" files which have proper timestamp format
+            json_files = [f for f in files if f.endswith("_explore.json")]
+            print(f"[PUMP VERIFICATION DEBUG] Found {len(json_files)} explore files (proper format only)")
             
             for filename in json_files:
                 filepath = os.path.join(explore_dir, filename)
                 try:
                     with open(filepath, 'r') as f:
                         data = json.load(f)
-                        # Check timestamp
-                        timestamp = datetime.fromisoformat(data.get('timestamp', ''))
+                        # Check timestamp - skip files without proper timestamp
+                        timestamp_str = data.get('timestamp', '')
+                        if not timestamp_str:
+                            print(f"[PUMP VERIFICATION SKIP] {filename}: No timestamp field")
+                            continue
+                            
+                        timestamp = datetime.fromisoformat(timestamp_str)
                         hours_ago = (datetime.now() - timestamp).total_seconds() / 3600
                         print(f"[PUMP VERIFICATION DEBUG] {filename}: {hours_ago:.1f} hours ago")
                         explore_data.append(data)

@@ -419,23 +419,27 @@ class ExploreFileManager:
         ready_files = []
         now = datetime.now()
         
-        # Znajdź pliki w statusie pending_verification
-        pattern = os.path.join(self.explore_dir, "*.json")
+        # Znajdź pliki w statusie pending_verification - tylko explore files
+        pattern = os.path.join(self.explore_dir, "*_explore.json")
         for filepath in glob.glob(pattern):
             try:
                 with open(filepath, 'r') as f:
                     data = json.load(f)
                 
-                # Sprawdź czy plik jest gotowy do weryfikacji
-                if data.get("status") == "pending_verification":
-                    verification_due = datetime.fromisoformat(data.get("verification_due", ""))
-                    
-                    if now >= verification_due:
+                # Sprawdź czy plik jest gotowy do weryfikacji (starszy niż 6h)
+                timestamp = datetime.fromisoformat(data.get("timestamp", ""))
+                hours_since_creation = (now - timestamp).total_seconds() / 3600
+                
+                # Plik jest gotowy jeśli ma więcej niż 6h i nie został jeszcze zweryfikowany
+                if hours_since_creation >= self.verification_hours:
+                    # Sprawdź czy nie został już zweryfikowany (nie ma "_pump", "_dump", "_no_move" w nazwie)
+                    filename = os.path.basename(filepath)
+                    if not any(outcome in filename for outcome in ["_pump", "_dump", "_no_move"]):
                         ready_files.append({
                             "filepath": filepath,
-                            "filename": os.path.basename(filepath),
+                            "filename": filename,
                             "data": data,
-                            "hours_since_creation": (now - datetime.fromisoformat(data["timestamp"])).total_seconds() / 3600
+                            "hours_since_creation": hours_since_creation
                         })
                         
             except Exception as e:
@@ -513,7 +517,14 @@ class ExploreFileManager:
             initial_price = data.get("initial_price", 0.0)
             initial_time = datetime.fromisoformat(data["timestamp"])
             
-            # Sprawdź zmianę ceny
+            # Sprawdź zmianę ceny - używaj prawdziwej ceny z danych tokena
+            if "token_data" in data and "price" in data["token_data"]:
+                initial_price = data["token_data"]["price"]
+            elif "price" in data:
+                initial_price = data["price"]
+            else:
+                initial_price = 1.0  # fallback
+                
             price_result = self.get_price_change_6h(symbol, initial_price, initial_time)
             
             if price_result["status"] != "complete":
@@ -575,7 +586,7 @@ class ExploreFileManager:
         kept_count = 0
         error_count = 0
         
-        pattern = os.path.join(self.explore_dir, "*.json")
+        pattern = os.path.join(self.explore_dir, "*_explore.json")
         for filepath in glob.glob(pattern):
             try:
                 with open(filepath, 'r') as f:
